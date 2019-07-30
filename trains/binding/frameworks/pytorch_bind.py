@@ -3,13 +3,14 @@ import sys
 import six
 from pathlib2 import Path
 
+from trains.binding.frameworks.base_bind import PatchBaseModelIO
 from ..frameworks import _patched_call, WeightsFileHandler, _Empty
 from ..import_bind import PostImportHookPatching
 from ...config import running_remotely
 from ...model import Framework
 
 
-class PatchPyTorchModelIO(object):
+class PatchPyTorchModelIO(PatchBaseModelIO):
     __main_task = None
     __patched = None
 
