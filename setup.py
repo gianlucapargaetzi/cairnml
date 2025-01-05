@@ -1,5 +1,5 @@
 """
-ClearML - Artificial Intelligence Version Control
+ClearML Inc.
 CLEARML-AGENT DevOps for machine/deep learning
 https://github.com/allegroai/clearml-agent
 """
@@ -40,8 +40,8 @@ setup(
     long_description_content_type='text/markdown',
     # The project's main homepage.
     url='https://github.com/allegroai/clearml-agent',
-    author='Allegroai',
-    author_email='clearml@allegro.ai',
+    author='clearml',
+    author_email='clearml@clearml.ai',
     license='Apache License 2.0',
     classifiers=[
         'Development Status :: 5 - Production/Stable',
@@ -56,7 +56,6 @@ setup(
         'Topic :: Scientific/Engineering :: Image Recognition',
         'Topic :: System :: Logging',
         'Topic :: System :: Monitoring',
-        'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
