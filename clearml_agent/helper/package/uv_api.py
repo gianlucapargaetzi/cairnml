@@ -75,7 +75,8 @@ class UvConfig:
 
         if self.session and self.session.config and args and args[0] == "sync":
             # Set the cache dir to venvs dir
-            if (cache_dir := self.session.config.get("agent.venvs_dir", None)) is not None:
+            cache_dir = self.session.config.get("agent.venvs_dir", None)
+            if cache_dir is not None:
                 os.environ["UV_CACHE_DIR"] = cache_dir
             
             extra_args = self.session.config.get(
