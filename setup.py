@@ -1,7 +1,7 @@
 """
 ClearML Inc.
 CLEARML-AGENT DevOps for machine/deep learning
-https://github.com/allegroai/clearml-agent
+https://github.com/clearml/clearml-agent
 """
 
 import os.path
@@ -39,7 +39,7 @@ setup(
     long_description=long_description,
     long_description_content_type='text/markdown',
     # The project's main homepage.
-    url='https://github.com/allegroai/clearml-agent',
+    url='https://github.com/clearml/clearml-agent',
     author='clearml',
     author_email='clearml@clearml.ai',
     license='Apache License 2.0',
