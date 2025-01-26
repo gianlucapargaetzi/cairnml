@@ -22,6 +22,9 @@ class PackageManager(object):
     ABC for classes providing python package management interface
     """
 
+    # # mark that we have support for the `--break-system-packages` flag that allows system install
+    # pip_support_break_system_packages_flag = False
+
     _selected_manager = None
     _cwd = None
     _pip_version = None
@@ -126,6 +129,17 @@ class PackageManager(object):
             # check if we need to list the pip version as well
             if pip_pkg:
                 MarkerRequirement.pip_new_version = SimpleVersion.compare_versions(pip_pkg.version, ">=", "20")
+
+                # # actually this is not really needed,
+                # # because if we got here, someone already installed us system-wide
+                # # but we will store it anyhow, for future use
+                # self.pip_support_break_system_packages_flag = (
+                #     SimpleVersion.compare_versions(pip_pkg.version, ">=", "23.0.1"))
+
+                # # this is too late for this flag because from now on we are in venv
+                # if self.pip_support_break_system_packages_flag:
+                #     print("INFO: Using `--break-system-packages to` allow system wide agent install")
+                #     self.add_extra_install_flags(["--break-system-packages"])
 
             # add --use-deprecated=legacy-resolver to pip install to avoid mismatched packages issues
             self._add_legacy_resolver_flag(pip_pkg.version)
