@@ -6,8 +6,8 @@ from contextlib import contextmanager
 from hashlib import md5
 from typing import Text, Iterable, Union, Optional, Dict, List
 
-import six
-from pathlib2 import Path
+from ..._vendor import six
+from ..._vendor.pathlib2 import Path
 
 from clearml_agent.definitions import ENV_VENV_CACHE_PATH
 from clearml_agent.helper.base import mkstemp, safe_remove_file, join_lines, select_for_platform

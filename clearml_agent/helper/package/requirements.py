@@ -10,11 +10,11 @@ from operator import itemgetter
 from os import path
 from typing import Text, List, Type, Optional, Tuple, Dict
 
-from pathlib2 import Path
+from ..._vendor.pathlib2 import Path
 from clearml_agent.external.pyhocon import ConfigTree
 
-import six
-from six.moves.urllib.parse import unquote
+from ..._vendor import six
+from ..._vendor.six.moves.urllib.parse import unquote  # noqa
 import logging
 from clearml_agent.definitions import PIP_EXTRA_INDICES
 from clearml_agent.helper.base import (

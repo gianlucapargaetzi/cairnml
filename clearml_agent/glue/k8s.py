@@ -16,8 +16,6 @@ from pprint import pformat
 from time import sleep, time
 from typing import Text, List, Callable, Any, Collection, Optional, Union, Iterable, Dict, Tuple, Set
 
-import yaml
-
 from clearml_agent.commands.events import Events
 from clearml_agent.commands.worker import Worker, get_task_container, set_task_container, get_next_task
 from clearml_agent.definitions import (
@@ -45,6 +43,7 @@ from clearml_agent.glue.definitions import (
     ENV_KUBECTL_IGNORE_ERROR,
     ENV_DEFAULT_SCHEDULER_QUEUE_TAGS,
 )
+from .._vendor import pyyaml as yaml
 
 
 class K8sIntegration(Worker):

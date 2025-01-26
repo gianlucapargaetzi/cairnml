@@ -4,8 +4,8 @@ from enum import IntEnum
 from os import getenv, environ
 from typing import Text, Optional, Union, Tuple, Any
 
-import six
-from pathlib2 import Path
+from ._vendor import six
+from ._vendor.pathlib2 import Path
 
 from clearml_agent.helper.base import normalize_path
 from clearml_agent.helper.environment.converters import strtobool

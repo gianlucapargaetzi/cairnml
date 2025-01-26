@@ -9,9 +9,9 @@ from threading import Thread, Event
 from time import time
 from typing import Sequence, List, Union, Dict, Optional
 
-import attr
+from .._vendor import attr
 import psutil
-from pathlib2 import Path
+from .._vendor.pathlib2 import Path
 
 from clearml_agent.definitions import ENV_WORKER_TAGS, ENV_GPU_FRACTIONS
 from clearml_agent.session import Session

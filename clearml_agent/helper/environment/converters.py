@@ -1,7 +1,7 @@
 import base64
 from typing import Union, Optional, Any, TypeVar, Callable, Tuple
 
-import six
+from ..._vendor import six
 
 try:
     from typing import Text
@@ -83,4 +83,3 @@ def strtobool(val):
         return 0
     else:
         raise ValueError("invalid truth value %r" % (val,))
-

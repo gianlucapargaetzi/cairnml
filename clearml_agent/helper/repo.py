@@ -12,11 +12,11 @@ from random import random
 from threading import Lock
 from typing import Text, Sequence, Mapping, Iterable, TypeVar, Callable, Tuple, Optional
 
-import attr
-from furl import furl
-from pathlib2 import Path
+from .._vendor import attr
+from .._vendor.furl import furl
+from .._vendor.pathlib2 import Path
 
-import six
+from .._vendor import six
 
 from clearml_agent.definitions import ENV_AGENT_GIT_USER, ENV_AGENT_GIT_PASS, ENV_AGENT_GIT_HOST, ENV_GIT_CLONE_VERBOSE
 from clearml_agent.helper.console import ensure_text, ensure_binary

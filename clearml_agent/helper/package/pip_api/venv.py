@@ -1,6 +1,6 @@
 from typing import Any
 
-from pathlib2 import Path
+from ...._vendor.pathlib2 import Path
 
 from clearml_agent.helper.base import select_for_platform, rm_tree, ExecutionInfo
 from clearml_agent.helper.package.base import PackageManager

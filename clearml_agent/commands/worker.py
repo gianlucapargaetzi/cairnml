@@ -25,10 +25,10 @@ from tempfile import mkdtemp, NamedTemporaryFile
 from time import sleep, time
 from typing import Text, Optional, Any, Tuple, List, Dict, Mapping, Union
 
-import attr
-import six
-from pathlib2 import Path
-from six.moves.urllib.parse import quote
+from .._vendor import attr
+from .._vendor import six
+from .._vendor.pathlib2 import Path
+from .._vendor.six.moves.urllib.parse import quote
 
 from clearml_agent.external.pyhocon import ConfigTree, ConfigFactory
 from clearml_agent.backend_api.services import auth as auth_api

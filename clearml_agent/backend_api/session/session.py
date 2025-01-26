@@ -8,12 +8,12 @@ from random import SystemRandom
 from socket import gethostname
 from typing import Optional
 
-import jwt
+from ..._vendor import jwt
 import requests
-import six
+from ..._vendor import six
 from requests import RequestException
 from requests.auth import HTTPBasicAuth
-from six.moves.urllib.parse import urlparse, urlunparse
+from ..._vendor.six.moves.urllib.parse import urlparse, urlunparse
 
 from clearml_agent.external.pyhocon import ConfigTree, ConfigFactory
 from .callresult import CallResult

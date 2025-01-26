@@ -1,7 +1,7 @@
 import abc
 
-import jsonschema
-import six
+from ..._vendor import jsonschema
+from ..._vendor import six
 
 from .apimodel import ApiModel
 from .datamodel import DataModel

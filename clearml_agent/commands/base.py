@@ -12,7 +12,7 @@ from typing import Text
 from clearml_agent.helper.console import ListFormatter, print_text
 from clearml_agent.helper.dicts import filter_keys
 
-import six
+from .._vendor import six
 from clearml_agent.backend_api import services
 
 from clearml_agent.errors import APIError, CommandFailedError

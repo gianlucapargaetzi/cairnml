@@ -14,10 +14,10 @@ from time import sleep
 from typing import Union, Text, Sequence, Any, TypeVar, Callable
 
 import psutil
-from furl import furl
-from pathlib2 import Path
+from .._vendor.furl import furl
+from .._vendor.pathlib2 import Path
 
-import six
+from .._vendor import six
 from clearml_agent.definitions import PROGRAM_NAME, CONFIG_FILE
 from clearml_agent.helper.base import bash_c, is_windows_platform, select_for_platform, chain_map
 

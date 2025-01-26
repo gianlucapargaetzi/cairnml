@@ -7,9 +7,9 @@ import sys
 from os.path import expanduser
 from typing import Any
 
-import six
-from pathlib2 import Path
-from pyparsing import (
+from .._vendor import six
+from .._vendor.pathlib2 import Path
+from .._vendor.pyparsing import (
     ParseFatalException,
     ParseException,
     RecursiveGrammarException,

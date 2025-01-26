@@ -2,8 +2,8 @@ import datetime
 import re
 from weakref import WeakKeyDictionary
 
-import six
-from dateutil.parser import parse
+from ...._vendor import six
+from ...._vendor.dateutil.parser import parse
 
 from .errors import ValidationError
 from .collections import ModelCollection

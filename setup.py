@@ -75,7 +75,7 @@ setup(
     extras_require={
     },
     package_data={
-         'clearml_agent': ['backend_api/config/default/*.conf']
+         'clearml_agent': ['backend_api/config/default/*.conf', '_vendor/jsonschema/schemas/*.json']
     },
     include_package_data=True,
     # To provide executable scripts, use entry points in preference to the

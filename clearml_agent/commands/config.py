@@ -2,9 +2,9 @@ from __future__ import print_function
 
 from typing import Dict, Optional
 
-from pathlib2 import Path
-from six.moves import input
-from six.moves.urllib.parse import urlparse
+from .._vendor.pathlib2 import Path
+from .._vendor.six.moves import input
+from .._vendor.six.moves.urllib.parse import urlparse
 
 from clearml_agent.backend_api.session import Session
 from clearml_agent.backend_api.session.defs import ENV_HOST

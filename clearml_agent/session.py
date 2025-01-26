@@ -9,8 +9,8 @@ import sys
 from copy import deepcopy
 from typing import Any, Callable
 
-import attr
-from pathlib2 import Path
+from ._vendor import attr
+from ._vendor.pathlib2 import Path
 
 from clearml_agent.external.pyhocon import ConfigFactory, HOCONConverter, ConfigTree
 from clearml_agent.backend_api.session import Session as _Session, Request
