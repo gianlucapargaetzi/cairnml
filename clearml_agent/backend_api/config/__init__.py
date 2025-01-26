@@ -1,4 +1,5 @@
 from ...backend_config import Config
+from ...backend_config.defs import ENV_CONFIG_VERBOSE
 from pathlib2 import Path
 
 
@@ -10,7 +11,7 @@ def load(*additional_module_paths):
     configurations should be loaded as well
     :return: Config object
     """
-    config = Config(verbose=False)
+    config = Config(verbose=ENV_CONFIG_VERBOSE.get(default=False))
     this_module_path = Path(__file__).parent
     config.load_relative_to(this_module_path, *additional_module_paths)
     return config
