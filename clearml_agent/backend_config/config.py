@@ -174,6 +174,7 @@ class Config(object):
         local_config_files = LOCAL_CONFIG_FILES
         local_config_override = LOCAL_CONFIG_FILE_OVERRIDE_VAR.get()
         if local_config_override:
+            print(f"Using custom configuration file from env var: {local_config_override}")
             local_config_files = [expanduser(local_config_override)]
 
         # merge configuration from local configuration files
