@@ -13,19 +13,19 @@ from clearml_agent.helper.package.requirements import (
 def resolve_default_container(session, task_id, container_config, ignore_match_rules=False):
     container_lookup = session.config.get('agent.default_docker.match_rules', None)
     if not session.check_min_api_version("2.13") or not container_lookup:
-        return container_config
+        return container_config, None
 
     # check backend support before sending any more requests (because they will fail and crash the Task)
     try:
         session.verify_feature_set('advanced')
     except ValueError:
         # ignoring matching rules only supported in higher tiers
-        return container_config
+        return container_config, None
 
     if ignore_match_rules:
         print("INFO: default docker command line override, ignoring default docker container match rules")
         # ignoring matching rules only supported in higher tiers
-        return container_config
+        return container_config, None
 
     result = session.send_request(
         service='tasks',
@@ -42,7 +42,7 @@ def resolve_default_container(session, task_id, container_config, ignore_match_r
     try:
         task_info = result.json()['data']['tasks'][0] if result.ok else {}
     except (ValueError, TypeError):
-        return container_config
+        return container_config, None
 
     from clearml_agent.external.requirements_parser.requirement import Requirement
 
@@ -173,8 +173,7 @@ def resolve_default_container(session, task_id, container_config, ignore_match_r
 
             container_config['update_back_task'] = update_back_task
 
-            print('INFO: Matching default container with rule:\n{}'.format(json.dumps(entry)))
-            return container_config
+            return container_config, entry
 
-    return container_config
+    return container_config, None
 

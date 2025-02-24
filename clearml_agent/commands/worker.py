@@ -392,6 +392,7 @@ def get_task_container(session, task_id, ignore_match_rules=False, allow_force_c
     """
     Returns dict with Task docker container setup {container: '', arguments: '', setup_shell_script: ''}
     """
+    raw_container = {}
     if session.check_min_api_version("2.13"):
         result = session.send_request(
             service='tasks',
@@ -403,6 +404,7 @@ def get_task_container(session, task_id, ignore_match_rules=False, allow_force_c
         )
         try:
             container = result.json()['data']['tasks'][0]['container'] if result.ok else {}
+            raw_container = copy(container or {})
             if container.get('arguments'):
                 container['arguments'] = shlex.split(str(container.get('arguments')).strip())
             if container.get('image'):
@@ -422,55 +424,70 @@ def get_task_container(session, task_id, ignore_match_rules=False, allow_force_c
                     )
                 except (ValueError, TypeError):
                     pass
+            raw_container = copy(container or {})
+            if raw_container.get("arguments"):
+                raw_container["arguments"] = ' '.join(shlex.quote(x) for x in raw_container["arguments"])
 
     no_default_container = not container or not container.get('image')
     if no_default_container or allow_force_container_rules and session.check_min_api_version("2.13"):
-        original_container = copy(container) or {}
-        updated_container = resolve_default_container(
+        original_container = copy(container or {})
+        updated_container, entry = resolve_default_container(
             session=session, task_id=task_id,
             container_config=original_container,
             ignore_match_rules=ignore_match_rules and not no_default_container,
         )
-        if no_default_container and not ignore_match_rules:
+        if entry and no_default_container and not ignore_match_rules:
             # if we do not have a default container image / args, use the defaults from the resolver
             container = updated_container
-        elif allow_force_container_rules and updated_container.get('force_container_rules'):
+            updated = True
+        elif entry and allow_force_container_rules and updated_container.get('force_container_rules'):
             # if we allow to force rules (and we have requested container)
             # and the 'force_container_rules' is turned on in the rule, then overwrite container
             container = updated_container
+            updated = True
+        else:
+            updated = False
 
-        # make sure we pop the new added fields
-        container.pop("force_container_rules", None)
+        if updated:
+            print('INFO: Updating Task Container with matched rule:\n{}'.format(json.dumps(entry or {})))
 
-        # check if we need to update the Task based on the new matched container defaults or overrides
-        update_back_task = container.pop("update_back_task", None) or updated_container.pop("update_back_task", None)
-        if update_back_task:
-            # update back the task
-            print('INFO: Updating the Task with the selected container with rule')
-            try:
-                res = session.send_request(
-                    service='tasks', action='edit', method=Request.def_method,
-                    version='2.13',
-                    json={
-                        "task": task_id,
-                        "force": True,
-                        "container": {
-                            "image": container.get('image') or "",
-                            "arguments": container.get('arguments') or "",
-                            "setup_shell_script": container.get('setup_shell_script') or "",
-                        }
-                    },
-                )
-                if not res.ok:
-                    raise Exception("failed setting runtime property")
-            except Exception as ex:
-                print("WARNING: failed setting container properties for task '{}': {}".format(task_id, ex))
+            # make sure we pop the new added fields
+            container.pop("force_container_rules", None)
 
-        # make sure we preserve backwards compatibility with the expected entries types
-        if isinstance(container.get('arguments'), str):
-            container['arguments'] = shlex.split(str(container.get('arguments') or '').strip())
-        if container.get('image'):
-            container['image'] = container.get('image').strip()
+            # check if we need to update the Task based on the new matched container defaults or overrides
+            update_back_task = container.pop("update_back_task", None) or updated_container.pop("update_back_task", None)
+            if update_back_task and container != original_container and session.check_min_api_version("2.13"):
+                # update back the task
+                print('INFO: Updating the Task with the selected container with rule')
+                try:
+                    res = session.send_request(
+                        service='tasks', action='edit', method=Request.def_method,
+                        version='2.13',
+                        json={
+                            "task": task_id,
+                            "force": True,
+                            "container": {
+                                "image": str(container.get('image') or ""),
+                                # fix if we are left with the list of arguments, take the original arguments text,
+                                # because combining back the list is a bit off
+                                "arguments":
+                                    str(raw_container.get('arguments') or "")
+                                    if isinstance(container.get('arguments'), (list, tuple))
+                                    else str(container.get('arguments') or ""),
+                                "setup_shell_script": str(container.get('setup_shell_script') or ""),
+                            }
+                        },
+                    )
+                    if not res.ok:
+                        raise Exception("failed setting runtime property")
+                except Exception as ex:
+                    print("WARNING: failed setting container properties for task '{}': {}".format(task_id, ex))
+
+            # make sure we preserve backwards compatibility with the expected entries types
+            if isinstance(container.get('arguments'), str):
+                container['arguments'] = shlex.split(str(container.get('arguments') or '').strip())
+            if container.get('image'):
+                container['image'] = container.get('image').strip()
 
     return container
 
