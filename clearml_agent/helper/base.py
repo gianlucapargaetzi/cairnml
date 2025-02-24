@@ -315,13 +315,12 @@ def _dump_flat_dict(flat_dict):
         flat_dict = {"": flat_dict}
 
     out = ""
-    for k in flat_dict.keys():
+    for k in sorted(flat_dict.keys()):
         out += "{}:\n".format(k)
         values = flat_dict[k]
         if not isinstance(values, (list, tuple)):
             values = [values]
-        for v in values:
-            out += "- {}\n".format(v)
+        out += "".join(sorted(["- {}\n".format(v) for v in values], key=lambda t: str(t).lower()))
 
     return out
 
