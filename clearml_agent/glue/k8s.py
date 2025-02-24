@@ -56,8 +56,8 @@ class K8sIntegration(Worker):
     KUBECTL_APPLY_CMD = "kubectl apply --namespace={namespace} -f"
 
     BASH_INSTALL_SSH_CMD = [
-        "apt-get update",
-        "apt-get install -y openssh-server",
+        "(apt-get update -y ; apt-get install -y openssh-server) || "
+        "(dnf install -y openssh-server)",
         "mkdir -p /var/run/sshd",
         "echo 'root:training' | chpasswd",
         "echo 'PermitRootLogin yes' >> /etc/ssh/sshd_config",
@@ -73,9 +73,10 @@ class K8sIntegration(Worker):
     _CONTAINER_APT_SCRIPT_SECTION = [
         "export DEBIAN_FRONTEND='noninteractive'",
         "echo 'Binary::apt::APT::Keep-Downloaded-Packages \"true\";' > /etc/apt/apt.conf.d/docker-clean",
-        "chown -R root /root/.cache/pip",
-        "apt-get update",
-        "apt-get install -y git libsm6 libxext6 libxrender-dev libglib2.0-0",
+        "chown -R $(whoami) $HOME/.cache/pip",
+        "(apt-get update -y ; apt-get install -y git) || "
+        "(dnf install -y git)"
+        # should only be added if docker_install_opencv_libs:  # libsm6 libxext6 libxrender-dev libglib2.0-0",
     ]
 
     CONTAINER_BASH_SCRIPT = [
@@ -84,9 +85,10 @@ class K8sIntegration(Worker):
             for line in _CONTAINER_APT_SCRIPT_SECTION
         ),
         "declare LOCAL_PYTHON",
-        "[ ! -z $LOCAL_PYTHON ] || for i in {{20..5}}; do which python3.$i && python3.$i -m pip --version && "
-        "export LOCAL_PYTHON=$(which python3.$i) && break ; done",
-        '[ ! -z "$CLEARML_AGENT_SKIP_CONTAINER_APT" ] || [ ! -z "$LOCAL_PYTHON" ] || apt-get install -y python3-pip',
+        "[ ! -z $LOCAL_PYTHON ] || for i in {{20..5}}; do (which python3.$i || command -v python3.$i) && python3.$i -m pip --version && "
+        "export LOCAL_PYTHON=$(which python3.$i || command -v python3.$i) && break ; done",
+        '[ ! -z "$CLEARML_AGENT_SKIP_CONTAINER_APT" ] || [ ! -z "$LOCAL_PYTHON" ] || '
+        'apt-get install -y python3-pip || dnf install -y python3-pip',
         "[ ! -z $LOCAL_PYTHON ] || export LOCAL_PYTHON=python3",
         "rm /usr/lib/python3.*/EXTERNALLY-MANAGED",  # remove PEP 668
         "{extra_bash_init_cmd}",
@@ -96,7 +98,7 @@ class K8sIntegration(Worker):
     ]
 
     DEFAULT_POD_NAME_PREFIX = "clearml-id-"
-    DEFAULT_LIMIT_POD_LABEL = "ai.allegro.agent.serial=pod-{pod_number}"
+    DEFAULT_LIMIT_POD_LABEL = "ai.clearml.agent.serial=pod-{pod_number}"
 
     _edit_hyperparams_version = "2.9"
 

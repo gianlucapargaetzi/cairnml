@@ -191,7 +191,7 @@ def main():
                               'agent.git_pass=\"{}\"\n' \
                               '\n'.format(git_user or '', git_pass or '')
             f.write(git_credentials)
-            extra_index_str = '# extra_index_url: ["https://allegroai.jfrog.io/clearml/api/pypi/public/simple"]\n' \
+            extra_index_str = '# extra_index_url: ["https://clearml.jfrog.io/clearml/api/pypi/public/simple"]\n' \
                               'agent.package_manager.extra_index_url= ' \
                               '[\n{}\n]\n\n'.format("\n".join(map("\"{}\"".format, extra_index_urls)))
             f.write(extra_index_str)

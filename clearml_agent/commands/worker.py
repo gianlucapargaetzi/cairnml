@@ -28,7 +28,7 @@ from typing import Text, Optional, Any, Tuple, List, Dict, Mapping, Union
 from .._vendor import attr
 from .._vendor import six
 from .._vendor.pathlib2 import Path
-from .._vendor.six.moves.urllib.parse import quote
+from .._vendor.six.moves.urllib.parse import quote  # noqa
 
 from clearml_agent.external.pyhocon import ConfigTree, ConfigFactory
 from clearml_agent.backend_api.services import auth as auth_api
@@ -4616,6 +4616,7 @@ class Worker(ServiceCommandSection):
         mount_apt_cache = mount_apt_cache or '/var/cache/apt/archives'
         mount_pip_cache = mount_pip_cache or '/root/.cache/pip'
         mount_poetry_cache = mount_poetry_cache or '/root/.cache/pypoetry'
+        mount_git_ro = "{}.git".format(mount_ssh_ro.rstrip("/"))
 
         if not standalone_mode:
             if not bash_script:
@@ -4623,18 +4624,21 @@ class Worker(ServiceCommandSection):
                 # python+pip is the requirement to match
                 bash_script = [
                     "echo 'Binary::apt::APT::Keep-Downloaded-Packages \"true\";' > /etc/apt/apt.conf.d/docker-clean",
-                    "chown -R root /root/.cache/pip",
+                    "chown -R $(whoami) $HOME/.cache/pip",
                     "export DEBIAN_FRONTEND=noninteractive",
                     "export CLEARML_APT_INSTALL=\"$CLEARML_APT_INSTALL{}\"".format(
                         ' libsm6 libxext6 libxrender-dev libglib2.0-0' if install_opencv_libs else ""),
                     "cp -Rf {mount_ssh_ro} -T {mount_ssh}" if host_ssh_cache else "",
-                    "[ ! -z $(which git) ] || export CLEARML_APT_INSTALL=\"$CLEARML_APT_INSTALL git\"",
+                    "cp -Rf {mount_git_ro} -T ~/" if host_git_credentials else "",
+                    "[ ! -z $(which git || command -v git) ] || export CLEARML_APT_INSTALL=\"$CLEARML_APT_INSTALL git\"",
                     "declare LOCAL_PYTHON",
-                    "[ ! -z $LOCAL_PYTHON ] || for i in {{20..5}}; do which {python_single_digit}.$i && " +
+                    "[ ! -z $LOCAL_PYTHON ] || for i in {{20..5}}; do (which {python_single_digit}.$i || command -v {python_single_digit}.$i) && " +
                     "{python_single_digit}.$i -m pip --version && " +
-                    "export LOCAL_PYTHON=$(which {python_single_digit}.$i) && break ; done",
+                    "export LOCAL_PYTHON=$(which {python_single_digit}.$i || command -v git) && break ; done",
                     "[ ! -z $LOCAL_PYTHON ] || export CLEARML_APT_INSTALL=\"$CLEARML_APT_INSTALL {python_single_digit}-pip\"",  # noqa
-                    "[ -z \"$CLEARML_APT_INSTALL\" ] || (apt-get update -y ; apt-get install -y $CLEARML_APT_INSTALL)",
+                    "[ -z \"$CLEARML_APT_INSTALL\" ] || "
+                    "(apt-get update -y ; apt-get install -y $CLEARML_APT_INSTALL) || "
+                    "(dnf install -y $CLEARML_APT_INSTALL)",
                     "rm /usr/lib/python3.*/EXTERNALLY-MANAGED",  # remove PEP 668
                 ]
 
@@ -4654,12 +4658,12 @@ class Worker(ServiceCommandSection):
                 python_single_digit=python_version.split('.')[0],
                 python=python_version, pip_version=" ".join(PackageManager.get_pip_versions(wrap='\"')),
                 clearml_agent_wheel=clearml_agent_wheel,
-                mount_ssh_ro=mount_ssh_ro, mount_ssh=mount_ssh,
+                mount_ssh_ro=mount_ssh_ro, mount_ssh=mount_ssh, mount_git_ro=mount_git_ro,
             )
 
         if host_git_credentials:
             for git_credentials in host_git_credentials:
-                base_cmd += ['-v', '{}:/root/{}'.format(git_credentials, Path(git_credentials).name)]
+                base_cmd += ['-v', '{}:{}/{}'.format(git_credentials, mount_git_ro, Path(git_credentials).name)]
 
         if docker_bash_setup_script and docker_bash_setup_script.strip('\n '):
             extra_shell_script = (extra_shell_script or '') + \
