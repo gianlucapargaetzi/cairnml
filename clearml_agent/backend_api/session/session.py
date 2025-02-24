@@ -330,6 +330,7 @@ class Session(TokenManager):
             if version
             else "{host}/{service}.{action}"
         ).format(**locals())
+        res = None
 
         while True:
             if data and len(data) > self._write_session_data_size:
@@ -342,7 +343,7 @@ class Session(TokenManager):
             try:
                 res = self.__http_session.request(
                     method, url, headers=headers, auth=auth, data=data, json=json, timeout=timeout, params=params)
-            except RequestException as ex:
+            except Exception as ex:
                 if self._propagate_exceptions_on_send:
                     raise
                 sleep_time = sys_random.uniform(*self._request_exception_retry_timeout)
