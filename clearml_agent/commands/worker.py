@@ -4482,6 +4482,21 @@ class Worker(ServiceCommandSection):
             extra_docker_arguments=extra_docker_arguments
         )
 
+        # check if we have mapped ports
+        try:
+            port_mappings_struct = DockerArgsSanitizer.resolve_port_mapping(
+                config=self._session.config, docker_arguments=base_cmd)
+            if port_mappings_struct:
+                new_docker_cmd, additional_task_runtime = port_mappings_struct
+                if new_docker_cmd:
+                    base_cmd = new_docker_cmd
+                if additional_task_runtime:
+                    from clearml_agent.helper.task_runtime import TaskRuntime
+                    task_runtime = TaskRuntime(self._session)
+                    task_runtime.update_task_runtime(env_task_id, additional_task_runtime)
+        except Exception as e:
+            self.log.warning("WARNING: Failed parsing port mapping requested for docker execution: {}".format(e))
+
         # set docker labels
         base_cmd += ['-l', self._worker_label.format(worker_id)]
         base_cmd += ['-l', self._parent_worker_label.format(parent_worker_id)]
