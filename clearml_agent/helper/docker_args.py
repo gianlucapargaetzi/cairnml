@@ -1,6 +1,6 @@
 import re
 import shlex
-from typing import Tuple, List, TYPE_CHECKING
+from typing import Tuple, List, TYPE_CHECKING, Optional
 from urllib.parse import urlunparse, urlparse
 
 from clearml_agent.definitions import (
@@ -11,7 +11,10 @@ from clearml_agent.definitions import (
     ENV_AGENT_AUTH_TOKEN,
     ENV_DOCKER_IMAGE,
     ENV_DOCKER_ARGS_HIDE_ENV,
+    ENV_FORCE_HOST_MACHINE_IP,
 )
+from clearml_agent.helper.sdk_client.utilities.networking import get_private_ip
+from clearml_agent.helper.os.networking import TcpPorts
 
 if TYPE_CHECKING:
     from clearml_agent.session import Session
@@ -42,6 +45,8 @@ def sanitize_urls(s: str) -> Tuple[str, bool]:
 
 
 class DockerArgsSanitizer:
+    _machine_ip = None
+
     @classmethod
     def sanitize_docker_command(cls, session, docker_command):
         # type: (Session, List[str]) -> List[str]
@@ -108,14 +113,22 @@ class DockerArgsSanitizer:
         return args
 
     @staticmethod
-    def filter_switches(docker_args: List[str], exclude_switches: List[str]) -> List[str]:
+    def filter_switches(
+            docker_args: List[str],
+            exclude_switches: List[str] = None,
+            include_switches: List[str] = None
+    ) -> List[str]:
+
+        assert not (include_switches and exclude_switches), "Either include_switches or exclude_switches but not both"
+
         # shortcut if we are sure we have no matches
-        if (not exclude_switches or
-                not any("-{}".format(s) in " ".join(docker_args) for s in exclude_switches)):
+        if not include_switches and (
+                not exclude_switches or not any("-{}".format(s) in " ".join(docker_args) for s in exclude_switches)):
             return docker_args
 
         args = []
-        in_switch_args = True
+        in_switch_args = True if not include_switches else False
+
         for token in docker_args:
             if token.strip().startswith("-"):
                 if "=" in token:
@@ -125,7 +138,10 @@ class DockerArgsSanitizer:
                     switch = token
                     in_switch_args = True
 
-                if switch.lstrip("-") in exclude_switches:
+                if not include_switches and switch.lstrip("-") in exclude_switches:
+                    # if in excluded, skip the switch and following arguments
+                    in_switch_args = False
+                elif not exclude_switches and switch.lstrip("-") not in include_switches:
                     # if in excluded, skip the switch and following arguments
                     in_switch_args = False
                 else:
@@ -167,3 +183,90 @@ class DockerArgsSanitizer:
                 extra_docker_arguments = DockerArgsSanitizer.filter_switches(extra_docker_arguments, switches)
                 base_cmd += [a for a in extra_docker_arguments if a]
         return base_cmd
+
+    @staticmethod
+    def resolve_port_mapping(config, docker_arguments: List[str]) -> Optional[tuple]:
+        """
+        If we have port mappings in the docker cmd, this function will do two things
+        1. It will add an environment variable (CLEARML_AGENT_HOST_IP) with the host machines IP address
+        2. it will return a runtime property ("_external_host_tcp_port_mapping") on the Task with the port mapping merged
+        :param config:
+        :param docker_arguments:
+        :return: new docker commands with additional one to add docker
+        (i.e. changing the ports if needed and adding the new env var), runtime property
+        """
+        if not docker_arguments:
+            return
+        # make a copy we are going to change it
+        docker_arguments = docker_arguments[:]
+        port_mapping_filtered = [
+            p for p in DockerArgsSanitizer.filter_switches(docker_arguments, include_switches=["p", "publish"])
+            if p and p.strip()
+        ]
+
+        if not port_mapping_filtered:
+            return
+
+        # test if network=host was requested, docker will ignore published ports anyhow, so no use in parsing them
+        network_filtered = DockerArgsSanitizer.filter_switches(
+            docker_arguments, include_switches=["network", "net"])
+        network_filtered = [t for t in network_filtered if t.strip == "host" or "host" in t.split("=")]
+        # if any network is configured, we ignore it, there is nothing we can do
+        if network_filtered:
+            return
+
+        # verifying available ports, remapping if necessary
+        port_checks = TcpPorts()
+        for i_p in range(len(port_mapping_filtered)):
+            port_map = port_mapping_filtered[i_p]
+            if not port_map.strip():
+                continue
+            # skip the flag
+            if port_map.strip().startswith("-"):
+                continue
+
+            # todo: support udp?!
+            # example: "8080:80/udp"
+            if port_map.strip().split("/")[-1] == "udp":
+                continue
+
+            # either no type specified or tcp
+            ports_host, ports_in = port_map.strip().split("/")[0].split(":")[-2:]
+            # verify ports available
+            port_range = int(ports_host.split("-")[0]), int(ports_host.split("-")[-1])+1
+            if not all(port_checks.check_tcp_port_available(p) for p in range(port_range[0], port_range[1])):
+                # we need to find a new range (this is a consecutive range)
+                new_port_range = port_checks.find_port_range(port_range[1]-port_range[0])
+
+                if not new_port_range:
+                    # we could not find any, leave it as it?!
+                    break
+
+                # replace the ports,
+                for i in range(len(docker_arguments)):
+                    if docker_arguments[i].strip() != port_map.strip():
+                        continue
+                    slash_parts = port_map.strip().split("/")
+                    colon_parts = slash_parts[0].split(":")
+                    colon_parts[-2] = "{}-{}".format(new_port_range[0], new_port_range[-1]) \
+                        if len(new_port_range) > 1 else str(new_port_range[0])
+
+                    docker_arguments[i] = "/".join(slash_parts[1:] + [":".join(colon_parts)])
+                    port_mapping_filtered[i_p] = docker_arguments[i]
+                    break
+
+        additional_cmd = []
+        if not DockerArgsSanitizer._machine_ip:
+            DockerArgsSanitizer._machine_ip = ENV_FORCE_HOST_MACHINE_IP.get() or get_private_ip(config)
+
+        if DockerArgsSanitizer._machine_ip:
+            additional_cmd += ["-e", "CLEARML_AGENT_HOST_IP={}".format(DockerArgsSanitizer._machine_ip)]
+
+        # sanitize, remove ip/type
+        ports = ",".join([":".join(t.strip().split("/")[0].split(":")[-2:])
+                          for t in port_mapping_filtered if t.strip() and not t.strip().startswith("-")])
+
+        # update Tasks runtime
+        additional_task_runtime = {"_external_host_tcp_port_mapping": ports}
+
+        return docker_arguments+additional_cmd, additional_task_runtime
