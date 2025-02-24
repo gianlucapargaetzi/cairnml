@@ -91,11 +91,18 @@ def kill_all_child_processes(pid=None, include_parent=True):
         parent = psutil.Process(pid)
     except psutil.Error:
         # could not find parent process id
+        print("ERROR: could not find parent process id {}".format(pid))
         return
     for child in parent.children(recursive=True):
-        child.kill()
+        try:
+            child.kill()
+        except:
+            print("ERROR: could not kill child process id {}".format(child))
     if include_parent:
-        parent.kill()
+        try:
+            parent.kill()
+        except:
+            print("ERROR: could not kill parent process id {}".format(parent))
 
 
 def terminate_all_child_processes(pid=None, timeout=10., include_parent=True):
