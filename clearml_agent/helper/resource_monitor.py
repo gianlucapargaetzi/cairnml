@@ -442,22 +442,31 @@ class GpuFractionsHandler:
     _frac_gpu_injector_re = re.compile(r"^clearml-injector/fraction$")
 
     _gpu_name_to_memory_gb = {
-        "A30": 24,
-        "NVIDIA A30": 24,
-        "A100-SXM4-40GB": 40,
-        "NVIDIA-A100-40GB-PCIe": 40,
-        "NVIDIA A100-40GB-PCIe": 40,
+        "NVIDIA-A30": 24,
+        "NVIDIA-A100-40GB-PCIE": 40,
         "NVIDIA-A100-SXM4-40GB": 40,
-        "NVIDIA A100-SXM4-40GB": 40,
         "NVIDIA-A100-SXM4-80GB": 79,
-        "NVIDIA A100-SXM4-80GB": 79,
-        "NVIDIA-A100-80GB-PCIe": 79,
-        "NVIDIA A100-80GB-PCIe": 79,
+        "NVIDIA-A100-80GB-PCIE": 79,
+        "NVIDIA-A100-PCIE-40GB": 40,
+        "NVIDIA-H100-80GB-HBM3": 80,
+        "NVIDIA-H100-PCIE": 80,
+        "NVIDIA-H100-SXM5-94GB": 94,
+        "NVIDIA-H100-SXM5-96GB": 96,
+        "NVIDIA-H100-PCIE-94GB": 94,
+        "NVIDIA-H100-PCIE-96GB": 96,
+        "NVIDIA-H100-SXM5-64GB": 64,
+        "NVIDIA-H100-SXM5-80GB": 80,
+        "NVIDIA-H800-PCIE-94GB": 94,
+        "NVIDIA-H800-PCIE-80GB": 80,
+        "NVIDIA-L40S": 48,
+        "NVIDIA-L40": 48,
+        "NVIDIA-L4": 48,
     }
 
     def __init__(self):
         self._total_memory_gb = [
-            self._gpu_name_to_memory_gb.get(name, 0)
+            (self._gpu_name_to_memory_gb.get(name.upper().replace(" ", "-")) or
+             self._gpu_name_to_memory_gb.get("NVIDIA-"+name.upper().replace(" ", "-"), 0))
             for name in (self._get_gpu_names() or [])
         ]
         self._fractions = self._get_fractions()
