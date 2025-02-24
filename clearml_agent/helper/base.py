@@ -53,6 +53,25 @@ def select_for_platform(linux, windows):
     return windows if is_windows_platform() else linux
 
 
+def check_is_binary_python_or_bash(script_binary) -> (bool, bool):
+    """
+    return if we should treat it as bash script or python based on the binary section of the task
+    i.e. task.script.binary
+    :param script_binary: e.g. task.script.binary
+    :return: tuple boolean (is_python_binary, is_bash_binary)
+    """
+    is_python_binary = (script_binary or "").split("/")[-1].startswith('python')
+    is_bash_binary = (not is_python_binary and
+                      (script_binary or "").split("/")[-1] in ('bash', 'zsh', 'sh'))
+
+    if not is_bash_binary and not is_python_binary:
+        if (script_binary or "").strip():
+            print("WARNING binary '{}' not supported, defaulting to python".format(script_binary))
+        is_python_binary = True
+
+    return is_python_binary, is_bash_binary
+
+
 def bash_c():
     return 'bash -c' if not is_windows_platform() else ('powershell -Command' if use_powershell else 'cmd /c')
 

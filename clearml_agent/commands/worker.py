@@ -109,7 +109,7 @@ from clearml_agent.helper.base import (
     is_linux_platform,
     rm_file,
     add_python_path,
-    safe_remove_tree, get_python_version, dump_flat_dict,
+    safe_remove_tree, get_python_version, dump_flat_dict, check_is_binary_python_or_bash,
 )
 from clearml_agent.helper.check_update import start_check_update_daemon
 from clearml_agent.helper.console import ensure_text, print_text, decode_binary_lines
@@ -226,13 +226,15 @@ class LiteralScriptManager(object):
         """
         log = logging.getLogger(__name__)
         target_file_name_module_call = None
+        is_python_binary, is_bash_binary = check_is_binary_python_or_bash(task.script.binary)
+
         if execution.entry_point and (
                 execution.entry_point.strip().startswith("-m ") or
                 execution.entry_point.strip().startswith("-c ")
         ):
             # this is a module we cannot use it as file name
             target_file_name_module_call = 'untitled.sh' \
-                if execution.entry_point.strip().startswith("-c ") else 'untitled.py'
+                if is_bash_binary and execution.entry_point.strip().startswith("-c ") else 'untitled.py'
             # let's parse the working_dir and override the default literal file
             if execution.working_dir and ":" in execution.working_dir:
                 execution.working_dir, target_file_name_module_call = execution.working_dir.split(":", 1)
@@ -249,7 +251,7 @@ class LiteralScriptManager(object):
                     execution.working_dir,
                 )
             if not execution.entry_point:
-                execution.entry_point = 'untitled.py'
+                execution.entry_point = 'untitled.sh' if is_bash_binary else 'untitled.py'
             elif not target_file_name_module_call:
                 # ignore any folders in the entry point we only need the file name
                 execution.entry_point = execution.entry_point.split(os.path.sep)[-1]
@@ -2914,14 +2916,7 @@ class Worker(ServiceCommandSection):
         if ENV_AGENT_FORCE_TASK_INIT.get():
             patch_add_task_init_call((Path(script_dir) / execution.entry_point).as_posix())
 
-        is_python_binary = (current_task.script.binary or "").split("/")[-1].startswith('python')
-        is_bash_binary = (not is_python_binary and
-                          (current_task.script.binary or "").split("/")[-1] in ('bash', 'zsh', 'sh'))
-
-        if not is_bash_binary and not is_python_binary:
-            if (current_task.script.binary or "").strip():
-                print("WARNING binary '{}' not supported, defaulting to python".format(current_task.script.binary))
-            is_python_binary = True
+        is_python_binary, is_bash_binary = check_is_binary_python_or_bash(current_task.script.binary)
 
         extra = []
         if is_python_binary:
