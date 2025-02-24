@@ -85,12 +85,12 @@ class K8sIntegration(Worker):
             for line in _CONTAINER_APT_SCRIPT_SECTION
         ),
         "declare LOCAL_PYTHON",
-        "[ ! -z $LOCAL_PYTHON ] || for i in {{20..5}}; do (which python3.$i || command -v python3.$i) && python3.$i -m pip --version && "
-        "export LOCAL_PYTHON=$(which python3.$i || command -v python3.$i) && break ; done",
+        "[ ! -z $LOCAL_PYTHON ] || for i in {{20..5}}; do (which python3.$i 2> /dev/null || command -v python3.$i) && python3.$i -m pip --version && "
+        "export LOCAL_PYTHON=$(which python3.$i 2> /dev/null || command -v python3.$i) && break ; done",
         '[ ! -z "$CLEARML_AGENT_SKIP_CONTAINER_APT" ] || [ ! -z "$LOCAL_PYTHON" ] || '
         'apt-get install -y python3-pip || dnf install -y python3-pip',
         "[ ! -z $LOCAL_PYTHON ] || export LOCAL_PYTHON=python3",
-        "rm /usr/lib/python3.*/EXTERNALLY-MANAGED",  # remove PEP 668
+        "rm -f /usr/lib/python3.*/EXTERNALLY-MANAGED",  # remove PEP 668
         "{extra_bash_init_cmd}",
         "[ ! -z $CLEARML_AGENT_NO_UPDATE ] || $LOCAL_PYTHON -m pip install clearml-agent{agent_install_args}",
         "{extra_docker_bash_script}",

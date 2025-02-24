@@ -1006,7 +1006,7 @@ class Worker(ServiceCommandSection):
                         docker_image,
                         DockerArgsSanitizer.sanitize_docker_command(self._session, docker_arguments or [])
                     )
-                ] + (['custom_setup_bash_script:\n{}'.format(docker_setup_script)] if docker_setup_script else []),
+                ] + (['custom_setup_bash_script:\n{}\n'.format(docker_setup_script)] if docker_setup_script else []),
                 level="INFO",
                 session=task_session,
             )
@@ -4630,16 +4630,16 @@ class Worker(ServiceCommandSection):
                         ' libsm6 libxext6 libxrender-dev libglib2.0-0' if install_opencv_libs else ""),
                     "cp -Rf {mount_ssh_ro} -T {mount_ssh}" if host_ssh_cache else "",
                     "cp -Rf {mount_git_ro} -T ~/" if host_git_credentials else "",
-                    "[ ! -z $(which git || command -v git) ] || export CLEARML_APT_INSTALL=\"$CLEARML_APT_INSTALL git\"",
+                    "[ ! -z $(which git 2> /dev/null || command -v git) ] || export CLEARML_APT_INSTALL=\"$CLEARML_APT_INSTALL git\"",
                     "declare LOCAL_PYTHON",
-                    "[ ! -z $LOCAL_PYTHON ] || for i in {{20..5}}; do (which {python_single_digit}.$i || command -v {python_single_digit}.$i) && " +
+                    "[ ! -z $LOCAL_PYTHON ] || for i in {{20..5}}; do (which {python_single_digit}.$i 2> /dev/null || command -v {python_single_digit}.$i) && " +
                     "{python_single_digit}.$i -m pip --version && " +
-                    "export LOCAL_PYTHON=$(which {python_single_digit}.$i || command -v git) && break ; done",
+                    "export LOCAL_PYTHON=$(which {python_single_digit}.$i 2> /dev/null || command -v git) && break ; done",
                     "[ ! -z $LOCAL_PYTHON ] || export CLEARML_APT_INSTALL=\"$CLEARML_APT_INSTALL {python_single_digit}-pip\"",  # noqa
                     "[ -z \"$CLEARML_APT_INSTALL\" ] || "
                     "(apt-get update -y ; apt-get install -y $CLEARML_APT_INSTALL) || "
                     "(dnf install -y $CLEARML_APT_INSTALL)",
-                    "rm /usr/lib/python3.*/EXTERNALLY-MANAGED",  # remove PEP 668
+                    "rm -f /usr/lib/python3.*/EXTERNALLY-MANAGED",  # remove PEP 668
                 ]
 
             if preprocess_bash_script:
