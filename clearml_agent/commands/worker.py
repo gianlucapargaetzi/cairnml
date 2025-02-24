@@ -3260,6 +3260,7 @@ class Worker(ServiceCommandSection):
                         task=task_id,
                         status_reason="task was stopped by tasks.stop",
                         status_message=self._task_status_change_message,
+                        force=False
                     )
                 )
 
