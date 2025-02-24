@@ -91,7 +91,6 @@ from clearml_agent.errors import (
 from clearml_agent.helper.base import (
     return_list,
     print_parameters,
-    dump_yaml,
     warning,
     normalize_path,
     check_directory_path,
@@ -110,7 +109,7 @@ from clearml_agent.helper.base import (
     is_linux_platform,
     rm_file,
     add_python_path,
-    safe_remove_tree, get_python_version,
+    safe_remove_tree, get_python_version, dump_flat_dict,
 )
 from clearml_agent.helper.check_update import start_check_update_daemon
 from clearml_agent.helper.console import ensure_text, print_text, decode_binary_lines
@@ -2471,7 +2470,7 @@ class Worker(ServiceCommandSection):
         print("Restoring running environment of task id [%s]:" % task_id)
         if freeze:
             print("Summary - installed python packages:")
-            print(dump_yaml(freeze))
+            print(dump_flat_dict(freeze))
         else:
             print("No freeze information available")
 
@@ -2989,7 +2988,7 @@ class Worker(ServiceCommandSection):
 
         if freeze:
             print("Summary - installed python packages:")
-            print(dump_yaml(freeze))
+            print(dump_flat_dict(freeze))
         else:
             print("No freeze information available")
 

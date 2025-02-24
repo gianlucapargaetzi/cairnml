@@ -22,7 +22,7 @@ from .._vendor import furl
 from .._vendor import six
 from .._vendor.attr import fields_dict
 from .._vendor.pathlib2 import Path
-from .._vendor.six.moves import reduce
+from .._vendor.six.moves import reduce  # noqa
 from .._vendor import pyyaml as yaml
 
 from clearml_agent.errors import CommandFailedError
@@ -308,6 +308,30 @@ def dump_yaml(obj, path=None, dump_all=False, **kwargs):
     path = str(path)
     with open(path, 'w') as output:
         dump_func(obj, output, **base_kwargs)
+
+
+def _dump_flat_dict(flat_dict):
+    if not isinstance(flat_dict, (dict, )):
+        flat_dict = {"": flat_dict}
+
+    out = ""
+    for k in flat_dict.keys():
+        out += "{}:\n".format(k)
+        values = flat_dict[k]
+        if not isinstance(values, (list, tuple)):
+            values = [values]
+        for v in values:
+            out += "- {}\n".format(v)
+
+    return out
+
+
+def dump_flat_dict(flat_dict):
+    # noinspection PyBroadException
+    try:
+        return _dump_flat_dict(flat_dict)
+    except Exception:
+        return dump_yaml(flat_dict)
 
 
 def one_value(dct):

@@ -32,7 +32,13 @@ class SystemPip(PackageManager):
         pass
 
     def install_from_file(self, path):
-        self.run_with_env(('install', '-r', path) + self.install_flags(), cwd=self.cwd)
+        try:
+            self.run_with_env(('install', '-r', path) + self.install_flags(), cwd=self.cwd)
+        except Exception:
+            print("ERROR: installing pip requirements failed, requirements.txt:\n{}\n".format(
+                "\n".join([line for line in Path(path).read_text().splitlines() if line.strip()])
+            ))
+            raise
 
     def install_packages(self, *packages):
         self._install(*(packages + self.install_flags()))
