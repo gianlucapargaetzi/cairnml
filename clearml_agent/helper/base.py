@@ -22,7 +22,7 @@ from .._vendor import furl
 from .._vendor import six
 from .._vendor.attr import fields_dict
 from .._vendor.pathlib2 import Path
-from .._vendor.six.moves import reduce  # noqa
+from .._vendor.six.moves import reduce
 from .._vendor import pyyaml as yaml
 
 from clearml_agent.errors import CommandFailedError
@@ -372,15 +372,15 @@ def construct_mapping(loader, node):
     return OrderedDict(loader.construct_pairs(node))
 
 
-yaml.SafeDumper.add_representer(OrderedDict, represent_ordered_dict)
-yaml.SafeLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, construct_mapping)
+# yaml.SafeDumper.add_representer(OrderedDict, represent_ordered_dict)
+# yaml.SafeLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, construct_mapping)
 
 
 class AllDumper(yaml.SafeDumper):
     pass
 
 
-AllDumper.add_multi_representer(object, lambda dumper, data: dumper.represent_str(str(data)))
+# AllDumper.add_multi_representer(object, lambda dumper, data: dumper.represent_str(str(data)))
 
 
 def error(message):

@@ -787,6 +787,13 @@ class RequirementsManager(object):
         for h in self.handlers:
             h.set_is_already_installed_cb(self._callback_is_already_installed)
 
+    def get_installed_packages_state(self):
+        """
+        Return the internal Installed Packages objects, the one used internally so that later we can detect
+        :return requirements: is the list of requirements objects updated via self.update_installed_packages_state
+        """
+        return self._installed_parsed_packages
+
     def _callback_is_already_installed(self, req):
         for p in (self._installed_parsed_packages or []):
             if p.name != req.name:

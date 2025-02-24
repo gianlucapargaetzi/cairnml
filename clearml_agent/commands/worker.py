@@ -2446,7 +2446,9 @@ class Worker(ServiceCommandSection):
             package_api.requirements_manager.update_installed_packages_state(package_api.freeze())
             # make sure we run the handlers
             cached_requirements = \
-                {k: package_api.requirements_manager.replace(requirements[k] or '')
+                {k: package_api.requirements_manager.replace(
+                    requirements=requirements[k] or '',
+                    existing_packages=package_api.requirements_manager.get_installed_packages_state())
                  for k in requirements}
             package_api.load_requirements(cached_requirements)
             # make sure we call the correct freeze
@@ -2861,11 +2863,13 @@ class Worker(ServiceCommandSection):
                         requirement_substitutions=[CachedPackageRequirement, OnlyExternalRequirements]
                     )
                     # manually update the current state,
-                    # for the external git reference chance (in the replace callback)
+                    # for the external git reference chance (in the replaced callback)
                     package_api.requirements_manager.update_installed_packages_state(package_api.freeze())
                     # make sure we run the handlers
                     cached_requirements = \
-                        {k: package_api.requirements_manager.replace(requirements[k] or '')
+                        {k: package_api.requirements_manager.replace(
+                            requirements=requirements[k] or '',
+                            existing_packages=package_api.requirements_manager.get_installed_packages_state())
                          for k in requirements}
                     if str(cached_requirements.get('pip', '')).strip() \
                             or str(cached_requirements.get('conda', '')).strip():
