@@ -563,7 +563,6 @@ class TaskStopSignal(object):
         self._bash_callback_timeout = None
         self._bash_callback_thread = None
         self._self_monitor_thread = None
-        self.register_bash_callback()
 
     @classmethod
     def check_registered_bash_callback(cls):
@@ -572,6 +571,8 @@ class TaskStopSignal(object):
                      "").strip())
 
     def register_bash_callback(self):
+        if self._bash_callback:
+            return
         # check if the env variable defined a callback
         if not (ENV_ABORT_CALLBACK_CMD.get() or "").strip():
             return
@@ -604,6 +605,8 @@ class TaskStopSignal(object):
             self._bash_callback_timeout, self._bash_callback))
 
     def start_monitor_thread(self, polling_interval_sec=10):
+        self.register_bash_callback()
+
         if self._self_monitor_thread:
            return
         self._self_monitor_thread = Thread(target=self._monitor_thread_loop, args=(polling_interval_sec, ))
