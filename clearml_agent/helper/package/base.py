@@ -399,3 +399,26 @@ class PackageManager(object):
                 return None
 
         return self._cache_manager
+
+
+def get_specific_package_version(cached_requirements, package_name):
+    pkg_version = None
+    try:
+        from clearml_agent.external.requirements_parser.requirement import Requirement
+        from clearml_agent.external.requirements_parser import parse
+        requirements = []
+        if cached_requirements.get("pip", ""):
+            requirements += cached_requirements.get("pip", "").split("\n") \
+                if isinstance(cached_requirements.get("pip", ""), str) else cached_requirements.get("pip", [])
+
+        if cached_requirements.get("org_pip", ""):
+            requirements += cached_requirements.get("org_pip", "").split("\n") \
+                if isinstance(cached_requirements.get("org_pip", ""), str) else (
+                cached_requirements.get("org_pip", []))
+
+        pkg_version = [p for p in parse(requirements) if p.name == package_name]
+        if pkg_version:
+            pkg_version = pkg_version[0].specs[0][1]
+    except Exception as ex:
+        print("Failed parsing {} package version ({})".format(package_name, ex))
+    return pkg_version

@@ -116,7 +116,7 @@ from clearml_agent.helper.check_update import start_check_update_daemon
 from clearml_agent.helper.console import ensure_text, print_text, decode_binary_lines
 from clearml_agent.helper.environment.converters import strtobool
 from clearml_agent.helper.os.daemonize import daemonize_process
-from clearml_agent.helper.package.base import PackageManager
+from clearml_agent.helper.package.base import PackageManager, get_specific_package_version
 from clearml_agent.helper.package.conda_api import CondaAPI
 from clearml_agent.helper.package.external_req import ExternalRequirements, OnlyExternalRequirements
 from clearml_agent.helper.package.pip_api.system import SystemPip
@@ -2776,7 +2776,8 @@ class Worker(ServiceCommandSection):
 
         return
 
-    def _get_task_python_version(self, task):
+    @staticmethod
+    def _get_task_python_version(task):
         # noinspection PyBroadException
         try:
             python_ver = task.script.binary
@@ -2786,12 +2787,13 @@ class Worker(ServiceCommandSection):
 
             python_ver = python_ver.replace('python', '')
             # if we can cast it, we are good
-            return '{}.{}'.format(
-                int(python_ver.partition(".")[0]),
-                int(python_ver.partition(".")[-1].partition(".")[0] or 0)
-            )
+            parts = python_ver.split('.')
+            if len(parts) < 2:
+                return '{}'.format(int(parts[0]))
+            else:
+                return '{}.{}'.format(int(parts[0]), int(parts[1]))
         except Exception:
-            pass
+            return None
 
     @resolve_names
     def execute(
@@ -3232,6 +3234,9 @@ class Worker(ServiceCommandSection):
         # check if we need to update backwards compatible OS environment
         if not os.environ.get("TRAINS_CONFIG_FILE") and os.environ.get("CLEARML_CONFIG_FILE"):
             os.environ["TRAINS_CONFIG_FILE"] = os.environ.get("CLEARML_CONFIG_FILE")
+        # remove our internal env
+        os.environ.pop("CLEARML_APT_INSTALL", None)
+        os.environ.pop("TRAINS_APT_INSTALL", None)
 
         print("Starting Task Execution:\n".format(current_task.id))
         exit_code = -1
@@ -3642,29 +3647,37 @@ class Worker(ServiceCommandSection):
             self.log.error("failed installing poetry requirements: {}".format(ex))
         return None
     
-    def _install_uv_requirements(self, repo_info, working_dir=None):
-        # type: (Optional[RepoInfo], Optional[str]) -> Optional[UvAPI]
+    def _install_uv_requirements(self, repo_info, working_dir=None, cached_requirements=None):
+        # type: (Optional[RepoInfo], Optional[str], Optional[Dict[str, list]]) -> Optional[UvAPI]
         if not repo_info:
+            return None
+
+        if not isinstance(self.package_api, UvAPI):
             return None
 
         files_from_working_dir = self._session.config.get(
             "agent.package_manager.uv_files_from_repo_working_dir", False)
         lockfile_path = Path(repo_info.root) / ((working_dir or "") if files_from_working_dir else "")
 
-        try:
-            if not self.uv.enabled:
+        self.package_api.set_lockfile_path(lockfile_path)
+
+        if self.package_api.enabled:
+            print('UV Enabled: Ignoring requested python packages, using repository uv lock file!')
+            # noinspection PyBroadException
+            try:
+                self.package_api.install()
+                return self.package_api
+            except Exception as ex:
+                self.log.error("Failed installing uv requirements from lock file: {}".format(ex))
+                # if we have a lock file we actually fail, otherwise we revert to pip behaviour
+                if self.package_api.lock_file_exists:
+                    raise
+                self.log.error("Reverting to UV as pip replacement - installing "
+                               "from Task requirements or git requirements.txt")
+                self.package_api._enabled = False
                 return None
 
-            self.uv.initialize(cwd=lockfile_path)
-            api = self.uv.get_api(lockfile_path)
-            if api.enabled:
-                print('UV Enabled: Ignoring requested python packages, using repository uv lock file!')
-                api.install()
-                return api
-            
-            print(f"Could not find pyproject.toml or uv.lock file in {lockfile_path} \n")
-        except Exception as ex:
-            self.log.error("failed installing uv requirements: {}".format(ex))
+        # we will create the "regular" venv style using UV
         return None
 
     def install_requirements(
@@ -3696,7 +3709,16 @@ class Worker(ServiceCommandSection):
 
         api = self._install_poetry_requirements(repo_info, execution.working_dir)
         if not api:
-            api = self._install_uv_requirements(repo_info, execution.working_dir)
+            api = self._install_uv_requirements(repo_info, execution.working_dir, cached_requirements)
+            # if we could not find a lock file, but UV is installed and enabled, use it instead of pip
+            if not api and not self._session.config.get("agent.package_manager.uv_replace_pip", False):
+                if package_api == self.package_api and isinstance(self.package_api, UvAPI):
+                    # revert to venv that we used inside UV
+                    api = None
+                    self.package_api = package_api = package_api.get_venv_manager()
+            elif not api:
+                # this means `agent.package_manager.uv_replace_pip` is set to true
+                print("INFO: using UV as pip drop-in replacement")
 
         if api:
             # update back the package manager, this hack should be fixed
@@ -4128,6 +4150,15 @@ class Worker(ServiceCommandSection):
             Path(self._session.config["agent.venvs_dir"], executable_version_suffix)
         venv_dir = Path(os.path.expanduser(os.path.expandvars(venv_dir.as_posix())))
 
+        pip_version = get_specific_package_version(cached_requirements, package_name="pip")
+        if pip_version:
+            PackageManager.set_pip_version(pip_version)
+        if self.uv.enabled:
+            self.uv.set_python_version(requested_python_version)
+            uv_version = get_specific_package_version(cached_requirements, package_name="uv")
+            if uv_version:
+                self.uv.set_uv_version(uv_version)
+
         first_time = not standalone_mode and (
             is_windows_platform()
             or self.is_conda
@@ -4221,11 +4252,16 @@ class Worker(ServiceCommandSection):
                         url=self._session.config["agent.venv_update.url"] or DEFAULT_VENV_UPDATE_URL,
                         **package_manager_params
                     )
+                elif self.uv.enabled:
+                    self.uv.initialize()
+                    self.package_api = self.uv.get_api(**package_manager_params)
                 else:
                     self.package_api = VirtualenvPip(**package_manager_params)
+
                 if first_time:
                     self.package_api.remove()
                     call_package_manager_create = True
+
                 self.global_package_api = SystemPip(**global_package_manager_params)
         else:
             if standalone_mode:
