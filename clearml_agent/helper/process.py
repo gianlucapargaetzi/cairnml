@@ -233,6 +233,8 @@ class Argv(Executable):
         """
         self.argv = argv
         self._log = kwargs.pop("log", None)
+        self._env = kwargs.pop("env", None)
+        self._cwd = kwargs.pop("cwd", None)
         self._display_argv = kwargs.pop("display_argv", argv)
         if not self._log:
             self._log = logging.getLogger(__name__)
@@ -248,6 +250,14 @@ class Argv(Executable):
 
     def call_subprocess(self, func, censor_password=False, *args, **kwargs):
         self._log.debug("running: %s: %s", func.__name__, list(self))
+        if self._env:
+            env = copy(self._env)
+            kwargs = copy(kwargs)
+            env.update(kwargs.get("env", {}))
+            kwargs["env"] = env
+        if self._cwd and not kwargs.get("cwd"):
+            kwargs["cwd"] = self._cwd
+
         with self.normalize_exception(censor_password):
             return func(list(self), *args, **kwargs)
 
