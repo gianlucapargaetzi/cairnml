@@ -694,6 +694,8 @@ class Dataset(object):
         chunk_size = int(self._dataset_chunk_size_mb if not chunk_size else chunk_size)
         upload_futures = []
 
+        self._fix_dataset_files_parents()
+
         with ThreadPoolExecutor(max_workers=max_workers) as pool:
             parallel_zipper = ParallelZipper(
                 chunk_size,
@@ -1340,6 +1342,20 @@ class Dataset(object):
         # noinspection PyProtectedMember
         cls._set_project_system_tags(instance._task)
         return instance
+
+    def _fix_dataset_files_parents(self):
+        # type: () -> ()
+        """
+        Needed when someone removes and adds the same file -> parent data will be lost
+        """
+        datasets = self._dependency_graph[self._id]
+        for ds_id in datasets:
+            dataset = self.get(dataset_id=ds_id)
+            for parent_file_key, parent_file_value in dataset._dataset_file_entries.items():
+                if parent_file_key not in self._dataset_file_entries:
+                    continue
+                if parent_file_value.hash == self._dataset_file_entries[parent_file_key].hash:
+                    self._dataset_file_entries[parent_file_key].parent_dataset_id = ds_id
 
     def _get_total_size_compressed_parents(self):
         # type: () -> int
