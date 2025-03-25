@@ -4,7 +4,8 @@ import six
 
 
 class SendError(Exception):
-    """ A session send() error class """
+    """A session send() error class"""
+
     @property
     def result(self):
         return self._result
@@ -16,7 +17,7 @@ class SendError(Exception):
 
 @six.add_metaclass(ABCMeta)
 class SessionInterface(object):
-    """ Session wrapper interface providing a session property and a send convenience method """
+    """Session wrapper interface providing a session property and a send convenience method"""
 
     @property
     @abstractmethod
