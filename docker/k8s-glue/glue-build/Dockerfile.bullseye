@@ -1,6 +1,4 @@
-ARG TAG=3.7.17-slim-bullseye
-
-FROM python:${TAG} as target
+FROM python:3.10-slim-bookworm as target
 
 ARG KUBECTL_VERSION=1.29.3
 
