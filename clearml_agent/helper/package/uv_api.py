@@ -247,7 +247,7 @@ class UvAPI(VirtualenvPip):
             # there is a bug so we have to call pip to get the freeze because UV will return the wrong list
             # packages = self.run_with_env(('freeze',), output=True).splitlines()
             packages = self.lock_config.get_run_argv(
-                "pip", "freeze", "--python", str(Path(self.path) / "bin" / "python"), cwd=self.lockfile_path).get_output().splitlines()
+                "pip", "freeze", cwd=self.lockfile_path).get_output().splitlines()
             # list clearml_agent as well
             # packages_without_program = [package for package in packages if PROGRAM_NAME not in package]
             return {'pip': packages}
