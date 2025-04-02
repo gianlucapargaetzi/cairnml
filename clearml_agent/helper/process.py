@@ -89,9 +89,9 @@ def kill_all_child_processes(pid=None, include_parent=True):
     print("\nLeaving process id {}".format(pid))
     try:
         parent = psutil.Process(pid)
-    except psutil.Error:
-        # could not find parent process id
-        print("ERROR: could not find parent process id {}".format(pid))
+    except psutil.Error as ex:
+        # could not find process id
+        print("ERROR: could not find process id {}: {}".format(pid, ex))
         return
     for child in parent.children(recursive=True):
         try:
@@ -113,7 +113,7 @@ def terminate_all_child_processes(pid=None, timeout=10., include_parent=True):
     try:
         parent = psutil.Process(pid)
     except psutil.Error:
-        # could not find parent process id
+        # could not find process id
         return
     for child in parent.children(recursive=False):
         print('Terminating child process {}'.format(child.pid))

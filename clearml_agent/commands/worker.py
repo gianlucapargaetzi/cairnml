@@ -480,7 +480,7 @@ def get_task_container(session, task_id, ignore_match_rules=False, allow_force_c
                         },
                     )
                     if not res.ok:
-                        raise Exception("failed setting runtime property")
+                        raise Exception("failed setting container property")
                 except Exception as ex:
                     print("WARNING: failed setting container properties for task '{}': {}".format(task_id, ex))
 
@@ -4705,7 +4705,7 @@ class Worker(ServiceCommandSection):
                 docker_arguments = self._resolve_docker_env_args(docker_arguments)
 
         if extra_docker_arguments:
-            # we always resolve environments in the `extra_docker_arguments` becuase the admin set them (not users)
+            # we always resolve environments in the `extra_docker_arguments` because the admin set them (not users)
             extra_docker_arguments = self._resolve_docker_env_args(extra_docker_arguments)
             extra_docker_arguments = [extra_docker_arguments] \
                 if isinstance(extra_docker_arguments, six.string_types) else extra_docker_arguments

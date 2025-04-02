@@ -196,7 +196,7 @@ class DockerArgsSanitizer:
         (i.e. changing the ports if needed and adding the new env var), runtime property
         """
         if not docker_arguments:
-            return
+            return None
         # make a copy we are going to change it
         docker_arguments = docker_arguments[:]
         port_mapping_filtered = [
@@ -205,7 +205,7 @@ class DockerArgsSanitizer:
         ]
 
         if not port_mapping_filtered:
-            return
+            return None
 
         # test if network=host was requested, docker will ignore published ports anyhow, so no use in parsing them
         network_filtered = DockerArgsSanitizer.filter_switches(
@@ -213,7 +213,7 @@ class DockerArgsSanitizer:
         network_filtered = [t for t in network_filtered if t.strip == "host" or "host" in t.split("=")]
         # if any network is configured, we ignore it, there is nothing we can do
         if network_filtered:
-            return
+            return None
 
         # verifying available ports, remapping if necessary
         port_checks = TcpPorts()
