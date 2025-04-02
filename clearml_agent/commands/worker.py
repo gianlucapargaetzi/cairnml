@@ -150,7 +150,7 @@ from clearml_agent.helper.repo import clone_repository_cached, RepoInfo, VCS, fi
 from clearml_agent.helper.resource_monitor import ResourceMonitor
 from clearml_agent.helper.runtime_verification import check_runtime, print_uptime_properties
 from clearml_agent.helper.singleton import Singleton
-from clearml_agent.helper.docker_args import DockerArgsSanitizer
+from clearml_agent.helper.docker_args import DockerArgsSanitizer, DockerArgsTemplateResolver
 from clearml_agent.session import Session
 from .events import Events
 
@@ -1240,6 +1240,15 @@ class Worker(ServiceCommandSection):
                     else:
                         print("Warning: generated docker container name is invalid: {}".format(name))
 
+            # convert template arguments now (i.e. ${CLEARML_} ), this is important for the docker arg
+            # resolve the Task's docker arguments before everything else, because
+            # unlike the vault/config these are not running as the agent's user, they are the user's,
+            # we need to filter them post template parsing limitation to happen before the `docker_image_func` call
+            docker_args_template_resolver = DockerArgsTemplateResolver(task_session=self._session, task_id=task_id)
+            if docker_params.get("docker_arguments"):
+                docker_params["docker_arguments"] = docker_args_template_resolver.resolve_docker_args_from_template(
+                    full_docker_cmd=docker_params["docker_arguments"])
+
             full_docker_cmd = self.docker_image_func(env_task_id=task_id, **docker_params)
 
             # if we are using the default docker, update back the Task:
@@ -1255,6 +1264,12 @@ class Worker(ServiceCommandSection):
                     )
                 except Exception:
                     pass
+
+            # convert template arguments now (i.e. ${CLEARML_} )
+            # Notice we do not parse the last part of the docker cmd because that's
+            # the actual command to be executed inside the docker
+            full_docker_cmd = docker_args_template_resolver.resolve_docker_args_from_template(
+                full_docker_cmd=full_docker_cmd[:-1]) + [full_docker_cmd[-1]]
 
             # if this is services_mode, change the worker_id to a unique name
             # abd use full-monitoring, ot it registers itself as a worker for this specific service.
@@ -2710,6 +2725,11 @@ class Worker(ServiceCommandSection):
         full_docker_cmd = self.docker_image_func(
             docker_image=docker_image, docker_arguments=docker_arguments, docker_bash_setup_script=docker_setup_script
         )
+
+        # convert docker template arguments (i.e. ${CLEARML_} ) based on the current Task
+        docker_args_template_resolver = DockerArgsTemplateResolver(task_session=self._session, task_id=task_id)
+        full_docker_cmd = docker_args_template_resolver.resolve_docker_args_from_template(
+            full_docker_cmd=full_docker_cmd)
 
         end_of_build_marker = "build.done=true"
         docker_cmd_suffix = ' build --id {task_id} --install-globally; ' \
