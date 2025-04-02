@@ -455,6 +455,9 @@ class K8sIntegration(Worker):
     def ports_mode_supported_for_task(self, task_id: str, task_data):
         return self.ports_mode
 
+    def get_default_docker_image(self, session, queue: str) -> str:
+        return str(ENV_DOCKER_IMAGE.get() or session.config.get("agent.default_docker.image", "nvidia/cuda"))
+
     def run_one_task(self, queue: Text, task_id: Text, worker_args=None, task_session=None, **_):
         print('Pulling task {} launching on kubernetes cluster'.format(task_id))
         session = task_session or self._session
@@ -509,9 +512,7 @@ class K8sIntegration(Worker):
 
         container = get_task_container(session, task_id)
         if not container.get('image'):
-            container['image'] = str(
-                ENV_DOCKER_IMAGE.get() or session.config.get("agent.default_docker.image", "nvidia/cuda")
-            )
+            container['image'] = self.get_default_docker_image(session, queue)
             container['arguments'] = session.config.get("agent.default_docker.arguments", None)
             set_task_container(
                 session, task_id, docker_image=container['image'], docker_arguments=container['arguments']
