@@ -11,26 +11,36 @@ from clearml.version import __version__
 clearml.backend_api.session.Session.add_client("clearml-task", __version__)
 
 
-def setup_parser(parser):
-    parser.add_argument("--version", action="store_true", default=None, help="Display the clearml-task utility version")
+def setup_parser(parser: ArgumentParser) -> None:
+    parser.add_argument(
+        "--version",
+        action="store_true",
+        default=None,
+        help="Display the clearml-task utility version",
+    )
     parser.add_argument(
         "--project",
         type=str,
         default=None,
-        help="Required: set the project name for the task. " "If --base-task-id is used, this arguments is optional.",
+        help="Required: set the project name for the task. If --base-task-id is used, this arguments is optional.",
     )
-    parser.add_argument("--name", type=str, default=None, help="Required: select a name for the remote task")
+    parser.add_argument(
+        "--name",
+        type=str,
+        default=None,
+        help="Required: select a name for the remote task",
+    )
     parser.add_argument(
         "--tags",
         default=None,
         nargs="*",
-        help="Optional: add tags to the newly created Task. " 'Example: --tags "base" "job"',
+        help='Optional: add tags to the newly created Task. \'Example: --tags "base" "job"\'',
     )
     parser.add_argument(
         "--repo",
         type=str,
         default=None,
-        help="remote URL for the repository to use. " "Example: --repo https://github.com/allegroai/clearml.git",
+        help="remote URL for the repository to use. Example: --repo https://github.com/allegroai/clearml.git",
     )
     parser.add_argument(
         "--branch",
@@ -65,14 +75,14 @@ def setup_parser(parser):
         "When used with --folder it supports a direct path to a file inside the local "
         "repository itself, for example: --script ~/project/source/train.py. "
         "To run a bash script, simply specify the path of that script; the script should "
-        "have the .sh extension, for example: --script init.sh"
+        "have the .sh extension, for example: --script init.sh",
     )
     parser.add_argument(
         "--binary",
         type=str,
         default=None,
         help="Binary used to launch the entry point. For example: '--binary python3', '--binary /bin/bash'."
-        "By default, the binary will be auto-detected."
+        "By default, the binary will be auto-detected.",
     )
     parser.add_argument(
         "--module",
@@ -115,15 +125,25 @@ def setup_parser(parser):
         "--packages",
         default=None,
         nargs="*",
-        help="Manually specify a list of required packages. " 'Example: --packages "tqdm>=2.1" "scikit-learn"',
+        help="Manually specify a list of required packages. 'Example: --packages \"tqdm>=2.1 scikit-learn\"'",
     )
-    parser.add_argument("--docker", type=str, default=None, help="Select the docker image to use in the remote session")
-    parser.add_argument("--docker_args", type=str, default=None, help="Add docker arguments, pass a single string")
+    parser.add_argument(
+        "--docker",
+        type=str,
+        default=None,
+        help="Select the docker image to use in the remote session",
+    )
+    parser.add_argument(
+        "--docker_args",
+        type=str,
+        default=None,
+        help="Add docker arguments, pass a single string",
+    )
     parser.add_argument(
         "--docker_bash_setup_script",
         type=str,
         default=None,
-        help="Add bash script to be executed inside the docker before setting up " "the Task's environment",
+        help="Add bash script to be executed inside the docker before setting up the Task's environment",
     )
     parser.add_argument(
         "--output-uri",
@@ -162,7 +182,7 @@ def setup_parser(parser):
     )
 
 
-def cli():
+def cli() -> None:
     title = "ClearML launch - launch any codebase on remote machine running clearml-agent"
     print(title)
     parser = ArgumentParser(description=title)
@@ -217,7 +237,7 @@ def cli():
             add_task_init_call=not args.skip_task_init,
             raise_on_missing_entries=True,
             verbose=True,
-            binary=args.binary
+            binary=args.binary,
         )
         # verify args before creating the Task
         create_populate.update_task_args(args.args)
@@ -242,7 +262,7 @@ def cli():
         print("Execution log at: {}".format(create_populate.task.get_output_log_web_page()))
 
 
-def main():
+def main() -> None:
     try:
         cli()
     except KeyboardInterrupt:
