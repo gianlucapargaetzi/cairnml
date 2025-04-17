@@ -1,3 +1,4 @@
+import numpy
 import copy
 import json
 import os
@@ -22,7 +23,6 @@ from typing import (
     Union,
     Mapping,
     Sequence,
-    Any,
     Dict,
     Iterable,
     TYPE_CHECKING,
@@ -30,6 +30,7 @@ from typing import (
     Tuple,
     List,
     TypeVar,
+    Any,
 )
 
 import psutil
@@ -136,10 +137,8 @@ from .utilities.networking import get_private_ip
 # noinspection PyProtectedMember
 from .backend_interface.task.args import _Arguments
 
-
 if TYPE_CHECKING:
     import pandas
-    import numpy
     from PIL import Image
     from .router.router import HttpRouter  # noqa: F401
 
@@ -202,16 +201,12 @@ class Task(_Task):
     NotSet = object()
 
     __create_protection = object()
-    __main_task = None  # type: Optional[Task]
+    __main_task: Optional["Task"] = None
     __exit_hook = None
     __forked_proc_main_pid = None
-    __task_id_reuse_time_window_in_hours = deferred_config(
-        "development.task_reuse_time_window_in_hours", 24.0, float
-    )
+    __task_id_reuse_time_window_in_hours = deferred_config("development.task_reuse_time_window_in_hours", 24.0, float)
     __detect_repo_async = deferred_config("development.vcs_repo_detect_async", False)
-    __default_output_uri = DEV_DEFAULT_OUTPUT_URI.get() or deferred_config(
-        "development.default_output_uri", None
-    )
+    __default_output_uri = DEV_DEFAULT_OUTPUT_URI.get() or deferred_config("development.default_output_uri", None)
 
     __hidden_tag = "hidden"
 
@@ -225,9 +220,7 @@ class Task(_Task):
         "http": "_PORT",
         "tcp": "upstream_task_port",
     }
-    _external_endpoint_host_tcp_port_mapping = {
-        "tcp_host_mapping": "_external_host_tcp_port_mapping"
-    }
+    _external_endpoint_host_tcp_port_mapping = {"tcp_host_mapping": "_external_host_tcp_port_mapping"}
 
     class _ConnectedParametersType(object):
         argparse = "argument_parser"
@@ -236,13 +229,9 @@ class Task(_Task):
 
         @classmethod
         def _options(cls):
-            return {
-                var
-                for var, val in vars(cls).items()
-                if isinstance(val, six.string_types)
-            }
+            return {var for var, val in vars(cls).items() if isinstance(val, six.string_types)}
 
-    def __init__(self, private=None, **kwargs):
+    def __init__(self, private: Optional[Any] = None, **kwargs: Any) -> None:
         """
         .. warning::
             **Do not construct Task manually!**
@@ -270,8 +259,7 @@ class Task(_Task):
         self._at_exit_called = False
 
     @classmethod
-    def current_task(cls):
-        # type: () -> TaskInstance
+    def current_task(cls) -> TaskInstance:
         """
         Get the current running Task (experiment). This is the main execution Task (task context) returned as a Task
         object.
@@ -289,20 +277,19 @@ class Task(_Task):
     @classmethod
     def init(
         cls,
-        project_name=None,  # type: Optional[str]
-        task_name=None,  # type: Optional[str]
-        task_type=TaskTypes.training,  # type: Task.TaskTypes
-        tags=None,  # type: Optional[Sequence[str]]
-        reuse_last_task_id=True,  # type: Union[bool, str]
-        continue_last_task=False,  # type: Union[bool, str, int]
-        output_uri=None,  # type: Optional[Union[str, bool]]
-        auto_connect_arg_parser=True,  # type: Union[bool, Mapping[str, bool]]
-        auto_connect_frameworks=True,  # type: Union[bool, Mapping[str, Union[bool, str, list]]]
-        auto_resource_monitoring=True,  # type: Union[bool, Mapping[str, Any]]
-        auto_connect_streams=True,  # type: Union[bool, Mapping[str, bool]]
-        deferred_init=False,  # type: bool
-    ):
-        # type: (...) -> TaskInstance
+        project_name: Optional[str] = None,
+        task_name: Optional[str] = None,
+        task_type: "Task.TaskTypes" = TaskTypes.training,
+        tags: Optional[Sequence[str]] = None,
+        reuse_last_task_id: Union[bool, str] = True,
+        continue_last_task: Union[bool, str, int] = False,
+        output_uri: Optional[Union[str, bool]] = None,
+        auto_connect_arg_parser: Union[bool, Mapping[str, bool]] = True,
+        auto_connect_frameworks: Union[bool, Mapping[str, Union[bool, str, list]]] = True,
+        auto_resource_monitoring: Union[bool, Mapping[str, Any]] = True,
+        auto_connect_streams: Union[bool, Mapping[str, bool]] = True,
+        deferred_init: bool = False,
+    ) -> TaskInstance:
         """
         Creates a new Task (experiment) if:
 
@@ -510,7 +497,7 @@ class Task(_Task):
         :rtype: Task
         """
 
-        def verify_defaults_match():
+        def verify_defaults_match() -> None:
             validate = [
                 ("project name", project_name, cls.__main_task.get_project_name()),
                 ("task name", task_name, cls.__main_task.name),
@@ -534,10 +521,7 @@ class Task(_Task):
                         )
                     )
 
-        if (
-            cls.__main_task is not None
-            and deferred_init != cls.__nested_deferred_init_flag
-        ):
+        if cls.__main_task is not None and deferred_init != cls.__nested_deferred_init_flag:
             # if this is a subprocess, regardless of what the init was called for,
             # we have to fix the main task hooks and stdout bindings
             if cls.__forked_proc_main_pid != os.getpid() and cls.__is_subprocess():
@@ -559,9 +543,7 @@ class Task(_Task):
                     cls.__main_task._logger = None
                     cls.__main_task.__reporter = None
                     # noinspection PyProtectedMember
-                    cls.__main_task._get_logger(
-                        auto_connect_streams=auto_connect_streams
-                    )
+                    cls.__main_task._get_logger(auto_connect_streams=auto_connect_streams)
                     cls.__main_task._artifacts_manager = Artifacts(cls.__main_task)
 
                 # unregister signal hooks, they cause subprocess to hang
@@ -605,9 +587,7 @@ class Task(_Task):
         elif isinstance(task_type, six.string_types):
             if task_type not in Task.TaskTypes.__members__:
                 raise ValueError(
-                    "Task type '{}' not supported, options are: {}".format(
-                        task_type, Task.TaskTypes.__members__.keys()
-                    )
+                    "Task type '{}' not supported, options are: {}".format(task_type, Task.TaskTypes.__members__.keys())
                 )
             task_type = Task.TaskTypes.__members__[str(task_type)]
 
@@ -617,20 +597,14 @@ class Task(_Task):
                 # check remote status
                 _local_rank = get_torch_local_rank()
                 if _local_rank is not None and _local_rank > 0:
-                    is_sub_process_task_id = get_torch_distributed_anchor_task_id(
-                        timeout=30
-                    )
+                    is_sub_process_task_id = get_torch_distributed_anchor_task_id(timeout=30)
 
                 # only allow if running locally and creating the first Task
                 # otherwise we ignore and perform in order
                 if ENV_DEFERRED_TASK_INIT.get():
                     deferred_init = True
 
-                if (
-                    not is_sub_process_task_id
-                    and deferred_init
-                    and deferred_init != cls.__nested_deferred_init_flag
-                ):
+                if not is_sub_process_task_id and deferred_init and deferred_init != cls.__nested_deferred_init_flag:
 
                     def completed_cb(x):
                         Task.__forked_proc_main_pid = os.getpid()
@@ -671,9 +645,7 @@ class Task(_Task):
                                 False
                                 if (
                                     isinstance(auto_connect_frameworks, dict)
-                                    and not auto_connect_frameworks.get(
-                                        "detect_repository", True
-                                    )
+                                    and not auto_connect_frameworks.get("detect_repository", True)
                                 )
                                 else True
                             ),
@@ -696,20 +668,13 @@ class Task(_Task):
                         task.output_uri = None
                         # create target data folder for logger / artifacts
                         # noinspection PyProtectedMember
-                        Path(task._get_default_report_storage_uri()).mkdir(
-                            parents=True, exist_ok=True
-                        )
+                        Path(task._get_default_report_storage_uri()).mkdir(parents=True, exist_ok=True)
                     elif output_uri is not None:
                         if output_uri is True:
-                            output_uri = (
-                                task.get_project_object().default_output_destination
-                                or True
-                            )
+                            output_uri = task.get_project_object().default_output_destination or True
                         task.output_uri = output_uri
                     elif task.get_project_object().default_output_destination:
-                        task.output_uri = (
-                            task.get_project_object().default_output_destination
-                        )
+                        task.output_uri = task.get_project_object().default_output_destination
                     elif cls.__default_output_uri:
                         task.output_uri = str(cls.__default_output_uri)
                     # store new task ID
@@ -729,13 +694,8 @@ class Task(_Task):
                         # Setting output_uri=False argument will disable using any default when running remotely
                         pass
                     else:
-                        if (
-                            task.get_project_object().default_output_destination
-                            and not task.output_uri
-                        ):
-                            task.output_uri = (
-                                task.get_project_object().default_output_destination
-                            )
+                        if task.get_project_object().default_output_destination and not task.output_uri:
+                            task.output_uri = task.get_project_object().default_output_destination
                         if cls.__default_output_uri and not task.output_uri:
                             task.output_uri = cls.__default_output_uri
                     # store new task ID
@@ -743,9 +703,7 @@ class Task(_Task):
                     # make sure we are started
                     task.started(ignore_errors=True)
                     # continue last iteration if we had any (or we need to override it)
-                    if isinstance(continue_last_task, int) and not isinstance(
-                        continue_last_task, bool
-                    ):
+                    if isinstance(continue_last_task, int) and not isinstance(continue_last_task, bool):
                         task.set_initial_iteration(int(continue_last_task))
                     elif task.data.last_iteration:
                         task.set_initial_iteration(int(task.data.last_iteration) + 1)
@@ -830,15 +788,9 @@ class Task(_Task):
                 StdStreamPatch.patch_std_streams(
                     task.get_logger(),
                     connect_stdout=(auto_connect_streams is True)
-                    or (
-                        isinstance(auto_connect_streams, dict)
-                        and auto_connect_streams.get("stdout", False)
-                    ),
+                    or (isinstance(auto_connect_streams, dict) and auto_connect_streams.get("stdout", False)),
                     connect_stderr=(auto_connect_streams is True)
-                    or (
-                        isinstance(auto_connect_streams, dict)
-                        and auto_connect_streams.get("stderr", False)
-                    ),
+                    or (isinstance(auto_connect_streams, dict) and auto_connect_streams.get("stderr", False)),
                     load_config_defaults=False,
                 )
                 return task  # noqa
@@ -850,12 +802,8 @@ class Task(_Task):
                     else ResourceMonitor
                 )
                 resource_monitor_kwargs = dict(
-                    report_mem_used_per_process=not config.get(
-                        "development.worker.report_global_mem_used", False
-                    ),
-                    first_report_sec=config.get(
-                        "development.worker.report_start_sec", None
-                    ),
+                    report_mem_used_per_process=not config.get("development.worker.report_global_mem_used", False),
+                    first_report_sec=config.get("development.worker.report_start_sec", None),
                     wait_for_first_iteration_to_start_sec=config.get(
                         "development.worker.wait_for_first_iteration_to_start_sec", None
                     ),
@@ -866,21 +814,17 @@ class Task(_Task):
                 )
                 if isinstance(auto_resource_monitoring, dict):
                     if "report_start_sec" in auto_resource_monitoring:
-                        auto_resource_monitoring["first_report_sec"] = (
-                            auto_resource_monitoring.pop("report_start_sec")
-                        )
+                        auto_resource_monitoring["first_report_sec"] = auto_resource_monitoring.pop("report_start_sec")
                     if "seconds_from_start" in auto_resource_monitoring:
-                        auto_resource_monitoring["first_report_sec"] = (
-                            auto_resource_monitoring.pop("seconds_from_start")
+                        auto_resource_monitoring["first_report_sec"] = auto_resource_monitoring.pop(
+                            "seconds_from_start"
                         )
                     if "report_global_mem_used" in auto_resource_monitoring:
-                        auto_resource_monitoring["report_mem_used_per_process"] = (
-                            auto_resource_monitoring.pop("report_global_mem_used")
+                        auto_resource_monitoring["report_mem_used_per_process"] = auto_resource_monitoring.pop(
+                            "report_global_mem_used"
                         )
                     resource_monitor_kwargs.update(auto_resource_monitoring)
-                task._resource_monitor = resource_monitor_cls(
-                    task, **resource_monitor_kwargs
-                )
+                task._resource_monitor = resource_monitor_cls(task, **resource_monitor_kwargs)
                 task._resource_monitor.start()
 
             # make sure all random generators are initialized with new seed
@@ -924,14 +868,10 @@ class Task(_Task):
         if not is_sub_process_task_id:
             if cls._offline_mode:
                 logger.report_text(
-                    "ClearML running in offline mode, session stored in {}".format(
-                        task.get_offline_mode_folder()
-                    )
+                    "ClearML running in offline mode, session stored in {}".format(task.get_offline_mode_folder())
                 )
             else:
-                logger.report_text(
-                    "ClearML results page: {}".format(task.get_output_log_web_page())
-                )
+                logger.report_text("ClearML results page: {}".format(task.get_output_log_web_page()))
         # Make sure we start the dev worker if required, otherwise it will only be started when we write
         # something to the log.
         task._dev_mode_setup_worker()
@@ -951,8 +891,7 @@ class Task(_Task):
         task._set_startup_info()
         return task
 
-    def get_http_router(self):
-        # type: () -> HttpRouter
+    def get_http_router(self) -> "HttpRouter":
         """
         Retrieve an instance of `HttpRouter` to manage an external HTTP endpoint and intercept traffic.
         The `HttpRouter` serves as a traffic manager, enabling the creation and configuration of local and external
@@ -988,9 +927,7 @@ class Task(_Task):
         try:
             from .router.router import HttpRouter  # noqa
         except ImportError:
-            raise UsageError(
-                "Could not import `HttpRouter`. Please run `pip install clearml[router]`"
-            )
+            raise UsageError("Could not import `HttpRouter`. Please run `pip install clearml[router]`")
 
         if self._http_router is None:
             self._http_router = HttpRouter(self)
@@ -998,13 +935,12 @@ class Task(_Task):
 
     def request_external_endpoint(
         self,
-        port,
-        protocol="http",
-        wait=False,
-        wait_interval_seconds=3.0,
-        wait_timeout_seconds=90.0,
-    ):
-        # type: (int, str, bool, float, float) -> Optional[Dict]
+        port: int,
+        protocol: str = "http",
+        wait: bool = False,
+        wait_interval_seconds: float = 3.0,
+        wait_timeout_seconds: float = 90.0,
+    ) -> Optional[Dict]:
         """
         Request an external endpoint for an application
 
@@ -1030,9 +966,7 @@ class Task(_Task):
         # sync with router - get data from Task
         if not self._external_endpoint_ports.get(protocol):
             self.reload()
-            internal_port = self._get_runtime_properties().get(
-                self._external_endpoint_internal_port_map[protocol]
-            )
+            internal_port = self._get_runtime_properties().get(self._external_endpoint_internal_port_map[protocol])
             if internal_port:
                 self._external_endpoint_ports[protocol] = internal_port
 
@@ -1041,15 +975,11 @@ class Task(_Task):
             external_host_port_mapping = self._get_runtime_properties().get(
                 self._external_endpoint_host_tcp_port_mapping["tcp_host_mapping"]
             )
-            self._external_endpoint_ports["tcp_host_mapping"] = (
-                external_host_port_mapping
-            )
+            self._external_endpoint_ports["tcp_host_mapping"] = external_host_port_mapping
 
         # check if we need to parse the port mapping, only if running on "bare-metal" host machine.
         if self._external_endpoint_ports.get("tcp_host_mapping"):
-            external_host_port_mapping = self._external_endpoint_ports.get(
-                "tcp_host_mapping"
-            )
+            external_host_port_mapping = self._external_endpoint_ports.get("tcp_host_mapping")
             # format is docker standard port mapping format:
             # example: "out:in,out_range100-out_range102:in_range0-in_range2"
             # notice `out` in this context means the host port, the one that
@@ -1067,9 +997,7 @@ class Task(_Task):
                         out_port = int(out_range[0]) + (port - int(in_range[0]))
                         print(
                             "INFO: Task.request_external_endpoint(...) changed requested external port to {}, "
-                            "conforming to mapped external host ports [{} -> {}]".format(
-                                out_port, port, port_range
-                            )
+                            "conforming to mapped external host ports [{} -> {}]".format(out_port, port, port_range)
                         )
                         break
 
@@ -1079,9 +1007,7 @@ class Task(_Task):
                 print(
                     "WARNING: Task.request_external_endpoint(...) failed matching requested port to "
                     "mapped external host port [{} to {}], "
-                    "proceeding with original port {}".format(
-                        port, external_host_port_mapping, port
-                    )
+                    "proceeding with original port {}".format(port, external_host_port_mapping, port)
                 )
 
             # change the requested port to the one we have on the machine
@@ -1096,9 +1022,7 @@ class Task(_Task):
             else:
                 raise ValueError(
                     "Only one endpoint per protocol can be requested at the moment. "
-                    "Port already exposed is: {}".format(
-                        self._external_endpoint_ports.get(protocol)
-                    )
+                    "Port already exposed is: {}".format(self._external_endpoint_ports.get(protocol))
                 )
 
         # mark for the router our request
@@ -1106,15 +1030,12 @@ class Task(_Task):
         self._set_runtime_properties(
             {
                 "_SERVICE": self._external_endpoint_service_map[protocol],
-                self._external_endpoint_address_map[protocol]: HOST_MACHINE_IP.get()
-                or get_private_ip(),
+                self._external_endpoint_address_map[protocol]: HOST_MACHINE_IP.get() or get_private_ip(),
                 self._external_endpoint_port_map[protocol]: port,
             }
         )
         # required system_tag for the router to catch the routing request
-        self.set_system_tags(
-            list(set((self.get_system_tags() or []) + ["external_service"]))
-        )
+        self.set_system_tags(list(set((self.get_system_tags() or []) + ["external_service"])))
         self._external_endpoint_ports[protocol] = port
         if wait:
             return self.wait_for_external_endpoint(
@@ -1125,9 +1046,8 @@ class Task(_Task):
         return None
 
     def wait_for_external_endpoint(
-        self, wait_interval_seconds=3.0, wait_timeout_seconds=90.0, protocol="http"
-    ):
-        # type: (float, float, Optional[str]) -> Union[Optional[Dict], List[Optional[Dict]]]
+        self, wait_interval_seconds: float = 3.0, wait_timeout_seconds: float = 90.0, protocol: Optional[str] = "http"
+    ) -> Union[Optional[Dict], List[Optional[Dict]]]:
         """
         Wait for an external endpoint to be assigned
 
@@ -1174,9 +1094,7 @@ class Task(_Task):
         unwaited_protocols = [p for p in protocols if p not in waited_protocols]
         if wait_timeout_seconds <= 0 and unwaited_protocols:
             LoggerRoot.get_base_logger().warning(
-                "Timeout exceeded while waiting for {} endpoint(s)".format(
-                    ",".join(unwaited_protocols)
-                )
+                "Timeout exceeded while waiting for {} endpoint(s)".format(",".join(unwaited_protocols))
             )
         return results
 
@@ -1189,16 +1107,12 @@ class Task(_Task):
     ):
         if not self._external_endpoint_ports.get(protocol):
             self.reload()
-            internal_port = self._get_runtime_properties().get(
-                self._external_endpoint_internal_port_map[protocol]
-            )
+            internal_port = self._get_runtime_properties().get(self._external_endpoint_internal_port_map[protocol])
             if internal_port:
                 self._external_endpoint_ports[protocol] = internal_port
         if not self._external_endpoint_ports.get(protocol):
             if warn:
-                LoggerRoot.get_base_logger().warning(
-                    "No external {} endpoints have been requested".format(protocol)
-                )
+                LoggerRoot.get_base_logger().warning("No external {} endpoints have been requested".format(protocol))
             return None
         start_time = time.time()
         while True:
@@ -1214,11 +1128,7 @@ class Task(_Task):
                     endpoint = (
                         runtime_props.get(self._external_endpoint_address_map[protocol])
                         + ":"
-                        + str(
-                            runtime_props.get(
-                                self._external_endpoint_port_map[protocol]
-                            )
-                        )
+                        + str(runtime_props.get(self._external_endpoint_port_map[protocol]))
                     )
             if endpoint or browser_endpoint:
                 return {
@@ -1230,15 +1140,12 @@ class Task(_Task):
             if time.time() >= start_time + wait_timeout_seconds:
                 if warn:
                     LoggerRoot.get_base_logger().warning(
-                        "Timeout exceeded while waiting for {} endpoint".format(
-                            protocol
-                        )
+                        "Timeout exceeded while waiting for {} endpoint".format(protocol)
                     )
                 return None
             time.sleep(wait_interval_seconds)
 
-    def list_external_endpoints(self, protocol=None):
-        # type: (Optional[str]) -> List[Dict]
+    def list_external_endpoints(self, protocol: Optional[str] = None) -> List[Dict]:
         """
         List all external endpoints assigned
 
@@ -1257,9 +1164,7 @@ class Task(_Task):
         results = []
         protocols = [protocol] if protocol is not None else ["http", "tcp"]
         for protocol in protocols:
-            internal_port = runtime_props.get(
-                self._external_endpoint_internal_port_map[protocol]
-            )
+            internal_port = runtime_props.get(self._external_endpoint_internal_port_map[protocol])
             if internal_port:
                 self._external_endpoint_ports[protocol] = internal_port
             else:
@@ -1274,11 +1179,7 @@ class Task(_Task):
                     endpoint = (
                         runtime_props.get(self._external_endpoint_address_map[protocol])
                         + ":"
-                        + str(
-                            runtime_props.get(
-                                self._external_endpoint_port_map[protocol]
-                            )
-                        )
+                        + str(runtime_props.get(self._external_endpoint_port_map[protocol]))
                     )
             if endpoint or browser_endpoint:
                 results.append(
@@ -1294,25 +1195,24 @@ class Task(_Task):
     @classmethod
     def create(
         cls,
-        project_name=None,  # type: Optional[str]
-        task_name=None,  # type: Optional[str]
-        task_type=None,  # type: Optional[str]
-        repo=None,  # type: Optional[str]
-        branch=None,  # type: Optional[str]
-        commit=None,  # type: Optional[str]
-        script=None,  # type: Optional[str]
-        working_directory=None,  # type: Optional[str]
-        packages=None,  # type: Optional[Union[bool, Sequence[str]]]
-        requirements_file=None,  # type: Optional[Union[str, Path]]
-        docker=None,  # type: Optional[str]
-        docker_args=None,  # type: Optional[str]
-        docker_bash_setup_script=None,  # type: Optional[str]
-        argparse_args=None,  # type: Optional[Sequence[Tuple[str, str]]]
-        base_task_id=None,  # type: Optional[str]
-        add_task_init_call=True,  # type: bool
-        force_single_script_file=False,  # type: bool
-    ):
-        # type: (...) -> TaskInstance
+        project_name: Optional[str] = None,
+        task_name: Optional[str] = None,
+        task_type: Optional[str] = None,
+        repo: Optional[str] = None,
+        branch: Optional[str] = None,
+        commit: Optional[str] = None,
+        script: Optional[str] = None,
+        working_directory: Optional[str] = None,
+        packages: Optional[Union[bool, Sequence[str]]] = None,
+        requirements_file: Optional[Union[str, Path]] = None,
+        docker: Optional[str] = None,
+        docker_args: Optional[str] = None,
+        docker_bash_setup_script: Optional[str] = None,
+        argparse_args: Optional[Sequence[Tuple[str, str]]] = None,
+        base_task_id: Optional[str] = None,
+        add_task_init_call: bool = True,
+        force_single_script_file: bool = False,
+    ) -> TaskInstance:
         """
         Manually create and populate a new Task (experiment) in the system.
         If the code does not already contain a call to ``Task.init``, pass add_task_init_call=True,
@@ -1396,8 +1296,7 @@ class Task(_Task):
         return task
 
     @classmethod
-    def get_by_name(cls, task_name):
-        # type: (str) -> TaskInstance
+    def get_by_name(cls, task_name: str) -> TaskInstance:
         """
 
         .. note::
@@ -1418,14 +1317,13 @@ class Task(_Task):
     @classmethod
     def get_task(
         cls,
-        task_id=None,  # type: Optional[str]
-        project_name=None,  # type: Optional[str]
-        task_name=None,  # type: Optional[str]
-        tags=None,  # type: Optional[Sequence[str]]
-        allow_archived=True,  # type: bool
-        task_filter=None,  # type: Optional[dict]
-    ):
-        # type: (...) -> TaskInstance
+        task_id: Optional[str] = None,
+        project_name: Optional[str] = None,
+        task_name: Optional[str] = None,
+        tags: Optional[Sequence[str]] = None,
+        allow_archived: bool = True,
+        task_filter: Optional[dict] = None,
+    ) -> TaskInstance:
         """
         Get a Task by ID, or project name / task name combination.
 
@@ -1484,7 +1382,7 @@ class Task(_Task):
 
             .. code-block:: py
 
-                ["__$all", "a", "b", "c", "__$or", "d", "__$not", "e", "__$and", "__$or" "f", "g"]
+                ["__$all", "a", "b", "c", "__$or", "d", "__$not", "e", "__$and", "__$or", "f", "g"]
 
             This example means ("a" AND "b" AND "c" AND ("d" OR NOT "e") AND ("f" OR "g")).
             See https://clear.ml/docs/latest/docs/clearml_sdk/task_sdk/#tag-filters for more information.
@@ -1508,14 +1406,13 @@ class Task(_Task):
     @classmethod
     def get_tasks(
         cls,
-        task_ids=None,  # type: Optional[Sequence[str]]
-        project_name=None,  # type: Optional[Union[Sequence[str],str]]
-        task_name=None,  # type: Optional[str]
-        tags=None,  # type: Optional[Sequence[str]]
-        allow_archived=True,  # type: bool
-        task_filter=None,  # type: Optional[Dict]
-    ):
-        # type: (...) -> List[TaskInstance]
+        task_ids: Optional[Sequence[str]] = None,
+        project_name: Optional[Union[Sequence[str], str]] = None,
+        task_name: Optional[str] = None,
+        tags: Optional[Sequence[str]] = None,
+        allow_archived: bool = True,
+        task_filter: Optional[Dict] = None,
+    ) -> List[TaskInstance]:
         """
         Get a list of Tasks objects matching the queries/filters:
 
@@ -1560,7 +1457,7 @@ class Task(_Task):
 
             .. code-block:: py
 
-                ["__$all", "a", "b", "c", "__$or", "d", "__$not", "e", "__$and", "__$or" "f", "g"]
+                ["__$all", "a", "b", "c", "__$or", "d", "__$not", "e", "__$and", "__$or", "f", "g"]
 
             This example means ("a" AND "b" AND "c" AND ("d" OR NOT "e") AND ("f" OR "g")).
             See https://clear.ml/docs/latest/docs/clearml_sdk/task_sdk/#tag-filters for more information.
@@ -1575,7 +1472,7 @@ class Task(_Task):
           - ``user`` - List[str] Filter based on Task's user owner, provide list of valid user IDs.
           - ``order_by`` - List[str] List of field names to order by. When ``search_text`` is used. Use '-' prefix to specify descending order. Optional, recommended when using page. Example: ``order_by=['-last_update']``
           - ``_all_`` - dict(fields=[], pattern='')  Match string `pattern` (regular expression) appearing in All `fields`. Example: dict(fields=['script.repository'], pattern='github.com/user')
-          - ``_any_`` - dict(fields=[], pattern='')  Match string `pattern` (regular expression) appearing in Any of the `fields`. Example: dict(fields=['comment', 'name'], pattern='my comment')
+          - ``_any_`` - dict(fields=[], pattern='')  Match string `pattern` (regular expression) appearing in object of the `fields`. Example: dict(fields=['comment', 'name'], pattern='my comment')
           - Examples - ``{'status': ['stopped'], 'order_by': ["-last_update"]}`` , ``{'order_by'=['-last_update'], '_all_'=dict(fields=['script.repository'], pattern='github.com/user'))``
 
         :return: The Tasks specified by the parameter combinations (see the parameters).
@@ -1583,28 +1480,21 @@ class Task(_Task):
         """
         task_filter = task_filter or {}
         if not allow_archived:
-            task_filter["system_tags"] = (task_filter.get("system_tags") or []) + [
-                "-{}".format(cls.archived_tag)
-            ]
+            task_filter["system_tags"] = (task_filter.get("system_tags") or []) + ["-{}".format(cls.archived_tag)]
 
         return cls.__get_tasks(
-            task_ids=task_ids,
-            project_name=project_name,
-            tags=tags,
-            task_name=task_name,
-            **task_filter
+            task_ids=task_ids, project_name=project_name, tags=tags, task_name=task_name, **task_filter
         )
 
     @classmethod
     def query_tasks(
         cls,
-        project_name=None,  # type: Optional[Union[Sequence[str],str]]
-        task_name=None,  # type: Optional[str]
-        tags=None,  # type: Optional[Sequence[str]]
-        additional_return_fields=None,  # type: Optional[Sequence[str]]
-        task_filter=None,  # type: Optional[Dict]
-    ):
-        # type: (...) -> Union[List[str], List[Dict[str, str]]]
+        project_name: Optional[Union[Sequence[str], str]] = None,
+        task_name: Optional[str] = None,
+        tags: Optional[Sequence[str]] = None,
+        additional_return_fields: Optional[Sequence[str]] = None,
+        task_filter: Optional[Dict] = None,
+    ) -> Union[List[str], List[Dict[str, str]]]:
         """
         Get a list of Tasks ID matching the specific query/filter.
         Notice, if `additional_return_fields` is specified, returns a list of
@@ -1642,7 +1532,7 @@ class Task(_Task):
 
             .. code-block:: py
 
-                ["__$all", "a", "b", "c", "__$or", "d", "__$not", "e", "__$and", "__$or" "f", "g"]
+                ["__$all", "a", "b", "c", "__$or", "d", "__$not", "e", "__$and", "__$or", "f", "g"]
 
             This example means ("a" AND "b" AND "c" AND ("d" OR NOT "e") AND ("f" OR "g")).
             See https://clear.ml/docs/latest/docs/clearml_sdk/task_sdk/#tag-filters for more information.
@@ -1671,24 +1561,18 @@ class Task(_Task):
         return_fields = {}
         if additional_return_fields:
             return_fields = set(list(additional_return_fields) + ["id"])
-            task_filter["only_fields"] = (task_filter.get("only_fields") or []) + list(
-                return_fields
-            )
+            task_filter["only_fields"] = (task_filter.get("only_fields") or []) + list(return_fields)
 
         if task_filter.get("type"):
             task_filter["type"] = [str(task_type) for task_type in task_filter["type"]]
 
-        results = cls._query_tasks(
-            project_name=project_name, task_name=task_name, **task_filter
-        )
+        results = cls._query_tasks(project_name=project_name, task_name=task_name, **task_filter)
         return (
             [t.id for t in results]
             if not additional_return_fields
             else [
                 {
-                    k: cls._get_data_property(
-                        prop_path=k, data=r, raise_on_error=False, log_on_error=False
-                    )
+                    k: cls._get_data_property(prop_path=k, data=r, raise_on_error=False, log_on_error=False)
                     for k in return_fields
                 }
                 for r in results
@@ -1696,8 +1580,7 @@ class Task(_Task):
         )
 
     @property
-    def output_uri(self):
-        # type: () -> str
+    def output_uri(self) -> str:
         """
         The storage / output url for this task. This is the default location for output models and other artifacts.
 
@@ -1706,8 +1589,7 @@ class Task(_Task):
         return self.storage_uri
 
     @property
-    def last_worker(self):
-        # type: () -> str
+    def last_worker(self) -> str:
         """
         ID of last worker that handled the task.
 
@@ -1716,8 +1598,7 @@ class Task(_Task):
         return self._data.last_worker
 
     @output_uri.setter
-    def output_uri(self, value):
-        # type: (Union[str, bool]) -> None
+    def output_uri(self, value: Union[str, bool]) -> None:
         """
         Set the storage / output url for this task. This is the default location for output models and other artifacts.
 
@@ -1729,9 +1610,7 @@ class Task(_Task):
         if value is False:
             value = None
         elif value is True:
-            value = str(
-                self.__default_output_uri or self._get_default_report_storage_uri()
-            )
+            value = str(self.__default_output_uri or self._get_default_report_storage_uri())
 
         # check if we have the correct packages / configuration
         if value and value != self.storage_uri:
@@ -1747,8 +1626,7 @@ class Task(_Task):
         self.storage_uri = value
 
     @property
-    def artifacts(self):
-        # type: () -> Dict[str, Artifact]
+    def artifacts(self) -> Dict[str, Artifact]:
         """
         A read-only dictionary of Task artifacts (name, artifact).
 
@@ -1758,18 +1636,13 @@ class Task(_Task):
             return ReadOnlyDict()
         artifacts_pairs = []
         if self.data.execution and self.data.execution.artifacts:
-            artifacts_pairs = [
-                (a.key, Artifact(a)) for a in self.data.execution.artifacts
-            ]
+            artifacts_pairs = [(a.key, Artifact(a)) for a in self.data.execution.artifacts]
         if self._artifacts_manager:
-            artifacts_pairs += list(
-                self._artifacts_manager.registered_artifacts.items()
-            )
+            artifacts_pairs += list(self._artifacts_manager.registered_artifacts.items())
         return ReadOnlyDict(artifacts_pairs)
 
     @property
-    def models(self):
-        # type: () -> Mapping[str, Sequence[Model]]
+    def models(self) -> Mapping[str, Sequence[Model]]:
         """
         Read-only dictionary of the Task's loaded/stored models.
 
@@ -1802,8 +1675,7 @@ class Task(_Task):
         return self.get_models()
 
     @property
-    def logger(self):
-        # type: () -> Logger
+    def logger(self) -> Logger:
         """
         Get a Logger object for reporting, for this task context. You can view all Logger report output associated with
         the Task for which this method is called, including metrics, plots, text, tables, and images, in the
@@ -1816,13 +1688,12 @@ class Task(_Task):
     @classmethod
     def clone(
         cls,
-        source_task=None,  # type: Optional[Union[Task, str]]
-        name=None,  # type: Optional[str]
-        comment=None,  # type: Optional[str]
-        parent=None,  # type: Optional[str]
-        project=None,  # type: Optional[str]
-    ):
-        # type: (...) -> TaskInstance
+        source_task: Optional[Union["Task", str]] = None,
+        name: Optional[str] = None,
+        comment: Optional[str] = None,
+        parent: Optional[str] = None,
+        project: Optional[str] = None,
+    ) -> TaskInstance:
         """
         Create a duplicate (a clone) of a Task (experiment). The status of the cloned Task is ``Draft``
         and modifiable.
@@ -1846,13 +1717,10 @@ class Task(_Task):
         assert isinstance(source_task, (six.string_types, Task))
         if not Session.check_min_api_version("2.4"):
             raise ValueError(
-                "ClearML-server does not support DevOps features, "
-                "upgrade clearml-server to 0.12.0 or above"
+                "ClearML-server does not support DevOps features, upgrade clearml-server to 0.12.0 or above"
             )
 
-        task_id = (
-            source_task if isinstance(source_task, six.string_types) else source_task.id
-        )
+        task_id = source_task if isinstance(source_task, six.string_types) else source_task.id
         if not parent:
             if isinstance(source_task, six.string_types):
                 source_task = cls.get_task(task_id=source_task)
@@ -1871,8 +1739,13 @@ class Task(_Task):
         return cloned_task
 
     @classmethod
-    def enqueue(cls, task, queue_name=None, queue_id=None, force=False):
-        # type: (Union[Task, str], Optional[str], Optional[str], bool) -> Any
+    def enqueue(
+        cls,
+        task: Union["Task", str],
+        queue_name: Optional[str] = None,
+        queue_id: Optional[str] = None,
+        force: bool = False,
+    ) -> Any:
         """
         Enqueue a Task for execution, by adding it to an execution queue.
 
@@ -1917,8 +1790,7 @@ class Task(_Task):
         assert isinstance(task, (six.string_types, Task))
         if not Session.check_min_api_version("2.4"):
             raise ValueError(
-                "ClearML-server does not support DevOps features, "
-                "upgrade clearml-server to 0.12.0 or above"
+                "ClearML-server does not support DevOps features, upgrade clearml-server to 0.12.0 or above"
             )
 
         # make sure we have wither name ot id
@@ -1955,8 +1827,7 @@ class Task(_Task):
         return resp
 
     @classmethod
-    def get_num_enqueued_tasks(cls, queue_name=None, queue_id=None):
-        # type: (Optional[str], Optional[str]) -> int
+    def get_num_enqueued_tasks(cls, queue_name: Optional[str] = None, queue_id: Optional[str] = None) -> int:
         """
         Get the number of tasks enqueued in a given queue.
 
@@ -1966,9 +1837,7 @@ class Task(_Task):
         :return: The number of tasks enqueued in the given queue
         """
         if not Session.check_min_api_server_version("2.20", raise_error=True):
-            raise ValueError(
-                "You version of clearml-server does not support the 'queues.get_num_entries' endpoint"
-            )
+            raise ValueError("You version of clearml-server does not support the 'queues.get_num_entries' endpoint")
         mutually_exclusive(queue_name=queue_name, queue_id=queue_id)
         session = cls._get_default_session()
         if not queue_id:
@@ -1977,16 +1846,11 @@ class Task(_Task):
                 raise ValueError('Could not find queue named "{}"'.format(queue_name))
         result = get_num_enqueued_tasks(session, queue_id)
         if result is None:
-            raise ValueError(
-                "Could not query the number of enqueued tasks in queue with ID {}".format(
-                    queue_id
-                )
-            )
+            raise ValueError("Could not query the number of enqueued tasks in queue with ID {}".format(queue_id))
         return result
 
     @classmethod
-    def dequeue(cls, task):
-        # type: (Union[Task, str]) -> Any
+    def dequeue(cls, task: Union["Task", str]) -> Any:
         """
         Dequeue (remove) a Task from an execution queue.
 
@@ -2026,8 +1890,7 @@ class Task(_Task):
         assert isinstance(task, (six.string_types, Task))
         if not Session.check_min_api_version("2.4"):
             raise ValueError(
-                "ClearML-server does not support DevOps features, "
-                "upgrade clearml-server to 0.12.0 or above"
+                "ClearML-server does not support DevOps features, upgrade clearml-server to 0.12.0 or above"
             )
 
         task_id = task if isinstance(task, six.string_types) else task.id
@@ -2037,8 +1900,7 @@ class Task(_Task):
         resp = res.response
         return resp
 
-    def set_progress(self, progress):
-        # type: (int) -> ()
+    def set_progress(self, progress: int) -> ():
         """
         Sets Task's progress (0 - 100)
         Progress is a field computed and reported by the user.
@@ -2046,16 +1908,11 @@ class Task(_Task):
         :param progress: numeric value (0 - 100)
         """
         if not isinstance(progress, int) or progress < 0 or progress > 100:
-            self.log.warning(
-                "Can't set progress {} as it is not and int between 0 and 100".format(
-                    progress
-                )
-            )
+            self.log.warning("Can't set progress {} as it is not and int between 0 and 100".format(progress))
             return
         self._set_runtime_properties({"progress": str(progress)})
 
-    def get_progress(self):
-        # type: () -> (Optional[int])
+    def get_progress(self) -> Optional[int]:
         """
         Gets Task's progress (0 - 100)
 
@@ -2067,8 +1924,7 @@ class Task(_Task):
             return None
         return int(progress)
 
-    def add_tags(self, tags):
-        # type: (Union[Sequence[str], str]) -> None
+    def add_tags(self, tags: Union[Sequence[str], str]) -> None:
         """
         Add Tags to this task. Old tags are not deleted. When executing a Task (experiment) remotely,
         this method has no effect.
@@ -2082,8 +1938,12 @@ class Task(_Task):
         self.data.tags = list(set((self.data.tags or []) + tags))
         self._edit(tags=self.data.tags)
 
-    def connect(self, mutable, name=None, ignore_remote_overrides=False):
-        # type: (Any, Optional[str], bool) -> Any
+    def connect(
+        self,
+        mutable: Any,
+        name: Optional[str] = None,
+        ignore_remote_overrides: bool = False,
+    ) -> Any:
         """
         Connect an object to a Task object. This connects an experiment component (part of an experiment) to the
         experiment. For example, an experiment component can be a valid object containing some hyperparameters, or a :class:`Model`.
@@ -2131,18 +1991,10 @@ class Task(_Task):
         )
 
         multi_config_support = Session.check_min_api_version("2.9")
-        if (
-            multi_config_support
-            and not name
-            and not isinstance(mutable, (OutputModel, InputModel))
-        ):
+        if multi_config_support and not name and not isinstance(mutable, (OutputModel, InputModel)):
             name = self._default_configuration_section_name
 
-        if (
-            not multi_config_support
-            and name
-            and name != self._default_configuration_section_name
-        ):
+        if not multi_config_support and name and name != self._default_configuration_section_name:
             raise ValueError(
                 "Multiple configurations is not supported with the current 'clearml-server', "
                 "please upgrade to the latest version"
@@ -2150,17 +2002,11 @@ class Task(_Task):
 
         for mutable_type, method in dispatch:
             if isinstance(mutable, mutable_type):
-                return method(
-                    mutable, name=name, ignore_remote_overrides=ignore_remote_overrides
-                )
+                return method(mutable, name=name, ignore_remote_overrides=ignore_remote_overrides)
 
-        raise Exception(
-            "Unsupported mutable type %s: no connect function found"
-            % type(mutable).__name__
-        )
+        raise Exception("Unsupported mutable type %s: no connect function found" % type(mutable).__name__)
 
-    def set_packages(self, packages):
-        # type: (Union[str, Path, Sequence[str]]) -> ()
+    def set_packages(self, packages: Union[str, Path, Sequence[str]]) -> ():
         """
         Manually specify a list of required packages or a local requirements.txt file. Note that this will
         overwrite all existing packages.
@@ -2186,8 +2032,12 @@ class Task(_Task):
         # noinspection PyProtectedMember
         self._update_requirements(packages or "")
 
-    def set_repo(self, repo=None, branch=None, commit=None):
-        # type: (Optional[str], Optional[str], Optional[str]) -> ()
+    def set_repo(
+        self,
+        repo: Optional[str] = None,
+        branch: Optional[str] = None,
+        commit: Optional[str] = None,
+    ) -> ():
         """
         Specify a repository to attach to the function.
         Allow users to execute the task inside the specified repository, enabling them to load modules/script
@@ -2223,8 +2073,7 @@ class Task(_Task):
                 self.data.script.version_num = commit or ""
             self._edit(script=self.data.script)
 
-    def get_requirements(self):
-        # type: () -> RequirementsDict
+    def get_requirements(self) -> RequirementsDict:
         """
         Get the task's requirements
 
@@ -2237,9 +2086,12 @@ class Task(_Task):
         return requirements_dict
 
     def connect_configuration(
-        self, configuration, name=None, description=None, ignore_remote_overrides=False
-    ):
-        # type: (Union[Mapping, list, Path, str], Optional[str], Optional[str], bool) -> Union[dict, Path, str]
+        self,
+        configuration: Union[Mapping, list, Path, str],
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        ignore_remote_overrides: bool = False,
+    ) -> Union[dict, Path, str]:
         """
         Connect a configuration dictionary or configuration file (pathlib.Path / str) to a Task object.
         This method should be called before reading the configuration file.
@@ -2303,11 +2155,7 @@ class Task(_Task):
         if multi_config_support and not name:
             name = self._default_configuration_section_name
 
-        if (
-            not multi_config_support
-            and name
-            and name != self._default_configuration_section_name
-        ):
+        if not multi_config_support and name and name != self._default_configuration_section_name:
             raise ValueError(
                 "Multiple configurations is not supported with the current 'clearml-server', "
                 "please upgrade to the latest version"
@@ -2335,7 +2183,7 @@ class Task(_Task):
                     # noinspection PyProtectedMember
                     task._set_model_config(config_dict=config_dict)
 
-            def get_dev_config(configuration_):
+            def get_dev_config(configuration_: Union[dict, list, Path, str]) -> Union[dict, ProxyDictPostWrite]:
                 if multi_config_support:
                     self._set_configuration(
                         name=name,
@@ -2346,9 +2194,7 @@ class Task(_Task):
                 else:
                     self._set_model_config(config_dict=configuration)
                 if isinstance(configuration_, dict):
-                    configuration_ = ProxyDictPostWrite(
-                        self, _update_config_dict, configuration_
-                    )
+                    configuration_ = ProxyDictPostWrite(self, _update_config_dict, configuration_)
                 return configuration_
 
             if (
@@ -2371,9 +2217,7 @@ class Task(_Task):
                 if remote_configuration is None:
                     LoggerRoot.get_base_logger().warning(
                         "Could not retrieve remote configuration named '{}'\n"
-                        "Using default configuration: {}".format(
-                            name, str(configuration)
-                        )
+                        "Using default configuration: {}".format(name, str(configuration))
                     )
                     # update back configuration section
                     if multi_config_support:
@@ -2422,8 +2266,7 @@ class Task(_Task):
                     description=description,
                     config_type=(
                         configuration_path.suffixes[-1].lstrip(".")
-                        if configuration_path.suffixes
-                        and configuration_path.suffixes[-1]
+                        if configuration_path.suffixes and configuration_path.suffixes[-1]
                         else "file"
                     ),
                     config_text=configuration_text,
@@ -2433,9 +2276,7 @@ class Task(_Task):
             return configuration
         else:
             configuration_text = (
-                self._get_configuration_text(name=name)
-                if multi_config_support
-                else self._get_model_config_text()
+                self._get_configuration_text(name=name) if multi_config_support else self._get_model_config_text()
             )
             if configuration_text is None:
                 LoggerRoot.get_base_logger().warning(
@@ -2454,8 +2295,7 @@ class Task(_Task):
                             description=description,
                             config_type=(
                                 configuration_path.suffixes[-1].lstrip(".")
-                                if configuration_path.suffixes
-                                and configuration_path.suffixes[-1]
+                                if configuration_path.suffixes and configuration_path.suffixes[-1]
                                 else "file"
                             ),
                             config_text=configuration_text,
@@ -2465,22 +2305,15 @@ class Task(_Task):
             configuration_path = cast_Path(configuration)
             fd, local_filename = mkstemp(
                 prefix="clearml_task_config_",
-                suffix=(
-                    configuration_path.suffixes[-1]
-                    if configuration_path.suffixes
-                    else ".txt"
-                ),
+                suffix=(configuration_path.suffixes[-1] if configuration_path.suffixes else ".txt"),
             )
             with open(fd, "w") as f:
                 f.write(configuration_text)
-            return (
-                cast_Path(local_filename)
-                if isinstance(configuration, cast_Path)
-                else local_filename
-            )
+            return cast_Path(local_filename) if isinstance(configuration, cast_Path) else local_filename
 
-    def connect_label_enumeration(self, enumeration, ignore_remote_overrides=False):
-        # type: (Dict[str, int], bool) -> Dict[str, int]
+    def connect_label_enumeration(
+        self, enumeration: Dict[str, int], ignore_remote_overrides: bool = False
+    ) -> Dict[str, int]:
         """
         Connect a label enumeration dictionary to a Task (experiment) object.
 
@@ -2507,8 +2340,7 @@ class Task(_Task):
         )
         if not isinstance(enumeration, dict):
             raise ValueError(
-                "connect_label_enumeration supports only `dict` type, "
-                "{} is not supported".format(type(enumeration))
+                "connect_label_enumeration supports only `dict` type, {} is not supported".format(type(enumeration))
             )
 
         if (
@@ -2523,8 +2355,7 @@ class Task(_Task):
             enumeration.update(self.get_labels_enumeration())
         return enumeration
 
-    def get_logger(self):
-        # type: () -> Logger
+    def get_logger(self) -> Logger:
         """
         Get a Logger object for reporting, for this task context. You can view all Logger report output associated with
         the Task for which this method is called, including metrics, plots, text, tables, and images, in the
@@ -2536,12 +2367,12 @@ class Task(_Task):
 
     def launch_multi_node(
         self,
-        total_num_nodes,  # type: int
-        port=29500,  # type: Optional[int]
-        queue=None,  # type: Optional[str]
-        wait=False,  # type: bool
-        addr=None,  # type: Optional[str]
-        devices=None,  # type: Optional[Union[int, Sequence[int]]]
+        total_num_nodes: int,
+        port: Optional[int] = 29500,
+        queue: Optional[str] = None,
+        wait: bool = False,
+        addr: Optional[str] = None,
+        devices: Optional[Union[int, Sequence[int]]] = None,
         hide_children=False,  # bool
     ):
         """
@@ -2631,25 +2462,16 @@ class Task(_Task):
           - `wait` - if True, the master node will wait for the other nodes to start
         """
 
-        def set_launch_multi_node_runtime_props(task, conf):
+        def set_launch_multi_node_runtime_props(task: Task, conf: Dict[str, Any]) -> None:
             # noinspection PyProtectedMember
             task._set_runtime_properties(
-                {
-                    "{}/{}".format(self._launch_multi_node_section, k): v
-                    for k, v in conf.items()
-                }
+                {"{}/{}".format(self._launch_multi_node_section, k): v for k, v in conf.items()}
             )
 
         if total_num_nodes < 1:
             raise UsageError("total_num_nodes needs to be at least 1")
-        if (
-            running_remotely()
-            and not (self.data.execution and self.data.execution.queue)
-            and not queue
-        ):
-            raise UsageError(
-                "Master task is not enqueued to any queue and the queue parameter is None"
-            )
+        if running_remotely() and not (self.data.execution and self.data.execution.queue) and not queue:
+            raise UsageError("Master task is not enqueued to any queue and the queue parameter is None")
 
         master_conf = {
             "master_addr": os.environ.get(
@@ -2667,33 +2489,25 @@ class Task(_Task):
             "devices": devices,
         }
         editable_conf = {"total_num_nodes": total_num_nodes, "queue": queue}
-        editable_conf = self.connect(
-            editable_conf, name=self._launch_multi_node_section
-        )
+        editable_conf = self.connect(editable_conf, name=self._launch_multi_node_section)
         if not running_remotely():
             return master_conf
         master_conf.update(editable_conf)
         runtime_properties = self._get_runtime_properties()
-        remote_node_rank = runtime_properties.get(
-            "{}/node_rank".format(self._launch_multi_node_section)
-        )
+        remote_node_rank = runtime_properties.get("{}/node_rank".format(self._launch_multi_node_section))
 
         current_conf = master_conf
         if remote_node_rank:
             # self is a child node, build the conf from the runtime proprerties
             current_conf = {
-                entry: runtime_properties.get(
-                    "{}/{}".format(self._launch_multi_node_section, entry)
-                )
+                entry: runtime_properties.get("{}/{}".format(self._launch_multi_node_section, entry))
                 for entry in master_conf.keys()
             }
         elif os.environ.get("CLEARML_MULTI_NODE_MASTER") is None:
             nodes_to_wait = []
             # self is the master node, enqueue the other nodes
             set_launch_multi_node_runtime_props(self, master_conf)
-            for node_rank in range(
-                1, master_conf.get("total_num_nodes", total_num_nodes)
-            ):
+            for node_rank in range(1, master_conf.get("total_num_nodes", total_num_nodes)):
                 node = self.clone(source_task=self, parent=self.id)
                 node_conf = copy.deepcopy(master_conf)
                 node_conf["node_rank"] = node_rank
@@ -2713,11 +2527,7 @@ class Task(_Task):
                 nodes_to_wait,
                 range(1, master_conf.get("total_num_nodes", total_num_nodes)),
             ):
-                self.log.info(
-                    "Waiting for node with task ID {} and rank {}".format(
-                        node_to_wait.id, rank
-                    )
-                )
+                self.log.info("Waiting for node with task ID {} and rank {}".format(node_to_wait.id, rank))
                 node_to_wait.wait_for_status(
                     status=(
                         Task.TaskStatusEnum.completed,
@@ -2728,11 +2538,7 @@ class Task(_Task):
                     ),
                     check_interval_sec=10,
                 )
-                self.log.info(
-                    "Node with task ID {} and rank {} detected".format(
-                        node_to_wait.id, rank
-                    )
-                )
+                self.log.info("Node with task ID {} and rank {} detected".format(node_to_wait.id, rank))
             os.environ["CLEARML_MULTI_NODE_MASTER"] = "1"
 
         num_devices = 1
@@ -2760,18 +2566,14 @@ class Task(_Task):
         os.environ["MASTER_ADDR"] = current_conf.get("master_addr", "")
         os.environ["MASTER_PORT"] = str(current_conf.get("master_port", ""))
         os.environ["RANK"] = str(
-            current_conf.get("node_rank", 0) * num_devices
-            + int(os.environ.get("LOCAL_RANK", "0"))
+            current_conf.get("node_rank", 0) * num_devices + int(os.environ.get("LOCAL_RANK", "0"))
         )
         os.environ["NODE_RANK"] = str(current_conf.get("node_rank", ""))
-        os.environ["WORLD_SIZE"] = str(
-            current_conf.get("total_num_nodes", total_num_nodes) * num_devices
-        )
+        os.environ["WORLD_SIZE"] = str(current_conf.get("total_num_nodes", total_num_nodes) * num_devices)
 
         return current_conf
 
-    def mark_started(self, force=False):
-        # type: (bool) -> ()
+    def mark_started(self, force: bool = False) -> ():
         """
         Manually mark a Task as started (happens automatically)
 
@@ -2781,8 +2583,7 @@ class Task(_Task):
         self.started(force=force)
         self.reload()
 
-    def mark_stopped(self, force=False, status_message=None):
-        # type: (bool, Optional[str]) -> ()
+    def mark_stopped(self, force: bool = False, status_message: Optional[str] = None) -> ():
         """
         Manually mark a Task as stopped (also used in :meth:`_at_exit`)
 
@@ -2793,12 +2594,9 @@ class Task(_Task):
         # flush any outstanding logs
         self.flush(wait_for_uploads=True)
         # mark task as stopped
-        self.stopped(
-            force=force, status_message=str(status_message) if status_message else None
-        )
+        self.stopped(force=force, status_message=str(status_message) if status_message else None)
 
-    def mark_stop_request(self, force=False, status_message=None):
-        # type: (bool, Optional[str]) -> ()
+    def mark_stop_request(self, force: bool = False, status_message: Optional[str] = None) -> ():
         """
         Request a task to stop. this will not change the task status
         but mark a request for an agent or SDK to actually stop the Task.
@@ -2817,8 +2615,7 @@ class Task(_Task):
         # request task stop
         return self.stop_request(self, force=force, status_message=status_message)
 
-    def flush(self, wait_for_uploads=False):
-        # type: (bool) -> bool
+    def flush(self, wait_for_uploads: bool = False) -> bool:
         """
         Flush any outstanding reports or console logs.
 
@@ -2845,8 +2642,7 @@ class Task(_Task):
 
         return True
 
-    def reset(self, set_started_on_success=False, force=False):
-        # type: (bool, bool) -> None
+    def reset(self, set_started_on_success: bool = False, force: bool = False) -> None:
         """
         Reset a Task. ClearML reloads a Task after a successful reset.
         When a worker executes a Task remotely, the Task does not reset unless
@@ -2863,11 +2659,9 @@ class Task(_Task):
             - ``False`` - Do not force (default)
         """
         if not running_remotely() or not self.is_main_task() or force:
-            super(Task, self).reset(
-                set_started_on_success=set_started_on_success, force=force
-            )
+            super(Task, self).reset(set_started_on_success=set_started_on_success, force=force)
 
-    def close(self):
+    def close(self) -> None:
         """
         Closes the current Task and changes its status to "Completed".
         Enables you to manually shut down the task from the process which opened the task.
@@ -2922,12 +2716,11 @@ class Task(_Task):
 
     def delete(
         self,
-        delete_artifacts_and_models=True,
-        skip_models_used_by_other_tasks=True,
-        raise_on_error=False,
-        callback=None,
-    ):
-        # type: (bool, bool, bool, Callable[[str, str], bool]) -> bool
+        delete_artifacts_and_models: bool = True,
+        skip_models_used_by_other_tasks: bool = True,
+        raise_on_error: bool = False,
+        callback: Callable[[str, str], bool] = None,
+    ) -> bool:
         """
         Delete the task as well as its output models and artifacts.
         Models and artifacts are deleted from their storage locations, each using its URI.
@@ -2955,8 +2748,13 @@ class Task(_Task):
             )
         return False
 
-    def register_artifact(self, name, artifact, metadata=None, uniqueness_columns=True):
-        # type: (str, pandas.DataFrame, Dict, Union[bool, Sequence[str]]) -> None
+    def register_artifact(
+        self,
+        name: str,
+        artifact: "pandas.DataFrame",
+        metadata: Dict = None,
+        uniqueness_columns: Union[bool, Sequence[str]] = True,
+    ) -> None:
         """
         Register (add) an artifact for the current Task. Registered artifacts are dynamically synchronized with the
         **ClearML Server** (backend). If a registered artifact is updated, the update is stored in the
@@ -2982,10 +2780,7 @@ class Task(_Task):
             value of ``True``. If ``True``, the artifact uniqueness comparison criteria is all the columns,
             which is the same as ``artifact.columns``.
         """
-        if (
-            not isinstance(uniqueness_columns, CollectionsSequence)
-            and uniqueness_columns is not True
-        ):
+        if not isinstance(uniqueness_columns, CollectionsSequence) and uniqueness_columns is not True:
             raise ValueError("uniqueness_columns should be a List (sequence) or True")
         if isinstance(uniqueness_columns, str):
             uniqueness_columns = [uniqueness_columns]
@@ -2996,8 +2791,7 @@ class Task(_Task):
             uniqueness_columns=uniqueness_columns,
         )
 
-    def unregister_artifact(self, name):
-        # type: (str) -> None
+    def unregister_artifact(self, name: str) -> None:
         """
         Unregister (remove) a registered artifact. This removes the artifact from the watch list that ClearML uses
         to synchronize artifacts with the **ClearML Server** (backend).
@@ -3009,8 +2803,7 @@ class Task(_Task):
         """
         self._artifacts_manager.unregister_artifact(name=name)
 
-    def get_registered_artifacts(self):
-        # type: () -> Dict[str, Artifact]
+    def get_registered_artifacts(self) -> Dict[str, Artifact]:
         """
         Get a dictionary containing the Task's registered (dynamically synchronized) artifacts (name, artifact object).
 
@@ -3023,18 +2816,17 @@ class Task(_Task):
 
     def upload_artifact(
         self,
-        name,  # type: str
-        artifact_object,  # type: Union[str, Mapping, pandas.DataFrame, numpy.ndarray, Image.Image, Any]
-        metadata=None,  # type: Optional[Mapping]
-        delete_after_upload=False,  # type: bool
-        auto_pickle=None,  # type: Optional[bool]
-        preview=None,  # type: Any
-        wait_on_upload=False,  # type: bool
-        extension_name=None,  # type: Optional[str]
-        serialization_function=None,  # type: Optional[Callable[[Any], Union[bytes, bytearray]]]
-        retries=0,  # type: int
-    ):
-        # type: (...) -> bool
+        name: str,
+        artifact_object: Union[str, Mapping, "pandas.DataFrame", numpy.ndarray, "Image.Image", Any],
+        metadata: Optional[Mapping] = None,
+        delete_after_upload: bool = False,
+        auto_pickle: Optional[bool] = None,
+        preview: Any = None,
+        wait_on_upload: bool = False,
+        extension_name: Optional[str] = None,
+        serialization_function: Optional[Callable[[Any], Union[bytes, bytearray]]] = None,
+        retries: int = 0,
+    ) -> bool:
         """
         Upload (add) a static artifact to a Task object. The artifact is uploaded in the background.
 
@@ -3067,7 +2859,7 @@ class Task(_Task):
             the artifact_object will be pickled and uploaded as pickle file artifact (with file extension .pkl).
             If set to None (default) the sdk.development.artifacts.auto_pickle configuration value will be used.
 
-        :param Any preview: The artifact preview
+        :param object preview: The artifact preview
 
         :param bool wait_on_upload: Whether the upload should be synchronous, forcing the upload to complete
             before continuing.
@@ -3118,16 +2910,13 @@ class Task(_Task):
                 exception_to_raise = e
             if retry < retries:
                 getLogger().warning(
-                    "Failed uploading artifact '{}'. Retrying... ({}/{})".format(
-                        name, retry + 1, retries
-                    )
+                    "Failed uploading artifact '{}'. Retrying... ({}/{})".format(name, retry + 1, retries)
                 )
         if exception_to_raise:
             raise exception_to_raise
         return False
 
-    def get_debug_samples(self, title, series, n_last_iterations=None):
-        # type: (str, str, Optional[int]) -> List[dict]
+    def get_debug_samples(self, title: str, series: str, n_last_iterations: Optional[int] = None) -> List[dict]:
         """
         :param str title: Debug sample's title, also called metric in the UI
         :param str series: Debug sample's series,
@@ -3146,9 +2935,7 @@ class Task(_Task):
             n_last_iterations = MAX_SERIES_PER_METRIC.get()
 
         if isinstance(n_last_iterations, int) and n_last_iterations >= 0:
-            samples = self._get_debug_samples(
-                title=title, series=series, n_last_iterations=n_last_iterations
-            )
+            samples = self._get_debug_samples(title=title, series=series, n_last_iterations=n_last_iterations)
         else:
             raise TypeError(
                 "Parameter n_last_iterations is expected to be a positive integer value,"
@@ -3157,9 +2944,7 @@ class Task(_Task):
 
         return samples
 
-    def _send_debug_image_request(
-        self, title, series, n_last_iterations, scroll_id=None
-    ):
+    def _send_debug_image_request(self, title, series, n_last_iterations, scroll_id=None):
         return Task._send(
             Task._get_default_session(),
             events.DebugImagesRequest(
@@ -3169,7 +2954,7 @@ class Task(_Task):
             ),
         )
 
-    def _get_debug_samples(self, title, series, n_last_iterations=None):
+    def _get_debug_samples(self, title: str, series: str, n_last_iterations: Optional[int] = None) -> List[dict]:
         response = self._send_debug_image_request(title, series, n_last_iterations)
 
         debug_samples = []
@@ -3178,31 +2963,22 @@ class Task(_Task):
             scroll_id = response.response_data.get("scroll_id", None)
 
             for metric_resp in response.response_data.get("metrics", []):
-                iterations_events = [
-                    iteration["events"]
-                    for iteration in metric_resp.get("iterations", [])
-                ]  # type: List[List[dict]]
-                flattened_events = (
-                    event
-                    for single_iter_events in iterations_events
-                    for event in single_iter_events
-                )
+                iterations_events: List[List[dict]] = [
+                    iteration["events"] for iteration in metric_resp.get("iterations", [])
+                ]
+                flattened_events = (event for single_iter_events in iterations_events for event in single_iter_events)
                 debug_samples.extend(flattened_events)
 
-            response = self._send_debug_image_request(
-                title, series, n_last_iterations, scroll_id=scroll_id
-            )
+            response = self._send_debug_image_request(title, series, n_last_iterations, scroll_id=scroll_id)
 
             if len(debug_samples) == n_last_iterations or all(
-                len(metric_resp.get("iterations", [])) == 0
-                for metric_resp in response.response_data.get("metrics", [])
+                len(metric_resp.get("iterations", [])) == 0 for metric_resp in response.response_data.get("metrics", [])
             ):
                 break
 
         return debug_samples
 
-    def get_models(self):
-        # type: () -> Mapping[str, Sequence[Model]]
+    def get_models(self) -> Mapping[str, Sequence[Model]]:
         """
         Return a dictionary with ``{'input': [], 'output': []}`` loaded/stored models of the current Task
         Input models are files loaded in the task, either manually or automatically logged
@@ -3222,8 +2998,7 @@ class Task(_Task):
         """
         return TaskModels(self)
 
-    def is_current_task(self):
-        # type: () -> bool
+    def is_current_task(self) -> bool:
         """
         .. deprecated:: 0.13.0
            This method is deprecated. Use :meth:`Task.is_main_task` instead.
@@ -3238,8 +3013,7 @@ class Task(_Task):
         """
         return self.is_main_task()
 
-    def is_main_task(self):
-        # type: () -> bool
+    def is_main_task(self) -> bool:
         """
         Is this Task object the main execution Task (initially returned by :meth:`Task.init`)
 
@@ -3259,32 +3033,32 @@ class Task(_Task):
         """
         return self is self.__main_task
 
-    def set_model_config(self, config_text=None, config_dict=None):
-        # type: (Optional[str], Optional[Mapping]) -> None
+    def set_model_config(
+        self,
+        config_text: Optional[str] = None,
+        config_dict: Optional[Mapping] = None,
+    ) -> None:
         """
         .. deprecated:: 0.14.1
             Use :meth:`Task.connect_configuration` instead.
         """
         self._set_model_config(config_text=config_text, config_dict=config_dict)
 
-    def get_model_config_text(self):
-        # type: () -> str
+    def get_model_config_text(self) -> str:
         """
         .. deprecated:: 0.14.1
             Use :meth:`Task.connect_configuration` instead.
         """
         return self._get_model_config_text()
 
-    def get_model_config_dict(self):
-        # type: () -> Dict
+    def get_model_config_dict(self) -> Dict:
         """
         .. deprecated:: 0.14.1
             Use :meth:`Task.connect_configuration` instead.
         """
         return self._get_model_config_dict()
 
-    def set_model_label_enumeration(self, enumeration=None):
-        # type: (Optional[Mapping[str, int]]) -> ()
+    def set_model_label_enumeration(self, enumeration: Optional[Mapping[str, int]] = None) -> ():
         """
         Set the label enumeration for the Task object before creating an output model.
         Later, when creating an output model, the model will inherit these properties.
@@ -3302,8 +3076,7 @@ class Task(_Task):
         """
         super(Task, self).set_model_label_enumeration(enumeration=enumeration)
 
-    def get_last_iteration(self):
-        # type: () -> int
+    def get_last_iteration(self) -> int:
         """
         Get the last reported iteration, which is the last iteration for which the Task reported a metric.
 
@@ -3319,8 +3092,7 @@ class Task(_Task):
             self.__reporter.max_iteration if self.__reporter else 0,
         )
 
-    def set_initial_iteration(self, offset=0):
-        # type: (int) -> int
+    def set_initial_iteration(self, offset: int = 0) -> int:
         """
         Set initial iteration, instead of zero. Useful when continuing training from previous checkpoints
 
@@ -3329,8 +3101,7 @@ class Task(_Task):
         """
         return super(Task, self).set_initial_iteration(offset=offset)
 
-    def get_initial_iteration(self):
-        # type: () -> int
+    def get_initial_iteration(self) -> int:
         """
         Return the initial iteration offset, default is 0
         Useful when continuing training from previous checkpoints
@@ -3339,8 +3110,7 @@ class Task(_Task):
         """
         return super(Task, self).get_initial_iteration()
 
-    def get_last_scalar_metrics(self):
-        # type: () -> Dict[str, Dict[str, Dict[str, float]]]
+    def get_last_scalar_metrics(self) -> Dict[str, Dict[str, Dict[str, float]]]:
         """
         Get the last scalar metrics which the Task reported. This is a nested dictionary, ordered by title and series.
 
@@ -3371,8 +3141,7 @@ class Task(_Task):
                 )
         return scalar_metrics
 
-    def get_parameters_as_dict(self, cast=False):
-        # type: (bool) -> Dict
+    def get_parameters_as_dict(self, cast: bool = False) -> Dict:
         """
         Get the Task parameters as a raw nested dictionary.
 
@@ -3385,8 +3154,7 @@ class Task(_Task):
         """
         return naive_nested_from_flat_dictionary(self.get_parameters(cast=cast))
 
-    def set_parameters_as_dict(self, dictionary):
-        # type: (Dict) -> None
+    def set_parameters_as_dict(self, dictionary: Dict) -> None:
         """
         Set the parameters for the Task object from a dictionary. The dictionary can be nested.
         This does not link the dictionary to the Task object. It does a one-time update. This
@@ -3394,8 +3162,7 @@ class Task(_Task):
         """
         self._arguments.copy_from_dict(flatten_dictionary(dictionary))
 
-    def get_user_properties(self, value_only=False):
-        # type: (bool) -> Dict[str, Union[str, dict]]
+    def get_user_properties(self, value_only: bool = False) -> Dict[str, Union[str, dict]]:
         """
         Get user properties for this task.
         Returns a dictionary mapping user property name to user property details dict.
@@ -3417,10 +3184,9 @@ class Task(_Task):
 
     def set_user_properties(
         self,
-        *iterables,  # type: Union[Mapping[str, Union[str, dict, None]], Iterable[dict]]
-        **properties  # type: Union[str, dict, int, float, None]
-    ):
-        # type: (...) -> bool
+        *iterables: Union[Mapping[str, Union[str, dict, None]], Iterable[dict]],
+        **properties: Union[str, dict, int, float, None],
+    ) -> bool:
         """
         Set user properties for this task.
         A user property can contain the following fields (all of type string):
@@ -3491,17 +3257,12 @@ class Task(_Task):
 
         return self._hyper_params_manager.edit_hyper_params(
             iterables=list(properties.items())
-            + (
-                list(iterables.items())
-                if isinstance(iterables, dict)
-                else list(iterables)
-            ),
+            + (list(iterables.items()) if isinstance(iterables, dict) else list(iterables)),
             replace="none",
             force_section="properties",
         )
 
-    def get_script(self):
-        # type: (...) -> Mapping[str, Optional[str]]
+    def get_script(self) -> Mapping[str, Optional[str]]:
         """
         Get task's script details.
 
@@ -3529,14 +3290,13 @@ class Task(_Task):
 
     def set_script(
         self,
-        repository=None,  # type: Optional[str]
-        branch=None,  # type: Optional[str]
-        commit=None,  # type: Optional[str]
-        diff=None,  # type: Optional[str]
-        working_dir=None,  # type: Optional[str]
-        entry_point=None,  # type: Optional[str]
-    ):
-        # type: (...) -> None
+        repository: Optional[str] = None,
+        branch: Optional[str] = None,
+        commit: Optional[str] = None,
+        diff: Optional[str] = None,
+        working_dir: Optional[str] = None,
+        entry_point: Optional[str] = None,
+    ) -> None:
         """
         Set task's script.
 
@@ -3578,8 +3338,7 @@ class Task(_Task):
         # noinspection PyProtectedMember
         self._update_script(script=script)
 
-    def delete_user_properties(self, *iterables):
-        # type: (Iterable[Union[dict, Iterable[str, str]]]) -> bool
+    def delete_user_properties(self, *iterables: Iterable[Union[dict, Iterable[str]]]) -> bool:
         """
         Delete hyperparameters for this task.
 
@@ -3597,12 +3356,11 @@ class Task(_Task):
 
     def set_base_docker(
         self,
-        docker_cmd=None,  # type: Optional[str]
-        docker_image=None,  # type: Optional[str]
-        docker_arguments=None,  # type: Optional[Union[str, Sequence[str]]]
-        docker_setup_bash_script=None,  # type: Optional[Union[str, Sequence[str]]]
-    ):
-        # type: (...) -> ()
+        docker_cmd: Optional[str] = None,
+        docker_image: Optional[str] = None,
+        docker_arguments: Optional[Union[str, Sequence[str]]] = None,
+        docker_setup_bash_script: Optional[Union[str, Sequence[str]]] = None,
+    ) -> ():
         """
         Set the base docker image for this experiment
         If provided, this value will be used by clearml-agent to execute this experiment
@@ -3628,11 +3386,10 @@ class Task(_Task):
     @classmethod
     def set_resource_monitor_iteration_timeout(
         cls,
-        seconds_from_start=30.0,
-        wait_for_first_iteration_to_start_sec=180.0,
-        max_wait_for_first_iteration_to_start_sec=1800.0,
-    ):
-        # type: (float, float, float) -> bool
+        seconds_from_start: float = 30.0,
+        wait_for_first_iteration_to_start_sec: float = 180.0,
+        max_wait_for_first_iteration_to_start_sec: float = 1800.0,
+    ) -> bool:
         """
         Set the ResourceMonitor maximum duration (in seconds) to wait until first scalar/plot is reported.
         If timeout is reached without any reporting, the ResourceMonitor will start reporting machine statistics based
@@ -3658,24 +3415,22 @@ class Task(_Task):
             # noinspection PyProtectedMember
             instance._first_report_sec = seconds_from_start
             instance.wait_for_first_iteration = wait_for_first_iteration_to_start_sec
-            instance.max_check_first_iteration = (
-                max_wait_for_first_iteration_to_start_sec
-            )
+            instance.max_check_first_iteration = max_wait_for_first_iteration_to_start_sec
 
         # noinspection PyProtectedMember
         ResourceMonitor._first_report_sec_default = seconds_from_start
         # noinspection PyProtectedMember
-        ResourceMonitor._wait_for_first_iteration_to_start_sec_default = (
-            wait_for_first_iteration_to_start_sec
-        )
+        ResourceMonitor._wait_for_first_iteration_to_start_sec_default = wait_for_first_iteration_to_start_sec
         # noinspection PyProtectedMember
-        ResourceMonitor._max_wait_for_first_iteration_to_start_sec_default = (
-            max_wait_for_first_iteration_to_start_sec
-        )
+        ResourceMonitor._max_wait_for_first_iteration_to_start_sec_default = max_wait_for_first_iteration_to_start_sec
         return True
 
-    def execute_remotely(self, queue_name=None, clone=False, exit_process=True):
-        # type: (Optional[str], bool, bool) -> Optional[Task]
+    def execute_remotely(
+        self,
+        queue_name: Optional[str] = None,
+        clone: bool = False,
+        exit_process: bool = True,
+    ) -> Optional["Task"]:
         """
         If task is running locally (i.e., not by ``clearml-agent``), then clone the Task and enqueue it for remote
         execution; or, stop the execution of the current Task, reset its state, and enqueue it. If ``exit==True``,
@@ -3747,15 +3502,11 @@ class Task(_Task):
         if queue_name:
             Task.enqueue(task, queue_name=queue_name)
             LoggerRoot.get_base_logger().warning(
-                "Switching to remote execution, output log page {}".format(
-                    task.get_output_log_web_page()
-                )
+                "Switching to remote execution, output log page {}".format(task.get_output_log_web_page())
             )
         else:
             # Remove the development system tag
-            system_tags = [
-                t for t in task.get_system_tags() if t != self._development_tag
-            ]
+            system_tags = [t for t in task.get_system_tags() if t != self._development_tag]
             self.set_system_tags(system_tags)
             # if we leave the Task out there, it makes sense to make it editable.
             self.reset(force=True)
@@ -3769,8 +3520,13 @@ class Task(_Task):
 
         return task
 
-    def create_function_task(self, func, func_name=None, task_name=None, **kwargs):
-        # type: (Callable, Optional[str], Optional[str], **Optional[Any]) -> Optional[Task]
+    def create_function_task(
+        self,
+        func: Callable,
+        func_name: Optional[str] = None,
+        task_name: Optional[str] = None,
+        **kwargs: Optional[Any],
+    ) -> Optional["Task"]:
         """
         Create a new task, and call ``func`` with the specified kwargs.
         One can think of this call as remote forking, where the newly created instance is the new Task
@@ -3796,16 +3552,11 @@ class Task(_Task):
         :return Task: Return the newly created Task or None if running remotely and execution is skipped
         """
         if not self.is_main_task():
-            raise ValueError(
-                "Only the main Task object can call create_function_task()"
-            )
+            raise ValueError("Only the main Task object can call create_function_task()")
         if not callable(func):
             raise ValueError("func must be callable")
         if not Session.check_min_api_version("2.9"):
-            raise ValueError(
-                "Remote function execution is not supported, "
-                "please upgrade to the latest server version"
-            )
+            raise ValueError("Remote function execution is not supported, please upgrade to the latest server version")
 
         func_name = str(func_name or func.__name__).strip()
         if func_name in self._remote_functions_generated:
@@ -3823,9 +3574,7 @@ class Task(_Task):
         func_params[func_marker] = func_name
 
         # do not query if we are running locally, there is no need.
-        task_func_marker = self.running_locally() or self.get_parameter(
-            "{}/{}".format(section_name, func_marker)
-        )
+        task_func_marker = self.running_locally() or self.get_parameter("{}/{}".format(section_name, func_marker))
 
         # if we are running locally or if we are running remotely but we are not a forked tasks
         # condition explained:
@@ -3846,9 +3595,7 @@ class Task(_Task):
         # check if we are one of the generated functions and if this is us,
         # if we are not the correct function, not do nothing and leave
         if task_func_marker != func_name:
-            self._remote_functions_generated[func_name] = (
-                len(self._remote_functions_generated) + 1
-            )
+            self._remote_functions_generated[func_name] = len(self._remote_functions_generated) + 1
             return
 
         # mark this is us:
@@ -3864,15 +3611,14 @@ class Task(_Task):
 
     def wait_for_status(
         self,
-        status=(
+        status: Iterable["Task.TaskStatusEnum"] = (
             _Task.TaskStatusEnum.completed,
             _Task.TaskStatusEnum.stopped,
             _Task.TaskStatusEnum.closed,
         ),
-        raise_on_status=(_Task.TaskStatusEnum.failed,),
-        check_interval_sec=60.0,
-    ):
-        # type: (Iterable[Task.TaskStatusEnum], Optional[Iterable[Task.TaskStatusEnum]], float) -> ()
+        raise_on_status: Optional[Iterable["Task.TaskStatusEnum"]] = (_Task.TaskStatusEnum.failed,),
+        check_interval_sec: float = 60.0,
+    ) -> ():
         """
         Wait for a task to reach a defined status.
 
@@ -3883,22 +3629,17 @@ class Task(_Task):
 
         :raise: RuntimeError if the status is one of ``{raise_on_status}``.
         """
-        stopped_status = list(status) + (
-            list(raise_on_status) if raise_on_status else []
-        )
+        stopped_status = list(status) + (list(raise_on_status) if raise_on_status else [])
         while self.status not in stopped_status:
             time.sleep(check_interval_sec)
 
         if raise_on_status and self.status in raise_on_status:
-            raise RuntimeError(
-                "Task {} has status: {}.".format(self.task_id, self.status)
-            )
+            raise RuntimeError("Task {} has status: {}.".format(self.task_id, self.status))
 
         # make sure we have the Task object
         self.reload()
 
-    def export_task(self):
-        # type: () -> dict
+    def export_task(self) -> dict:
         """
         Export Task's configuration into a dictionary (for serialization purposes).
         A Task can be copied/modified by calling Task.import_task()
@@ -3920,8 +3661,7 @@ class Task(_Task):
         export_data["session_api_version"] = self.session.api_version
         return export_data
 
-    def update_task(self, task_data):
-        # type: (dict) -> bool
+    def update_task(self, task_data: dict) -> bool:
         """
         Update current task with configuration found on the task_data dictionary.
         See also export_task() for retrieving Task configuration.
@@ -3929,12 +3669,9 @@ class Task(_Task):
         :param task_data: dictionary with full Task configuration
         :return: return True if Task update was successful
         """
-        return bool(
-            self.import_task(task_data=task_data, target_task=self, update=True)
-        )
+        return bool(self.import_task(task_data=task_data, target_task=self, update=True))
 
-    def rename(self, new_name):
-        # type: (str) -> bool
+    def rename(self, new_name: str) -> bool:
         """
         Rename this task
 
@@ -3947,9 +3684,11 @@ class Task(_Task):
         return result
 
     def move_to_project(
-        self, new_project_id=None, new_project_name=None, system_tags=None
-    ):
-        # type: (Optional[str], Optional[str], Optional[Sequence[str]]) -> bool
+        self,
+        new_project_id: Optional[str] = None,
+        new_project_name: Optional[str] = None,
+        system_tags: Optional[Sequence[str]] = None,
+    ) -> bool:
         """
         Move this task to another project
 
@@ -3973,8 +3712,8 @@ class Task(_Task):
 
     def register_abort_callback(
         self,
-        callback_function,  # type: Optional[Callable]
-        callback_execution_timeout=30.0,  # type: float
+        callback_function: Optional[Callable],
+        callback_execution_timeout: float = 30.0,
     ):  # type (...) -> None
         """
         Register a Task abort callback (single callback function support only).
@@ -3992,22 +3731,16 @@ class Task(_Task):
             will be terminated even if the callback did not return
         """
         if self.__is_subprocess():
-            raise ValueError(
-                "Register abort callback must be called from the main process, this is a subprocess."
-            )
+            raise ValueError("Register abort callback must be called from the main process, this is a subprocess.")
 
         if callback_function is None:
             if self._dev_worker:
-                self._dev_worker.register_abort_callback(
-                    callback_function=None, execution_timeout=0, poll_freq=0
-                )
+                self._dev_worker.register_abort_callback(callback_function=None, execution_timeout=0, poll_freq=0)
             return
 
         if float(callback_execution_timeout) <= 0:
             raise ValueError(
-                "function_timeout_sec must be positive timeout in seconds, got {}".format(
-                    callback_execution_timeout
-                )
+                "function_timeout_sec must be positive timeout in seconds, got {}".format(callback_execution_timeout)
             )
 
         # if we are running remotely we might not have a DevWorker monitoring us, so let's create one
@@ -4023,8 +3756,12 @@ class Task(_Task):
         )
 
     @classmethod
-    def import_task(cls, task_data, target_task=None, update=False):
-        # type: (dict, Optional[Union[str, Task]], bool) -> Optional[Task]
+    def import_task(
+        cls,
+        task_data: dict,
+        target_task: Optional[Union[str, "Task"]] = None,
+        update: bool = False,
+    ) -> Optional["Task"]:
         """
         Import (create) Task from previously exported Task configuration (see Task.export_task)
         Can also be used to edit/update an existing Task (by passing `target_task` and `update=True`).
@@ -4043,14 +3780,10 @@ class Task(_Task):
             Session.force_max_api_version = str(force_api_version)
 
         if not target_task:
-            project_name = task_data.get("project_name") or Task._get_project_name(
-                task_data.get("project", "")
-            )
-            target_task = Task.create(
-                project_name=project_name, task_name=task_data.get("name", None)
-            )
+            project_name = task_data.get("project_name") or Task._get_project_name(task_data.get("project", ""))
+            target_task = Task.create(project_name=project_name, task_name=task_data.get("name", None))
         elif isinstance(target_task, six.string_types):
-            target_task = Task.get_task(task_id=target_task)  # type: Optional[Task]
+            target_task: Optional[Task] = Task.get_task(task_id=target_task)
         elif not isinstance(target_task, Task):
             raise ValueError(
                 "`target_task` must be either Task id (str) or Task object, "
@@ -4080,8 +3813,7 @@ class Task(_Task):
         return target_task
 
     @classmethod
-    def set_offline(cls, offline_mode=False):
-        # type: (bool) -> None
+    def set_offline(cls, offline_mode: bool = False) -> None:
         """
         Set offline mode, where all data and logs are stored into local folder, for later transmission
 
@@ -4124,11 +3856,7 @@ class Task(_Task):
         """
         if running_remotely() or bool(offline_mode) == InterfaceBase._offline_mode:
             return
-        if (
-            cls.current_task()
-            and cls.current_task().status != cls.TaskStatusEnum.closed
-            and not offline_mode
-        ):
+        if cls.current_task() and cls.current_task().status != cls.TaskStatusEnum.closed and not offline_mode:
             raise UsageError(
                 "Switching from offline mode to online mode, but the current task has not been closed. Use `Task.close` to close it."
             )
@@ -4140,8 +3868,7 @@ class Task(_Task):
             Session._make_all_sessions_go_online()
 
     @classmethod
-    def is_offline(cls):
-        # type: () -> bool
+    def is_offline(cls) -> bool:
         """
         Return offline-mode state, If in offline-mode, no communication to the backend is enabled.
 
@@ -4151,9 +3878,8 @@ class Task(_Task):
 
     @classmethod
     def import_offline_session(
-        cls, session_folder_zip, previous_task_id=None, iteration_offset=0
-    ):
-        # type: (str, Optional[str], Optional[int]) -> (Optional[str])
+        cls, session_folder_zip: str, previous_task_id: Optional[str] = None, iteration_offset: Optional[int] = 0
+    ) -> Optional[str]:
         """
         Upload an offline session (execution) of a Task.
         Full Task execution includes repository details, installed packages, artifacts, logs, metric and debug samples.
@@ -4177,26 +3903,20 @@ class Task(_Task):
 
         session_folder = Path(session_folder_zip)
         if not session_folder.is_dir():
-            raise ValueError(
-                "Could not find the session folder / zip-file {}".format(session_folder)
-            )
+            raise ValueError("Could not find the session folder / zip-file {}".format(session_folder))
 
         try:
             with open((session_folder / cls._offline_filename).as_posix(), "rt") as f:
                 export_data = json.load(f)
         except Exception as ex:
             raise ValueError(
-                "Could not read Task object {}: Exception {}".format(
-                    session_folder / cls._offline_filename, ex
-                )
+                "Could not read Task object {}: Exception {}".format(session_folder / cls._offline_filename, ex)
             )
         current_task = cls.import_task(export_data)
         if previous_task_id:
             task_holding_reports = cls.get_task(task_id=previous_task_id)
             task_holding_reports.mark_started(force=True)
-            task_holding_reports = cls.import_task(
-                export_data, target_task=task_holding_reports, update=True
-            )
+            task_holding_reports = cls.import_task(export_data, target_task=task_holding_reports, update=True)
         else:
             task_holding_reports = current_task
             task_holding_reports.mark_started(force=True)
@@ -4205,9 +3925,7 @@ class Task(_Task):
             from . import StorageManager
 
             # noinspection PyProtectedMember
-            offline_folder = os.path.join(
-                export_data.get("offline_folder", ""), "data/"
-            )
+            offline_folder = os.path.join(export_data.get("offline_folder", ""), "data/")
 
             # noinspection PyProtectedMember
             remote_url = current_task._get_default_report_storage_uri()
@@ -4224,9 +3942,7 @@ class Task(_Task):
                         1,
                     )
                     artifact.uri = "{}/{}".format(remote_url, remote_path)
-                    StorageManager.upload_file(
-                        local_file=local_file.as_posix(), remote_url=artifact.uri
-                    )
+                    StorageManager.upload_file(local_file=local_file.as_posix(), remote_url=artifact.uri)
             # noinspection PyProtectedMember
             task_holding_reports._edit(execution=current_task.data.execution)
         for output_model in export_data.get("offline_output_models", []):
@@ -4243,9 +3959,7 @@ class Task(_Task):
                 session=task_holding_reports.session,
             )
         # logs
-        TaskHandler.report_offline_session(
-            task_holding_reports, session_folder, iteration_offset=iteration_offset
-        )
+        TaskHandler.report_offline_session(task_holding_reports, session_folder, iteration_offset=iteration_offset)
         # metrics
         Metrics.report_offline_session(
             task_holding_reports,
@@ -4255,11 +3969,7 @@ class Task(_Task):
             session=task_holding_reports.session,
         )
         # print imported results page
-        print(
-            "ClearML results page: {}".format(
-                task_holding_reports.get_output_log_web_page()
-            )
-        )
+        print("ClearML results page: {}".format(task_holding_reports.get_output_log_web_page()))
         task_holding_reports.mark_completed()
         # close task
         task_holding_reports.close()
@@ -4277,14 +3987,13 @@ class Task(_Task):
     @classmethod
     def set_credentials(
         cls,
-        api_host=None,
-        web_host=None,
-        files_host=None,
-        key=None,
-        secret=None,
-        store_conf_file=False,
-    ):
-        # type: (Optional[str], Optional[str], Optional[str], Optional[str], Optional[str], bool) -> None
+        api_host: Optional[str] = None,
+        web_host: Optional[str] = None,
+        files_host: Optional[str] = None,
+        key: Optional[str] = None,
+        secret: Optional[str] = None,
+        store_conf_file: bool = False,
+    ) -> None:
         """
         Set new default **ClearML Server** (backend) host and credentials.
 
@@ -4338,8 +4047,7 @@ class Task(_Task):
             active_conf_file = get_active_config_file()
             if active_conf_file:
                 getLogger().warning(
-                    "Could not store credentials in configuration file, "
-                    "'{}' already exists".format(active_conf_file)
+                    "Could not store credentials in configuration file, '{}' already exists".format(active_conf_file)
                 )
             else:
                 conf = {
@@ -4358,8 +4066,7 @@ class Task(_Task):
                     f.write("\n".join(lines[1:-1]))
 
     @classmethod
-    def debug_simulate_remote_task(cls, task_id, reset_task=False):
-        # type: (str, bool) -> ()
+    def debug_simulate_remote_task(cls, task_id: str, reset_task: bool = False) -> ():
         """
         Simulate remote execution of a specified Task.
         This call will simulate the behaviour of your Task as if executed by the ClearML-Agent
@@ -4391,8 +4098,7 @@ class Task(_Task):
         LOG_TO_BACKEND_ENV_VAR.set(True)
         DEBUG_SIMULATE_REMOTE_TASK.set(True)
 
-    def get_executed_queue(self, return_name=False):
-        # type: (bool) -> Optional[str]
+    def get_executed_queue(self, return_name: bool = False) -> Optional[str]:
         """
         Get the queue the task was executed on.
 
@@ -4405,19 +4111,19 @@ class Task(_Task):
         if not return_name or not queue_id:
             return queue_id
         try:
-            queue_name_result = Task._send(
-                Task._get_default_session(), queues.GetByIdRequest(queue_id)
-            )
+            queue_name_result = Task._send(Task._get_default_session(), queues.GetByIdRequest(queue_id))
             return queue_name_result.response.queue.name
         except Exception as e:
-            getLogger().warning(
-                "Could not get name of queue with ID '{}': {}".format(queue_id, e)
-            )
+            getLogger().warning("Could not get name of queue with ID '{}': {}".format(queue_id, e))
             return None
 
     @classmethod
-    def _create(cls, project_name=None, task_name=None, task_type=TaskTypes.training):
-        # type: (Optional[str], Optional[str], Task.TaskTypes) -> TaskInstance
+    def _create(
+        cls,
+        project_name: Optional[str] = None,
+        task_name: Optional[str] = None,
+        task_type: "Task.TaskTypes" = TaskTypes.training,
+    ) -> TaskInstance:
         """
         Create a new unpopulated Task (experiment).
 
@@ -4452,8 +4158,11 @@ class Task(_Task):
             raise
         return task
 
-    def _set_model_config(self, config_text=None, config_dict=None):
-        # type: (Optional[str], Optional[Mapping]) -> None
+    def _set_model_config(
+        self,
+        config_text: Optional[str] = None,
+        config_dict: Optional[Mapping] = None,
+    ) -> None:
         """
         Set Task model configuration text/dict
 
@@ -4463,13 +4172,10 @@ class Task(_Task):
             If `config_dict` is not None, `config_text` must not be provided.
         """
         # noinspection PyProtectedMember
-        design = OutputModel._resolve_config(
-            config_text=config_text, config_dict=config_dict
-        )
+        design = OutputModel._resolve_config(config_text=config_text, config_dict=config_dict)
         super(Task, self)._set_model_design(design=design)
 
-    def _get_model_config_text(self):
-        # type: () -> str
+    def _get_model_config_text(self) -> str:
         """
         Get Task model configuration text (before creating an output model)
         When an output model is created it will inherit these properties
@@ -4478,8 +4184,7 @@ class Task(_Task):
         """
         return super(Task, self).get_model_design()
 
-    def _get_model_config_dict(self):
-        # type: () -> Dict
+    def _get_model_config_dict(self) -> Dict:
         """
         Get Task model configuration dictionary (before creating an output model)
         When an output model is created it will inherit these properties
@@ -4490,8 +4195,7 @@ class Task(_Task):
         # noinspection PyProtectedMember
         return OutputModel._text_to_config_dict(config_text)
 
-    def _set_startup_info(self):
-        # type: () -> ()
+    def _set_startup_info(self) -> ():
         self._set_runtime_properties(
             runtime_properties={
                 "CLEARML VERSION": self.session.client,
@@ -4501,7 +4205,7 @@ class Task(_Task):
         )
 
     @classmethod
-    def _reset_current_task_obj(cls):
+    def _reset_current_task_obj(cls) -> None:
         if not cls.__main_task:
             return
         task = cls.__main_task
@@ -4512,8 +4216,7 @@ class Task(_Task):
             task._dev_worker = None
 
     @classmethod
-    def _has_current_task_obj(cls):
-        # type: () -> bool
+    def _has_current_task_obj(cls) -> bool:
         return bool(cls.__main_task)
 
     @classmethod
@@ -4530,24 +4233,18 @@ class Task(_Task):
     ):
         if not default_project_name or not default_task_name:
             # get project name and task name from repository name and entry_point
-            result, _ = ScriptInfo.get(
-                create_requirements=False, check_uncommitted=False
-            )
+            result, _ = ScriptInfo.get(create_requirements=False, check_uncommitted=False)
             if not default_project_name:
                 # noinspection PyBroadException
                 try:
                     parts = result.script["repository"].split("/")
-                    default_project_name = (parts[-1] or parts[-2]).replace(
-                        ".git", ""
-                    ) or "Untitled"
+                    default_project_name = (parts[-1] or parts[-2]).replace(".git", "") or "Untitled"
                 except Exception:
                     default_project_name = "Untitled"
             if not default_task_name:
                 # noinspection PyBroadException
                 try:
-                    default_task_name = os.path.splitext(
-                        os.path.basename(result.script["entry_point"])
-                    )[0]
+                    default_task_name = os.path.splitext(os.path.basename(result.script["entry_point"]))[0]
                 except Exception:
                     pass
 
@@ -4563,11 +4260,7 @@ class Task(_Task):
             continue_last_task = TASK_SET_ITERATION_OFFSET.get()
 
         # if we force no task reuse from os environment
-        if (
-            DEV_TASK_NO_REUSE.get()
-            or not reuse_last_task_id
-            or isinstance(reuse_last_task_id, str)
-        ):
+        if DEV_TASK_NO_REUSE.get() or not reuse_last_task_id or isinstance(reuse_last_task_id, str):
             default_task = None
         else:
             # if we have a previous session to use, get the task id from it
@@ -4601,10 +4294,7 @@ class Task(_Task):
                     # instead of resting the previously used task we are continuing the training with it.
                     if task and (
                         continue_last_task
-                        or (
-                            isinstance(continue_last_task, int)
-                            and not isinstance(continue_last_task, bool)
-                        )
+                        or (isinstance(continue_last_task, int) and not isinstance(continue_last_task, bool))
                     ):
                         task.reload()
                         task.mark_started(force=True)
@@ -4615,15 +4305,9 @@ class Task(_Task):
                             task.set_initial_iteration(continue_last_task)
 
                     else:
-                        task_tags = (
-                            task.data.system_tags
-                            if hasattr(task.data, "system_tags")
-                            else task.data.tags
-                        )
+                        task_tags = task.data.system_tags if hasattr(task.data, "system_tags") else task.data.tags
                         task_artifacts = (
-                            task.data.execution.artifacts
-                            if hasattr(task.data.execution, "artifacts")
-                            else None
+                            task.data.execution.artifacts if hasattr(task.data.execution, "artifacts") else None
                         )
                         if (
                             (
@@ -4653,9 +4337,7 @@ class Task(_Task):
                                 # clear the heaviest stuff first
                                 task._clear_task(
                                     system_tags=[cls._development_tag],
-                                    comment=make_message(
-                                        "Auto-generated at %(time)s by %(user)s@%(host)s"
-                                    ),
+                                    comment=make_message("Auto-generated at %(time)s by %(user)s@%(host)s"),
                                 )
 
                 except (Exception, ValueError):
@@ -4703,20 +4385,13 @@ class Task(_Task):
         # force update of base logger to this current task (this is the main logger task)
         logger = task._get_logger(auto_connect_streams=auto_connect_streams)
         if closed_old_task:
-            logger.report_text(
-                "ClearML Task: Closing old development task id={}".format(
-                    default_task.get("id")
-                )
-            )
+            logger.report_text("ClearML Task: Closing old development task id={}".format(default_task.get("id")))
         # print warning, reusing/creating a task
         if default_task_id and not continue_last_task:
-            logger.report_text(
-                "ClearML Task: overwriting (reusing) task id=%s" % task.id
-            )
+            logger.report_text("ClearML Task: overwriting (reusing) task id=%s" % task.id)
         elif default_task_id and continue_last_task:
             logger.report_text(
-                "ClearML Task: continuing previous task id=%s "
-                "Notice this run will not be reproducible!" % task.id
+                "ClearML Task: continuing previous task id=%s Notice this run will not be reproducible!" % task.id
             )
         else:
             logger.report_text("ClearML Task: created new task id=%s" % task.id)
@@ -4737,9 +4412,7 @@ class Task(_Task):
             except Exception:
                 pass
             if in_dev_mode and cls.__detect_repo_async:
-                task._detect_repo_async_thread = threading.Thread(
-                    target=task._update_repository
-                )
+                task._detect_repo_async_thread = threading.Thread(target=task._update_repository)
                 task._detect_repo_async_thread.daemon = True
                 task._detect_repo_async_thread.start()
             else:
@@ -4752,8 +4425,11 @@ class Task(_Task):
 
         return task
 
-    def _get_logger(self, flush_period=NotSet, auto_connect_streams=False):
-        # type: (Optional[float], Union[bool, dict]) -> Logger
+    def _get_logger(
+        self,
+        flush_period: Optional[float] = NotSet,
+        auto_connect_streams: Union[bool, dict] = False,
+    ) -> Logger:
         """
         get a logger object for reporting based on the task
 
@@ -4776,17 +4452,10 @@ class Task(_Task):
             self._logger = Logger(
                 private_task=self,
                 connect_stdout=(auto_connect_streams is True)
-                or (
-                    isinstance(auto_connect_streams, dict)
-                    and auto_connect_streams.get("stdout", False)
-                ),
+                or (isinstance(auto_connect_streams, dict) and auto_connect_streams.get("stdout", False)),
                 connect_stderr=(auto_connect_streams is True)
-                or (
-                    isinstance(auto_connect_streams, dict)
-                    and auto_connect_streams.get("stderr", False)
-                ),
-                connect_logging=isinstance(auto_connect_streams, dict)
-                and auto_connect_streams.get("logging", False),
+                or (isinstance(auto_connect_streams, dict) and auto_connect_streams.get("stderr", False)),
+                connect_logging=isinstance(auto_connect_streams, dict) and auto_connect_streams.get("logging", False),
             )
             # make sure we set our reported to async mode
             # we make sure we flush it in self._at_exit
@@ -4803,12 +4472,12 @@ class Task(_Task):
 
         return self._logger
 
-    def _connect_output_model(self, model, name=None, **kwargs):
+    def _connect_output_model(self, model: OutputModel, name: Optional[str] = None, **kwargs: Any) -> OutputModel:
         assert isinstance(model, OutputModel)
         model.connect(self, name=name, ignore_remote_overrides=False)
         return model
 
-    def _save_output_model(self, model):
+    def _save_output_model(self, model: OutputModel) -> None:
         """
         Deprecated: Save a reference to the connected output model.
 
@@ -4817,7 +4486,7 @@ class Task(_Task):
         # deprecated
         self._connected_output_model = model
 
-    def _handle_ignore_remote_overrides(self, overrides_name, ignore_remote_overrides):
+    def _handle_ignore_remote_overrides(self, overrides_name: str, ignore_remote_overrides: bool) -> bool:
         if self.running_locally() and ignore_remote_overrides:
             self.set_parameter(
                 overrides_name,
@@ -4827,12 +4496,10 @@ class Task(_Task):
                 value_type=bool,
             )
         elif not self.running_locally():
-            ignore_remote_overrides = self.get_parameter(
-                overrides_name, default=ignore_remote_overrides, cast=True
-            )
+            ignore_remote_overrides = self.get_parameter(overrides_name, default=ignore_remote_overrides, cast=True)
         return ignore_remote_overrides
 
-    def _reconnect_output_model(self):
+    def _reconnect_output_model(self) -> None:
         """
         Deprecated: If there is a saved connected output model, connect it again.
 
@@ -4844,7 +4511,12 @@ class Task(_Task):
         if self._connected_output_model:
             self.connect(self._connected_output_model)
 
-    def _connect_input_model(self, model, name=None, ignore_remote_overrides=False):
+    def _connect_input_model(
+        self,
+        model: InputModel,
+        name: Optional[str] = None,
+        ignore_remote_overrides: bool = False,
+    ) -> InputModel:
         assert isinstance(model, InputModel)
         # we only allow for an input model to be connected once
         # at least until we support multiple input models
@@ -4902,37 +4574,32 @@ class Task(_Task):
                     if parsed_args is None and parser == _parser:
                         parsed_args = _parsed_args
 
-        if (
-            running_remotely()
-            and (self.is_main_task() or self._is_remote_main_task())
-            and not ignore_remote_overrides
-        ):
+        if running_remotely() and (self.is_main_task() or self._is_remote_main_task()) and not ignore_remote_overrides:
             self._arguments.copy_to_parser(parser, parsed_args)
         else:
-            self._arguments.copy_defaults_from_argparse(
-                parser, args=args, namespace=namespace, parsed_args=parsed_args
-            )
+            self._arguments.copy_defaults_from_argparse(parser, args=args, namespace=namespace, parsed_args=parsed_args)
         return parser
 
-    def _connect_dictionary(self, dictionary, name=None, ignore_remote_overrides=False):
-        def _update_args_dict(task, config_dict):
+    def _connect_dictionary(
+        self,
+        dictionary: dict,
+        name: Optional[str] = None,
+        ignore_remote_overrides: bool = False,
+    ) -> dict:
+        def _update_args_dict(task: Task, config_dict: Dict) -> None:
             # noinspection PyProtectedMember
             task._arguments.copy_from_dict(flatten_dictionary(config_dict), prefix=name)
 
-        def _refresh_args_dict(task, config_proxy_dict):
+        def _refresh_args_dict(task: Task, config_proxy_dict: ProxyDictPostWrite) -> None:
             # reread from task including newly added keys
             # noinspection PyProtectedMember
-            a_flat_dict = task._arguments.copy_to_dict(
-                flatten_dictionary(config_proxy_dict), prefix=name
-            )
+            a_flat_dict = task._arguments.copy_to_dict(flatten_dictionary(config_proxy_dict), prefix=name)
             # noinspection PyProtectedMember
             nested_dict = config_proxy_dict._to_dict()
             config_proxy_dict.clear()
-            config_proxy_dict._do_update(
-                nested_from_flat_dictionary(nested_dict, a_flat_dict)
-            )
+            config_proxy_dict._do_update(nested_from_flat_dictionary(nested_dict, a_flat_dict))
 
-        def _check_keys(dict_, warning_sent=False):
+        def _check_keys(dict_: dict, warning_sent: bool = False) -> None:
             if warning_sent:
                 return
             for k, v in dict_.items():
@@ -4965,9 +4632,7 @@ class Task(_Task):
 
         return dictionary
 
-    def _connect_task_parameters(
-        self, attr_class, name=None, ignore_remote_overrides=False
-    ):
+    def _connect_task_parameters(self, attr_class, name=None, ignore_remote_overrides=False):
         ignore_remote_overrides_section = "_ignore_remote_overrides_"
         if running_remotely():
             ignore_remote_overrides = self.get_parameter(
@@ -4975,17 +4640,11 @@ class Task(_Task):
                 default=ignore_remote_overrides,
                 cast=True,
             )
-        if (
-            running_remotely()
-            and (self.is_main_task() or self._is_remote_main_task())
-            and not ignore_remote_overrides
-        ):
+        if running_remotely() and (self.is_main_task() or self._is_remote_main_task()) and not ignore_remote_overrides:
             parameters = self.get_parameters(cast=True)
             if name:
                 parameters = dict(
-                    (k[len(name) + 1 :], v)
-                    for k, v in parameters.items()
-                    if k.startswith("{}/".format(name))
+                    (k[len(name) + 1 :], v) for k, v in parameters.items() if k.startswith("{}/".format(name))
                 )
             parameters.pop(ignore_remote_overrides_section, None)
             attr_class.update_from_dict(parameters)
@@ -4998,9 +4657,7 @@ class Task(_Task):
 
     def _connect_object(self, an_object, name=None, ignore_remote_overrides=False):
         def verify_type(key, value):
-            if str(key).startswith("_") or not isinstance(
-                value, self._parameters_allowed_types
-            ):
+            if str(key).startswith("_") or not isinstance(value, self._parameters_allowed_types):
                 return False
             # verify everything is json able (i.e. basic types)
             try:
@@ -5015,35 +4672,23 @@ class Task(_Task):
             for k, v in cls_.__dict__.items()
             if verify_type(k, v)
         }
-        if (
-            running_remotely()
-            and (self.is_main_task() or self._is_remote_main_task())
-            and not ignore_remote_overrides
-        ):
-            a_dict = self._connect_dictionary(
-                a_dict, name, ignore_remote_overrides=ignore_remote_overrides
-            )
+        if running_remotely() and (self.is_main_task() or self._is_remote_main_task()) and not ignore_remote_overrides:
+            a_dict = self._connect_dictionary(a_dict, name, ignore_remote_overrides=ignore_remote_overrides)
             for k, v in a_dict.items():
                 if getattr(an_object, k, None) != a_dict[k]:
                     setattr(an_object, k, v)
 
             return an_object
         else:
-            self._connect_dictionary(
-                a_dict, name, ignore_remote_overrides=ignore_remote_overrides
-            )
+            self._connect_dictionary(a_dict, name, ignore_remote_overrides=ignore_remote_overrides)
             return an_object
 
-    def _dev_mode_stop_task(self, stop_reason, pid=None):
+    def _dev_mode_stop_task(self, stop_reason: str, pid: Optional[int] = None) -> None:
         # make sure we do not get called (by a daemon thread) after at_exit
         if self._at_exit_called:
             return
 
-        self.log.warning(
-            "### TASK STOPPED - USER ABORTED - {} ###".format(
-                stop_reason.upper().replace("_", " ")
-            )
-        )
+        self.log.warning("### TASK STOPPED - USER ABORTED - {} ###".format(stop_reason.upper().replace("_", " ")))
         self.flush(wait_for_uploads=True)
 
         # if running remotely, we want the daemon to kill us
@@ -5056,19 +4701,13 @@ class Task(_Task):
         # NOTICE! This will end the entire execution tree!
         if self.__exit_hook:
             self.__exit_hook.remote_user_aborted = True
-        self._kill_all_child_processes(
-            send_kill=False, pid=pid, allow_kill_calling_pid=False
-        )
+        self._kill_all_child_processes(send_kill=False, pid=pid, allow_kill_calling_pid=False)
         time.sleep(2.0)
-        self._kill_all_child_processes(
-            send_kill=True, pid=pid, allow_kill_calling_pid=True
-        )
+        self._kill_all_child_processes(send_kill=True, pid=pid, allow_kill_calling_pid=True)
         os._exit(1)  # noqa
 
     @staticmethod
-    def _kill_all_child_processes(
-        send_kill=False, pid=None, allow_kill_calling_pid=True
-    ):
+    def _kill_all_child_processes(send_kill=False, pid=None, allow_kill_calling_pid=True):
         # get current process if pid not provided
         current_pid = os.getpid()
         kill_ourselves = None
@@ -5122,7 +4761,7 @@ class Task(_Task):
         if not flush_period or flush_period > self._dev_worker.report_period:
             logger.set_flush_period(self._dev_worker.report_period)
 
-    def _wait_for_repo_detection(self, timeout=None):
+    def _wait_for_repo_detection(self, timeout: Optional[float] = None) -> None:
         # wait for detection repo sync
         if not self._detect_repo_async_thread:
             return
@@ -5138,36 +4777,31 @@ class Task(_Task):
 
                         kill_thread(self._detect_repo_async_thread)
                     else:
-                        self.log.info(
-                            "Waiting for repository detection and full package requirement analysis"
-                        )
+                        self.log.info("Waiting for repository detection and full package requirement analysis")
                         self._detect_repo_async_thread.join(timeout=timeout)
                         # because join has no return value
                         if self._detect_repo_async_thread.is_alive():
                             self.log.info(
-                                "Repository and package analysis timed out ({} sec), "
-                                "giving up".format(timeout)
+                                "Repository and package analysis timed out ({} sec), giving up".format(timeout)
                             )
                             # done waiting, kill the thread
                             from .utilities.lowlevel.threads import kill_thread
 
                             kill_thread(self._detect_repo_async_thread)
                         else:
-                            self.log.info(
-                                "Finished repository detection and package analysis"
-                            )
+                            self.log.info("Finished repository detection and package analysis")
                 self._detect_repo_async_thread = None
             except Exception:
                 pass
 
-    def _summary_artifacts(self):
+    def _summary_artifacts(self) -> None:
         # signal artifacts upload, and stop daemon
         self._artifacts_manager.stop(wait=True)
         # print artifacts summary (if not empty)
         if self._artifacts_manager.summary:
             self.get_logger().report_text(self._artifacts_manager.summary)
 
-    def _at_exit(self):
+    def _at_exit(self) -> None:
         # protect sub-process at_exit (should never happen)
         if self._at_exit_called and self._at_exit_called != get_current_thread_id():
             return
@@ -5189,7 +4823,7 @@ class Task(_Task):
         #     # we have to forcefully shutdown if we have forked processes, sometimes they will get stuck
         #     os._exit(self.__exit_hook.exit_code if self.__exit_hook and self.__exit_hook.exit_code else 0)
 
-    def __shutdown(self):
+    def __shutdown(self) -> None:
         """
         Will happen automatically once we exit code, i.e. atexit
         :return:
@@ -5198,9 +4832,7 @@ class Task(_Task):
         if self._at_exit_called:
             is_sub_process = self.__is_subprocess()
             # if we are called twice (signal in the middle of the shutdown),
-            _nested_shutdown_call = bool(
-                self._at_exit_called == get_current_thread_id()
-            )
+            _nested_shutdown_call = bool(self._at_exit_called == get_current_thread_id())
             if _nested_shutdown_call and not is_sub_process:
                 # if we were called again in the main thread on the main process, let's try again
                 # make sure we only do this once
@@ -5260,10 +4892,7 @@ class Task(_Task):
                         and is_exception != KeyboardInterrupt
                     ) or (
                         not self.__exit_hook.remote_user_aborted
-                        and (
-                            self.__exit_hook.signal not in (None, 2, 15)
-                            or self.__exit_hook.exit_code
-                        )
+                        and (self.__exit_hook.signal not in (None, 2, 15) or self.__exit_hook.exit_code)
                     ):
                         task_status = (
                             "failed",
@@ -5275,10 +4904,7 @@ class Task(_Task):
                         )
                         wait_for_uploads = False
                     else:
-                        wait_for_uploads = (
-                            self.__exit_hook.remote_user_aborted
-                            or self.__exit_hook.signal is None
-                        )
+                        wait_for_uploads = self.__exit_hook.remote_user_aborted or self.__exit_hook.signal is None
                         if (
                             not self.__exit_hook.remote_user_aborted
                             and self.__exit_hook.signal is None
@@ -5305,8 +4931,7 @@ class Task(_Task):
             # wait for uploads
             print_done_waiting = False
             if wait_for_uploads and (
-                BackendModel.get_num_results() > 0
-                or (self.__reporter and self.__reporter.events_waiting())
+                BackendModel.get_num_results() > 0 or (self.__reporter and self.__reporter.events_waiting())
             ):
                 self.log.info("Waiting to finish uploads")
                 print_done_waiting = True
@@ -5349,9 +4974,7 @@ class Task(_Task):
             if self._logger:
                 self._logger.set_flush_period(None)
                 # noinspection PyProtectedMember
-                self._logger._close_stdout_handler(
-                    wait=wait_for_uploads or wait_for_std_log
-                )
+                self._logger._close_stdout_handler(wait=wait_for_uploads or wait_for_std_log)
 
             if not is_sub_process:
                 # change task status
@@ -5383,14 +5006,10 @@ class Task(_Task):
                 # create zip file
                 offline_folder = self.get_offline_mode_folder()
                 zip_file = offline_folder.as_posix() + ".zip"
-                with ZipFile(
-                    zip_file, "w", allowZip64=True, compression=ZIP_DEFLATED
-                ) as zf:
+                with ZipFile(zip_file, "w", allowZip64=True, compression=ZIP_DEFLATED) as zf:
                     for filename in offline_folder.rglob("*"):
                         if filename.is_file():
-                            relative_file_name = filename.relative_to(
-                                offline_folder
-                            ).as_posix()
+                            relative_file_name = filename.relative_to(offline_folder).as_posix()
                             zf.write(filename.as_posix(), arcname=relative_file_name)
                 print("ClearML Task: Offline session stored in {}".format(zip_file))
             except Exception:
@@ -5414,17 +5033,17 @@ class Task(_Task):
         return
 
     @classmethod
-    def _remove_exception_hooks(cls):
+    def _remove_exception_hooks(cls) -> None:
         if cls.__exit_hook:
             cls.__exit_hook.remove_exception_hooks()
 
     @classmethod
-    def _remove_signal_hooks(cls):
+    def _remove_signal_hooks(cls) -> None:
         if cls.__exit_hook:
             cls.__exit_hook.remove_signal_hooks()
 
     @classmethod
-    def __register_at_exit(cls, exit_callback):
+    def __register_at_exit(cls, exit_callback: Callable) -> None:
         if cls.__exit_hook is None:
             # noinspection PyBroadException
             try:
@@ -5438,28 +5057,22 @@ class Task(_Task):
     @classmethod
     def __get_task(
         cls,
-        task_id=None,  # type: Optional[str]
-        project_name=None,  # type: Optional[str]
-        task_name=None,  # type: Optional[str]
-        include_archived=True,  # type: bool
-        tags=None,  # type: Optional[Sequence[str]]
-        task_filter=None,  # type: Optional[dict]
-    ):
-        # type: (...) -> TaskInstance
-
+        task_id: Optional[str] = None,
+        project_name: Optional[str] = None,
+        task_name: Optional[str] = None,
+        include_archived: bool = True,
+        tags: Optional[Sequence[str]] = None,
+        task_filter: Optional[dict] = None,
+    ) -> TaskInstance:
         if task_id:
-            return cls(
-                private=cls.__create_protection, task_id=task_id, log_to_backend=False
-            )
+            return cls(private=cls.__create_protection, task_id=task_id, log_to_backend=False)
 
         if project_name:
             res = cls._send(
                 cls._get_default_session(),
                 projects.GetAllRequest(name=exact_match_regex(project_name)),
             )
-            project = get_single_result(
-                entity="project", query=project_name, results=res.response.projects
-            )
+            project = get_single_result(entity="project", query=project_name, results=res.response.projects)
         else:
             project = None
 
@@ -5468,9 +5081,7 @@ class Task(_Task):
         system_tags = "system_tags" if hasattr(tasks.Task, "system_tags") else "tags"
         task_filter = task_filter or {}
         if not include_archived:
-            task_filter["system_tags"] = (task_filter.get("system_tags") or []) + [
-                "-{}".format(cls.archived_tag)
-            ]
+            task_filter["system_tags"] = (task_filter.get("system_tags") or []) + ["-{}".format(cls.archived_tag)]
         if tags:
             task_filter["tags"] = (task_filter.get("tags") or []) + list(tags)
         res = cls._send(
@@ -5479,7 +5090,7 @@ class Task(_Task):
                 project=[project.id] if project else None,
                 name=exact_match_regex(task_name) if task_name else None,
                 only_fields=["id", "name", "last_update", system_tags],
-                **task_filter
+                **task_filter,
             ),
         )
         res_tasks = res.response.tasks
@@ -5489,8 +5100,7 @@ class Task(_Task):
             filtered_tasks = [
                 t
                 for t in res_tasks
-                if not getattr(t, system_tags, None)
-                or cls.archived_tag not in getattr(t, system_tags, None)
+                if not getattr(t, system_tags, None) or cls.archived_tag not in getattr(t, system_tags, None)
             ]
             # if we did not filter everything (otherwise we have only archived tasks, so we return them)
             if filtered_tasks:
@@ -5525,13 +5135,11 @@ class Task(_Task):
     @classmethod
     def __get_tasks(
         cls,
-        task_ids=None,  # type: Optional[Sequence[str]]
-        project_name=None,  # type: Optional[Union[Sequence[str],str]]
-        task_name=None,  # type: Optional[str]
-        **kwargs  # type: Any
-    ):
-        # type: (...) -> List[Task]
-
+        task_ids: Optional[Sequence[str]] = None,
+        project_name: Optional[Union[Sequence[str], str]] = None,
+        task_name: Optional[str] = None,
+        **kwargs: Any,
+    ) -> List["Task"]:
         if task_ids:
             if isinstance(task_ids, six.string_types):
                 task_ids = [task_ids]
@@ -5545,10 +5153,7 @@ class Task(_Task):
             ]
 
         queried_tasks = cls._query_tasks(
-            project_name=project_name,
-            task_name=task_name,
-            fetch_only_first_page=True,
-            **kwargs
+            project_name=project_name, task_name=task_name, fetch_only_first_page=True, **kwargs
         )
         if len(queried_tasks) == 500:
             LoggerRoot.get_base_logger().warning(
@@ -5556,21 +5161,18 @@ class Task(_Task):
                 " Returning only the first 500 results."
                 " Use Task.query_tasks() to fetch all task IDs"
             )
-        return [
-            cls(private=cls.__create_protection, task_id=task.id, log_to_backend=False)
-            for task in queried_tasks
-        ]
+        return [cls(private=cls.__create_protection, task_id=task.id, log_to_backend=False) for task in queried_tasks]
 
     @classmethod
     def _query_tasks(
         cls,
-        task_ids=None,
-        project_name=None,
-        task_name=None,
-        fetch_only_first_page=False,
-        exact_match_regex_flag=True,
-        **kwargs
-    ):
+        task_ids: Optional[Union[Sequence[str], str]] = None,
+        project_name: Optional[Union[Sequence[str], str]] = None,
+        task_name: Optional[str] = None,
+        fetch_only_first_page: bool = False,
+        exact_match_regex_flag: bool = True,
+        **kwargs: Any,
+    ) -> List["Task"]:
         res = None
         if not task_ids:
             task_ids = None
@@ -5593,24 +5195,17 @@ class Task(_Task):
                 res = cls._send(
                     cls._get_default_session(),
                     projects.GetAllRequest(
-                        name=(
-                            exact_match_regex(name) if exact_match_regex_flag else name
-                        ),
-                        **aux_kwargs
+                        name=(exact_match_regex(name) if exact_match_regex_flag else name), **aux_kwargs
                     ),
                 )
                 if res.response and res.response.projects:
-                    project_ids.extend(
-                        [project.id for project in res.response.projects]
-                    )
+                    project_ids.extend([project.id for project in res.response.projects])
                 else:
                     projects_not_found.append(name)
             if projects_not_found:
                 # If any of the given project names does not exist, fire off a warning
                 LoggerRoot.get_base_logger().warning(
-                    "No projects were found with name(s): {}".format(
-                        ", ".join(projects_not_found)
-                    )
+                    "No projects were found with name(s): {}".format(", ".join(projects_not_found))
                 )
             if not project_ids:
                 # If not a single project exists or was found, return empty right away
@@ -5630,9 +5225,7 @@ class Task(_Task):
         ret_tasks = []
         page = -1
         page_size = 500
-        while page == -1 or (
-            not fetch_only_first_page and res and len(res.response.tasks) == page_size
-        ):
+        while page == -1 or (not fetch_only_first_page and res and len(res.response.tasks) == page_size):
             page += 1
             # work on a copy and make sure we override all fields with ours
             request_kwargs = dict(
@@ -5653,8 +5246,7 @@ class Task(_Task):
         return ret_tasks
 
     @classmethod
-    def _wait_for_deferred(cls, task):
-        # type: (Optional[Task]) -> None
+    def _wait_for_deferred(cls, task: Optional["Task"]) -> None:
         """
         Make sure the task object deferred `Task.init` is completed.
         Accessing any of the `task` object's property will ensure the Task.init call was also complete
@@ -5668,16 +5260,14 @@ class Task(_Task):
         task.id  # noqa
 
     @classmethod
-    def __get_hash_key(cls, *args):
-        def normalize(x):
+    def __get_hash_key(cls, *args: Any) -> str:
+        def normalize(x: Any) -> str:
             return "<{}>".format(x) if x is not None else ""
 
         return ":".join(map(normalize, args))
 
     @classmethod
-    def __get_last_used_task_id(
-        cls, default_project_name, default_task_name, default_task_type
-    ):
+    def __get_last_used_task_id(cls, default_project_name, default_task_name, default_task_type):
         hash_key = cls.__get_hash_key(
             cls._get_api_server(),
             default_project_name,
@@ -5707,9 +5297,7 @@ class Task(_Task):
         return task_data
 
     @classmethod
-    def __update_last_used_task_id(
-        cls, default_project_name, default_task_name, default_task_type, task_id
-    ):
+    def __update_last_used_task_id(cls, default_project_name, default_task_name, default_task_type, task_id):
         hash_key = cls.__get_hash_key(
             cls._get_api_server(),
             default_project_name,
@@ -5730,9 +5318,7 @@ class Task(_Task):
 
         # remove stale sessions
         for k in list(task_sessions.keys()):
-            if (
-                time.time() - task_sessions[k].get("time", 0)
-            ) > 60 * 60 * cls.__task_id_reuse_time_window_in_hours:
+            if (time.time() - task_sessions[k].get("time", 0)) > 60 * 60 * cls.__task_id_reuse_time_window_in_hours:
                 task_sessions.pop(k)
         # update current session
         task_sessions[hash_key] = last_task_session
@@ -5745,12 +5331,11 @@ class Task(_Task):
             task_data
             and task_data.get("id")
             and task_data.get("time")
-            and (time.time() - task_data.get("time"))
-            > (60 * 60 * cls.__task_id_reuse_time_window_in_hours)
+            and (time.time() - task_data.get("time")) > (60 * 60 * cls.__task_id_reuse_time_window_in_hours)
         )
 
     @classmethod
-    def __get_task_api_obj(cls, task_id, only_fields=None):
+    def __get_task_api_obj(cls, task_id: str, only_fields: Optional[List[str]] = None) -> Optional[tasks.Task]:
         if not task_id or cls._offline_mode:
             return None
 
@@ -5766,7 +5351,7 @@ class Task(_Task):
         return all_tasks[0]
 
     @classmethod
-    def __task_is_relevant(cls, task_data):
+    def __task_is_relevant(cls, task_data: Mapping[str, Any]) -> bool:
         """
         Check that a cached task is relevant for reuse.
 
@@ -5816,16 +5401,13 @@ class Task(_Task):
 
         if (
             task_data.get("type")
-            and task_data.get("type")
-            not in (cls.TaskTypes.training, cls.TaskTypes.testing)
+            and task_data.get("type") not in (cls.TaskTypes.training, cls.TaskTypes.testing)
             and not Session.check_min_api_version(2.8)
         ):
             print(
                 'WARNING: Changing task type to "{}" : '
                 'clearml-server does not support task type "{}", '
-                "please upgrade clearml-server.".format(
-                    cls.TaskTypes.training, task_data["type"].value
-                )
+                "please upgrade clearml-server.".format(cls.TaskTypes.training, task_data["type"].value)
             )
             task_data["type"] = cls.TaskTypes.training
 
@@ -5843,7 +5425,7 @@ class Task(_Task):
         )
 
     @classmethod
-    def __close_timed_out_task(cls, task_data):
+    def __close_timed_out_task(cls, task_data: Optional[Dict[str, Any]]) -> bool:
         if not task_data:
             return False
 
@@ -5875,7 +5457,10 @@ class Task(_Task):
         return False
 
     @classmethod
-    def __add_model_wildcards(cls, auto_connect_frameworks):
+    def __add_model_wildcards(
+        cls,
+        auto_connect_frameworks: Union[Dict[str, Union[str, List[str], Tuple[str]]], Any],
+    ) -> None:
         if isinstance(auto_connect_frameworks, dict):
             for k, v in auto_connect_frameworks.items():
                 if isinstance(v, str):
@@ -5883,7 +5468,7 @@ class Task(_Task):
                 if isinstance(v, (list, tuple)):
                     WeightsFileHandler.model_wildcards[k] = [str(i) for i in v]
 
-        def callback(_, model_info):
+        def callback(_: Any, model_info: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
             if not model_info:
                 return None
             parents = Framework.get_framework_parents(model_info.framework)
@@ -5899,8 +5484,7 @@ class Task(_Task):
 
         WeightsFileHandler.add_pre_callback(callback)
 
-    def __getstate__(self):
-        # type: () -> dict
+    def __getstate__(self) -> dict:
         return {
             "main": self.is_main_task(),
             "id": self.id,
@@ -5923,3 +5507,7 @@ class Task(_Task):
             else Task.get_task(task_id=state["id"])
         )
         self.__dict__ = task.__dict__
+
+    @property
+    def resource_monitor(self) -> None:
+        return self._resource_monitor

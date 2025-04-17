@@ -1,3 +1,4 @@
+import argparse
 import sys
 from argparse import ArgumentParser
 from pprint import pprint
@@ -12,7 +13,7 @@ from clearml.version import __version__
 verbose = 0
 
 
-def print_(msg, verbosity=0):
+def print_(msg: str, verbosity: int = 0) -> None:
     if verbose <= 0:
         return
     if verbosity and verbose < verbosity:
@@ -20,7 +21,7 @@ def print_(msg, verbosity=0):
     print(msg)
 
 
-def do_dump(args):
+def do_dump(args: argparse.Namespace) -> None:
     print_("Connecting to ClearML Server at {}".format(Session.get_api_server_host(config=ConfigWrapper._init())))
 
     session = Task._get_default_session()
@@ -55,7 +56,7 @@ def do_dump(args):
         print(prefix + " " + HOCONConverter.to_hocon(config, indent=args.indent, level=1 if prefix else 0))
 
 
-def setup_parser(parser):
+def setup_parser(parser: ArgumentParser) -> None:
     parser.add_argument("-v", "--verbose", action="count", default=0)
 
     commands = parser.add_subparsers(help="Debug actions", dest="command")
@@ -72,12 +73,17 @@ def setup_parser(parser):
         default="hocon",
     )
     dump.add_argument("--indent", "-I", default=2, type=int, help="Indentation (default: %(default)d)")
-    dump.add_argument("--path", "-p", type=str, help='Configuration path to dump (e.g. "api" or "sdk.aws.s3")')
+    dump.add_argument(
+        "--path",
+        "-p",
+        type=str,
+        help='Configuration path to dump (e.g. "api" or "sdk.aws.s3")',
+    )
 
     dump.set_defaults(func=do_dump)
 
 
-def cli():
+def cli() -> None:
     title = "ClearML Debug - debugging tools for using ClearML SDK"
     parser = ArgumentParser(description=title)
     setup_parser(parser)
@@ -97,7 +103,7 @@ def cli():
     args.func(args)
 
 
-def main():
+def main() -> None:
     try:
         cli()
     except KeyboardInterrupt:
