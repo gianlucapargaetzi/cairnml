@@ -1589,6 +1589,8 @@ class PipelineController(object):
         force_single_script_file: bool = False,
         version: Optional[str] = None,
         add_run_number: bool = True,
+        binary: Optional[str] = None,
+        module: Optional[str] = None
     ) -> "PipelineController":
         """
         Manually create and populate a new Pipeline in the system.
@@ -1620,6 +1622,10 @@ class PipelineController(object):
         :param argparse_args: Arguments to pass to the remote execution, list of string pairs (argument, value)
             Notice, only supported if the codebase itself uses argparse.ArgumentParser
         :param force_single_script_file: If True, do not auto-detect local repository
+        :param binary: Binary used to launch the pipeline
+        :param module: If specified instead of executing `script`, a module named `module` is executed.
+            Implies script is empty. Module can contain multiple argument for execution,
+            for example: module="my.module arg1 arg2"
 
         :return: The newly created PipelineController
         """
@@ -1641,6 +1647,8 @@ class PipelineController(object):
             argparse_args=argparse_args,
             add_task_init_call=False,
             force_single_script_file=force_single_script_file,
+            binary=binary,
+            module=module
         )
         cls._create_pipeline_projects(
             task=pipeline_controller,

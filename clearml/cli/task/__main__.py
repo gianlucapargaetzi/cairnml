@@ -4,7 +4,7 @@ from argparse import ArgumentParser
 from pathlib2 import Path
 
 import clearml.backend_api.session
-from clearml import Task
+from clearml import Task, PipelineController
 from clearml.backend_interface.task.populate import CreateAndPopulate
 from clearml.version import __version__
 
@@ -158,7 +158,7 @@ def setup_parser(parser: ArgumentParser) -> None:
         default=None,
         help="Set the Task type, optional values: "
         "training, testing, inference, data_processing, application, monitor, "
-        "controller, optimizer, service, qc, custom",
+        "optimizer, service, qc, custom. Will be ignored if '--pipeline' is used.",
     )
     parser.add_argument(
         "--skip-task-init",
@@ -179,6 +179,22 @@ def setup_parser(parser: ArgumentParser) -> None:
         type=str,
         default=None,
         help="Specify the path to the offline session you want to import.",
+    )
+    parser.add_argument(
+        "--pipeline",
+        action="store_true",
+        help="If specified, indicate that the created object is a pipeline instead of a regular task",
+    )
+    parser.add_argument(
+        "--pipeline-version",
+        type=str,
+        default=None,
+        help="Specify the pipeline version. Will be ignored if '--pipeline' is not specified",
+    )
+    parser.add_argument(
+        "--pipeline-dont-add-run-number",
+        action="store_true",
+        help="If specified, don't add the run number to the pipeline. Will be ignored if '--pipeline' is not specified",
     )
 
 
@@ -217,49 +233,74 @@ def cli() -> None:
     else:
         if args.script and args.script.endswith(".sh") and not args.binary:
             print("Detected shell script. Binary will be set to '/bin/bash'")
-        create_populate = CreateAndPopulate(
-            project_name=args.project,
-            task_name=args.name,
-            task_type=args.task_type,
-            repo=args.repo or args.folder,
-            branch=args.branch,
-            commit=args.commit,
-            script=args.script,
-            module=args.module,
-            working_directory=args.cwd,
-            packages=args.packages,
-            requirements_file=args.requirements,
-            docker=args.docker,
-            docker_args=args.docker_args,
-            docker_bash_setup_script=bash_setup_script,
-            output_uri=args.output_uri,
-            base_task_id=args.base_task_id,
-            add_task_init_call=not args.skip_task_init,
-            raise_on_missing_entries=True,
-            verbose=True,
-            binary=args.binary,
-        )
-        # verify args before creating the Task
-        create_populate.update_task_args(args.args)
-        print("Creating new task")
-        create_populate.create_task()
+        if args.pipeline:
+            pipeline = PipelineController.create(
+                project_name=args.project,
+                task_name=args.name,
+                repo=args.repo or args.folder,
+                branch=args.branch,
+                commit=args.commit,
+                script=args.script,
+                module=args.module,
+                working_directory=args.cwd,
+                packages=args.packages,
+                requirements_file=args.requirements,
+                docker=args.docker,
+                docker_args=args.docker_args,
+                docker_bash_setup_script=bash_setup_script,
+                version=args.pipeline_version,
+                add_run_number=False if args.pipeline_dont_add_run_number else True,
+                binary=args.binary
+            )
+            created_task = pipeline._task
+        else:
+            created_task = CreateAndPopulate(
+                project_name=args.project,
+                task_name=args.name,
+                task_type=args.task_type,
+                repo=args.repo or args.folder,
+                branch=args.branch,
+                commit=args.commit,
+                script=args.script,
+                module=args.module,
+                working_directory=args.cwd,
+                packages=args.packages,
+                requirements_file=args.requirements,
+                docker=args.docker,
+                docker_args=args.docker_args,
+                docker_bash_setup_script=bash_setup_script,
+                output_uri=args.output_uri,
+                base_task_id=args.base_task_id,
+                add_task_init_call=not args.skip_task_init,
+                raise_on_missing_entries=True,
+                verbose=True,
+                binary=args.binary
+            )
+            # verify args before creating the Task
+            created_task.update_task_args(args.args)
+            print("Creating new task")
+            created_task.create_task()
         # update Task args
-        create_populate.update_task_args(args.args)
+        created_task.update_task_args(args.args)
         # set tags
         if args.tags:
-            create_populate.task.add_tags(args.tags)
+            created_task.task.add_tags(args.tags)
 
         # noinspection PyProtectedMember
-        create_populate.task._set_runtime_properties({"_CLEARML_TASK": True})
+        created_task.task._set_runtime_properties({"_CLEARML_TASK": True})
 
-        print("New task created id={}".format(create_populate.get_id()))
+        print("New {} created id={}".format("pipeline" if args.pipeline else "task", created_task.get_id()))
         if not args.queue:
-            print("Warning: No queue was provided, leaving task in draft-mode.")
+            print("Warning: No queue was provided, leaving {} in draft-mode.", "pipeline" if args.pipeline else "task")
             exit(0)
 
-        Task.enqueue(create_populate.task, queue_name=args.queue)
-        print("Task id={} sent for execution on queue {}".format(create_populate.get_id(), args.queue))
-        print("Execution log at: {}".format(create_populate.task.get_output_log_web_page()))
+        Task.enqueue(created_task.task, queue_name=args.queue)
+        print(
+            "{} id={} sent for execution on queue {}".format(
+                "Pipeline" if args.pipeline else "task", created_task.get_id(), args.queue
+            )
+        )
+        print("Execution log at: {}".format(created_task.task.get_output_log_web_page()))
 
 
 def main() -> None:

@@ -1212,6 +1212,8 @@ class Task(_Task):
         base_task_id: Optional[str] = None,
         add_task_init_call: bool = True,
         force_single_script_file: bool = False,
+        binary: Optional[str] = None,
+        module: Optional[str] = None
     ) -> TaskInstance:
         """
         Manually create and populate a new Task (experiment) in the system.
@@ -1254,6 +1256,10 @@ class Task(_Task):
             Essentially clones an existing task and overrides arguments/requirements.
         :param add_task_init_call: If True, a 'Task.init()' call is added to the script entry point in remote execution.
         :param force_single_script_file: If True, do not auto-detect local repository
+        :param binary: Binary used to launch the entry point
+        :param module: If specified instead of executing `script`, a module named `module` is executed.
+            Implies script is empty. Module can contain multiple argument for execution,
+            for example: module="my.module arg1 arg2"
 
         :return: The newly created Task (experiment)
         :rtype: Task
@@ -1287,6 +1293,8 @@ class Task(_Task):
             add_task_init_call=add_task_init_call,
             force_single_script_file=force_single_script_file,
             raise_on_missing_entries=False,
+            module=module,
+            binary=binary
         )
         task = manual_populate.create_task()
         if task and argparse_args:
