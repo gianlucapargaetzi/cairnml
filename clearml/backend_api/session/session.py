@@ -600,22 +600,26 @@ class Session(TokenManager):
                 # readjust the slice
                 slice = req_data[cur : cur + size]
                 if not slice:
-                    raise MaxRequestSizeError(
-                        "Error: {}.{} request exceeds limit {} > {} bytes".format(
+                    (self._logger or get_logger()).error(
+                        "{}.{} request exceeds limit {} > {} bytes".format(
                             service, action, len(req_data), self.__max_req_size
                         )
                     )
-            res = self.send_request(
-                method=method,
-                service=service,
-                action=action,
-                data=slice,
-                headers=headers,
-                version=version,
-            )
-            results.append(res)
-            if res.status_code != requests.codes.ok:
-                break
+                    # skip the payload that could not be sent
+                    size = req_data[cur:].find("\n") + 1
+                    if size == 0:
+                        # error occured on the last package
+                        break
+            if slice:
+                res = self.send_request(
+                    method=method,
+                    service=service,
+                    action=action,
+                    data=slice,
+                    headers=headers,
+                    version=version,
+                )
+                results.append(res)
             cur += size
         return results
 
