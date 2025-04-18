@@ -680,6 +680,7 @@ class CreateFromFunction(object):
     default_task_template_header = """from clearml import Task
 from clearml import TaskTypes
 from clearml.automation.controller import PipelineDecorator
+import inspect
 """
     task_template = """{header}
 from clearml.utilities.proxy_object import get_basic_type
@@ -699,6 +700,11 @@ if __name__ == '__main__':
     task.connect(kwargs, name='{kwargs_section}')
     function_input_artifacts = {function_input_artifacts}
     params = task.get_parameters() or dict()
+    argspec = inspect.getfullargspec({function_name})
+    if argspec.varkw is not None or argspec.varargs is not None:
+        for k, v in params.items():
+            if k.startswith('{kwargs_section}/'):
+                kwargs[k.replace('{kwargs_section}/', '', 1)] = v
     return_section = '{return_section}'
     for k, v in params.items():
         if not v or not k.startswith('{input_artifact_section}/'):
@@ -710,7 +716,15 @@ if __name__ == '__main__':
             kwargs[k] = parent_task.artifacts[artifact_name].get(deserialization_function={artifact_deserialization_function_name})
         else:
             kwargs[k] = parent_task.get_parameters(cast=True).get(return_section + '/' + artifact_name)
-    results = {function_name}(**kwargs)
+    if '0' in kwargs:  # *args arguments are present
+        pos_args = [kwargs.pop(arg, None) for arg in (argspec.args or [])]
+        other_pos_args_index = 0
+        while str(other_pos_args_index) in kwargs:
+            pos_args.append(kwargs.pop(str(other_pos_args_index)))
+            other_pos_args_index += 1
+        results = {function_name}(*pos_args, **kwargs)
+    else:
+        results = {function_name}(**kwargs)
     result_names = {function_return}
     if result_names:
         if not isinstance(results, (tuple, list)) or len(result_names) == 1:
