@@ -234,6 +234,12 @@ def cli() -> None:
         if args.script and args.script.endswith(".sh") and not args.binary:
             print("Detected shell script. Binary will be set to '/bin/bash'")
         if args.pipeline:
+            argparse_args = []
+            for arg in args.args:
+                arg_split = arg.split("=")
+                if len(arg_split) != 2:
+                    raise ValueError("Invalid argument: {}. Format should be key=value".format(arg))
+                argparse_args.append(arg_split)
             pipeline = PipelineController.create(
                 project_name=args.project,
                 task_name=args.name,
@@ -250,11 +256,12 @@ def cli() -> None:
                 docker_bash_setup_script=bash_setup_script,
                 version=args.pipeline_version,
                 add_run_number=False if args.pipeline_dont_add_run_number else True,
-                binary=args.binary
+                binary=args.binary,
+                argparse_args=argparse_args
             )
             created_task = pipeline._task
         else:
-            created_task = CreateAndPopulate(
+            create_and_populate = CreateAndPopulate(
                 project_name=args.project,
                 task_name=args.name,
                 task_type=args.task_type,
@@ -277,30 +284,31 @@ def cli() -> None:
                 binary=args.binary
             )
             # verify args before creating the Task
-            created_task.update_task_args(args.args)
+            create_and_populate.update_task_args(args.args)
             print("Creating new task")
-            created_task.create_task()
-        # update Task args
-        created_task.update_task_args(args.args)
+            create_and_populate.create_task()
+            # update Task args
+            create_and_populate.update_task_args(args.args)
+            created_task = create_and_populate.task
         # set tags
         if args.tags:
-            created_task.task.add_tags(args.tags)
+            created_task.add_tags(args.tags)
 
         # noinspection PyProtectedMember
-        created_task.task._set_runtime_properties({"_CLEARML_TASK": True})
+        created_task._set_runtime_properties({"_CLEARML_TASK": True})
 
-        print("New {} created id={}".format("pipeline" if args.pipeline else "task", created_task.get_id()))
+        print("New {} created id={}".format("pipeline" if args.pipeline else "task", created_task.id))
         if not args.queue:
             print("Warning: No queue was provided, leaving {} in draft-mode.", "pipeline" if args.pipeline else "task")
             exit(0)
 
-        Task.enqueue(created_task.task, queue_name=args.queue)
+        Task.enqueue(created_task, queue_name=args.queue)
         print(
             "{} id={} sent for execution on queue {}".format(
-                "Pipeline" if args.pipeline else "task", created_task.get_id(), args.queue
+                "Pipeline" if args.pipeline else "task", created_task.id, args.queue
             )
         )
-        print("Execution log at: {}".format(created_task.task.get_output_log_web_page()))
+        print("Execution log at: {}".format(created_task.get_output_log_web_page()))
 
 
 def main() -> None:

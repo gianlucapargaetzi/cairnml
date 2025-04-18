@@ -1958,7 +1958,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         """
         Set the current Task's tags. Please note this will overwrite anything that is there already.
 
-        :param Sequence(str) tags: object sequence of tags to set.
+        :param Sequence(str) tags: Any sequence of tags to set.
         """
         assert isinstance(tags, (list, tuple))
         if not Session.check_min_api_version("2.3"):

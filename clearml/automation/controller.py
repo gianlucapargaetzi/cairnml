@@ -1659,7 +1659,6 @@ class PipelineController(object):
         pipeline_controller.set_user_properties(version=version or cls._default_pipeline_version)
         if add_run_number:
             cls._add_pipeline_name_run_number(pipeline_controller)
-        print(pipeline_controller.get_output_log_web_page())
         return cls._create_pipeline_controller_from_task(pipeline_controller)
 
     @classmethod
