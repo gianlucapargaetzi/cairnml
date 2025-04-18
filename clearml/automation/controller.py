@@ -4691,8 +4691,13 @@ class PipelineDecorator(PipelineController):
 
                 # resolve all lazy objects if we have any:
                 kwargs_artifacts = {}
+                star_args_index = 0
                 for i, v in enumerate(args):
-                    kwargs[inspect_func.args[i]] = v
+                    if not inspect_func.args or i >= len(inspect_func.args):
+                        kwargs[str(star_args_index)] = v
+                        star_args_index += 1
+                    else:
+                        kwargs[inspect_func.args[i]] = v
 
                 # We need to remember when a pipeline step's return value is evaluated by the pipeline
                 # controller, but not when it's done here (as we would remember the step every time).
