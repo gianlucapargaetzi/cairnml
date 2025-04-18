@@ -4757,6 +4757,8 @@ class PipelineDecorator(PipelineController):
                     # if we already launched a JOB on the node, this means we are calling the same function/task
                     # twice inside the pipeline, this means we need to replicate the node.
                     _node = cls._singleton._nodes[_node_name].copy()
+                    # reset paramters - there might be conflicts with the copied node and they are generated anyway
+                    _node.parameters = {}
                     _node.parents = []
                     # find a new name
                     counter = 1
