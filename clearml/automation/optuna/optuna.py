@@ -51,6 +51,12 @@ class OptunaObjective(object):
             suggest = getattr(trial, func_name)
             parameter_override[name] = suggest(name=name, **params)
 
+        # fixes https://github.com/optuna/optuna/issues/2021
+        if parameter_override in self.optimizer.parameter_override_history:
+            print("Pruning trial with duplicate parameters")
+            raise optuna.exceptions.TrialPruned()
+
+        self.optimizer.parameter_override_history.append(parameter_override)
         current_job = self.optimizer.helper_create_job(self.base_task_id, parameter_override=parameter_override)
         # noinspection PyProtectedMember
         self.optimizer._current_jobs.append(current_job)
@@ -175,6 +181,7 @@ class OptimizerOptuna(SearchStrategy):
         self._param_iterator = None
         self._objective = None
         self._study = continue_previous_study if continue_previous_study else None
+        self.parameter_override_history = []
 
     def start(self) -> ():
         """
