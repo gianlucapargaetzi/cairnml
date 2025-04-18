@@ -699,7 +699,7 @@ if __name__ == '__main__':
     kwargs = {function_kwargs}
     task.connect(kwargs, name='{kwargs_section}')
     function_input_artifacts = {function_input_artifacts}
-    params = task.get_parameters() or dict()
+    params = task.get_parameters(cast=True) or dict()
     argspec = inspect.getfullargspec({function_name})
     if argspec.varkw is not None or argspec.varargs is not None:
         for k, v in params.items():

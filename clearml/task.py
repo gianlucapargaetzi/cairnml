@@ -1480,7 +1480,7 @@ class Task(_Task):
           - ``user`` - List[str] Filter based on Task's user owner, provide list of valid user IDs.
           - ``order_by`` - List[str] List of field names to order by. When ``search_text`` is used. Use '-' prefix to specify descending order. Optional, recommended when using page. Example: ``order_by=['-last_update']``
           - ``_all_`` - dict(fields=[], pattern='')  Match string `pattern` (regular expression) appearing in All `fields`. Example: dict(fields=['script.repository'], pattern='github.com/user')
-          - ``_any_`` - dict(fields=[], pattern='')  Match string `pattern` (regular expression) appearing in object of the `fields`. Example: dict(fields=['comment', 'name'], pattern='my comment')
+          - ``_any_`` - dict(fields=[], pattern='')  Match string `pattern` (regular expression) appearing in any of the `fields`. Example: dict(fields=['comment', 'name'], pattern='my comment')
           - Examples - ``{'status': ['stopped'], 'order_by': ["-last_update"]}`` , ``{'order_by'=['-last_update'], '_all_'=dict(fields=['script.repository'], pattern='github.com/user'))``
 
         :return: The Tasks specified by the parameter combinations (see the parameters).
