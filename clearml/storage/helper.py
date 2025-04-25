@@ -325,7 +325,8 @@ class _HttpDriver(_Driver):
 
         res = container.session.post(url, data=m, timeout=timeout, headers=headers)
         if res.status_code != requests.codes.ok:
-            raise ValueError("Failed uploading object %s (%d): %s" % (object_name, res.status_code, res.text))
+            raise ValueError("Failed uploading object {} to {} ({}): {}".format(
+                object_name, url, res.status_code, res.text))
 
         # call back is useless because we are not calling it while uploading...
         return res
