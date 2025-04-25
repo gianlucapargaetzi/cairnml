@@ -119,7 +119,10 @@ class ProgressReport(object):
         if _tqdm:
             # make sure we do not spill over due to rounding
             if round(float(current_mb), 2) >= _tqdm.total:
-                _tqdm.update(_tqdm.total - self.last_reported)
+                _tqdm.update(
+                    max(min(
+                        _tqdm.total - getattr(_tqdm, "n", self.last_reported), _tqdm.total - self.last_reported),
+                        0))
             else:
                 _tqdm.update(current_mb - self.last_reported)
         else:
@@ -156,7 +159,7 @@ class UploadProgressReport(ProgressReport):
             log,
             report_chunk_size_mb,
             description_prefix="Uploading",
-            description_suffix="to {}".format(filename),
+            description_suffix="from {}".format(filename),
             report_start=report_start,
         )
         self._filename = filename
