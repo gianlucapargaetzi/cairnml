@@ -392,10 +392,10 @@ class GPUStatCollection(object):
                 return b.decode()  # for python3, to unicode
             return b
 
-        def get_gpu_info(index: int, handle: N.nvmlDevice_t, is_mig: bool = False) -> dict:
+        def get_gpu_info(index: int, handle: Any, is_mig: bool = False) -> dict:
             """Get one GPU information specified by nvml handle"""
 
-            def get_process_info(nv_process: N.nvmlProcessInfo) -> dict:
+            def get_process_info(nv_process: Any) -> dict:
                 """Get the process information of specific pid"""
                 process = {}
                 if nv_process.pid not in GPUStatCollection.global_processes:
