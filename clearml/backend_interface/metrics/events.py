@@ -167,7 +167,7 @@ class ScalarEvent(MetricsEventAdapter):
         self._value = self._convert_np_nan_inf(value)
         super(ScalarEvent, self).__init__(metric=metric, variant=variant, iter=iter, **kwargs)
 
-    def get_api_event(self) -> events.MetricsScalarEvent:
+    def get_api_event(self) -> "events.MetricsScalarEvent":
         return events.MetricsScalarEvent(value=self._value, **self._get_base_dict())
 
 
@@ -180,7 +180,7 @@ class ConsoleEvent(MetricsEventAdapter):
         self._worker = worker
         super(ConsoleEvent, self).__init__(metric=None, variant=None, iter=0, **kwargs)
 
-    def get_api_event(self) -> events.TaskLogEvent:
+    def get_api_event(self) -> "events.TaskLogEvent":
         return events.TaskLogEvent(
             task=self._task,
             timestamp=self._timestamp,
@@ -197,7 +197,7 @@ class VectorEvent(MetricsEventAdapter):
         self._values = [self._convert_np_nan_inf(v) for v in values]
         super(VectorEvent, self).__init__(metric=metric, variant=variant, iter=iter, **kwargs)
 
-    def get_api_event(self) -> events.MetricsVectorEvent:
+    def get_api_event(self) -> "events.MetricsVectorEvent":
         return events.MetricsVectorEvent(values=self._values, **self._get_base_dict())
 
 
@@ -208,7 +208,7 @@ class PlotEvent(MetricsEventAdapter):
         self._plot_str = plot_str
         super(PlotEvent, self).__init__(metric=metric, variant=variant, iter=iter, **kwargs)
 
-    def get_api_event(self) -> events.MetricsPlotEvent:
+    def get_api_event(self) -> "events.MetricsPlotEvent":
         return events.MetricsPlotEvent(plot_str=self._plot_str, **self._get_base_dict())
 
 
@@ -219,7 +219,7 @@ class ImageEventNoUpload(MetricsEventAdapter):
         self._key = urlunparse(("", "", parts.path, parts.params, parts.query, parts.fragment))
         super(ImageEventNoUpload, self).__init__(metric, variant, iter=iter, **kwargs)
 
-    def get_api_event(self) -> events.MetricsImageEvent:
+    def get_api_event(self) -> "events.MetricsImageEvent":
         return events.MetricsImageEvent(url=self._url, key=self._key, **self._get_base_dict())
 
 
@@ -481,7 +481,7 @@ class ImageEvent(UploadEvent):
             **kwargs
         )
 
-    def get_api_event(self) -> events.MetricsImageEvent:
+    def get_api_event(self) -> "events.MetricsImageEvent":
         return events.MetricsImageEvent(url=self._url, key=self._key, **self._get_base_dict())
 
 
@@ -510,5 +510,5 @@ class MediaEvent(UploadEvent):
             **kwargs
         )
 
-    def get_api_event(self) -> events.MetricsImageEvent:
+    def get_api_event(self) -> "events.MetricsImageEvent":
         return events.MetricsImageEvent(url=self._url, key=self._key, **self._get_base_dict())

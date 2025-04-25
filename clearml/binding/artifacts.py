@@ -120,7 +120,7 @@ class Artifact(object):
         """
         return self._preview
 
-    def __init__(self, artifact_api_object: tasks.Artifact) -> None:
+    def __init__(self, artifact_api_object: "tasks.Artifact") -> None:
         """
         construct read-only object from api artifact object
 
@@ -929,7 +929,7 @@ class Artifacts(object):
         # create summary
         self._summary = self._get_statistics()
 
-    def _add_artifact(self, artifact: tasks.Artifact) -> None:
+    def _add_artifact(self, artifact: "tasks.Artifact") -> None:
         if not self._task:
             raise ValueError("Task object not set")
         with self._task_edit_lock:

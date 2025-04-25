@@ -109,7 +109,7 @@ class Model(IdObjectBase, AsyncManagerMixin, _StorageUriMixin):
                 )
             )
 
-    def _reload(self) -> Optional[models.Model]:
+    def _reload(self) -> Optional["models.Model"]:
         """Reload the model object"""
         if self._offline_mode:
             return models.Model()

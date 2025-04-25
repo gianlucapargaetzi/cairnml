@@ -63,7 +63,7 @@ class HyperParams(object):
         self,
         iterables: Union[
             Mapping[str, Union[str, Dict, None]],
-            Iterable[Union[Dict, tasks.ParamsItem]],
+            Iterable[Union[Dict, "tasks.ParamsItem"]],
         ],
         replace: Optional[str] = None,
         default_section: Optional[str] = None,
@@ -93,7 +93,7 @@ class HyperParams(object):
         if not tasks.ReplaceHyperparamsEnum.has_value(replace):
             replace = None
 
-        def make_item(value: Union[tasks.ParamsItem, dict, tuple], name: Optional[str] = None) -> tasks.ParamsItem:
+        def make_item(value: Union["tasks.ParamsItem", dict, tuple], name: Optional[str] = None) -> "tasks.ParamsItem":
             if isinstance(value, tasks.ParamsItem):
                 a_item = value
             elif isinstance(value, dict):
@@ -150,7 +150,7 @@ class HyperParams(object):
         return False
 
     def delete_hyper_params(
-        self, *iterables: Iterable[Union[dict, Iterable[str], tasks.ParamKey, tasks.ParamsItem]]
+        self, *iterables: Iterable[Union[dict, Iterable[str], "tasks.ParamKey", "tasks.ParamsItem"]]
     ) -> bool:
         """
         Delete hyper-parameters for this task.

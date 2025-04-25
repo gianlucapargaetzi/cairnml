@@ -1654,7 +1654,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         else:
             return self._get_task_property("execution.docker_cmd", raise_on_error=False, log_on_error=False)
 
-    def set_artifacts(self, artifacts_list: Sequence[tasks.Artifact] = None) -> Optional[List[tasks.Artifact]]:
+    def set_artifacts(self, artifacts_list: Sequence["tasks.Artifact"] = None) -> Optional[List["tasks.Artifact"]]:
         """
         List of artifacts (tasks.Artifact) to update the task
 
@@ -1675,7 +1675,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
             self._edit(execution=execution)
         return execution.artifacts or []
 
-    def _add_artifacts(self, artifacts_list: Sequence[tasks.Artifact]) -> Optional[List[tasks.Artifact]]:
+    def _add_artifacts(self, artifacts_list: Sequence["tasks.Artifact"]) -> Optional[List["tasks.Artifact"]]:
         """
         List of artifacts (tasks.Artifact) to add to the task
         If an artifact by the same name already exists it will overwrite the existing artifact.
