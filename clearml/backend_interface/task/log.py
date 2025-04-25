@@ -63,7 +63,7 @@ class BackgroundLogService(BackgroundMonitor):
         # flush all leftover events
         self.send_all_records()
 
-    def _send_events(self, a_request: events.AddBatchRequest) -> None:
+    def _send_events(self, a_request: "events.AddBatchRequest") -> None:
         if not a_request or not a_request.requests:
             return
 
@@ -143,7 +143,7 @@ class BackgroundLogService(BackgroundMonitor):
         if buffer:
             self._send_records(buffer)
 
-    def _record_to_event(self, record: LogRecord) -> events.TaskLogEvent:
+    def _record_to_event(self, record: LogRecord) -> "events.TaskLogEvent":
         timestamp = int(record.created * 1000)
         if timestamp == self._last_timestamp:
             timestamp += self.counter

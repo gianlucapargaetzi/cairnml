@@ -5343,7 +5343,7 @@ class Task(_Task):
         )
 
     @classmethod
-    def __get_task_api_obj(cls, task_id: str, only_fields: Optional[List[str]] = None) -> Optional[tasks.Task]:
+    def __get_task_api_obj(cls, task_id: str, only_fields: Optional[List[str]] = None) -> Optional["tasks.Task"]:
         if not task_id or cls._offline_mode:
             return None
 
