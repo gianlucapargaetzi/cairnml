@@ -765,6 +765,12 @@ class Session(TokenManager):
 
     @classmethod
     def get_files_server_host(cls, config: Optional[ConfigTree] = None) -> str:
+        """
+        Get the files server host name for the current configuration, either using the configuration value or by
+        parsing the other api or app host names
+        :param config: configuration object to use instead of the default configuration (ConfigTree)
+        :return: files server host name (str)
+        """
         if not config:
             from ...config import config_obj
 
