@@ -235,7 +235,7 @@ def cli() -> None:
             print("Detected shell script. Binary will be set to '/bin/bash'")
         if args.pipeline:
             argparse_args = []
-            for arg in args.args:
+            for arg in (args.args or []):
                 arg_split = arg.split("=")
                 if len(arg_split) != 2:
                     raise ValueError("Invalid argument: {}. Format should be key=value".format(arg))
@@ -257,7 +257,7 @@ def cli() -> None:
                 version=args.pipeline_version,
                 add_run_number=False if args.pipeline_dont_add_run_number else True,
                 binary=args.binary,
-                argparse_args=argparse_args
+                argparse_args=argparse_args or None
             )
             created_task = pipeline._task
         else:
