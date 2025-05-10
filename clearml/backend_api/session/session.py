@@ -736,6 +736,9 @@ class Session(TokenManager):
 
     @classmethod
     def get_app_server_host(cls, config: Optional[ConfigTree] = None) -> str:
+        """
+        Get app server (webserver) host. This is done either from configuration or by inferring from the apiserver host.
+        """
         if not config:
             from ...config import config_obj
 
