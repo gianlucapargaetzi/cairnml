@@ -49,6 +49,7 @@ class CreateAndPopulate(object):
         raise_on_missing_entries: bool = False,
         verbose: bool = False,
         binary: Optional[str] = None,
+        detect_repository: bool = True
     ) -> None:
         """
         Create a new Task from an existing code base.
@@ -76,6 +77,7 @@ class CreateAndPopulate(object):
         :param packages: Manually specify a list of required packages. Example: ["tqdm>=2.1", "scikit-learn"]
             or `True` to automatically create requirements
             based on locally installed packages (repository must be local).
+            Pass an empty string to not install any packages (not even from the repository)
         :param requirements_file: Specify requirements.txt file to install when setting the session.
             If not provided, the requirements.txt from the repository will be used.
         :param docker: Select the docker image to be executed in by the remote session
@@ -91,6 +93,8 @@ class CreateAndPopulate(object):
         :param raise_on_missing_entries: If True, raise ValueError on missing entries when populating
         :param verbose: If True, print verbose logging
         :param binary: Binary used to launch the entry point
+        :param detect_repository: If True, detect the repository if no repository has been specified.
+            If False, don't detect repository under any circumstance. Ignored if `repo` is specified
         """
         if repo and len(urlparse(repo).scheme) <= 1 and not re.compile(self._VCS_SSH_REGEX).match(repo):
             folder = repo
@@ -124,9 +128,12 @@ class CreateAndPopulate(object):
         self.module = module
         self.cwd = working_directory
         assert not packages or isinstance(packages, (tuple, list, bool))
-        self.packages = (
-            list(packages) if packages is not None and not isinstance(packages, bool) else (packages or None)
-        )
+        if isinstance(packages, bool):
+            self.packages = True if packages else None
+        elif packages:
+            self.packages = list(packages)
+        else:
+            self.packages = packages
         self.requirements_file = Path(requirements_file) if requirements_file else None
         self.base_task_id = base_task_id
         self.docker = dict(image=docker, args=docker_args, bash_script=docker_bash_setup_script)
@@ -140,6 +147,7 @@ class CreateAndPopulate(object):
         self.raise_on_missing_entries = raise_on_missing_entries
         self.verbose = verbose
         self.binary = binary
+        self.detect_repository = detect_repository
 
     def create_task(self, dry_run: bool = False) -> Union[Task, Dict]:
         """
@@ -196,45 +204,49 @@ class CreateAndPopulate(object):
 
                 local_entry_file = entry_point
 
-            repo_info, requirements = ScriptInfo.get(
-                filepaths=[local_entry_file],
-                log=getLogger(),
-                create_requirements=self.packages is True,
-                uncommitted_from_remote=True,
-                detect_jupyter_notebook=False,
-                add_missing_installed_packages=True,
-                detailed_req_report=False,
-                force_single_script=self.force_single_script_file,
-            )
-
-            if stand_alone_script_outside_repo:
-                # if we have a standalone script and a local repo we skip[ the local diff and store it
-                local_entry_file = Path(self.script).as_posix()
-                a_create_requirements = self.packages is True
-                a_repo_info, a_requirements = ScriptInfo.get(
-                    filepaths=[Path(self.script).as_posix()],
+            if self.detect_repository:
+                repo_info, requirements = ScriptInfo.get(
+                    filepaths=[local_entry_file],
                     log=getLogger(),
-                    create_requirements=a_create_requirements,
+                    create_requirements=self.packages is True,
                     uncommitted_from_remote=True,
                     detect_jupyter_notebook=False,
                     add_missing_installed_packages=True,
                     detailed_req_report=False,
-                    force_single_script=True,
+                    force_single_script=self.force_single_script_file,
                 )
-                if repo_info.script["diff"]:
-                    print(
-                        "Warning: local git repo diff is ignored, "
-                        "storing only the standalone script form {}".format(self.script)
+            else:
+                repo_info, requirements = None, None
+
+            if stand_alone_script_outside_repo:
+                # if we have a standalone script and a local repo we skip[ the local diff and store it
+                local_entry_file = Path(self.script).as_posix()
+                if self.detect_repository:
+                    a_create_requirements = self.packages is True
+                    a_repo_info, a_requirements = ScriptInfo.get(
+                        filepaths=[Path(self.script).as_posix()],
+                        log=getLogger(),
+                        create_requirements=a_create_requirements,
+                        uncommitted_from_remote=True,
+                        detect_jupyter_notebook=False,
+                        add_missing_installed_packages=True,
+                        detailed_req_report=False,
+                        force_single_script=True,
                     )
-                    repo_info.script["diff"] = a_repo_info.script["diff"] or ""
-                repo_info.script["entry_point"] = a_repo_info.script["entry_point"]
-                if a_create_requirements:
-                    repo_info.script["requirements"] = a_repo_info.script.get("requirements") or {}
+                    if repo_info.script["diff"]:
+                        print(
+                            "Warning: local git repo diff is ignored, "
+                            "storing only the standalone script form {}".format(self.script)
+                        )
+                        repo_info.script["diff"] = a_repo_info.script["diff"] or ""
+                    repo_info.script["entry_point"] = a_repo_info.script["entry_point"]
+                    if a_create_requirements:
+                        repo_info.script["requirements"] = a_repo_info.script.get("requirements") or {}
 
         # check if we have no repository and no requirements raise error
         if (
             self.raise_on_missing_entries
-            and (not self.requirements_file and not self.packages)
+            and (self.requirements_file is None and self.packages is None)
             and not self.repo
             and (not repo_info or not repo_info.script or not repo_info.script.get("repository"))
             and (not entry_point or not entry_point.endswith(".sh"))
@@ -418,6 +430,8 @@ class CreateAndPopulate(object):
                 reqs = [line.strip() for line in f.readlines()]
         if self.packages and self.packages is not True:
             reqs += self.packages
+        if self.packages == "" and len(reqs) == 0:
+            reqs = [""]
         if reqs:
             # make sure we have clearml.
             clearml_found = False
@@ -428,7 +442,7 @@ class CreateAndPopulate(object):
                 if package == "clearml":
                     clearml_found = True
                     break
-            if not clearml_found:
+            if not clearml_found and reqs != [""]:
                 reqs.append("clearml")
             task_state["script"]["requirements"] = {"pip": "\n".join(reqs)}
         elif not self.repo and repo_info and not repo_info.script.get("requirements"):
@@ -537,7 +551,7 @@ class CreateAndPopulate(object):
                 )
 
         if self.verbose:
-            if task_state["script"]["repository"]:
+            if task_state["script"].get("repository"):
                 repo_details = {
                     k: v for k, v in task_state["script"].items() if v and k not in ("diff", "requirements", "binary")
                 }

@@ -1212,7 +1212,8 @@ class Task(_Task):
         add_task_init_call: bool = True,
         force_single_script_file: bool = False,
         binary: Optional[str] = None,
-        module: Optional[str] = None
+        module: Optional[str] = None,
+        detect_repository: bool = True
     ) -> TaskInstance:
         """
         Manually create and populate a new Task (experiment) in the system.
@@ -1243,6 +1244,7 @@ class Task(_Task):
         :param packages: Manually specify a list of required packages. Example: ``["tqdm>=2.1", "scikit-learn"]``
             or `True` to automatically create requirements
             based on locally installed packages (repository must be local).
+            Pass an empty string to not install any packages (not even from the repository)
         :param requirements_file: Specify requirements.txt file to install when setting the session.
             If not provided, the requirements.txt from the repository will be used.
         :param docker: Select the docker image to be executed in by the remote session
@@ -1259,6 +1261,8 @@ class Task(_Task):
         :param module: If specified instead of executing `script`, a module named `module` is executed.
             Implies script is empty. Module can contain multiple argument for execution,
             for example: module="my.module arg1 arg2"
+        :param detect_repository: If True, detect the repository if no repository has been specified.
+            If False, don't detect repository under any circumstance. Ignored if `repo` is specified
 
         :return: The newly created Task (experiment)
         :rtype: Task
@@ -1293,7 +1297,8 @@ class Task(_Task):
             force_single_script_file=force_single_script_file,
             raise_on_missing_entries=False,
             module=module,
-            binary=binary
+            binary=binary,
+            detect_repository=detect_repository
         )
         task = manual_populate.create_task()
         if task and argparse_args:
