@@ -1590,7 +1590,8 @@ class PipelineController(object):
         version: Optional[str] = None,
         add_run_number: bool = True,
         binary: Optional[str] = None,
-        module: Optional[str] = None
+        module: Optional[str] = None,
+        detect_repository: bool = True
     ) -> "PipelineController":
         """
         Manually create and populate a new Pipeline in the system.
@@ -1613,6 +1614,7 @@ class PipelineController(object):
         :param packages: Manually specify a list of required packages. Example: ``["tqdm>=2.1", "scikit-learn"]``
             or `True` to automatically create requirements
             based on locally installed packages (repository must be local).
+            Pass an empty string to not install any packages (not even from the repository)
         :param requirements_file: Specify requirements.txt file to install when setting the session.
             If not provided, the requirements.txt from the repository will be used.
         :param docker: Select the docker image to be executed in by the remote session
@@ -1626,6 +1628,8 @@ class PipelineController(object):
         :param module: If specified instead of executing `script`, a module named `module` is executed.
             Implies script is empty. Module can contain multiple argument for execution,
             for example: module="my.module arg1 arg2"
+        :param detect_repository: If True, detect the repository if no repository has been specified.
+            If False, don't detect repository under any circumstance. Ignored if `repo` is specified
 
         :return: The newly created PipelineController
         """
@@ -1648,7 +1652,8 @@ class PipelineController(object):
             add_task_init_call=False,
             force_single_script_file=force_single_script_file,
             binary=binary,
-            module=module
+            module=module,
+            detect_repository=detect_repository
         )
         cls._create_pipeline_projects(
             task=pipeline_controller,

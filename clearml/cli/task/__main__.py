@@ -181,6 +181,24 @@ def setup_parser(parser: ArgumentParser) -> None:
         help="Specify the path to the offline session you want to import.",
     )
     parser.add_argument(
+        "--force-no-requirements",
+        action="store_true",
+        help="If specified, no requirements will be installed, nor do they need to be specified"
+    )
+    parser.add_argument(
+        "--skip-repo-detection",
+        action="store_true",
+        help="If specified, skip repository detection when no repository is specified. "
+        "No repository will be set in remote execution"
+    )
+    parser.add_argument(
+        "--skip-python-env-install",
+        action="store_true",
+        help="If specified, the agent will not install any required Python packages when running the task. "
+        "Instead, it will use the preexisting Python environment to run the task. "
+        "Only relevant when the agent is running in Docker mode or is running the task in Kubernetes"
+    )
+    parser.add_argument(
         "--pipeline",
         action="store_true",
         help="If specified, indicate that the created object is a pipeline instead of a regular task",
@@ -231,6 +249,11 @@ def cli() -> None:
         print("Importing offline session: {}".format(args.import_offline_session))
         Task.import_offline_session(args.import_offline_session)
     else:
+        docker_args = args.docker_args
+        if args.skip_python_env_install:
+            docker_args = ((docker_args or "") + " -e CLEARML_AGENT_SKIP_PYTHON_ENV_INSTALL=1").lstrip(" ")
+        packages = "" if args.force_no_requirements else args.packages
+        requirements = "" if args.force_no_requirements else args.requirements
         if args.script and args.script.endswith(".sh") and not args.binary:
             print("Detected shell script. Binary will be set to '/bin/bash'")
         if args.pipeline:
@@ -249,15 +272,16 @@ def cli() -> None:
                 script=args.script,
                 module=args.module,
                 working_directory=args.cwd,
-                packages=args.packages,
-                requirements_file=args.requirements,
+                packages=packages,
+                requirements_file=requirements,
                 docker=args.docker,
-                docker_args=args.docker_args,
+                docker_args=docker_args,
                 docker_bash_setup_script=bash_setup_script,
                 version=args.pipeline_version,
                 add_run_number=False if args.pipeline_dont_add_run_number else True,
                 binary=args.binary,
-                argparse_args=argparse_args or None
+                argparse_args=argparse_args or None,
+                detect_repository=not args.skip_repo_detection
             )
             created_task = pipeline._task
         else:
@@ -271,17 +295,18 @@ def cli() -> None:
                 script=args.script,
                 module=args.module,
                 working_directory=args.cwd,
-                packages=args.packages,
-                requirements_file=args.requirements,
+                packages=packages,
+                requirements_file=requirements,
                 docker=args.docker,
-                docker_args=args.docker_args,
+                docker_args=docker_args,
                 docker_bash_setup_script=bash_setup_script,
                 output_uri=args.output_uri,
                 base_task_id=args.base_task_id,
                 add_task_init_call=not args.skip_task_init,
                 raise_on_missing_entries=True,
                 verbose=True,
-                binary=args.binary
+                binary=args.binary,
+                detect_repository=not args.skip_repo_detection
             )
             # verify args before creating the Task
             create_and_populate.update_task_args(args.args)
@@ -299,7 +324,11 @@ def cli() -> None:
 
         print("New {} created id={}".format("pipeline" if args.pipeline else "task", created_task.id))
         if not args.queue:
-            print("Warning: No queue was provided, leaving {} in draft-mode.", "pipeline" if args.pipeline else "task")
+            print(
+                "Warning: No queue was provided, leaving {} in draft-mode.".format(
+                    "pipeline" if args.pipeline else "task"
+                )
+            )
             exit(0)
 
         Task.enqueue(created_task, queue_name=args.queue)
