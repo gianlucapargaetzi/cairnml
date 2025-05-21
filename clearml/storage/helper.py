@@ -572,48 +572,16 @@ class _Boto3Driver(_Driver):
         def __init__(self, name: str, cfg: S3BucketConfig) -> None:
             try:
                 import boto3
-                import botocore.client
-                from botocore.exceptions import ClientError  # noqa: F401
             except ImportError:
                 raise UsageError(
-                    "AWS S3 storage driver (boto3) not found. " 'Please install driver using: pip install "boto3>=1.9"'
+                    "AWS S3 storage driver (boto3) not found. " 'Please install driver using: pip install "clearml[s3]"'
                 )
-
             # skip 's3://'
             self.name = name[5:]
-            endpoint = (("https://" if cfg.secure else "http://") + cfg.host) if cfg.host else None
-
-            verify = cfg.verify
-            if verify is True:
-                # True is a non-documented value for boto3, use None instead (which means verify)
-                print("Using boto3 verify=None instead of true")
-                verify = None
-            elif isinstance(verify, str) and not os.path.exists(verify) and verify.split("://")[0] in driver_schemes:
-                verify = _Boto3Driver.download_cert(verify)
 
             # boto3 client creation isn't thread-safe (client itself is)
             with self._creation_lock:
-                boto_kwargs = {
-                    "endpoint_url": endpoint,
-                    "use_ssl": cfg.secure,
-                    "verify": verify,
-                    "region_name": cfg.region or None,  # None in case cfg.region is an empty string
-                    "config": botocore.client.Config(
-                        max_pool_connections=max(
-                            int(_Boto3Driver._min_pool_connections),
-                            int(_Boto3Driver._pool_connections),
-                        ),
-                        connect_timeout=int(_Boto3Driver._connect_timeout),
-                        read_timeout=int(_Boto3Driver._read_timeout),
-                        signature_version=_Boto3Driver._signature_version,
-                    ),
-                }
-                if not cfg.use_credentials_chain:
-                    boto_kwargs["aws_access_key_id"] = cfg.key or None
-                    boto_kwargs["aws_secret_access_key"] = cfg.secret or None
-                    if cfg.token:
-                        boto_kwargs["aws_session_token"] = cfg.token
-
+                boto_kwargs = _Boto3Driver._get_boto_resource_kwargs_from_config(cfg)
                 boto_session = boto3.Session(
                     profile_name=cfg.profile or None,
                 )
@@ -636,6 +604,43 @@ class _Boto3Driver(_Driver):
             self._stream_download_pool_pid = os.getpid()
             self._stream_download_pool = ThreadPoolExecutor(max_workers=int(self._stream_download_pool_connections))
         return self._stream_download_pool
+
+    @classmethod
+    def _get_boto_resource_kwargs_from_config(cls, cfg: S3BucketConfig) -> Dict[str, Any]:
+        try:
+            import botocore.client
+        except ImportError:
+            raise UsageError(
+                "AWS S3 storage driver (boto3) not found. " 'Please install driver using: pip install "clearml[s3]"'
+            )
+        endpoint = (("https://" if cfg.secure else "http://") + cfg.host) if cfg.host else None
+        verify = cfg.verify
+        if verify is True:
+            # True is a non-documented value for boto3, use None instead (which means verify)
+            verify = None
+        elif isinstance(verify, str) and not os.path.exists(verify) and verify.split("://")[0] in driver_schemes:
+            verify = _Boto3Driver.download_cert(verify)
+        boto_kwargs = {
+            "endpoint_url": endpoint,
+            "use_ssl": cfg.secure,
+            "verify": verify,
+            "region_name": cfg.region or None,  # None in case cfg.region is an empty string
+            "config": botocore.client.Config(
+                max_pool_connections=max(
+                    int(_Boto3Driver._min_pool_connections),
+                    int(_Boto3Driver._pool_connections),
+                ),
+                connect_timeout=int(_Boto3Driver._connect_timeout),
+                read_timeout=int(_Boto3Driver._read_timeout),
+                signature_version=_Boto3Driver._signature_version,
+            ),
+        }
+        if not cfg.use_credentials_chain:
+            boto_kwargs["aws_access_key_id"] = cfg.key or None
+            boto_kwargs["aws_secret_access_key"] = cfg.secret or None
+            if cfg.token:
+                boto_kwargs["aws_session_token"] = cfg.token
+        return boto_kwargs
 
     def get_container(
         self,
@@ -887,13 +892,10 @@ class _Boto3Driver(_Driver):
             }
 
             boto_session = boto3.Session(
-                aws_access_key_id=conf.key or None,
-                aws_secret_access_key=conf.secret or None,
-                aws_session_token=conf.token or None,
                 profile_name=conf.profile or None,
             )
-            endpoint = (("https://" if conf.secure else "http://") + conf.host) if conf.host else None
-            boto_resource = boto_session.resource("s3", region_name=conf.region or None, endpoint_url=endpoint)
+            boto_kwargs = _Boto3Driver._get_boto_resource_kwargs_from_config(conf)
+            boto_resource = boto_session.resource("s3", **boto_kwargs)
             bucket = boto_resource.Bucket(bucket_name)
             bucket.put_object(Key=filename, Body=six.b(json.dumps(data)))
 
@@ -952,14 +954,12 @@ class _Boto3Driver(_Driver):
 
         try:
             boto_session = boto3.Session(
-                conf.key,
-                conf.secret,
-                aws_session_token=conf.token,
                 profile_name=conf.profile_name or None,
             )
-            boto_resource = boto_session.resource("s3")
+            boto_kwargs = _Boto3Driver._get_boto_resource_kwargs_from_config(conf)
+            boto_kwargs.pop("region_name", None)
+            boto_resource = boto_session.resource("s3", **boto_kwargs)
             return boto_resource.meta.client.get_bucket_location(Bucket=conf.bucket)["LocationConstraint"]
-
         except ClientError as ex:
             report(
                 "Failed getting bucket location (region) for bucket "
