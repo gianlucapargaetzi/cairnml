@@ -2838,6 +2838,7 @@ class Task(_Task):
         extension_name: Optional[str] = None,
         serialization_function: Optional[Callable[[Any], Union[bytes, bytearray]]] = None,
         retries: int = 0,
+        sort_keys: bool = True,
     ) -> bool:
         """
         Upload (add) a static artifact to a Task object. The artifact is uploaded in the background.
@@ -2853,30 +2854,30 @@ class Task(_Task):
         - PIL.Image - ClearML stores a PIL.Image as ``.png`` (or see ``extension_name``) file and uploads it.
         - Any - If called with auto_pickle=True, the object will be pickled and uploaded.
 
-        :param str name: The artifact name.
+        :param name: The artifact name.
 
             .. warning::
                If an artifact with the same name was previously uploaded, then it is overwritten.
 
-        :param object artifact_object:  The artifact object.
-        :param dict metadata: A dictionary of key-value pairs for any metadata. This dictionary appears with the
+        :param artifact_object:  The artifact object.
+        :param metadata: A dictionary of key-value pairs for any metadata. This dictionary appears with the
             experiment in the **ClearML Web-App (UI)**, **ARTIFACTS** tab.
         :param bool delete_after_upload: After the upload, delete the local copy of the artifact
 
             - ``True`` - Delete the local copy of the artifact.
             - ``False`` - Do not delete. (default)
 
-        :param bool auto_pickle: If True and the artifact_object is not one of the following types:
+        :param auto_pickle: If True and the artifact_object is not one of the following types:
             pathlib2.Path, dict, pandas.DataFrame, numpy.ndarray, PIL.Image, url (string), local_file (string),
             the artifact_object will be pickled and uploaded as pickle file artifact (with file extension .pkl).
             If set to None (default) the sdk.development.artifacts.auto_pickle configuration value will be used.
 
-        :param object preview: The artifact preview
+        :param preview: The artifact preview
 
-        :param bool wait_on_upload: Whether the upload should be synchronous, forcing the upload to complete
+        :param wait_on_upload: Whether the upload should be synchronous, forcing the upload to complete
             before continuing.
 
-        :param str extension_name: File extension which indicates the format the artifact should be stored as.
+        :param extension_name: File extension which indicates the format the artifact should be stored as.
             The following are supported, depending on the artifact type (default value applies when extension_name is None):
 
           - Any - ``.pkl`` if passed supersedes any other serialization type, and always pickles the object
@@ -2893,7 +2894,10 @@ class Task(_Task):
             (e.g. `pandas.DataFrame.to_csv`), even if possible. To deserialize this artifact when getting
             it using the `Artifact.get` method, use its `deserialization_function` argument.
 
-        :param int retries: Number of retries before failing to upload artifact. If 0, the upload is not retried
+        :param retries: Number of retries before failing to upload artifact. If 0, the upload is not retried
+
+        :param sort_keys: If True (default), sort the keys of the artifact if it is yaml/json serializable.
+            Otherwise, don't sort the keys. Ignored if the artifact is not yaml/json serializable.
 
         :return: The status of the upload.
 
@@ -2916,6 +2920,7 @@ class Task(_Task):
                     wait_on_upload=wait_on_upload,
                     extension_name=extension_name,
                     serialization_function=serialization_function,
+                    sort_keys=sort_keys,
                 ):
                     return True
             except Exception as e:

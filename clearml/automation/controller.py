@@ -1276,6 +1276,7 @@ class PipelineController(object):
         preview: Any = None,
         wait_on_upload: bool = False,
         serialization_function: Optional[Callable[[Any], Union[bytes, bytearray]]] = None,
+        sort_keys: bool = True,
     ) -> bool:
         """
         Upload (add) an artifact to the main Pipeline Task object.
@@ -1295,27 +1296,27 @@ class PipelineController(object):
         - PIL.Image - ClearML stores a PIL.Image as ``.png`` file and uploads it.
         - Any - If called with auto_pickle=True, the object will be pickled and uploaded.
 
-        :param str name: The artifact name.
+        :param name: The artifact name.
 
             .. warning::
                If an artifact with the same name was previously uploaded, then it is overwritten.
 
-        :param object artifact_object:  The artifact object.
-        :param dict metadata: A dictionary of key-value pairs for any metadata. This dictionary appears with the
+        :param artifact_object:  The artifact object.
+        :param metadata: A dictionary of key-value pairs for any metadata. This dictionary appears with the
             experiment in the **ClearML Web-App (UI)**, **ARTIFACTS** tab.
-        :param bool delete_after_upload: After the upload, delete the local copy of the artifact
+        :param delete_after_upload: After the upload, delete the local copy of the artifact
 
             - ``True`` - Delete the local copy of the artifact.
             - ``False`` - Do not delete. (default)
 
-        :param bool auto_pickle: If True, and the artifact_object is not one of the following types:
+        :param auto_pickle: If True, and the artifact_object is not one of the following types:
             pathlib2.Path, dict, pandas.DataFrame, numpy.ndarray, PIL.Image, url (string), local_file (string)
             the artifact_object will be pickled and uploaded as pickle file artifact (with file extension .pkl)
             If set to None (default) the sdk.development.artifacts.auto_pickle configuration value will be used.
 
-        :param object preview: The artifact preview
+        :param preview: The artifact preview
 
-        :param bool wait_on_upload: Whether the upload should be synchronous, forcing the upload to complete
+        :param wait_on_upload: Whether the upload should be synchronous, forcing the upload to complete
             before continuing.
 
         :param serialization_function: A serialization function that takes one
@@ -1324,6 +1325,9 @@ class PipelineController(object):
             immediately serialized using this function, thus other serialization methods will not be used
             (e.g. `pandas.DataFrame.to_csv`), even if possible. To deserialize this artifact when getting
             it using the `Artifact.get` method, use its `deserialization_function` argument.
+
+        :param sort_keys: If True (default), sort the keys of the artifact if it is yaml/json serializable.
+            Otherwise, don't sort the keys. Ignored if the artifact is not yaml/json serializable.
 
         :return: The status of the upload.
 
@@ -1342,6 +1346,7 @@ class PipelineController(object):
             preview=preview,
             wait_on_upload=wait_on_upload,
             serialization_function=serialization_function,
+            sort_keys=sort_keys,
         )
 
     def stop(
