@@ -392,6 +392,7 @@ class Artifacts(object):
         wait_on_upload: bool = False,
         extension_name: Optional[str] = None,
         serialization_function: Optional[Callable[[Any], Union[bytes, bytearray]]] = None,
+        sort_keys: bool = True,
     ) -> bool:
         if not Session.check_min_api_version("2.3"):
             LoggerRoot.get_base_logger().warning(
@@ -599,7 +600,7 @@ class Artifacts(object):
                 artifact_type_data.content_type = "application/json"
                 # noinspection PyBroadException
                 try:
-                    serialized_text = json.dumps(artifact_object, sort_keys=True, indent=4)
+                    serialized_text = json.dumps(artifact_object, sort_keys=sort_keys, indent=4)
                 except Exception:
                     if not auto_pickle:
                         raise
@@ -612,7 +613,7 @@ class Artifacts(object):
                 artifact_type_data.content_type = "application/yaml"
                 # noinspection PyBroadException
                 try:
-                    serialized_text = yaml.dump(artifact_object, sort_keys=True, indent=4)
+                    serialized_text = yaml.dump(artifact_object, sort_keys=sort_keys, indent=4)
                 except Exception:
                     if not auto_pickle:
                         raise
