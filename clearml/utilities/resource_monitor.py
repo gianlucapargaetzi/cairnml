@@ -108,7 +108,15 @@ class ResourceMonitor(BackgroundMonitor):
             try:
                 active_gpus = os.environ.get("NVIDIA_VISIBLE_DEVICES", "") or os.environ.get("CUDA_VISIBLE_DEVICES", "")
                 if active_gpus and active_gpus != "all":
-                    self._active_gpus = [g.strip() for g in active_gpus.split(",")]
+                    if os.path.isdir(active_gpus):
+                        try:
+                            self._active_gpus = os.listdir(active_gpus)
+                        except OSError as e:
+                            logging.getLogger("clearml.resource_monitor").warning(
+                                "Failed listing {}: {}".format(active_gpus, e)
+                            )
+                    else:
+                        self._active_gpus = [g.strip() for g in active_gpus.split(",")]
             except Exception:
                 pass
 
