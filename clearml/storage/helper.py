@@ -3508,7 +3508,7 @@ class StorageHelper(object):
             container_name=self._container.name if self._container else "",
             object_name=object_name,
         )
-    
+
     @classmethod
     def sanitize_url(cls, remote_url):
         base_url = cls._resolve_base_url(remote_url)
