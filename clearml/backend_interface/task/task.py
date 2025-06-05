@@ -1923,7 +1923,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         self._project_name = (self.project, res.response.project.name)
         return self._project_name[1]
 
-    def get_project_object(self) -> dict:
+    def get_project_object(self) -> "projects.Project":
         """Get the current Task's project as a python object."""
         if self.project is None:
             return self._project_object[1] if self._project_object and len(self._project_object) > 1 else None
@@ -1933,7 +1933,8 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
 
         res = self.send(projects.GetByIdRequest(project=self.project), raise_on_errors=False)
         if not res or not res.response or not res.response.project:
-            return {}
+            self.log.warning("Project {} not found or no read access available".format(self.project))
+            return None
         self._project_object = (self.project, res.response.project)
         return self._project_object[1]
 
