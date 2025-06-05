@@ -590,6 +590,10 @@ class Task(_Task):
                 )
             task_type = Task.TaskTypes.__members__[str(task_type)]
 
+        def safe_project_default_output_destination(task_, default=None):
+            project_ = task_.get_project_object()
+            return project_.default_output_destination if project_ else default
+
         is_deferred = False
         try:
             if not running_remotely():
@@ -670,10 +674,10 @@ class Task(_Task):
                         Path(task._get_default_report_storage_uri()).mkdir(parents=True, exist_ok=True)
                     elif output_uri is not None:
                         if output_uri is True:
-                            output_uri = task.get_project_object().default_output_destination or True
+                            output_uri = safe_project_default_output_destination(task) or True
                         task.output_uri = output_uri
-                    elif task.get_project_object().default_output_destination:
-                        task.output_uri = task.get_project_object().default_output_destination
+                    elif safe_project_default_output_destination(task):
+                        task.output_uri = safe_project_default_output_destination(task)
                     elif cls.__default_output_uri:
                         task.output_uri = str(cls.__default_output_uri)
                     # store new task ID
@@ -693,8 +697,8 @@ class Task(_Task):
                         # Setting output_uri=False argument will disable using any default when running remotely
                         pass
                     else:
-                        if task.get_project_object().default_output_destination and not task.output_uri:
-                            task.output_uri = task.get_project_object().default_output_destination
+                        if safe_project_default_output_destination(task) and not task.output_uri:
+                            task.output_uri = safe_project_default_output_destination(task)
                         if cls.__default_output_uri and not task.output_uri:
                             task.output_uri = cls.__default_output_uri
                     # store new task ID
