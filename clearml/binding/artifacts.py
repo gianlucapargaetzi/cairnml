@@ -1155,15 +1155,16 @@ class Artifacts(object):
         return self._temp_folder[0]
 
     def _get_storage_uri_prefix(self) -> str:
+        project_name = self._task.get_project_name() or "unknown"
         if (
             not self._storage_prefix
             or self._task_name != self._task.name
-            or self._project_name != self._task.get_project_name()
+            or self._project_name != project_name
         ):
             # noinspection PyProtectedMember
             self._storage_prefix = self._task._get_output_destination_suffix()
             self._task_name = self._task.name
-            self._project_name = self._task.get_project_name()
+            self._project_name = project_name
         return self._storage_prefix
 
     def _store_compressed_pd_csv(
