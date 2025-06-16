@@ -133,6 +133,9 @@ def get_http_session_with_retry(
     pool_maxsize: Optional[int] = None,
     config: Optional[Any] = None,
 ) -> SessionWithTimeout:
+    """
+    Returns a requests.Session-derived object that supports a retry behavior.
+    """
     global __disable_certificate_verification_warning
     if not all(isinstance(x, (int, type(None))) for x in (total, connect, read, redirect, status)):
         raise ValueError("Bad configuration. All retry count values must be null or int")
