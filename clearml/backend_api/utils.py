@@ -92,6 +92,7 @@ class TLSv1HTTPAdapter(HTTPAdapter):
 
 
 class SessionWithTimeout(requests.Session):
+    """requests.Session with a send timeout for requests with a content length header"""
     write_timeout = (300.0, 300.0)
     request_size_threshold = 15000
 
