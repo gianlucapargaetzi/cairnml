@@ -256,6 +256,10 @@ ENV_GIT_CLONE_VERBOSE = EnvironmentConfig("CLEARML_AGENT_GIT_CLONE_VERBOSE", typ
 
 ENV_GPU_FRACTIONS = EnvironmentConfig("CLEARML_AGENT_GPU_FRACTIONS")
 
+ENV_QUEUE_POLL_FREQ_SEC = EnvironmentConfig("CLEARML_AGENT_QUEUE_POLL_FREQ_SEC", type=float)
+
+ENV_STATUS_REPORT_FREQ_SEC = EnvironmentConfig("CLEARML_AGENT_STATUS_REPORT_FREQ_SEC", type=float)
+
 
 class FileBuffering(IntEnum):
     """

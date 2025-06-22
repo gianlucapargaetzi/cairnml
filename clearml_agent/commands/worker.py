@@ -79,7 +79,11 @@ from clearml_agent.definitions import (
     ENV_AGENT_FORCE_EXEC_SCRIPT,
     ENV_TEMP_STDOUT_FILE_DIR,
     ENV_AGENT_FORCE_TASK_INIT,
-    ENV_AGENT_DEBUG_GET_NEXT_TASK, ENV_ABORT_CALLBACK_CMD, ENV_ABORT_CALLBACK_CMD_TIMEOUT,
+    ENV_AGENT_DEBUG_GET_NEXT_TASK,
+    ENV_ABORT_CALLBACK_CMD,
+    ENV_ABORT_CALLBACK_CMD_TIMEOUT,
+    ENV_QUEUE_POLL_FREQ_SEC,
+    ENV_STATUS_REPORT_FREQ_SEC,
 )
 from clearml_agent.definitions import WORKING_REPOSITORY_DIR, PIP_EXTRA_INDICES
 from clearml_agent.errors import (
@@ -865,10 +869,10 @@ class Worker(ServiceCommandSection):
     )
 
     # default poll queues every _polling_interval seconds
-    _polling_interval = 5.0
+    _polling_interval = ENV_QUEUE_POLL_FREQ_SEC.get() or 5.0
 
     # machine status update intervals, seconds
-    _machine_update_interval = 30.0
+    _machine_update_interval = ENV_STATUS_REPORT_FREQ_SEC.get() or 30.0
 
     # message printed before starting task logging,
     # it will be parsed by services_mode, to identify internal docker logging start
