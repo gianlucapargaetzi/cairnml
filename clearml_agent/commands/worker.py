@@ -1391,6 +1391,10 @@ class Worker(ServiceCommandSection):
                 headers=headers
             )
             if not (result.ok() and result.response):
+                try:
+                    self.log.debug("Failed creating task session: %s", result.response)
+                except:
+                    pass
                 return
             new_session = copy(session)
             new_session.config = deepcopy(session.config)
