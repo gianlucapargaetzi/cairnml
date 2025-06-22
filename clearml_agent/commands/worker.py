@@ -1730,16 +1730,24 @@ class Worker(ServiceCommandSection):
     def _dynamic_gpu_get_available(self, gpu_indexes):
         # key: cast to string, value: 1 (i.e. gull GPU)
         gpu_indexes = {str(g): 1 for g in gpu_indexes}
+        worker_name = self._session.config.get("agent.worker_name", "") + ':gpu'
+
+        # only return "Our" workers (requires server API +2, otherwise the selecort pattern is ignored)
         # noinspection PyBroadException
         try:
-            response = self._session.send_api(workers_api.GetAllRequest(last_seen=600))
+            response = self._session.send_api(workers_api.GetAllRequest(
+                last_seen=600,
+                worker_pattern="{}*".format(worker_name),
+                _allow_extra_fields_=True
+            ))
         except Exception:
             return None
 
-        worker_name = self._session.config.get("agent.worker_name", "") + ':gpu'
+        # filter only our workers, in case the selector pattern above was ignored due to lower version API server
         our_workers = [
             w.id for w in response.workers
-            if w.id.startswith(worker_name) and w.id != self.worker_id]
+            if w.id.startswith(worker_name) and w.id != self.worker_id
+        ]
         gpus = {}
         allocated_gpus = {}
         gpu_pattern = re.compile(r"\d+[.]?\d*[a-z]?")
@@ -2025,7 +2033,7 @@ class Worker(ServiceCommandSection):
         columns = ("id", "name", "tags")
         print("Listening to queues:")
         if dynamic_gpus:
-            columns = ("id", "name", "tags", "gpus")
+            columns = ("id", "name", "tags", "gpus (min, max)")
             for q in queues_info:
                 q['gpus'] = str(dict(dynamic_gpus).get(q['id']) or '')
         print_table(queues_info, columns=columns, titles=columns)
