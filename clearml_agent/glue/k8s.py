@@ -839,8 +839,11 @@ class K8sIntegration(Worker):
     def get_task_worker_id(self, template, task_id, pod_name, namespace, queue):
         return f"{self.worker_id}:{task_id}"
 
+    def use_image_entrypoint(self, queue: str, task_id: str, docker_image: str) -> bool:
+        return ENV_POD_USE_IMAGE_ENTRYPOINT.get()
+
     def _create_template_container(
-        self, pod_name: str, task_id: str, docker_image: str, docker_args: List[str],
+        self, pod_name: str, task_id: str, docker_image: str, docker_args: List[str], queue: str,
         docker_bash: str, clearml_conf_create_script: List[str], task_worker_id: str, task_token: str = None
     ) -> dict:
         container = self._get_docker_args(
@@ -862,7 +865,7 @@ class K8sIntegration(Worker):
         # Set worker ID
         add_or_update_env_var('CLEARML_WORKER_ID', task_worker_id)
 
-        if ENV_POD_USE_IMAGE_ENTRYPOINT.get():
+        if self.use_image_entrypoint(queue=queue, task_id=task_id, docker_image=docker_image):
             # Don't add a cmd and args, just the image
 
             # Add the task ID and token since we need it (it's usually in the init script passed to us
@@ -979,6 +982,7 @@ class K8sIntegration(Worker):
             clearml_conf_create_script=clearml_conf_create_script,
             task_worker_id=task_worker_id,
             task_token=task_token,
+            queue=queue,
         )
 
         if containers:
