@@ -1,3 +1,4 @@
+import sys
 from typing import Any
 
 from ...._vendor.pathlib2 import Path
@@ -72,11 +73,21 @@ class VirtualenvPip(SystemPip, PackageManager):
                 self.python, "-m", "virtualenv", self.path, *self.create_flags()
             ).check_call()
         except Exception as ex:
-            # let's try with std library instead
-            print("WARNING: virtualenv call failed: {}\n INFO: Creating virtual environment with venv".format(ex))
-            self.session.command(
-                self.python, "-m", "venv", self.path, *self.create_flags()
-            ).check_call()
+            try:
+                # let's try with std library instead
+                print("WARNING: virtualenv call failed: {}\n INFO: Creating virtual environment with venv".format(ex))
+                self.session.command(
+                    self.python, "-m", "venv", self.path, *self.create_flags()
+                ).check_call()
+            except Exception as ex:
+                # let's try with std library instead
+                print("WARNING: virtualenv and venv failed with [{}] trying virtualenv with python [{}]".format(
+                    self.python, sys.executable))
+                self.python = str(sys.executable)
+                self._bin = Path(self.python)
+                self.session.command(
+                    self.python, "-m", "virtualenv", self.path, *self.create_flags()
+                ).check_call()
 
         return self
 
