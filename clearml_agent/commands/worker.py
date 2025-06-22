@@ -4910,7 +4910,7 @@ class Worker(ServiceCommandSection):
                     "declare LOCAL_PYTHON",
                     "[ ! -z $LOCAL_PYTHON ] || for i in {{20..5}}; do (which {python_single_digit}.$i 2> /dev/null || command -v {python_single_digit}.$i) && " +
                     "{python_single_digit}.$i -m pip --version && " +
-                    "export LOCAL_PYTHON=$(which {python_single_digit}.$i 2> /dev/null || command -v git) && break ; done",
+                    "export LOCAL_PYTHON=$(which {python_single_digit}.$i 2> /dev/null || command -v {python_single_digit}.$i) && break ; done",
                     "[ ! -z $LOCAL_PYTHON ] || export CLEARML_APT_INSTALL=\"$CLEARML_APT_INSTALL {python_single_digit}-pip\"",  # noqa
                     "[ -z \"$CLEARML_APT_INSTALL\" ] || "
                     "(apt-get update -y ; apt-get install -y $CLEARML_APT_INSTALL) || "
@@ -4924,11 +4924,13 @@ class Worker(ServiceCommandSection):
             docker_bash_script = " ; ".join([line for line in bash_script if line]) \
                 if not isinstance(bash_script, str) else bash_script
 
-            # make sure that if we do not have $LOCAL_PYTHON defined
-            # we set it to python3
+            # make sure that if we do not have $LOCAL_PYTHON defined, we set it to python3
+            # notice that if $LOCAL_PYTHON -m pip fails, that means we might have a broken python in the path
+            # so we set to default path and try to set global python
             update_scheme += (
                     docker_bash_script + " ; " +
                     "[ ! -z $LOCAL_PYTHON ] || export LOCAL_PYTHON={python} ; " +
+                    "$LOCAL_PYTHON -m pip --version > /dev/null || export LOCAL_PYTHON=$(PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin command -v python3) ; " +
                     "$LOCAL_PYTHON -m pip install -U {pip_version} ; " +
                     "$LOCAL_PYTHON -m pip install -U {clearml_agent_wheel} ; ").format(
                 python_single_digit=python_version.split('.')[0],
