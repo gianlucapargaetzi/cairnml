@@ -1296,7 +1296,7 @@ class K8sIntegration(Worker):
 
                     self.report_monitor(ResourceMonitor.StatusReport(queues=queues, queue=queue, task=task_id))
                     self.run_one_task(queue, task_id, worker_params, task_session)
-                    self.report_monitor(ResourceMonitor.StatusReport(queues=self.queues))
+                    self.report_monitor(ResourceMonitor.StatusReport(queues=queues))
                     break
             else:
                 # sleep and retry polling
