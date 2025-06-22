@@ -3752,7 +3752,7 @@ class Worker(ServiceCommandSection):
                     # revert to venv that we used inside UV
                     api = None
                     self.package_api = package_api = package_api.get_venv_manager()
-            elif not api:
+            elif self._session.config.get("agent.package_manager.type", None) == "uv" and not api:
                 # this means `agent.package_manager.uv_replace_pip` is set to true
                 print("INFO: using UV as pip drop-in replacement")
 
