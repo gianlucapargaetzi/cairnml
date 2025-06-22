@@ -3485,16 +3485,24 @@ class Worker(ServiceCommandSection):
         session = session or self._session
         try:
             if stop_reason == TaskStopReason.stopped:
-                self.log("Stopping - tasks.stop was called for task")
-                self.send_logs(task_id, ["Process aborted by user"], session=session)
-                session.send_api(
-                    tasks_api.StoppedRequest(
-                        task=task_id,
-                        status_reason="task was stopped by tasks.stop",
-                        status_message=self._task_status_change_message,
-                        force=False
+                # do not change the status to stopped if the Task status is already failed
+                task_status = get_task(
+                    session, task_id, only_fields=["status"]
+                ).status
+                if str(task_status) == "failed":
+                    self.send_logs(task_id, ["Process aborted by user - Task status was Failed"], session=session)
+                    self.log("Stopping - task was already marked as failed")
+                else:
+                    self.send_logs(task_id, ["Process aborted by user"], session=session)
+                    self.log("Stopping - tasks.stop was called for task")
+                    session.send_api(
+                        tasks_api.StoppedRequest(
+                            task=task_id,
+                            status_reason="task was stopped by tasks.stop",
+                            status_message=self._task_status_change_message,
+                            force=False
+                        )
                     )
-                )
 
             elif stop_reason == TaskStopReason.status_changed:
                 try:
