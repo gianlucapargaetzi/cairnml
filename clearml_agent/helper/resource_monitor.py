@@ -2,6 +2,7 @@ from __future__ import unicode_literals, division
 
 import logging
 import re
+import os
 import shlex
 from collections import deque
 from itertools import starmap
@@ -112,7 +113,15 @@ class ResourceMonitor(object):
                 active_gpus = Session.get_nvidia_visible_env()
                 # None means no filtering, report all gpus
                 if active_gpus and active_gpus != "all":
-                    self._active_gpus = [g.strip() for g in str(active_gpus).split(',')]
+                    if os.path.isdir(active_gpus):
+                        try:
+                            self._active_gpus = os.listdir(active_gpus)
+                        except OSError as e:
+                            log.warning(
+                                "Failed listing {}: {}".format(active_gpus, e)
+                            )
+                    else:
+                        self._active_gpus = [g.strip() for g in active_gpus.split(",")]
             except Exception:
                 pass
         self._cluster_report_interval_sec = int(session.config.get(
