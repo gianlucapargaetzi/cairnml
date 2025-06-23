@@ -84,7 +84,6 @@ class VirtualenvPip(SystemPip, PackageManager):
                 print("WARNING: virtualenv and venv failed with [{}] trying virtualenv with python [{}]".format(
                     self.python, sys.executable))
                 self.python = str(sys.executable)
-                self._bin = Path(self.python)
                 self.session.command(
                     self.python, "-m", "virtualenv", self.path, *self.create_flags()
                 ).check_call()
