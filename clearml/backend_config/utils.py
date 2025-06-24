@@ -21,6 +21,7 @@ def get_options(cls) -> ValuesView:
 
 
 def apply_environment(config: "Config") -> List[str]:
+    """Apply environment variables from the configuration"""
     env_vars = config.get("environment", None)
     if not env_vars:
         return []
@@ -36,6 +37,7 @@ def apply_environment(config: "Config") -> List[str]:
 
 
 def apply_files(config: "Config") -> None:
+    """Apply files from the configuration into the local file system"""
     files = config.get("files", None)
     if not files:
         return
