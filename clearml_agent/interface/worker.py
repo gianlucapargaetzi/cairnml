@@ -141,7 +141,9 @@ DAEMON_ARGS = dict({
         'action': 'store_true',
     },
     '--use-owner-token': {
-        'help': 'Generate and use task owner token for the execution of the task',
+        'help': 'Run tasks under the identity of each task\'s owner: all calls made by the task code during execution '
+                'will use the owner\'s credentials instead of the agent\'s. This feature requires the agent to use a '
+                'ClearML Enterprise Server.',
         'action': 'store_true',
     }
 }, **WORKER_ARGS)
