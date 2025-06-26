@@ -56,12 +56,21 @@ def do_dump(args: argparse.Namespace) -> None:
         print(prefix + " " + HOCONConverter.to_hocon(config, indent=args.indent, level=1 if prefix else 0))
 
 
+def do_token(_: argparse.Namespace) -> None:
+    session = Task._get_default_session()
+    decoded_token = session.get_decoded_token(session.token)
+    pprint(decoded_token)
+
+
 def setup_parser(parser: ArgumentParser) -> None:
     parser.add_argument("-v", "--verbose", action="count", default=0)
 
     commands = parser.add_subparsers(help="Debug actions", dest="command")
 
-    config = commands.add_parser("config")
+    token = commands.add_parser("token", help="Print token details")
+    token.set_defaults(func=do_token)
+
+    config = commands.add_parser("config", help="Configuration related commands")
     config_commands = config.add_subparsers(help="Config actions", dest="config_commands")
     dump = config_commands.add_parser("dump", help="Print configuration dump")
 
