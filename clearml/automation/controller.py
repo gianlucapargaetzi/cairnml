@@ -155,7 +155,7 @@ class PipelineController(object):
         skip_children_on_abort = attrib(type=bool, default=True)
         # if True, the children of failed steps are skipped
         skip_children_on_fail = attrib(type=bool, default=True)
-        # the stage of the step 
+        # the stage of the step
         stage = attrib(type=str, default=None)
 
         def __attrs_post_init__(self) -> None:
