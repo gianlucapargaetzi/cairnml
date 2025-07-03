@@ -180,6 +180,7 @@ def get_queue_id(session: Any, queue: str) -> Optional[str]:
 
 
 def get_num_enqueued_tasks(session: Any, queue_id: str) -> Optional[int]:
+    """Get the number of enqueued tasks for a queue"""
     # noqa: F821
     res = session.send(queues.GetNumEntriesRequest(queue=queue_id))
     if res and res.response and res.response.num is not None:
