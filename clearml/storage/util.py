@@ -377,8 +377,14 @@ def safe_extract(
     numeric_owner: bool = False,
 ) -> None:
     """Tarfile member sanitization (addresses CVE-2007-4559)"""
+    base_dir = os.path.abspath(path)
     for member in tar.getmembers():
-        member_path = os.path.join(path, member.name)
-        if not is_within_directory(path, member_path):
-            raise Exception("Attempted Path Traversal in Tar File")
-    tar.extractall(path, members, numeric_owner=numeric_owner)
+        member_path = os.path.abspath(os.path.join(base_dir, member.name))
+        if not is_within_directory(base_dir, member_path):
+            raise Exception("Path traversal detected in archive member: {}".format(member.name))
+
+        if member.issym() or member.islnk():
+            link_target = os.path.abspath(os.path.join(base_dir, member.linkname))
+            if not is_within_directory(base_dir, link_target):
+                raise Exception("Link target escapes extraction dir: {} -> {}".format(member.name, member.linkname))
+    tar.extractall(path=base_dir, members=members, numeric_owner=numeric_owner)
