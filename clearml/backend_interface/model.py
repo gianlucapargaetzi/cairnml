@@ -117,6 +117,15 @@ class Model(IdObjectBase, AsyncManagerMixin, _StorageUriMixin):
         if self.id == self._EMPTY_MODEL_ID:
             return
         res = self.send(models.GetByIdRequest(model=self.id))
+
+        # import here, avoid circular imports
+        from clearml import Task
+
+        current_task = Task.current_task()
+        if current_task:
+            # reload the task such that the model changes are also reflected in the task
+            current_task.reload()
+
         return res.response.model
 
     def _upload_model(
