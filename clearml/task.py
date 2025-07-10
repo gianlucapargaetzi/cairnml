@@ -943,6 +943,7 @@ class Task(_Task):
         wait: bool = False,
         wait_interval_seconds: float = 3.0,
         wait_timeout_seconds: float = 90.0,
+        static_route: Optional[str] = None
     ) -> Optional[Dict]:
         """
         Request an external endpoint for an application
@@ -953,6 +954,10 @@ class Task(_Task):
         :param wait_interval_seconds: The poll frequency when waiting for the endpoint
         :param wait_timeout_seconds: If this timeout is exceeded while waiting for the endpoint,
             the method will no longer wait and None will be returned
+        :param static_route: The static route name (not the route path).
+            When set, the external endpoint requested will use this route
+            instead of generating it based on the task ID. Useful for creating
+            persistent, load balanced routes.
 
         :return: If wait is False, this method will return None.
             If no endpoint could be found while waiting, this method returns None.
@@ -965,6 +970,8 @@ class Task(_Task):
         Session.verify_feature_set("advanced")
         if protocol not in self._external_endpoint_port_map.keys():
             raise ValueError("Invalid protocol: {}".format(protocol))
+        if static_route:
+            self._validate_static_route(static_route)
 
         # sync with router - get data from Task
         if not self._external_endpoint_ports.get(protocol):
@@ -1035,6 +1042,11 @@ class Task(_Task):
                 "_SERVICE": self._external_endpoint_service_map[protocol],
                 self._external_endpoint_address_map[protocol]: HOST_MACHINE_IP.get() or get_private_ip(),
                 self._external_endpoint_port_map[protocol]: port,
+                **(
+                    {"_ROUTER_ENDPOINT_MODE": "path", "_ROUTER_ENDPOINT_MODE_PARAM": static_route}
+                    if static_route
+                    else {}
+                ),
             }
         )
         # required system_tag for the router to catch the routing request
