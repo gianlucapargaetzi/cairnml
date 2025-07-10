@@ -18,7 +18,13 @@ from .._vendor.pathlib2 import Path
 
 from .._vendor import six
 
-from clearml_agent.definitions import ENV_AGENT_GIT_USER, ENV_AGENT_GIT_PASS, ENV_AGENT_GIT_HOST, ENV_GIT_CLONE_VERBOSE
+from clearml_agent.definitions import (
+    ENV_AGENT_GIT_USER,
+    ENV_AGENT_GIT_PASS,
+    ENV_AGENT_GIT_HOST,
+    ENV_GIT_CLONE_VERBOSE,
+    ENV_SSH_URL_REPLACEMENT_SCHEME,
+)
 from clearml_agent.helper.console import ensure_text, ensure_binary
 from clearml_agent.errors import CommandFailedError
 from clearml_agent.helper.base import (
@@ -233,7 +239,7 @@ class VCS(object):
     )
 
     @classmethod
-    def replace_ssh_url(cls, url):
+    def replace_ssh_url(cls, url, replacement_scheme="https"):
         # type: (Text) -> Text
         """
         Replace SSH URL with HTTPS URL when applicable
@@ -254,13 +260,13 @@ class VCS(object):
             user, host, path = match.groups()
             return (
                 furl()
-                .set(scheme="https", username=get_username(user), host=host, path=path)
+                .set(scheme=replacement_scheme, username=get_username(user), host=host, path=path)
                 .url
             )
         parsed_url = furl(url)
         if parsed_url.scheme == "ssh":
             return parsed_url.set(
-                scheme="https",
+                scheme=replacement_scheme,
                 username=get_username(
                     parsed_url.username, password=parsed_url.password
                 ),
@@ -360,7 +366,12 @@ class VCS(object):
                         # do not replace to ssh url
                         return
 
-            new_url = self.replace_ssh_url(self.url)
+            repl_scheme = (
+                ENV_SSH_URL_REPLACEMENT_SCHEME.get()
+                or self.session.config.get("agent.translate_ssl_replacement_scheme")
+                or "https"
+            )
+            new_url = self.replace_ssh_url(self.url, replacement_scheme=repl_scheme)
             if new_url != self.url:
                 print("Using user/pass credentials - replacing ssh url '{}' with https url '{}'".format(
                     self.url, new_url))
