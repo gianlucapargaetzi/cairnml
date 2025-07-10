@@ -581,23 +581,34 @@ class GpuFractionsHandler:
                 limits.pop(k, None)
 
     @classmethod
-    def get_simple_fractions_total(cls, limits: dict) -> float:
+    def get_simple_fractions_total(cls, limits: dict) -> Optional[float]:
         try:
-            if any(cls._number_re.match(x) for x in limits):
-                return sum(float(v) for k, v in limits.items() if cls._number_re.match(k))
+            if not any(cls._number_re.match(x) for x in limits):
+                return None
+            return sum(float(v) for k, v in limits.items() if cls._number_re.match(k))
         except Exception as ex:
             log.error("Failed summing up fractions from {}: {}".format(limits, ex))
         return 0
 
     @classmethod
-    def encode_fractions(cls, limits: dict, annotations: dict) -> str:
+    def get_cfgi_fractions_total(cls, labels: dict) -> Optional[float]:
+        try:
+            if not any(cls._frac_gpu_injector_re.match(x) for x in labels):
+                return None
+            return sum(float(v) for k, v in labels.items() if cls._frac_gpu_injector_re.match(k))
+        except Exception as ex:
+            log.error("Failed summing up fractions from {}: {}".format(labels, ex))
+        return 0
+
+    @classmethod
+    def encode_fractions(cls, limits: dict, labels: dict) -> str:
         if limits:
             if any(cls._number_re.match(x) for x in (limits or {})):
                 return ",".join(str(v) for k, v in sorted(limits.items()) if cls._number_re.match(k))
             return ",".join(("{}:{}".format(k, v) for k, v in (limits or {}).items() if cls._mig_re.match(k)))
-        elif annotations:
-            if any(cls._frac_gpu_injector_re.match(x) for x in (annotations or {})):
-                return ",".join(str(v) for k, v in sorted(annotations.items()) if cls._frac_gpu_injector_re.match(k))
+        elif labels:
+            if any(cls._frac_gpu_injector_re.match(x) for x in (labels or {})):
+                return ",".join(str(v) for k, v in sorted(labels.items()) if cls._frac_gpu_injector_re.match(k))
 
     @staticmethod
     def decode_fractions(fractions: str) -> Union[List[float], Dict[str, int]]:
