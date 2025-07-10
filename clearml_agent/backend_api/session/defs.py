@@ -25,6 +25,11 @@ ENV_FORCE_MAX_API_VERSION = EnvEntry("CLEARML_AGENT_FORCE_MAX_API_VERSION", type
 # values are 0/None (task per node), 1/2 (multi-node reporting, colored console), -1 (only report rank 0 node)
 ENV_MULTI_NODE_SINGLE_TASK = EnvEntry("CLEARML_MULTI_NODE_SINGLE_TASK", type=int, default=None)
 
+ENV_URLLIB3_CONNECT_LEVEL = EnvEntry("CLEARML_AGENT_URLLIB3_CONNECT_LEVEL", type=str, default="WARNING")
+"""
+If set, override the urllib3 log level to at least this level what initially connecting to the server.
+This is set by default to WARNING to ensure we can detect certificate issues. Level names or numbers can be used.
+"""
 
 """
 Experimental option to set the request method for all API requests and auth login.

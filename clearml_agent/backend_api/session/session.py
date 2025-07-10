@@ -1,4 +1,4 @@
-
+import logging
 import json as json_lib
 import os
 import sys
@@ -20,7 +20,8 @@ from .callresult import CallResult
 from .defs import (
     ENV_VERBOSE, ENV_HOST, ENV_ACCESS_KEY, ENV_SECRET_KEY, ENV_WEB_HOST, ENV_FILES_HOST, ENV_AUTH_TOKEN,
     ENV_NO_DEFAULT_SERVER, ENV_DISABLE_VAULT_SUPPORT, ENV_INITIAL_CONNECT_RETRY_OVERRIDE, ENV_API_DEFAULT_REQ_METHOD,
-    ENV_FORCE_MAX_API_VERSION)
+    ENV_FORCE_MAX_API_VERSION, ENV_URLLIB3_CONNECT_LEVEL
+)
 from .request import Request, BatchRequest
 from .token_manager import TokenManager
 from ..config import load
@@ -176,7 +177,9 @@ class Session(TokenManager):
             default_initial_connect_override=(False if kwargs.get("command") == "execute" else None)
         )
         # try to connect with the server
+        orig_urllib3_log_level = self._set_initial_urllib3_log_level()
         self.refresh_token()
+        logging.getLogger("urllib3").setLevel(orig_urllib3_log_level)
 
         # for resilience, from now on we won't allow propagating exceptions when sending requests
         self._propagate_exceptions_on_send = False
@@ -208,6 +211,29 @@ class Session(TokenManager):
             Session.max_api_version = Session.api_version = str(self.force_max_api_version)
 
         self.pre_vault_config = None
+
+    def _set_initial_urllib3_log_level(self):
+        log_level = logging.getLogger("urllib3").level
+        target_log_level = (ENV_URLLIB3_CONNECT_LEVEL.get() or "").strip()
+        if not target_log_level:
+            return log_level
+        if target_log_level.isdigit():
+            target_log_level = int(target_log_level)
+        else:
+            # translate name to int
+            target_log_level = logging.getLevelName(target_log_level)
+
+        try:
+            if not isinstance(target_log_level, int):
+                raise ValueError(str(target_log_level))
+            else:
+                if target_log_level < log_level:
+                    logging.getLogger("urllib3").setLevel(target_log_level)
+        except Exception as ex:
+            print("Failed setting initial urllib3 log level: {}".format(ex))
+
+        # return original log level
+        return log_level
 
     def _setup_session(self, http_retries_config, initial_session=False, default_initial_connect_override=None):
         # type: (dict, bool, Optional[bool]) -> (dict, requests.Session)
@@ -665,6 +691,7 @@ class Session(TokenManager):
         Return True if Session.server_version is greater or equal >= to min_server_version
         """
         return version_tuple(cls.server_version) >= version_tuple(str(min_server_version))
+
     def _do_refresh_token(self, current_token, exp=None):
         """ TokenManager abstract method implementation.
             Here we ignore the old token and simply obtain a new token.
