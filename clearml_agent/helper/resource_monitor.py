@@ -168,7 +168,7 @@ class ResourceMonitor(object):
         return True
 
     def send_cluster_report(self) -> bool:
-        if not self.session.feature_set == "basic":
+        if self.session.feature_set == "basic":
             return False
 
         # noinspection PyBroadException
