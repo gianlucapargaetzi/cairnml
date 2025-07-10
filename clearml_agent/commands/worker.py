@@ -1457,6 +1457,11 @@ class Worker(ServiceCommandSection):
             available_gpus, gpu_queues = self._setup_dynamic_gpus(gpu_queues, gpu_indexes)
             # multi instance support
             self._services_mode = True
+        else:
+            # Send a partial cluster report
+            if not self.monitor:
+                self.new_monitor()
+            self.monitor.setup_daemon_cluster_report(worker_id=self.worker_id, max_workers=1)
 
         # last 64 tasks
         dict_task_gpus_ids = {}  # {str(gpu_indexes): task_id}
@@ -1806,7 +1811,11 @@ class Worker(ServiceCommandSection):
             raise ValueError("Dynamic GPU allocation is not supported by your ClearML-server")
 
         # because it sets the MAX not the actual available (i.e. free) GPUS
-        self.cluster_report_monitor(available_gpus=gpu_indexes, gpu_queues=gpu_queues)
+        if not self.monitor:
+            self.new_monitor()
+        self.monitor.setup_dynamic_gpu_cluster_report(
+            worker_id=self.worker_id, available_gpus=gpu_indexes, gpu_queues=gpu_queues
+        )
 
         return available_gpus, gpu_queues
 
@@ -2226,7 +2235,7 @@ class Worker(ServiceCommandSection):
     def cluster_report_monitor(self, available_gpus, gpu_queues):
         if not self.monitor:
             self.new_monitor()
-        self.monitor.setup_cluster_report(
+        self.monitor.setup_dynamic_gpu_cluster_report(
             worker_id=self.worker_id, available_gpus=available_gpus, gpu_queues=gpu_queues
         )
 

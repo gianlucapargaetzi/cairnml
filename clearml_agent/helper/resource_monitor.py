@@ -58,13 +58,15 @@ class ResourceMonitor(object):
 
     @attr.s
     class ClusterReport:
-        worker_id = attr.ib(type=str)
+        worker = attr.ib(type=str)
         cluster_key = attr.ib(type=str)
         partial = attr.ib(type=bool, default=False)
         max_gpus = attr.ib(type=int, default=None)
         max_workers = attr.ib(type=int, default=None)
         max_cpus = attr.ib(type=int, default=None)
         resource_groups = attr.ib(type=Sequence[str], factory=list)
+
+        pending = attr.ib(type=bool, default=False)  # Pending for a GPU calculation
 
     def __init__(
         self,
@@ -173,6 +175,9 @@ class ResourceMonitor(object):
         return True
 
     def send_cluster_report(self) -> bool:
+        if not self._cluster_report:
+            return False
+
         if self.session.feature_set == "basic":
             return False
 
@@ -184,7 +189,7 @@ class ResourceMonitor(object):
                 "max_workers": self._cluster_report.max_workers,
             }
             payload = {
-                "worker_id": self._cluster_report.worker_id,
+                "worker": self._cluster_report.worker,
                 "partial": self._cluster_report.partial,
                 "key": self._cluster_report.cluster_key,
                 "timestamp": int(time() * 1000),
@@ -215,8 +220,10 @@ class ResourceMonitor(object):
             resource_group = ":".join((worker_id_parts[:2]))
         return cluster_key, resource_group
 
-    def setup_cluster_report(self, available_gpus, gpu_queues, worker_id=None, cluster_key=None, resource_groups=None):
-        # type: (List[int], Dict[str, int], Optional[str], Optional[str], Optional[List[str]]) -> ()
+    def _create_cluster_report(
+        self, worker_id=None, cluster_key=None, max_gpus=None, max_workers=None, resource_groups=None
+    ):
+        # type: (Optional[str], Optional[str], Optional[int], Optional[int], Optional[List[str]]) -> ()
         """
         Set up a cluster report for the enterprise server dashboard feature.
         If a worker_id is provided, cluster_key and resource_groups are inferred from it.
@@ -234,18 +241,46 @@ class ResourceMonitor(object):
                 cluster_key, resource_group = self.get_cluster_key_and_resource_group(worker_id)
                 resource_groups = [resource_group]
 
-            self._cluster_report = ResourceMonitor.ClusterReport(
+            return ResourceMonitor.ClusterReport(
                 worker=worker_id or self._worker_id,
                 partial=True,  # for non k8s reports, each worker reports on his own part of the "cluster"
                 cluster_key=cluster_key,
-                max_gpus=len(available_gpus),
-                max_workers=len(available_gpus) // min(x for x, _ in gpu_queues.values()),
+                max_gpus=max_gpus,
+                max_workers=max_workers,
                 resource_groups=resource_groups
             )
-
-            self.send_cluster_report()
         except Exception as ex:
             print("Error: failed setting cluster report: {}".format(ex))
+
+    def setup_dynamic_gpu_cluster_report(self, available_gpus, gpu_queues, worker_id=None, cluster_key=None, resource_groups=None):
+        # type: (List[int], Dict[str, int], Optional[str], Optional[str], Optional[List[str]]) -> ()
+        """
+        Set up a cluster report for the enterprise server dashboard feature, for a damon with dynamic GPU support.
+        If a worker_id is provided, cluster_key and resource_groups are inferred from it.
+        """
+        self._cluster_report = self._create_cluster_report(
+            worker_id=worker_id,
+            cluster_key=cluster_key,
+            max_gpus=len(available_gpus),
+            max_workers=len(available_gpus) // min(x for x, _ in gpu_queues.values()),
+            resource_groups=resource_groups
+        )
+        self.send_cluster_report()
+
+    def setup_daemon_cluster_report(self, worker_id=None, cluster_key=None, max_workers=None, resource_groups=None):
+        # type: (Optional[str], Optional[str], Optional[int], Optional[List[str]]) -> ()
+        """
+        Set up a cluster report for the enterprise server dashboard feature, for a standard daemon, to be updated with
+        the number of GPUs when detected by the resource monitoring.
+        If a worker_id is provided, cluster_key and resource_groups are inferred from it.
+        """
+        self._cluster_report = self._create_cluster_report(
+            worker_id=worker_id,
+            cluster_key=cluster_key,
+            max_workers=max_workers,
+            resource_groups=resource_groups
+        )
+        self._cluster_report.pending = True
 
     def _daemon(self):
         last_cluster_report = 0
@@ -294,6 +329,14 @@ class ResourceMonitor(object):
                     self._cluster_report_interval_sec
                     and time() - last_cluster_report > self._cluster_report_interval_sec
                 ):
+                    if self._cluster_report.pending:
+                        try:
+                            self._cluster_report.max_gpus = max(len(v) for k, v in stats.items() if k.startswith("gpu_"))
+                        except Exception as ex:
+                            print(f"Failed calculating pending cluster report: {ex}")
+                        finally:
+                            self._cluster_report.pending = False
+
                     if self.send_cluster_report():
                         last_cluster_report = time()
 

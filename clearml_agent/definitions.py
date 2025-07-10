@@ -262,6 +262,7 @@ ENV_STATUS_REPORT_FREQ_SEC = EnvironmentConfig("CLEARML_AGENT_STATUS_REPORT_FREQ
 
 ENV_SSH_URL_REPLACEMENT_SCHEME = EnvironmentConfig("CLEARML_AGENT_SSH_URL_REPLACEMENT_SCHEME")
 
+
 class FileBuffering(IntEnum):
     """
     File buffering options:
