@@ -331,7 +331,8 @@ class ResourceMonitor(object):
                 ):
                     if self._cluster_report.pending:
                         try:
-                            self._cluster_report.max_gpus = max(len(v) for k, v in stats.items() if k.startswith("gpu_"))
+                            lengths = [len(v) for k, v in stats.items() if k.startswith("gpu_")]
+                            self._cluster_report.max_gpus = max(lengths) if lengths else 0
                         except Exception as ex:
                             print(f"Failed calculating pending cluster report: {ex}")
                         finally:
