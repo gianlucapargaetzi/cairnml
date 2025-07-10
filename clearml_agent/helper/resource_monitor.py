@@ -67,15 +67,17 @@ class ResourceMonitor(object):
     def __init__(
         self,
         session,  # type: Session
-        worker_id,  # type: ResourceMonitor.StatusReport,
+        worker_id,  # type: str,
         sample_frequency_per_sec=2.0,
         report_frequency_sec=30.0,
         first_report_sec=None,
-        worker_tags=None
+        worker_tags=None,
+        report_daemon=False,  # type: bool
     ):
         self.session = session
         self.queue = deque(maxlen=1)
         self.queue.appendleft(self.StatusReport())
+        self._report_daemon = report_daemon
         self._worker_id = worker_id
         self._sample_frequency = sample_frequency_per_sec
         self._report_frequency = report_frequency_sec
@@ -155,6 +157,7 @@ class ResourceMonitor(object):
             timestamp=(int(time()) * 1000),
             worker=self._worker_id,
             tags=self._worker_tags,
+            is_daemon=self._report_daemon,
             **self.get_report().to_dict()
         )
         log.debug("sending report: %s", report)

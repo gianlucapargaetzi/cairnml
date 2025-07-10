@@ -891,6 +891,8 @@ class Worker(ServiceCommandSection):
 
     hostname_task_runtime_prop = "_exec_agent_hostname"
 
+    is_daemon = False
+
     @property
     def service(self):
         """ Worker command service endpoint """
@@ -1959,6 +1961,8 @@ class Worker(ServiceCommandSection):
         if docker not in (False, None) and not check_if_command_exists("docker"):
             raise ValueError("Running in Docker mode, 'docker' command was not found")
 
+        self.is_daemon = True
+
         self._worker_tags = kwargs.get('child_report_tags', None)
 
         self._use_owner_token(kwargs.get('use_owner_token', False))
@@ -2239,6 +2243,7 @@ class Worker(ServiceCommandSection):
             first_report_sec=3.0,
             report_frequency_sec=self._machine_update_interval,
             worker_tags=None if self._services_mode else self._worker_tags,
+            report_daemon=self.is_daemon,
         )
         self.monitor.set_report(report)
         self.monitor.start()
