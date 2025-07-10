@@ -58,7 +58,9 @@ class ResourceMonitor(object):
 
     @attr.s
     class ClusterReport:
+        worker_id = attr.ib(type=str)
         cluster_key = attr.ib(type=str)
+        partial = attr.ib(type=bool, default=False)
         max_gpus = attr.ib(type=int, default=None)
         max_workers = attr.ib(type=int, default=None)
         max_cpus = attr.ib(type=int, default=None)
@@ -182,10 +184,12 @@ class ResourceMonitor(object):
                 "max_workers": self._cluster_report.max_workers,
             }
             payload = {
+                "worker_id": self._cluster_report.worker_id,
+                "partial": self._cluster_report.partial,
                 "key": self._cluster_report.cluster_key,
                 "timestamp": int(time() * 1000),
                 "timeout": int(self._cluster_report_interval_sec * 2),
-                # "resource_groups": self._cluster_report.resource_groups,  # yet to be supported
+                "resource_groups": self._cluster_report.resource_groups,
                 "properties": {k: v for k, v in properties.items() if v is not None},
             }
             self.session.post(service="workers", action="cluster_report", **payload)
@@ -193,6 +197,23 @@ class ResourceMonitor(object):
             log.warning("Failed sending cluster report: %s", ex)
             return False
         return True
+
+    def get_cluster_key_and_resource_group(self, worker_id: str):
+        worker_id_parts = worker_id.split(":")
+        if len(worker_id_parts) < 3:
+            cluster_key = self.session.config.get("agent.resource_dashboard.default_cluster_name", "onprem")
+            resource_group = ":".join((cluster_key, worker_id_parts[0]))
+            print(
+                'WARNING: your worker ID "{}" is not suitable for proper resource dashboard reporting, please '
+                'set up agent.worker_name to be at least two colon-separated parts (i.e. "<category>:<name>"). '
+                'Using "{}" as the resource dashboard category and "{}" as the resource group.'.format(
+                    worker_id, cluster_key, resource_group
+                )
+            )
+        else:
+            cluster_key = worker_id_parts[0]
+            resource_group = ":".join((worker_id_parts[:2]))
+        return cluster_key, resource_group
 
     def setup_cluster_report(self, available_gpus, gpu_queues, worker_id=None, cluster_key=None, resource_groups=None):
         # type: (List[int], Dict[str, int], Optional[str], Optional[str], Optional[List[str]]) -> ()
@@ -210,24 +231,12 @@ class ResourceMonitor(object):
         # noinspection PyBroadException
         try:
             if not cluster_key:
-                worker_id_parts = worker_id.split(":")
-                if len(worker_id_parts) < 3:
-                    cluster_key = self.session.config.get("agent.resource_dashboard.default_cluster_name", "onprem")
-                    resource_group = ":".join((cluster_key, worker_id_parts[0]))
-                    print(
-                        'WARNING: your worker ID "{}" is not suitable for proper resource dashboard reporting, please '
-                        'set up agent.worker_name to be at least two colon-separated parts (i.e. "<category>:<name>"). '
-                        'Using "{}" as the resource dashboard category and "{}" as the resource group.'.format(
-                            worker_id, cluster_key, resource_group
-                        )
-                    )
-                else:
-                    cluster_key = worker_id_parts[0]
-                    resource_group = ":".join((worker_id_parts[:2]))
-
+                cluster_key, resource_group = self.get_cluster_key_and_resource_group(worker_id)
                 resource_groups = [resource_group]
 
             self._cluster_report = ResourceMonitor.ClusterReport(
+                worker=worker_id or self._worker_id,
+                partial=True,  # for non k8s reports, each worker reports on his own part of the "cluster"
                 cluster_key=cluster_key,
                 max_gpus=len(available_gpus),
                 max_workers=len(available_gpus) // min(x for x, _ in gpu_queues.values()),
