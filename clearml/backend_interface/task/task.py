@@ -2909,6 +2909,38 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
             return None
         return text_to_config_dict(config_text)
 
+    def _validate_static_route(self, static_route: str):
+        """
+        Validate a static route by its name. If the static route is not, an exception will be raised
+
+        :param static_route: The static route to validate
+        """
+        Session.verify_feature_set("advanced")
+        if not Session.check_min_server_version("3.26"):
+            raise ValueError(
+                "Static routes not supported by the server version. "
+                "Minimum required version is 3.26"
+            )
+        response = self._get_default_session().send_request(
+            "routers", "get_routes", json={"name": "^{}$".format(static_route)}
+        )
+        if response.status_code != 200:
+            raise ValueError(
+                "Static route validation request for '{}' failed with status code {}".format(
+                    static_route, response.status_code
+                )
+            )
+        static_route_object = response.json().get("data", {}).get("routes")
+        if not static_route_object:
+            raise ValueError("Static route '{}' does not exist".format(static_route))
+        static_route_object = static_route_object[0]
+        if not static_route_object.get("enabled", False):
+            raise ValueError("Static route '{}' is disabled".format(static_route))
+        if static_route_object.get("status", "") == "active" and not static_route_object.get("load_balancer", {}).get(
+            "enabled", False
+        ):
+            raise ValueError("Static route '{}' is active but not load-balanced".format(static_route))
+
     def get_offline_mode_folder(self) -> Optional[Path]:
         """
         Return the folder where all the task outputs and logs are stored in the offline session.
