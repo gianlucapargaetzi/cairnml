@@ -221,9 +221,9 @@ class ResourceMonitor(object):
         return cluster_key, resource_group
 
     def _create_cluster_report(
-        self, worker_id=None, cluster_key=None, max_gpus=None, max_workers=None, resource_groups=None
+        self, worker_id=None, cluster_key=None, max_gpus=None, max_workers=None, resource_groups=None, pending=False
     ):
-        # type: (Optional[str], Optional[str], Optional[int], Optional[int], Optional[List[str]]) -> ()
+        # type: (Optional[str], Optional[str], Optional[int], Optional[int], Optional[List[str]], bool) -> ()
         """
         Set up a cluster report for the enterprise server dashboard feature.
         If a worker_id is provided, cluster_key and resource_groups are inferred from it.
@@ -247,7 +247,8 @@ class ResourceMonitor(object):
                 cluster_key=cluster_key,
                 max_gpus=max_gpus,
                 max_workers=max_workers,
-                resource_groups=resource_groups
+                resource_groups=resource_groups,
+                pending=pending,
             )
         except Exception as ex:
             print("Error: failed setting cluster report: {}".format(ex))
@@ -278,9 +279,9 @@ class ResourceMonitor(object):
             worker_id=worker_id,
             cluster_key=cluster_key,
             max_workers=max_workers,
-            resource_groups=resource_groups
+            resource_groups=resource_groups,
+            pending=True,
         )
-        self._cluster_report.pending = True
 
     def _daemon(self):
         last_cluster_report = 0
