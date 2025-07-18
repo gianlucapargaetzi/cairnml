@@ -23,6 +23,8 @@ class EnumOptions(object):
 
 
 class Options(object):
+    """Base class for an Options class which allow getting all class properties as a key/value mapping"""
+
     @classmethod
     def _all(cls) -> Dict[str, Any]:
         return {k: v for k, v in vars(cls) if not k.startswith("_")}
