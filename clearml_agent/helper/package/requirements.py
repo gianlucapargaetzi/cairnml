@@ -688,9 +688,13 @@ class RequirementsManager(object):
                 num_skipped_packages = len(parsed_requirements)
                 parsed_requirements = [p for p in parsed_requirements if p not in skipped_packages]
                 num_skipped_packages -= len(parsed_requirements)
+                try:
+                    skipped_packages_str = dump_yaml(sorted([str(p) for p in skipped_packages]))
+                except Exception:
+                    skipped_packages_str = "\n".join(sorted([" - " + str(p) for p in skipped_packages]))
                 print("Skipping {} pre-installed packages:\n{}Remaining {} additional packages to install".format(
                     num_skipped_packages,
-                    dump_yaml(sorted([str(p) for p in skipped_packages])),
+                    skipped_packages_str,
                     len(parsed_requirements)
                 ))
 
