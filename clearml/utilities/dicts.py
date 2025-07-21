@@ -5,6 +5,7 @@ _epsilon = 0.00001
 
 
 class ReadOnlyDict(dict):
+    """A read-only dictionary that can only be accessed via its keys."""
     def __readonly__(self, *args: Any, **kwargs: Any) -> None:
         raise ValueError("This is a read only dictionary")
 
