@@ -6,6 +6,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+from base64 import b64encode
 from hashlib import md5
 from os import environ
 from random import random
@@ -22,6 +23,8 @@ from clearml_agent.definitions import (
     ENV_AGENT_GIT_USER,
     ENV_AGENT_GIT_PASS,
     ENV_AGENT_GIT_HOST,
+    ENV_AGENT_GIT_USE_MS_ENTRA_TOKEN,
+    ENV_AGENT_GIT_USE_AZURE_PAT,
     ENV_GIT_CLONE_VERBOSE,
     ENV_SSH_URL_REPLACEMENT_SCHEME,
 )
@@ -92,7 +95,6 @@ RType = TypeVar("RType")
 
 @six.add_metaclass(abc.ABCMeta)
 class VCS(object):
-
     """
     Provides overloaded utilities for handling repositories of different types
     """
@@ -385,7 +387,11 @@ class VCS(object):
         """
         self._set_ssh_url()
         # if we are on linux no need for the full auth url because we use GIT_ASKPASS
-        url = self.url_without_auth if self._use_ask_pass else self.url_with_auth
+        url = (
+            self.url_without_auth
+            if self._use_ask_pass or self._use_ms_entra_token or self._use_azure_pat
+            else self.url_with_auth
+        )
         clone_command = ("clone", url, self.location) + self.clone_flags()
         # clone all branches regardless of when we want to later checkout
         # if branch:
@@ -577,6 +583,18 @@ class Git(VCS):
         self._use_ask_pass = False if not self.session.config.get('agent.enable_git_ask_pass', True) \
             else sys.platform == "linux"
 
+        self._use_ms_entra_token = (
+            ENV_AGENT_GIT_USE_MS_ENTRA_TOKEN.get() or self.session.config.get("agent.git_use_ms_entra_token", False)
+        )
+
+        self._use_azure_pat = (
+            ENV_AGENT_GIT_USE_AZURE_PAT.get() or self.session.config.get("agent.git_use_azure_pat", False)
+        )
+
+        if self._use_ms_entra_token and self._use_azure_pat:
+            print("WARNING: Git MS Extra Token and Azure PAT support are both turned on, using MS Extra Token")
+            self._use_azure_pat = None
+
         try:
             self.call("config", "--global", "--replace-all", "safe.directory", "*", cwd=self.location)
         except:  # noqa
@@ -619,6 +637,22 @@ class Git(VCS):
         except:  # noqa
             password = None
             username = None
+
+        if self._use_ms_entra_token or self._use_azure_pat:
+            if not password:
+                print("WARNING: cannot use MS Entra Token or Azure PAT since no password was found, skipping")
+            elif self._use_ms_entra_token:
+                return func("-c", f'http.extraheader="Authorization: Bearer {password}"', *args, **kwargs)
+            else:  # self._use_azure_pat
+                b64_pat = b64encode(f":{password}".encode("utf-8")).decode("utf-8")
+                self.COMMAND_ENV["AZURE_PAT_HEADER_VALUE"] = f"Authorization: Basic {b64_pat}"
+                # call git command
+                try:
+                    ret = func(f'--config-env=http.extraheader=AZURE_PAT_HEADER_VALUE', *args, **kwargs)
+                finally:
+                    # delete temp password file
+                    self.COMMAND_ENV.pop("AZURE_PAT_HEADER_VALUE", None)
+                return ret
 
         # if this is not linux or we do not have a password, just run as is
         if not self._use_ask_pass or not password or not username:
@@ -696,7 +730,7 @@ class Git(VCS):
         root=Argv(executable_name, "rev-parse", "--show-toplevel"),
     )
 
-    patch_base = ("apply", "--unidiff-zero", )
+    patch_base = ("apply", "--unidiff-zero",)
 
 
 class Hg(VCS):
@@ -853,7 +887,7 @@ def fix_package_import_diff_patch(entry_script_file):
     for i, line_pair in enumerate(lines):
         for _ in line_pair[1].split('"""')[1:]:
             if nested_c >= 0:
-                skip_lines.extend(list(range(nested_c, i+1)))
+                skip_lines.extend(list(range(nested_c, i + 1)))
                 nested_c = -1
             else:
                 nested_c = i
@@ -964,7 +998,8 @@ def patch_add_task_init_call(local_filename):
         idx_a = future_found + 1
 
     # check if we have not already patched it, no need to add another one
-    if len(lines or []) >= idx_a+2 and lines[idx_a].strip().startswith('from clearml ') and 'Task.init' in lines[idx_a+1]:
+    if len(lines or []) >= idx_a + 2 and lines[idx_a].strip().startswith('from clearml ') and 'Task.init' in lines[
+        idx_a + 1]:
         print("File {} already patched with Task.init()".format(local_filename))
         return
 

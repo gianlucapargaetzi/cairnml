@@ -262,6 +262,12 @@ ENV_STATUS_REPORT_FREQ_SEC = EnvironmentConfig("CLEARML_AGENT_STATUS_REPORT_FREQ
 
 ENV_SSH_URL_REPLACEMENT_SCHEME = EnvironmentConfig("CLEARML_AGENT_SSH_URL_REPLACEMENT_SCHEME")
 
+ENV_AGENT_GIT_USE_MS_ENTRA_TOKEN = EnvironmentConfig("CLEARML_AGENT_GIT_USE_MS_ENTRA_TOKEN", type=bool)
+"""Use Azure MS Entra Token for authentication. Azure token will be taken from the git password setting"""
+
+ENV_AGENT_GIT_USE_AZURE_PAT = EnvironmentConfig("CLEARML_AGENT_GIT_USE_AZURE_PAT", type=bool)
+"""Use AzurePersonal Access Token (PAT). Azure PAT will be taken from the git password setting"""
+
 
 class FileBuffering(IntEnum):
     """
