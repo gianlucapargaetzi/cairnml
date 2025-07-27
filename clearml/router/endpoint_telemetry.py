@@ -212,7 +212,10 @@ class EndpointTelemetry:
         status_report["latency_ms"] = (
             0 if (self.requests_num_window == 0) else (self.latency_sum_window / self.requests_num_window)
         )
-        status_report["machine_stats"] = self.get_machine_stats()
+        try:
+            status_report["machine_stats"] = self.get_machine_stats()
+        except Exception:
+            pass
         self.requests_num_prev_window = self.requests_num_window
         self.requests_num_window = 0
         self.latency_sum_window = 0
