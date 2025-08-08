@@ -36,6 +36,7 @@ Environment-related config path override environment variable. If this is set, n
 """
 
 CONFIG_VERBOSE = EnvEntry("CLEARML_CONFIG_VERBOSE", type=bool)
+"""Control verbose configuration loading"""
 
 
 class Environment(object):
