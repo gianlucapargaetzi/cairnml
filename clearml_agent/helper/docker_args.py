@@ -294,6 +294,16 @@ class CustomTemplate(Template):
     ${TASK.hyperparams.properties.user_key.value}
     """
 
+    # this is a direct copy from _TemplateMetaclass, but removing the remarks that break RE
+    pattern = r"""
+        %(delim)s(?:
+          (?P<escaped>%(delim)s) |
+          (?P<named>%(id)s)      |
+          {(?P<braced>%(id)s)}   |
+          (?P<invalid>)
+        )
+        """
+
     idpattern = r'(?a:[_a-z][_a-z0-9|.|:]*)'
     prefix = "CLEARML_"
     queue_id_to_name_map = {}
