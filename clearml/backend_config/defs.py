@@ -12,7 +12,6 @@ DEFAULT_CONFIG_FOLDER = "config"
 """ Default config folder to search for when loading relative to a given path """
 
 ENV_CONFIG_PATHS = []
-
 """ Environment-related config paths """
 
 LOCAL_CONFIG_PATHS = [
