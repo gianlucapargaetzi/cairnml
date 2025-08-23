@@ -12,10 +12,12 @@ from attr import attrib, attrs
 
 
 def _none_to_empty_string(maybe_string: str) -> str:
+    """Returns an empty string for any falsy value"""
     return maybe_string if maybe_string is not None else ""
 
 
 def _url_stripper(bucket: str) -> str:
+    """Strips `'`, `"` from the entire URL string and `/` from the end of the string"""
     bucket = _none_to_empty_string(bucket)
     bucket = bucket.strip("\"'").rstrip("/")
     return bucket
