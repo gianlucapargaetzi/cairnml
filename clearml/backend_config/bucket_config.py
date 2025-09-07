@@ -25,6 +25,7 @@ def _url_stripper(bucket: str) -> str:
 
 @attrs
 class S3BucketConfig(object):
+    """Configuration for an S3 bucket"""
     bucket = attrib(type=str, converter=_url_stripper, default="")
     subdir = attrib(type=str, converter=_url_stripper, default="")
     host = attrib(type=str, converter=_none_to_empty_string, default="")
