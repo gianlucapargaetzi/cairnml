@@ -34,7 +34,7 @@ class StorageManager(object):
         extract_archive: bool = True,
         name: Optional[str] = None,
         force_download: bool = False,
-    ) -> [str, None]:
+    ) -> Optional[str]:
         """
         Get a local copy of the remote file. If the remote URL is a direct file access,
         the returned link is the same, otherwise a link to a local copy of the url file is returned.
@@ -360,7 +360,7 @@ class StorageManager(object):
             return False
 
     @classmethod
-    def get_file_size_bytes(cls, remote_url: str, silence_errors: bool = False) -> [int, None]:
+    def get_file_size_bytes(cls, remote_url: str, silence_errors: bool = False) -> Optional[int]:
         """
         Get size of the remote file in bytes.
 
