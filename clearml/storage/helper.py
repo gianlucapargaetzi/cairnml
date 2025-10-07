@@ -2726,7 +2726,7 @@ class StorageHelper(object):
         """
         cls._path_substitutions = list()
 
-    def get_object_size_bytes(self, remote_url: str, silence_errors: bool = False) -> [int, None]:
+    def get_object_size_bytes(self, remote_url: str, silence_errors: bool = False) -> Optional[int]:
         """
         Get size of the remote file in bytes.
 
@@ -2741,7 +2741,7 @@ class StorageHelper(object):
         obj = self.get_object(remote_url, silence_errors=silence_errors)
         return self._get_object_size_bytes(obj, silence_errors)
 
-    def _get_object_size_bytes(self, obj: Any, silence_errors: bool = False) -> [int, None]:
+    def _get_object_size_bytes(self, obj: Any, silence_errors: bool = False) -> Optional[int]:
         """
         Auxiliary function for `get_object_size_bytes`.
         Get size of the remote object in bytes.
