@@ -527,7 +527,7 @@ class StorageManager(object):
         return metadata
 
     @classmethod
-    def set_report_upload_chunk_size(cls, chunk_size_mb: int) -> ():
+    def set_report_upload_chunk_size(cls, chunk_size_mb: int) -> None:
         """
         Set the upload progress report chunk size (in MB). The chunk size
         determines how often the progress reports are logged:
@@ -541,7 +541,7 @@ class StorageManager(object):
         ProgressReport.report_upload_chunk_size_mb = int(chunk_size_mb)
 
     @classmethod
-    def set_report_download_chunk_size(cls, chunk_size_mb: int) -> ():
+    def set_report_download_chunk_size(cls, chunk_size_mb: int) -> None:
         """
         Set the download progress report chunk size (in MB). The chunk size
         determines how often the progress reports are logged:
