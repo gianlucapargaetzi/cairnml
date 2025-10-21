@@ -51,7 +51,11 @@ class HyperDatasetManagementBackend(IdObjectBase):
             payload["field_mappings"] = field_mappings
             res = session.send_request("datasets", "create", json=payload)
             if res.status_code != 200:
-                raise SendError(res, "Failed creating dataset")
+                try:
+                    reason = str(res.json()["meta"]["result_msg"])
+                except Exception:
+                    reason = "unkown reason"
+                raise SendError(res, "Failed creating dataset: " + reason)
             return res.json()["data"]["id"]
 
         try:

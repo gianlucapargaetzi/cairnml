@@ -7,8 +7,8 @@ from requests.compat import json as requests_json
 from clearml.backend_interface.datasets.hyper_dataset import HyperDatasetManagementBackend, _SaveFramesRequestNoValidate
 from clearml.backend_interface.util import get_or_create_project
 from clearml.backend_api import Session
-from clearml.storage.helper import StorageHelper
-from clearml.storage.manager import StorageManager
+from clearml.storage.helper import StorageHelperDiskSpaceFileSizeStrategy
+from clearml.storage.manager import StorageManagerDiskSpaceFileSizeStrategy
 from clearml.storage.util import sha256sum
 
 from .data_entry import DataEntry, ENTRY_CLASS_KEY, _resolve_class
@@ -127,7 +127,7 @@ class HyperDataset(HyperDatasetManagement):
         """
         if not upload_destination:
             return
-        helper = StorageHelper.get(upload_destination)
+        helper = StorageHelperDiskSpaceFileSizeStrategy.get(upload_destination)
         if not helper:
             raise ValueError(
                 "Could not get access credentials for '{}' "
@@ -282,7 +282,7 @@ class HyperDataset(HyperDatasetManagement):
                 if not os.path.isfile(source_to_upload):
                     continue
                 try:
-                    result = StorageManager.upload_file(
+                    result = StorageManagerDiskSpaceFileSizeStrategy.upload_file(
                         source_to_upload, self._build_source_upload_uri(source_to_upload, dest)
                     )
                     sub_data_entry.set_source(source_field, result)

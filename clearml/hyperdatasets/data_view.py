@@ -4,17 +4,23 @@ from queue import Queue
 from math import ceil
 from typing import Any, Iterable, List, Optional, Sequence
 
-from luqum.parser import parser as lucene_parser
+try:
+    from luqum.parser import parser as lucene_parser
+except ImportError:
+    lucene_parser = None
 try:
     from luqum.exceptions import ParseError as LuceneParseError
 except ImportError:
     # Backwards compatibility for luqum<=0.9.0
-    from luqum.parser import ParseError as LuceneParseError
+    try:
+        from luqum.parser import ParseError as LuceneParseError
+    except ImportError:
+        pass
 
 from clearml.backend_interface.datasets.hyper_dataset_data_view import DataViewManagementBackend
 from clearml.config import running_remotely, get_remote_task_id, get_node_id, get_node_count
 from clearml.task import Task
-from clearml.storage.manager import StorageManager
+from clearml.storage.manager import StorageManagerDiskSpaceFileSizeStrategy
 import logging
 from .data_entry import DataEntry, DataSubEntry, ENTRY_CLASS_KEY, _resolve_class
 from .data_entry_image import DataEntryImage
@@ -25,8 +31,10 @@ _UNSET = object()
 
 
 class HyperDatasetQuery:
-    @staticmethod
-    def _validate_lucene(lucene_query):
+    lucene_parser_warning_sent = False
+
+    @classmethod
+    def _validate_lucene(cls, lucene_query):
         """Validate the supplied Lucene query string using `luqum`.
 
         Empty strings are considered valid. Non-empty values are parsed and raise a
@@ -35,6 +43,14 @@ class HyperDatasetQuery:
         :param lucene_query: Lucene query string to validate
         :return: None
         """
+        if not lucene_parser:
+            if not cls.lucene_parser_warning_sent:
+                logger.warning("Could not validate lucene query because 'luqum' is not installed. "
+                    "Run 'pip install luqum' to enable query validation"
+                )
+                cls.lucene_parser_warning_sent = True
+            return
+            
         if not lucene_query:
             return
         try:
@@ -732,11 +748,11 @@ class DataView:
         force_download: bool = False,
     ):
         """
-        Prefetch frame sources (and optionally previews/masks) into the local cache.
+        Prefetch data entry sources (and optionally previews/masks) into the local cache.
 
         - num_workers: number of worker threads (defaults to cpu count via ThreadPoolExecutor)
         - wait: block until all prefetch tasks complete
-        - query_cache_size: frames per backend fetch batch (defaults to iterator default)
+        - query_cache_size: data entries per backend fetch batch (defaults to iterator default)
         - get_previews: also prefetch preview URIs if available
         - get_masks: also prefetch mask URIs if available
         - force_download: bypass local cache if True
@@ -746,38 +762,28 @@ class DataView:
 
         it = self.get_iterator(query_cache_size=query_cache_size)
 
-        def _extract_uris(frame):
-            # frame may be a dict or an object with .sources
+        def _extract_uris(data_entry):
             uris = []
-            sources = getattr(frame, "sources", None) or (frame.get("sources") if isinstance(frame, dict) else None)
-            if not sources:
-                return uris
-            for s in sources:
-                # object access
-                uri = getattr(s, "uri", None)
-                if not uri and isinstance(s, dict):
-                    uri = s.get("uri")
-                if uri:
-                    uris.append(uri)
-                if get_previews:
-                    p = getattr(s, "preview", None) if not isinstance(s, dict) else s.get("preview")
-                    p_uri = getattr(p, "uri", None) if p and not isinstance(p, dict) else (p or {}).get("uri")
-                    if p_uri:
-                        uris.append(p_uri)
-                if get_masks:
-                    masks = getattr(s, "masks", None) if not isinstance(s, dict) else s.get("masks")
-                    for m in (masks or []):
-                        m_uri = getattr(m, "uri", None) if not isinstance(m, dict) else m.get("uri")
-                        if m_uri:
-                            uris.append(m_uri)
+            sources = ["source"]
+            if get_previews:
+                sources += ["preview_source"]
+            if get_masks:
+                sources += ["mask_source"]
+            for source in sources:
+                for data_sub_entry in data_entry:
+                    url = data_sub_entry.get_source(source)
+                    if url:
+                        uris.append(url)
             return uris
 
         # Prefetch using a thread pool
         futures = []
         with ThreadPoolExecutor(max_workers=num_workers) as pool:
-            for frame in it:
-                for uri in _extract_uris(frame):
-                    futures.append(pool.submit(StorageManager.get_local_copy, uri, None, True, None, force_download))
+            for data_entry in it:
+                for uri in _extract_uris(data_entry):
+                    futures.append(
+                        pool.submit(StorageManagerDiskSpaceFileSizeStrategy.get_local_copy, uri, None, True, None, force_download)
+                    )
             if wait:
                 for f in as_completed(futures):
                     try:
@@ -799,7 +805,7 @@ class DataView:
             cache_in_memory=False,
         ):
             """
-            Initialise the iterator wrapper that pulls frames from the backend.
+            Initialise the iterator wrapper that pulls data_entries from the backend.
             """
             self._dataview = dataview
             self._projection = None
@@ -813,7 +819,7 @@ class DataView:
                     self._projection = None
             self._query_cache_size = int(query_cache_size or DataView._DEFAULT_LOCAL_BATCH_SIZE)
             self._query_queue_depth = int(query_queue_depth or 5)
-            capacity = max(1, self._query_cache_size * self._query_queue_depth)
+            capacity = max(1, self._query_queue_depth)
             self._data_entries_queue: Queue = Queue(maxsize=capacity)
             self._stop_event = threading.Event()
             self._started = False
@@ -1180,7 +1186,7 @@ class DataView:
             Reset internal queues and counters so iteration can restart from the beginning.
             """
             # reinitialize iteration state (restart from 0)
-            capacity = max(1, self._query_cache_size * self._query_queue_depth)
+            capacity = max(1, self._query_queue_depth)
             self._data_entries_queue = Queue(maxsize=capacity)
             self._stop_event = threading.Event()
             self._closed = False
