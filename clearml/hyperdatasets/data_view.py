@@ -45,7 +45,7 @@ class HyperDatasetQuery:
         """
         if not lucene_parser:
             if not cls.lucene_parser_warning_sent:
-                logger.warning("Could not validate lucene query because 'luqum' is not installed. "
+                logging.getLogger("DataView").warning("Could not validate lucene query because 'luqum' is not installed. "
                     "Run 'pip install luqum' to enable query validation"
                 )
                 cls.lucene_parser_warning_sent = True

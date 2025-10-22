@@ -2,6 +2,8 @@ from typing import Optional, Sequence, Tuple, List, Dict, Any, Union
 
 import logging
 
+from clearml.storage.manager import StorageManagerDiskSpaceFileSizeStrategy
+
 from .data_entry import (
     DataEntry,
     DataSubEntry,
@@ -196,6 +198,67 @@ class DataSubEntryImage(DataSubEntry):
             # return the first mask if exists
             return self._masks_source.get(sorted(self._masks_source.keys())[0])
         return self._masks_source.get(mask_id)
+
+    def get_local_mask_source(
+        self,
+        raise_on_error: bool = False,
+        mask_id: Optional[str] = None,
+        force_download: bool = False,
+    ) -> Optional[str]:
+        """
+        Retrieve a cached local copy of a specific mask source.
+
+        :param raise_on_error: Raise ValueError when the download fails
+        :param mask_id: Mask identifier to fetch; defaults to the first mask
+        :param force_download: Refresh an existing cached entry when True
+        :return: Absolute path to the local copy or None when unavailable
+        """
+        uri = self.get_mask_source(mask_id)
+        if not uri:
+            return None
+        try:
+            local_file = StorageManagerDiskSpaceFileSizeStrategy.get_local_copy(
+                uri,
+                extract_archive=False,
+                force_download=force_download,
+            )
+        except Exception as ex:
+            logging.getLogger("HyperDataset").warning("Could not fetch local mask copy for %s: %s", uri, ex)
+            local_file = None
+        if not local_file and raise_on_error:
+            raise ValueError("Failed downloading file: {}".format(uri))
+        return local_file
+
+    def get_local_masks_source(
+        self,
+        raise_on_error: bool = False,
+        force_download: bool = False,
+    ) -> Dict[str, Optional[str]]:
+        """
+        Retrieve cached local copies for all mask sources on this sub-entry.
+
+        :param raise_on_error: Raise ValueError when any download fails
+        :param force_download: Refresh existing cached entries when True
+        :return: Mapping of mask id to the local copy path (or None on failure if raise_on_error is False)
+        """
+        masks: Dict[str, Optional[str]] = {}
+        for mid, uri in sorted((self._masks_source or {}).items()):
+            if not uri:
+                masks[mid] = None
+                continue
+            try:
+                local_file = StorageManagerDiskSpaceFileSizeStrategy.get_local_copy(
+                    uri,
+                    extract_archive=False,
+                    force_download=force_download,
+                )
+            except Exception as ex:
+                logging.getLogger("HyperDataset").warning("Could not fetch local mask copy for %s: %s", uri, ex)
+                local_file = None
+            if not local_file and raise_on_error:
+                raise ValueError("Failed downloading file: {}".format(uri))
+            masks[mid] = local_file
+        return masks
 
     def __repr__(self) -> str:
         meta_keys = sorted((self._metadata or {}).keys()) if isinstance(self._metadata, dict) else []

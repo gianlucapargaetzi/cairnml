@@ -5,6 +5,8 @@ from collections import deque
 
 from typing import Any, Dict, Iterable, Iterator, List, Optional, Sequence, Set, Type, TypeVar
 
+from clearml.storage.manager import StorageManagerDiskSpaceFileSizeStrategy
+
 
 ENTRY_CLASS_KEY = "_clearml_data_entry_class"
 SUB_ENTRY_CLASS_KEY = "_clearml_data_sub_entry_class"
@@ -457,6 +459,64 @@ class DataSubEntry:
         :param local_sources_upload_destination: URL to the upload path
         """
         self._local_sources_upload_destination = local_sources_upload_destination
+
+    def get_local_source(
+        self,
+        raise_on_error: bool = False,
+        force_download: bool = False,
+    ) -> Optional[str]:
+        """
+        Retrieve a cached local copy of the primary source URI.
+
+        :param raise_on_error: Raise ValueError when the download fails
+        :param force_download: Refresh the cached copy even if it already exists
+        :return: Absolute path to the local copy or None on failure/when source missing
+        """
+        return self._get_local_source_for_field(
+            "source",
+            raise_on_error=raise_on_error,
+            force_download=force_download,
+        )
+
+    def get_local_preview_source(
+        self,
+        raise_on_error: bool = False,
+        force_download: bool = False,
+    ) -> Optional[str]:
+        """
+        Retrieve a cached local copy of the preview source URI.
+
+        :param raise_on_error: Raise ValueError when the download fails
+        :param force_download: Refresh the cached copy even if it already exists
+        :return: Absolute path to the local copy or None on failure/when preview missing
+        """
+        return self._get_local_source_for_field(
+            "preview_source",
+            raise_on_error=raise_on_error,
+            force_download=force_download,
+        )
+
+    def _get_local_source_for_field(
+        self,
+        source_field: str,
+        raise_on_error: bool,
+        force_download: bool,
+    ) -> Optional[str]:
+        uri = self.get_source(source_field)
+        if not uri:
+            return None
+        try:
+            local_file = StorageManagerDiskSpaceFileSizeStrategy.get_local_copy(
+                uri,
+                extract_archive=False,
+                force_download=force_download,
+            )
+        except Exception as ex:
+            _LOGGER.warning("Could not fetch local copy for %s: %s", uri, ex)
+            local_file = None
+        if not local_file and raise_on_error:
+            raise ValueError("Failed downloading file: {}".format(uri))
+        return local_file
 
     @property
     def name(self) -> str:

@@ -326,7 +326,8 @@ def _trainer_process_entry(
     world_size: int,
 ) -> None:
     global_rank = int(os.environ.get("RANK", "0"))
-    os.environ["LOCAL_RANK"] = str(local_rank)
+    if world_size > 1:
+        os.environ["LOCAL_RANK"] = str(local_rank)
 
     if args.device and args.device.lower() not in {None, "cuda"}:
         raise ValueError("Only CUDA devices are supported in this script. Omit --device or set it to 'cuda'.")
@@ -403,7 +404,7 @@ def _trainer_process_entry(
         max_grad_norm=1.0,
         disable_tqdm=not (global_rank == 0),
         ddp_find_unused_parameters=False,
-        ddp_backend="nccl",
+        ddp_backend="nccl" if world_size > 1 else None,
     )
 
     trainer = Trainer(
