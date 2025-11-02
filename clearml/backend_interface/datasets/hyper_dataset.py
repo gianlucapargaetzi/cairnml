@@ -8,7 +8,7 @@ from ..session import SendError
 from ...task import Task
 
 # handle import in offline mode
-_SaveFramesRequest = datasets.SaveFramesRequest if hasattr(datasets, "SaveFramesRequest") else object
+_SaveFramesRequest = datasets.SaveFramesRequest if getattr(datasets, "SaveFramesRequest", None) else object
 
 
 class _SaveFramesRequestNoValidate(_SaveFramesRequest):
