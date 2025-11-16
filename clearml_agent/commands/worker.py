@@ -3141,6 +3141,9 @@ class Worker(ServiceCommandSection):
                 elif not self.package_api:
                     # check if we have to manually configure package API, it will be readonly
                     self.package_api = SystemPip(session=self._session)
+            else:
+                # default for standalone to get commands, implies just python
+                self.package_api = SystemPip(session=self._session)
 
             # do not update the task packages if we are using conda,
             # it will most likely make the task environment unreproducible

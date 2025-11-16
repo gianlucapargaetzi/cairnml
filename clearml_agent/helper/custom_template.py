@@ -148,7 +148,7 @@ class CustomTemplate(Template):
                 log.error(f"Failed applying op {op} with args {args}: {e}")
         return value
 
-    def custom_substitute(self, mapping_func):
+    def custom_substitute(self, mapping_func, disable_ops_processing=False):
         # Helper function for .sub()
         def convert(mo):
             named = mo.group('named') or mo.group('braced')
@@ -172,7 +172,7 @@ class CustomTemplate(Template):
                     if ":" in named:
                         named, default_value = named.split(":", 1)
                     result = str(mapping_func(named, default_value))
-                    if parsed_ops:
+                    if not disable_ops_processing and parsed_ops:
                         result = self._apply_ops(parsed_ops, result)
                     return result
                 except KeyError:
