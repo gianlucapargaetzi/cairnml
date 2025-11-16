@@ -218,7 +218,8 @@ class UvAPI(VirtualenvPip):
         self.set_lockfile_path(lockfile_path)
 
         if self.enabled:
-            self.lock_config.run("sync", "--locked", cwd=str(self.lockfile_path), func=Argv.check_call)
+            args = ["sync"] + (["--locked"] if self.lock_file_exists else [])
+            self.lock_config.run(*args, cwd=str(self.lockfile_path), func=Argv.check_call)
             self._installed = True
             # self.lock_config.set_binary(Path(self.lockfile_path) / ".venv" / "bin" / "python")
             return True
@@ -232,7 +233,7 @@ class UvAPI(VirtualenvPip):
     @property
     def enabled(self):
         if self._enabled is None:
-            self._enabled =  self.lockfile_path and self.lock_config.enabled and (
+            self._enabled = self.lockfile_path and self.lock_config.enabled and (
                 any((self.lockfile_path / indicator).exists() for indicator in self.INDICATOR_FILES)
             )
         return self._enabled
