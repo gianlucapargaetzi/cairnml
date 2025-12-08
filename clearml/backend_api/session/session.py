@@ -873,10 +873,16 @@ class Session(TokenManager):
 
     @classmethod
     def verify_feature_set(cls, feature_set: str) -> None:
+        extra_msg = {
+            "advanced": "Enterprise license required"
+        }.get(feature_set)
         if isinstance(feature_set, str):
             feature_set = [feature_set]
         if cls.feature_set not in feature_set:
-            raise ValueError("ClearML-server does not support requested feature set '{}'".format(feature_set))
+            raise ValueError("ClearML-server does not support requested feature set '{}'{}".format(
+                feature_set,
+                f" ({extra_msg})" if extra_msg else ""
+            ))
 
     @staticmethod
     def _version_tuple(v: str) -> Tuple[int]:

@@ -1,8 +1,18 @@
-import threading
+import logging
 import queue
-from queue import Queue
+import threading
 from math import ceil
+from queue import Queue
 from typing import Any, Iterable, List, Optional, Sequence
+
+from clearml.backend_api import Session
+from clearml.backend_interface.datasets.hyper_dataset_data_view import DataViewManagementBackend
+from clearml.config import running_remotely, get_remote_task_id, get_node_id, get_node_count
+from clearml.storage.manager import StorageManagerDiskSpaceFileSizeStrategy
+from clearml.task import Task
+from .data_entry import DataEntry, ENTRY_CLASS_KEY, _resolve_class
+from .data_entry_image import DataEntryImage
+from .management import HyperDatasetManagement
 
 try:
     from luqum.parser import parser as lucene_parser
@@ -16,15 +26,6 @@ except ImportError:
         from luqum.parser import ParseError as LuceneParseError
     except ImportError:
         pass
-
-from clearml.backend_interface.datasets.hyper_dataset_data_view import DataViewManagementBackend
-from clearml.config import running_remotely, get_remote_task_id, get_node_id, get_node_count
-from clearml.task import Task
-from clearml.storage.manager import StorageManagerDiskSpaceFileSizeStrategy
-import logging
-from .data_entry import DataEntry, ENTRY_CLASS_KEY, _resolve_class
-from .data_entry_image import DataEntryImage
-from .management import HyperDatasetManagement
 
 
 _UNSET = object()
@@ -85,6 +86,7 @@ class HyperDatasetQuery:
         :param filter_by_roi: Optional ROI filtering strategy
         :param label_rules: Optional label-rule dictionaries for ROI filtering
         """
+        Session.verify_feature_set("advanced")
         HyperDatasetQuery._validate_lucene(source_query)
         HyperDatasetQuery._validate_lucene(frame_query)
         self._project_id = project_id
