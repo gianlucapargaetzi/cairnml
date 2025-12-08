@@ -198,3 +198,33 @@ class HyperDatasetManagement:
 
             return HyperDataset
         return cls
+
+    def commit_version(
+        self,
+        *,
+        publish: bool = False,
+        force: bool = False,
+        calculate_stats: Optional[bool] = True,
+        override_stats: Optional[Any] = None,
+        publishing_task: Optional[str] = None,
+    ):
+        """
+        Commit the bound HyperDataset version to refresh backend statistics.
+
+        :param publish: Publish the version after committing (optional)
+        :param force: Force publish even when annotation tasks reference the version
+        :param calculate_stats: Control statistics calculation during commit
+        :param override_stats: Optional statistics payload to persist as-is
+        :param publishing_task: Annotation task identifier issuing the commit
+        :return: Backend response payload
+        """
+        if not getattr(self, "_version_id", None):
+            raise ValueError("HyperDataset instance is not bound to a dataset version")
+        return HyperDatasetManagementBackend.commit_version(
+            version_id=self._version_id,
+            publish=publish,
+            force=force,
+            calculate_stats=calculate_stats,
+            override_stats=override_stats,
+            publishing_task=publishing_task,
+        )

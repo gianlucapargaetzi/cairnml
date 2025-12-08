@@ -1,19 +1,22 @@
-import psutil
 import os
-from typing import Optional, List, Any, Sequence, Dict
 from concurrent.futures import ThreadPoolExecutor
+from typing import Optional, List, Any, Sequence, Dict
+
+import psutil
 from requests.compat import json as requests_json
 
+from clearml.backend_api import Session
 from clearml.backend_interface.datasets.hyper_dataset import HyperDatasetManagementBackend, _SaveFramesRequestNoValidate
 from clearml.backend_interface.util import get_or_create_project
-from clearml.backend_api import Session
 from clearml.storage.helper import StorageHelperDiskSpaceFileSizeStrategy
 from clearml.storage.manager import StorageManagerDiskSpaceFileSizeStrategy
 from clearml.storage.util import sha256sum
-
 from .data_entry import DataEntry, ENTRY_CLASS_KEY, _resolve_class
 from .data_entry_image import DataEntryImage
 from .management import HyperDatasetManagement
+
+
+COMMIT_ERROR_KEY = "__commit_version_error__"
 
 
 class HyperDataset(HyperDatasetManagement):
@@ -54,6 +57,7 @@ class HyperDataset(HyperDatasetManagement):
             validated on every frame ingest or update.
         :param raise_if_exists: Reserved flag for compatibility (currently unused)
         """
+        Session.verify_feature_set("advanced")
         try:
             self._project_id = get_or_create_project(Session(), project_name)
         except Exception:
@@ -82,6 +86,7 @@ class HyperDataset(HyperDatasetManagement):
     ):
         """
         Upload and register a collection of data entries into the HyperDataset version.
+        Successful registrations automatically trigger a commit to refresh the version statistics.
 
         :param data_entries: Iterable of `DataEntry` instances to register
         :param upload_local_files_destination: Optional storage URI for uploading local sources
@@ -97,6 +102,7 @@ class HyperDataset(HyperDatasetManagement):
         """
         HyperDataset._verify_upload_destination(upload_local_files_destination)
         errors = {"upload": {}, "register": {}}
+        should_commit = False
         with ThreadPoolExecutor(max_workers=max_workers or psutil.cpu_count()) as thread_pool:
             for i in range(0, len(data_entries), batch_size):
                 batched_data_entries = data_entries[i: i + batch_size]
@@ -114,8 +120,16 @@ class HyperDataset(HyperDatasetManagement):
                     )
                 else:
                     register_errors = self._register_data_entries(data_entries=batched_data_entries)
+                register_errors = register_errors or {}
                 errors["upload"].update(upload_errors)
                 errors["register"].update(register_errors)
+                if batched_data_entries and len(register_errors) < len(batched_data_entries):
+                    should_commit = True
+        if should_commit:
+            try:
+                self.commit_version()
+            except Exception as exc:
+                errors["register"][COMMIT_ERROR_KEY] = exc
         return errors
 
     @staticmethod

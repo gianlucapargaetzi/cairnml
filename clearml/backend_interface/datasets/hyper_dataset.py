@@ -139,6 +139,39 @@ class HyperDatasetManagementBackend(IdObjectBase):
         return res.response
 
     @classmethod
+    def commit_version(
+        cls,
+        version_id: str,
+        *,
+        publish: bool = False,
+        force: bool = False,
+        calculate_stats: Optional[bool] = True,
+        override_stats: Optional[Any] = None,
+        publishing_task: Optional[str] = None,
+    ):
+        """
+        Commit a draft dataset version and refresh its statistics.
+
+        :param version_id: Draft version identifier
+        :param publish: Optional flag to publish the version after commit
+        :param force: Force publish even with active annotation tasks
+        :param calculate_stats: Whether to calculate statistics during commit
+        :param override_stats: Optional statistics payload to persist instead of recalculating
+        :param publishing_task: Annotation task identifier issuing the commit
+        :return: Backend response payload
+        """
+        req = datasets.CommitVersionRequest(
+            version=version_id,
+            publish=publish or None,
+            force=force or None,
+            calculate_stats=calculate_stats,
+            override_stats=override_stats,
+            publishing_task=publishing_task,
+        )
+        res = cls._send(cls._get_default_session(), req, raise_on_errors=False)
+        return getattr(res, "response", None)
+
+    @classmethod
     def get_dataset(
         cls,
         name: str,
