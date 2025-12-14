@@ -179,13 +179,21 @@ class _Driver(metaclass=ABCMeta):
     @classmethod
     def get_file_server_hosts(cls) -> List[str]:
         if cls._file_server_hosts is None:
-            hosts = [Session.get_files_server_host()] + (Session.legacy_file_servers or [])
+            hosts = (
+                [Session.get_files_server_host()] +
+                (Session.legacy_file_servers or []) +
+                (cls._get_extra_file_server_hosts() or [])
+            )
             for host in hosts[:]:
                 substituted = _StorageHelper._apply_url_substitutions(host)
                 if substituted not in hosts:
                     hosts.append(substituted)
             cls._file_server_hosts = hosts
         return cls._file_server_hosts
+
+    @classmethod
+    def _get_extra_file_server_hosts(cls) -> List[str]:
+        pass
 
     @classmethod
     def download_cert(cls, cert_url: str) -> str:
@@ -278,6 +286,10 @@ class _HttpDriver(_Driver):
     def __init__(self, retries: Optional[int] = None) -> None:
         self._retries = retries or int(self.max_retries)
         self._containers = {}
+
+    @classmethod
+    def _get_extra_file_server_hosts(cls) -> List[str]:
+        return config.get("storage.http.legacy_fileservers", None) or None
 
     def get_container(
         self,
@@ -3321,7 +3333,7 @@ class _StorageHelper(object):
             conf = cls._gs_configurations.get_config_by_uri(base_url)
             return str(furl(scheme=parsed.scheme, netloc=conf.bucket))
         elif parsed.scheme in _HttpDriver.schemes:
-            for files_server in _Driver.get_file_server_hosts():
+            for files_server in _HttpDriver.get_file_server_hosts():
                 if base_url.startswith(files_server):
                     return files_server
             return parsed.scheme + "://"
