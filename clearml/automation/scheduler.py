@@ -503,7 +503,7 @@ class BaseScheduler(object):
         return t
 
     @staticmethod
-    def _cancel_task(task_id: str) -> ():
+    def _cancel_task(task_id: str) -> None:
         if not task_id:
             return
         t = Task.get_task(task_id=task_id)
