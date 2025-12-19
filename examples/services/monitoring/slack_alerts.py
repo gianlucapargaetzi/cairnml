@@ -39,7 +39,7 @@ from clearml.automation.monitor import Monitor
 
 class UserFilter:
     def __init__(self, include=None, exclude=None):
-        # type: (Optional[Union[str, List[str]]], Optional[Union[str, List[str]]]) -> ()
+        # type: (Optional[Union[str, List[str]]], Optional[Union[str, List[str]]]) -> None
         # Either `include` or `exclude` should be specified, but not both
         if include is not None and exclude is not None:
             raise ValueError("Specify either 'include' or 'exclude', not both!")
@@ -73,7 +73,7 @@ class SlackMonitor(Monitor):
     """
 
     def __init__(self, slack_api_token, channel, message_prefix=None, filters=None):
-        # type: (str, str, Optional[str], Optional[List[Callable[[Task], bool]]]) -> ()
+        # type: (str, str, Optional[str], Optional[List[Callable[[Task], bool]]]) -> None
         """
         Create a Slack Monitoring object.
         It will alert on any Task/Experiment that failed or completed
@@ -101,7 +101,7 @@ class SlackMonitor(Monitor):
         self.check_credentials()
 
     def check_credentials(self):
-        # type: () -> ()
+        # type: () -> None
         """
         Check we have the correct credentials for the slack channel
         """
@@ -125,7 +125,7 @@ class SlackMonitor(Monitor):
         self.slack_client.conversations_join(channel=self._channel_id)
 
     def post_message(self, message, retries=1, wait_period=10.0):
-        # type: (str, int, float) -> ()
+        # type: (str, int, float) -> None
         """
         Post message on our slack channel
 
@@ -160,7 +160,7 @@ class SlackMonitor(Monitor):
 
     def process_task(self, task):
         """
-        # type: (Task) -> ()
+        # type: (Task) -> None
         Called on every Task that we monitor.
         This is where we send the Slack alert
 
