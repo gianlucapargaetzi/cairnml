@@ -1028,7 +1028,7 @@ class Session(TokenManager):
             return self.logger
 
 
-def browser_login(clearml_server: Optional[str] = None) -> ():
+def browser_login(clearml_server: Optional[str] = None) -> None:
     """
     Alternative authentication / login method, (instead of configuring ~/clearml.conf or Environment variables)
     ** Only applicable when running inside a browser session,
