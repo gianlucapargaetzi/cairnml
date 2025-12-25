@@ -15,7 +15,7 @@ def __buffer_writer_close_patch(self) -> None:
         pass
 
 
-def buffer_writer_close_cb(bufferwriter: Any, callback: Callable[[Any], None], overwrite: bool = False) -> ():
+def buffer_writer_close_cb(bufferwriter: Any, callback: Callable[[Any], None], overwrite: bool = False) -> None:
     # noinspection PyBroadException
     try:
         if not hasattr(bufferwriter, "_trains_org_close"):
