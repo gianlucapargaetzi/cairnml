@@ -4400,7 +4400,7 @@ class StorageHelper(_StorageHelper):
         # make sure if the folder names are too large we encode them within the file system 255 characters limit
         # assume / separator in folder folder_path
 
-        folder_path = quote(folder_path, safe="/\\=[]!~()#@$&%'+,;+") if folder_path else folder_path
+        folder_path = quote(folder_path, safe="/\\=[]!~()#@$&%'+,;+ ") if folder_path else folder_path
 
         # optimize, nothing to do if the entire path is short enough
         if not folder_path or len(folder_path) <= 255:
