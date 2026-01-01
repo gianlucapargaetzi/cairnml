@@ -278,7 +278,7 @@ class ParallelZipper(object):
             self.count = 0
             self.files_zipped = set()
 
-        def zip(self, file_path: Union[str, Path], arcname: str = None) -> ():
+        def zip(self, file_path: Union[str, Path], arcname: str = None) -> None:
             """
             Zips a file into the ZipFile created by this instance. This instance will either add
             itself back to the PriorityQueue used to select the best zipping candidate or add itself
@@ -314,7 +314,7 @@ class ParallelZipper(object):
                 )
                 self._zipper_results.put(self)
 
-        def merge(self, other: "ParallelZipper.ZipperObject") -> ():
+        def merge(self, other: "ParallelZipper.ZipperObject") -> None:
             """
             Merges one ParallelZipper.ZipperObject instance into the current one.
             All the files zipped by the other instance will be added to this instance,
@@ -330,7 +330,7 @@ class ParallelZipper(object):
             self.count += other.count
             self.archive_preview.extend(other.archive_preview)
 
-        def close(self) -> ():
+        def close(self) -> None:
             """
             Attempts to close file descriptors associated to the ZipFile
             """
@@ -341,7 +341,7 @@ class ParallelZipper(object):
             except Exception:
                 pass
 
-        def delete(self) -> ():
+        def delete(self) -> None:
             """
             Attempts to delete the ZipFile from the disk
             """
@@ -353,7 +353,7 @@ class ParallelZipper(object):
                 pass
 
         @property
-        def size(self) -> ():
+        def size(self) -> None:
             """
             :return: Size of the ZipFile, in bytes
             """
