@@ -808,7 +808,7 @@ class BaseModel(object):
         fill: bool = False,
         comment: Optional[str] = None,
         extra_layout: Optional[dict] = None,
-    ) -> ():
+    ) -> None:
         """
         For explicit reporting, plot a 3d scatter graph (with markers).
 
@@ -1042,7 +1042,7 @@ class BaseModel(object):
             layout_config=extra_layout,
         )
 
-    def publish(self) -> ():
+    def publish(self) -> None:
         """
         Set the model to the status ``published`` and for public use. If the model's status is already ``published``,
         then this method is a no-op.
@@ -1051,7 +1051,7 @@ class BaseModel(object):
         if not self.published:
             self._get_base_model().publish()
 
-    def archive(self) -> ():
+    def archive(self) -> None:
         """
         Archive the model. If the model is already archived, this is a no-op
         """
@@ -1060,7 +1060,7 @@ class BaseModel(object):
         except Exception:
             pass
 
-    def unarchive(self) -> ():
+    def unarchive(self) -> None:
         """
         Unarchive the model. If the model is not archived, this is a no-op
         """
@@ -1086,10 +1086,10 @@ class BaseModel(object):
         )
         self._reporter = Reporter(metrics=metrics_manager, task=self, for_model=True)
 
-    def _running_remotely(self) -> ():
+    def _running_remotely(self) -> None:
         return bool(running_remotely() and self._task is not None)
 
-    def _set_task(self, value: _Task) -> ():
+    def _set_task(self, value: _Task) -> None:
         if value is not None and not isinstance(value, _Task):
             raise ValueError("task argument must be of Task type")
         self._task = value
