@@ -136,7 +136,7 @@ class _Arguments(object):
             defaults_ = {a.dest: cls.__cast_arg(args_dict.get(a.dest), a.type) for a in actions}
         except Exception:
             # don't crash us if we failed parsing the inputs
-            defaults_ = {a.dest: a.default if a.default is not None else "" for a in actions}
+            defaults_ = {a.dest: a.default if a.default not in (None, SUPPRESS) else "" for a in actions}
 
         desc_ = {
             a.dest: str(a.help)

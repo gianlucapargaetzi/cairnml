@@ -308,7 +308,7 @@ def call_original_argparser(
     namespace: Optional[Namespace] = None,
 ) -> Namespace:
     if PatchArgumentParser.original_parse_args:
-        return PatchArgumentParser.original_parse_args(self, args=args, namespace=namespace)
+        return PatchArgumentParser._original_parse_args(self, args=args, namespace=namespace)
 
 
 def argparser_parseargs_called() -> bool:
