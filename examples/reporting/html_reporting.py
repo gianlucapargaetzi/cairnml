@@ -14,7 +14,7 @@ from clearml import Task, Logger
 
 
 def report_html_url(logger, iteration=0):
-    # type: (Logger, int) -> ()
+    # type: (Logger, int) -> None
     """
     reporting html from url to debug samples section
     :param logger: The task.logger to use for sending the plots
