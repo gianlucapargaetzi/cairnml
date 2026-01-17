@@ -78,7 +78,7 @@ class Entry(object):
     def get(self, default: Any = NotSet, converter: Converter = None) -> Optional[Any]:
         return self.get_pair(default=default, converter=converter)[1]
 
-    def set(self, value: Any) -> ():
+    def set(self, value: Any) -> None:
         # key, _ = self.get_pair(default=None, converter=None)
         for k in self.keys:
             self._set(k, str(value))
