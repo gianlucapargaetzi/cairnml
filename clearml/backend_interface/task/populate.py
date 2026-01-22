@@ -596,7 +596,7 @@ class CreateAndPopulate(object):
     def update_task_args(
         self,
         args: Optional[Union[Sequence[str], Sequence[Tuple[str, str]]]] = None,
-    ) -> ():
+    ) -> None:
         """
         Update the newly created Task argparse Arguments
         If called before Task created, used for argument verification
