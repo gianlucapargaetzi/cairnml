@@ -117,12 +117,18 @@ class ResourceMonitor(BackgroundMonitor):
                             )
                     else:
                         self._active_gpus = [g.strip() for g in active_gpus.split(",")]
+                        # make sure we don't fix the active gpus in subprocess mode, as pynvml
+                        # can only be used in the process it was first initialized in
+                        # if subprocess mode -> fix the active gpu in the subprocess daemon instead
+                        if self._is_thread_mode_and_not_main_process():
+                            self._fix_active_gpus()
             except Exception:
                 pass
 
     def daemon(self) -> None:
         if self._is_thread_mode_and_not_main_process():
             return
+        self._fix_active_gpus()
 
         multi_node_single_task_reporting = False
         report_node_as_series = False
@@ -315,6 +321,28 @@ class ResourceMonitor(BackgroundMonitor):
     def _clear_readouts(self) -> None:
         self._readouts = {}
         self._num_readouts = 0
+
+    def _fix_active_gpus(self) -> None:
+        """
+        Fix active gpus when no gpus are being reported because of unexpected NVIDIA_VISIBLE_DEVICES values
+        if no gpus are reported, then report all of them
+        """
+        if not self._gpustat:
+            return
+        active_gpus = os.environ.get("NVIDIA_VISIBLE_DEVICES", "") or os.environ.get("CUDA_VISIBLE_DEVICES", "")
+        try:
+            gpu_stat = self._gpustat.new_query(per_process_stats=False)
+            skips_all = True
+            for gpu in gpu_stat:
+                if not self._skip_nonactive_gpu(gpu):
+                    skips_all = False
+                    break
+            if skips_all and active_gpus != "none":
+                self._active_gpus = None
+        except Exception as e:
+            logging.getLogger("clearml.resource_monitor").warning(
+                "Could not fetch GPU stats: {}".format(e)
+            )
 
     def _machine_stats(self) -> Dict[str, float]:
         """
