@@ -1,11 +1,12 @@
 import sys
+import os
 from logging import getLogger
 from typing import Optional, Callable, Any
+from urllib.parse import urlparse
 
 from .frameworks import _patched_call  # noqa
 from .import_bind import PostImportHookPatching
 from ..config import running_remotely
-from ..utilities.networking import get_private_ip
 
 
 class PatchGradio:
@@ -15,7 +16,26 @@ class PatchGradio:
     _default_gradio_address = "0.0.0.0"
     _default_gradio_port = 7860
     _root_path_format = "/service/{}/"
+    _gradio_static_route_env_var = "CLEARML_GRADIO_STATIC_ROUTE"
+    _gradio_endpoint = None
+    _request_external_endpoint_retries = 3
     __server_config_warning = set()
+
+    @classmethod
+    def _get_root_path(cls):
+        # if there is no endpoint -> request one the moment root path is required
+        if not cls._gradio_endpoint:
+            for _ in range(cls._request_external_endpoint_retries):
+                cls._gradio_endpoint = cls._current_task.request_external_endpoint(
+                    port=cls._default_gradio_port,
+                    static_route=os.environ.get(cls._gradio_static_route_env_var),
+                    wait=True
+                )
+                if cls._gradio_endpoint:
+                    break
+        if not cls._gradio_endpoint or not cls._gradio_endpoint.get("endpoint"):
+            raise ValueError("Gradio bindings could not retrieve external endpoint")
+        return urlparse(cls._gradio_endpoint.get("endpoint")).path
 
     @classmethod
     def update_current_task(cls, task: Optional[Any] = None) -> None:
@@ -46,7 +66,7 @@ class PatchGradio:
         blocks = original_fn(*args, **kwargs)
         if not PatchGradio._current_task or not running_remotely():
             return blocks
-        blocks.config["root"] = PatchGradio._root_path_format.format(PatchGradio._current_task.id)
+        blocks.config["root"] = PatchGradio._get_root_path()
         blocks.root = blocks.config["root"]
         return blocks
 
@@ -61,18 +81,10 @@ class PatchGradio:
         )
         if not running_remotely():
             return original_fn(*args, **kwargs)
-        # noinspection PyProtectedMember
-        PatchGradio._current_task._set_runtime_properties(
-            {
-                "_SERVICE": "EXTERNAL",
-                "_ADDRESS": get_private_ip(),
-                "_PORT": PatchGradio._default_gradio_port,
-            }
-        )
-        PatchGradio._current_task.set_system_tags(["external_service"])
+
         kwargs["server_name"] = PatchGradio._default_gradio_address
         kwargs["server_port"] = PatchGradio._default_gradio_port
-        kwargs["root_path"] = PatchGradio._root_path_format.format(PatchGradio._current_task.id)
+        kwargs["root_path"] = PatchGradio._get_root_path()
         # noinspection PyBroadException
         try:
             return original_fn(*args, **kwargs)
@@ -115,6 +127,6 @@ class PatchGradio:
             getLogger().warning(
                 "ClearML will override root_path '{}' to '{}' in remote execution".format(
                     root_path,
-                    PatchGradio._root_path_format.format(PatchGradio._current_task.id),
+                    PatchGradio._get_root_path(),
                 )
             )
