@@ -11,7 +11,7 @@ from clearml import Logger, Task
 
 
 def report_logs(logger):
-    # type: (Logger) -> ()
+    # type: (Logger) -> None
     """
     reporting text to logs section
     :param logger: The task.logger to use for sending the text
@@ -34,7 +34,7 @@ def report_logs(logger):
 
 
 def report_debug_text(logger):
-    # type: (Logger) -> ()
+    # type: (Logger) -> None
     """
     reporting text to debug sample section
     :param logger: The task.logger to use for sending the sample
