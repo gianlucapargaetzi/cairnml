@@ -215,8 +215,7 @@ class PatchedJoblib(object):
             LoggerRoot.get_base_logger().debug(
                 "Can't get model framework {}, model framework will be: {} ".format(object_orig_module, framework)
             )
-        finally:
-            return framework
+        return framework
 
     @staticmethod
     def _cached_call_recursion_guard(original_fn: Callable, *args: Any, **kwargs: Any) -> Any:
