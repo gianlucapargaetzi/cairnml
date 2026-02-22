@@ -103,12 +103,13 @@ def text_to_config_dict(text: six.string_types) -> dict:
         return hocon_unquote_key(ConfigFactory.parse_string(text))
     except pyparsing.ParseBaseException as ex:
         pos = "at char {}, line:{}, col:{}".format(ex.loc, ex.lineno, ex.column)
-        six.raise_from(
-            ValueError("Could not parse configuration text ({}):\n{}".format(pos, text)),
-            None,
-        )
+        raise ValueError(
+            "Could not parse configuration text ({}):\n{}".format(pos, text),
+        ) from None
     except Exception:
-        six.raise_from(ValueError("Could not parse configuration text:\n{}".format(text)), None)
+        raise ValueError(
+            "Could not parse configuration text:\n{}".format(text)
+        ) from None
 
 
 def verify_basic_value(value: Any) -> bool:
