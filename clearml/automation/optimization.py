@@ -1992,7 +1992,7 @@ class HyperParameterOptimizer(object):
                 for k, v in optimizer_kwargs.items()
                 if not isinstance(
                     v,
-                    six.string_types + six.integer_types + (six.text_type, float, list, tuple, dict, type(None)),
+                    six.string_types + six.integer_types + (str, float, list, tuple, dict, type(None)),
                 )
             }
             kwargs["optimizer_kwargs"] = {

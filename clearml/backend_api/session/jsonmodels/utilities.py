@@ -18,9 +18,9 @@ PYTHON_TO_ECMA_FLAGS = dict((value, key) for key, value in ECMA_TO_PYTHON_FLAGS.
 PythonRegex = namedtuple("PythonRegex", ["regex", "flags"])
 
 
-def _normalize_string_type(value: Any) -> Union[six.text_type, Any]:
+def _normalize_string_type(value: Any) -> Union[str, Any]:
     if isinstance(value, six.string_types):
-        return six.text_type(value)
+        return str(value)
     else:
         return value
 

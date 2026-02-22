@@ -601,7 +601,7 @@ class Model(IdObjectBase, AsyncManagerMixin, _StorageUriMixin):
         # if p.is_file():
         #     return str(p)
         p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_text(six.text_type(design))
+        p.write_text(str(design))
         return str(p)
 
     def get_model_package(self) -> ModelPackage:
