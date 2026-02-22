@@ -4,7 +4,6 @@ import operator
 from abc import abstractproperty
 from typing import Dict, Optional, Any
 
-import six
 from pathlib2 import Path
 
 
@@ -87,10 +86,7 @@ class AccessMixin(object):
         if use_cache and p.is_file():
             return str(p)
         desc = self._get_task_property("execution.model_desc")
-        try:
-            design = six.next(six.itervalues(desc))
-        except StopIteration:
-            design = None
+        design = next(iter(desc.values()), None)
         if not design:
             raise ValueError("Task has no design in execution.model_desc")
         p.parent.mkdir(parents=True, exist_ok=True)
@@ -120,7 +116,7 @@ class AccessMixin(object):
         """number of classes based on the task's labels"""
         model_labels = self.data.execution.model_labels
         expected_num_of_classes = 0
-        for labels, index in model_labels.items():
+        for index in model_labels.values():
             expected_num_of_classes += 1 if int(index) > 0 else 0
         num_of_classes = int(max(model_labels.values()))
         if num_of_classes != expected_num_of_classes:
