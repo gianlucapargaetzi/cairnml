@@ -11,7 +11,6 @@ from time import sleep
 
 import jwt
 import requests
-import six
 from requests.auth import HTTPBasicAuth
 from requests.exceptions import (
     ChunkedEncodingError,
@@ -950,8 +949,8 @@ class Session(TokenManager):
             self.__auth_token = None
 
             return resp["data"]["token"]
-        except LoginError:
-            six.reraise(*sys.exc_info())
+        except LoginError as ex:
+            raise ex
         except KeyError as ex:
             # check if this is a misconfigured api server (getting 200 without the data section)
             if res and res.status_code == 200:

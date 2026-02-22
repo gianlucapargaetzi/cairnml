@@ -4,13 +4,11 @@ import functools
 import json
 import logging
 import os
-import sys
 import warnings
 from fnmatch import fnmatch
 from os.path import expanduser
 from typing import Any, Optional, List, Union
 
-import six
 from pathlib2 import Path
 from pyparsing import (
     ParseFatalException,
@@ -329,14 +327,10 @@ class Config(object):
                 "Failed parsing {0} ({1.__class__.__name__}): "
                 "(at char {1.loc}, line:{1.lineno}, col:{1.column})".format(file_path, ex)
             )
-            six.reraise(
-                ConfigurationError,
-                ConfigurationError(msg, file_path=file_path),
-                sys.exc_info()[2],
-            )
+            raise ConfigurationError(msg, file_path=file_path) from ex
         except (ParseException, ParseFatalException, RecursiveGrammarException) as ex:
             msg = "Failed parsing {0} ({1.__class__.__name__}): {1}".format(file_path, ex)
-            six.reraise(ConfigurationError, ConfigurationError(msg), sys.exc_info()[2])
+            raise ConfigurationError(msg) from ex
         except Exception as ex:
             print("Failed loading %s: %s" % (file_path, ex))
             raise
