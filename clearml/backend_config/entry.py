@@ -26,7 +26,7 @@ class Entry(object):
     def default_conversions(cls) -> Dict[Any, Converter]:
         return {
             bool: any_to_bool,
-            six.text_type: lambda s: six.text_type(s).strip(),
+            str: lambda s: str(s).strip(),
         }
 
     def __init__(self, key: Text, *more_keys: Text, **kwargs: Any) -> None:
@@ -42,7 +42,7 @@ class Entry(object):
         :param help: Help text describing this entry
         """
         self.keys = (key,) + more_keys
-        self.type = kwargs.pop("type", six.text_type)
+        self.type = kwargs.pop("type", str)
         self.converter = kwargs.pop("converter", None)
         self.default = kwargs.pop("default", None)
         self.help = kwargs.pop("help", None)

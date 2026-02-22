@@ -2542,7 +2542,7 @@ class OutputModel(BaseModel):
             raise ValueError("Model update weights package should get either directory path to pack or a list of files")
 
         if not weights_filenames:
-            weights_filenames = list(map(six.text_type, Path(weights_path).rglob("*")))
+            weights_filenames = list(map(str, Path(weights_path).rglob("*")))
         elif weights_filenames and len(weights_filenames) > 1:
             weights_path = get_common_path(weights_filenames)
 
