@@ -16,22 +16,7 @@ from __future__ import annotations
 import argparse
 import os
 import uuid
-from typing import Any, Dict, Iterable, Optional
-
-import torch
-import torch.distributed as dist
-import torch.multiprocessing as mp
-from torch.utils.data import IterableDataset
-
-from transformers import (
-    AutoModelForCausalLM,
-    AutoTokenizer,
-    Trainer,
-    TrainingArguments,
-    default_data_collator,
-)
-from transformers.trainer_utils import set_seed
-
+from typing import Any, Dict, Iterable, Optional, TYPE_CHECKING
 from clearml import Task, OutputModel
 from clearml.hyperdatasets import (
     DataEntry,
@@ -40,10 +25,23 @@ from clearml.hyperdatasets import (
     HyperDatasetManagement,
 )
 
-try:
+if not Task.running_locally() or TYPE_CHECKING:
+    import torch
+    import torch.distributed as dist
+    import torch.multiprocessing as mp
+    from torch.utils.data import IterableDataset
+
+    from transformers import (
+        AutoModelForCausalLM,
+        AutoTokenizer,
+        Trainer,
+        TrainingArguments,
+        default_data_collator,
+    )
+    from transformers.trainer_utils import set_seed
     from peft import LoraConfig, get_peft_model
-except ImportError as exc:
-    raise RuntimeError("peft is required. Install with `pip install peft`.") from exc
+else:
+    IterableDataset = object  # handle case in which torch is not installed locally
 
 
 class QADataSubEntry(DataSubEntry):
@@ -154,26 +152,10 @@ class QALoraIterableDataset(IterableDataset):
 
 
 def resolve_dataset(args: argparse.Namespace, *, prefix: str = ""):
-    dataset_name = getattr(args, f"{prefix}dataset_name")
     dataset_id = getattr(args, f"{prefix}dataset_id")
-    version_name = getattr(args, f"{prefix}version_name")
     version_id = getattr(args, f"{prefix}version_id")
-    project_name = getattr(args, f"{prefix}project", None) or args.project
 
-    if dataset_name and dataset_id:
-        raise ValueError("Provide either --dataset-name or --dataset-id, not both")
-    if version_name and version_id:
-        raise ValueError("Provide either --version-name or --version-id, not both")
-
-    if dataset_id:
-        return HyperDatasetManagement.get(dataset_id=dataset_id, version_id=version_id)
-    if not dataset_name:
-        raise ValueError("Either --dataset-id or --dataset-name must be supplied")
-    return HyperDatasetManagement.get(
-        dataset_name=dataset_name,
-        version_name=version_name,
-        project_name=project_name,
-    )
+    return HyperDatasetManagement.get(dataset_id=dataset_id, version_id=version_id)
 
 
 def prepare_model(args: argparse.Namespace):
@@ -224,9 +206,6 @@ def parse_args() -> argparse.Namespace:
         description="Fine-tune a causal LM using HyperDataset Q&A entries with LoRA (Trainer variant)"
     )
     name_group = parser.add_argument_group("Name-based selection")
-    name_group.add_argument("--project", default=None, help="ClearML project containing the HyperDataset")
-    name_group.add_argument("--dataset-name", default=None, help="HyperDataset collection name")
-    name_group.add_argument("--version-name", default=None, help="HyperDataset version name")
 
     id_group = parser.add_argument_group("ID-based selection")
     id_group.add_argument("--dataset-id", default=None, help="HyperDataset collection id")
@@ -273,13 +252,20 @@ def parse_args() -> argparse.Namespace:
     # Eval dataset (optional)
     parser.add_argument("--skip-eval", action="store_true", help="Skip evaluation after training")
     parser.add_argument("--eval-batch-limit", type=int, default=None, help="Evaluate on at most this many batches")
-    parser.add_argument(
-        "--eval-project", default=None, help="Project for the evaluation dataset (defaults to training project)"
-    )
-    parser.add_argument("--eval-dataset-name", default=None, help="Name of the evaluation dataset")
-    parser.add_argument("--eval-version-name", default=None, help="Version name of the evaluation dataset")
     parser.add_argument("--eval-dataset-id", default=None, help="ID of the evaluation dataset")
     parser.add_argument("--eval-version-id", default=None, help="Version ID of the evaluation dataset")
+    parser.add_argument("--multi-node-agent", action="store_true", help="Use a dynamic multi node agent. Enterprise only feature")
+    parser.add_argument(
+        "--multi-node-type",
+        choices=["logical", "physical"],
+        default="physical",
+        help=(
+            "The type of nodes used in multi node training: logical or physical. "
+            + 'Logical option allows the multiple "nodes" to run on the same machine. '
+            + "Physical enforecs separation of nodes on different machines. "
+            + "Ignored if --multi-node-agent is not set. Enterprise only feature",
+        ),
+    )
 
     return parser.parse_args()
 
@@ -325,7 +311,7 @@ def _trainer_process_entry(
     gpus_per_node: int,
     world_size: int,
 ) -> None:
-    global_rank = int(os.environ.get("RANK", "0"))
+    global_rank = node_rank * gpus_per_node + local_rank
     if world_size > 1:
         os.environ["LOCAL_RANK"] = str(local_rank)
 
@@ -353,7 +339,7 @@ def _trainer_process_entry(
     eval_dataset = dataset
     has_eval_override = any(
         getattr(args, name) is not None
-        for name in ("eval_dataset_name", "eval_dataset_id", "eval_version_name", "eval_version_id", "eval_project")
+        for name in ("eval_dataset_id", "eval_version_id")
     )
     if has_eval_override:
         eval_dataset = resolve_dataset(args, prefix="eval_")
@@ -361,7 +347,6 @@ def _trainer_process_entry(
     model, tokenizer = prepare_model(args)
 
     query_kwargs = {
-        "project_id": dataset.project_id or "*",
         "dataset_id": dataset.dataset_id,
         "version_id": dataset.version_id,
     }
@@ -369,7 +354,6 @@ def _trainer_process_entry(
     eval_query_kwargs = None
     if not args.skip_eval:
         eval_query_kwargs = {
-            "project_id": eval_dataset.project_id or query_kwargs["project_id"],
             "dataset_id": eval_dataset.dataset_id,
             "version_id": eval_dataset.version_id,
         }
@@ -410,7 +394,6 @@ def _trainer_process_entry(
     trainer = Trainer(
         model=model,
         args=training_args,
-        tokenizer=tokenizer,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset_obj,
         data_collator=default_data_collator,
@@ -463,17 +446,33 @@ def main() -> None:
     )
     task = Task.init(project_name="Finetune", task_name="Finetune", output_uri=True)
 
+    if Task.running_locally():  # bind dataview to task when running locally for visibility
+        dv = DataView(auto_connect_with_task=True)
+        dv.add_query(
+            dataset_id=args.dataset_id,
+            version_id=args.version_id,
+        )
+
+    node_rank = 0
     if args.queue:
         task.set_packages("./requirements.txt")
         task.set_base_docker(
             docker_image="pytorch/pytorch:2.8.0-cuda12.8-cudnn9-runtime",
+            docker_arguments="-e PIP_EXTRA_INDEX_URL=https://download.pytorch.org/whl/cu130"
         )
-        task.execute_remotely(queue_name=args.queue)
 
-    node_rank = 0
-    if args.num_nodes > 1:
-        task.launch_multi_node(args.num_nodes, port=args.dist_port, devices=args.devices_per_node, wait=True)
-        node_rank = int(os.environ.get("NODE_RANK", "0"))
+    if args.num_nodes > 1 and args.queue:
+        if not args.multi_node_agent: 
+            task.execute_remotely(queue_name=args.queue)
+            task.launch_multi_node(args.num_nodes, port=args.dist_port, devices=args.devices_per_node, wait=True)
+        else:
+            task.set_user_properties(
+                {"name": "multi_node_request", "value": "[" + (f"{args.devices_per_node}," * args.num_nodes).rstrip(",") + "]"},
+                {"name": "multi_node_type", "value": args.multi_node_type},
+            )
+            task.execute_remotely(queue_name=args.queue)
+
+    node_rank = int(os.environ.get("NODE_RANK", "0"))
 
     visible_gpus = torch.cuda.device_count()
     if visible_gpus < 1:
@@ -497,3 +496,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
