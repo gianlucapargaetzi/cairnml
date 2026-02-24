@@ -538,7 +538,7 @@ class Task(_Task):
 
                 # if we are using threads to send the reports,
                 # after forking there are no threads, so we will need to recreate them
-                if not getattr(cls, "_report_subprocess_enabled"):
+                if not getattr(cls, "_report_subprocess_enabled", None):
                     # remove the logger from the previous process
                     cls.__main_task.get_logger()
                     # create a new logger (to catch stdout/err)
@@ -554,7 +554,7 @@ class Task(_Task):
 
                 # if we are using threads to send the reports,
                 # after forking there are no threads, so we will need to recreate them
-                if not getattr(cls, "_report_subprocess_enabled"):
+                if not getattr(cls, "_report_subprocess_enabled", None):
                     # start all reporting threads
                     BackgroundMonitor.start_all(task=cls.__main_task)
 
@@ -804,7 +804,7 @@ class Task(_Task):
             if auto_resource_monitoring and not is_sub_process_task_id:
                 resource_monitor_cls = (
                     auto_resource_monitoring
-                    if isinstance(auto_resource_monitoring, six.class_types)
+                    if isinstance(auto_resource_monitoring, type)
                     else ResourceMonitor
                 )
                 resource_monitor_kwargs = dict(
@@ -4425,7 +4425,7 @@ class Task(_Task):
                                     comment=make_message("Auto-generated at %(time)s by %(user)s@%(host)s"),
                                 )
 
-                except (Exception, ValueError):
+                except Exception:
                     # we failed reusing task, create a new one
                     default_task_id = None
 
