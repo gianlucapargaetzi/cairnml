@@ -1,8 +1,6 @@
 import base64
 from typing import Union, Optional, Any, TypeVar, Callable, Tuple
 
-import six
-
 try:
     from typing import Text
 except ImportError:
@@ -44,7 +42,7 @@ def safe_text_to_bool(value: Text) -> bool:
 
 
 def any_to_bool(value: Optional[Union[int, float, Text]]) -> bool:
-    if isinstance(value, six.text_type):
+    if isinstance(value, str):
         return text_to_bool(value)
     return bool(value)
 

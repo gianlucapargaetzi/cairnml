@@ -207,7 +207,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
             set(
                 six.string_types
                 + six.integer_types
-                + (six.text_type, float, list, tuple, dict, type(None), Enum)  # noqa
+                + (str, float, list, tuple, dict, type(None), Enum)  # noqa
             )
         )
         self._app_server = None

@@ -5505,7 +5505,7 @@ class Task(_Task):
         # compare after casting to string to avoid enum instance issues
         # remember we might have replaced the api version by now, so enums are different
         return all(
-            six.text_type(server_data) == six.text_type(task_data.get(task_data_key))
+            str(server_data) == str(task_data.get(task_data_key))
             for server_data, task_data_key in compares
         )
 
