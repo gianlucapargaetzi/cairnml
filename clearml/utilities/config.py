@@ -116,7 +116,7 @@ def verify_basic_value(value: Any) -> bool:
     # return True if value of of basic type (json serializable)
     if not isinstance(
         value,
-        six.string_types + six.integer_types + (six.text_type, float, list, tuple, dict, type(None)),
+        six.string_types + six.integer_types + (str, float, list, tuple, dict, type(None)),
     ):
         return False
     try:

@@ -46,7 +46,7 @@ class Unparser:
 
     def write(self, text: Any) -> None:
         """Append a piece of text to the current line."""
-        self.f.write(six.text_type(text))
+        self.f.write(str(text))
 
     def enter(self) -> None:
         """Print ':', and increase the indentation."""
