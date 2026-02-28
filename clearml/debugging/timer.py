@@ -1,9 +1,6 @@
 """ Timing support """
-import sys
 import time
 from typing import Callable, Optional, Dict, List, Any
-
-import six
 
 
 class Timer(object):
@@ -95,9 +92,9 @@ class TimersMixin(object):
     ) -> Any:
         try:
             return callable(self._timers[name])
-        except KeyError:
+        except KeyError as ex:
             if not silent_fail:
-                six.reraise(*sys.exc_info())
+                raise ex
 
     def reset_timers(self, *names: Any) -> None:
         for name in names:
