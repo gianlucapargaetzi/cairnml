@@ -3,7 +3,7 @@ import time
 from typing import Callable, Optional, Dict, List, Any
 
 
-class Timer(object):
+class Timer:
     """A class implementing a simple timer, with a reset option"""
 
     def __init__(self) -> None:
@@ -63,7 +63,7 @@ class Timer(object):
         return self.toc(average=average)
 
 
-class TimersMixin(object):
+class TimersMixin:
     def __init__(self) -> None:
         self._timers = {}
 
