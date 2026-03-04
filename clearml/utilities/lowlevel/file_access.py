@@ -3,8 +3,6 @@ import sys
 from functools import partial
 from typing import Optional, Callable, Any
 
-import six
-
 
 def __buffer_writer_close_patch(self) -> None:
     self._trains_org_close()
@@ -39,7 +37,7 @@ def get_filename_from_file_object(
     :param analyze_file_handle: If True, try to retrieve filename from file handler object (default: False)
     :return: string full path of file location or None if filename cannot be extract
     """
-    if isinstance(file_object, six.string_types):
+    if isinstance(file_object, str):
         # noinspection PyBroadException
         try:
             return os.path.abspath(file_object) if file_object else file_object

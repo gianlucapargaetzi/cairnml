@@ -13,7 +13,6 @@ from time import time
 from typing import Dict, Union, Optional, Sequence, Callable, TYPE_CHECKING, Any
 from zipfile import ZipFile, ZIP_DEFLATED
 
-import six
 import yaml
 from PIL import Image
 from pathlib2 import Path
@@ -427,7 +426,7 @@ class Artifacts:
 
         # try to convert string Path object (it might reference a file/folder)
         # dont not try to serialize long texts.
-        if isinstance(artifact_object, six.string_types) and artifact_object and len(artifact_object) < 2048:
+        if isinstance(artifact_object, str) and artifact_object and len(artifact_object) < 2048:
             # noinspection PyBroadException
             try:
                 artifact_path = Path(artifact_object)
@@ -753,7 +752,7 @@ class Artifacts:
             local_filename = artifact_object
             delete_after_upload = True
         elif (
-            isinstance(artifact_object, six.string_types)
+            isinstance(artifact_object, str)
             and len(artifact_object) < 4096
             and urlparse(artifact_object).scheme in remote_driver_schemes
         ):
@@ -764,7 +763,7 @@ class Artifacts:
             artifact_type_data.content_type = mimetypes.guess_type(artifact_object)[0]
             if preview:
                 artifact_type_data.preview = preview
-        elif isinstance(artifact_object, six.string_types) and artifact_object:
+        elif isinstance(artifact_object, str) and artifact_object:
             # if we got here, we should store it as text file.
             artifact_type = "string"
             artifact_type_data.content_type = "text/plain"

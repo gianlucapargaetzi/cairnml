@@ -2,11 +2,10 @@ from __future__ import absolute_import
 
 from typing import Union, Any
 
-import six
 import re
 from collections import namedtuple
 
-SCALAR_TYPES = tuple(list(six.string_types) + [int, float, bool])
+SCALAR_TYPES = (str, int, float, bool)
 
 ECMA_TO_PYTHON_FLAGS = {
     "i": re.I,
@@ -16,14 +15,6 @@ ECMA_TO_PYTHON_FLAGS = {
 PYTHON_TO_ECMA_FLAGS = dict((value, key) for key, value in ECMA_TO_PYTHON_FLAGS.items())
 
 PythonRegex = namedtuple("PythonRegex", ["regex", "flags"])
-
-
-def _normalize_string_type(value: Any) -> Union[str, Any]:
-    if isinstance(value, six.string_types):
-        return str(value)
-    else:
-        return value
-
 
 def _compare_dicts(one: dict, two: dict) -> bool:
     if len(one) != len(two):
@@ -73,9 +64,6 @@ def compare_schemas(one: Any, two: Any) -> bool:
     :rtype: `bool`
 
     """
-    one = _normalize_string_type(one)
-    two = _normalize_string_type(two)
-
     _assert_same_types(one, two)
 
     if isinstance(one, list):

@@ -1,7 +1,6 @@
 import sys
 from typing import Callable, Union, IO, Any
 
-import six
 from pathlib2 import Path
 
 from ..frameworks import _patched_call, WeightsFileHandler, _Empty
@@ -62,7 +61,7 @@ class PatchMegEngineModelIO(PatchBaseModelIO):
 
         # noinspection PyBroadException
         try:
-            if isinstance(f, six.string_types):
+            if isinstance(f, str):
                 filename = f
             elif hasattr(f, "as_posix"):
                 filename = f.as_posix()
@@ -73,7 +72,7 @@ class PatchMegEngineModelIO(PatchBaseModelIO):
                 except Exception:
                     pass
 
-                if not isinstance(f.name, six.string_types):
+                if not isinstance(f.name, str):
                     # Probably a BufferedRandom object that has no meaningful name (still no harm flushing)  # noqa
                     return ret
 
@@ -109,7 +108,7 @@ class PatchMegEngineModelIO(PatchBaseModelIO):
 
         # noinspection PyBroadException
         try:
-            if isinstance(f, six.string_types):
+            if isinstance(f, str):
                 filename = f
             elif hasattr(f, "as_posix"):
                 filename = f.as_posix()
@@ -145,7 +144,7 @@ class PatchMegEngineModelIO(PatchBaseModelIO):
 
         # noinspection PyBroadException
         try:
-            if isinstance(f, six.string_types):
+            if isinstance(f, str):
                 filename = f
             elif hasattr(f, "as_posix"):
                 filename = f.as_posix()

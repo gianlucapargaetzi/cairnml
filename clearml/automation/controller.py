@@ -5,7 +5,6 @@ import json
 import os
 import re
 
-import six
 import warnings
 from copy import copy, deepcopy
 from datetime import datetime
@@ -1709,7 +1708,7 @@ class PipelineController:
 
         :return: The new cloned PipelineController
         """
-        if isinstance(pipeline_controller, six.string_types):
+        if isinstance(pipeline_controller, str):
             pipeline_controller = Task.get_task(task_id=pipeline_controller)
         elif isinstance(pipeline_controller, PipelineController):
             pipeline_controller = pipeline_controller.task
@@ -2671,7 +2670,7 @@ class PipelineController:
                 # steps from tasks the _nodes is till empty, only after deserializing we will have the full DAG)
                 if self._task.running_locally():
                     self.__verify_step_reference(node=self.Node(name=name), step_ref_string=v)
-            elif not isinstance(v, (float, int, bool, six.string_types)):
+            elif not isinstance(v, (float, int, bool, str)):
                 function_input_artifacts[k] = "{}.{}.{}".format(self._task.id, name, k)
                 self._upload_pipeline_artifact(artifact_name="{}.{}".format(name, k), artifact_object=v)
 
@@ -3449,7 +3448,7 @@ class PipelineController:
             for g in pattern.findall(value):
                 # update with actual value
                 new_val = self.__parse_step_reference(g)
-                if not isinstance(new_val, six.string_types):
+                if not isinstance(new_val, str):
                     return new_val
                 updated_value = updated_value.replace(g, new_val, 1)
 
@@ -5371,7 +5370,7 @@ class PipelineDecorator(PipelineController):
                     return
 
         for k, v in kwargs.items():
-            if v is None or isinstance(v, (float, int, bool, six.string_types)):
+            if v is None or isinstance(v, (float, int, bool, str)):
                 _node.parameters["{}/{}".format(CreateFromFunction.kwargs_section, k)] = v
             else:
                 # we need to create an artifact

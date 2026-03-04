@@ -3,7 +3,6 @@ from collections import namedtuple
 from functools import partial
 from typing import Optional, Callable, Union, Dict, List, Any
 
-import six
 from pathlib2 import Path
 
 from .base import IdObjectBase
@@ -216,7 +215,7 @@ class Model(IdObjectBase, AsyncManagerMixin, _StorageUriMixin):
         if not design:
             return ""
 
-        if isinstance(design, six.string_types):
+        if isinstance(design, str):
             return design
 
         if isinstance(design, dict):
