@@ -3,7 +3,6 @@ import re
 from typing import Dict, Set, Any
 
 import attr
-import six
 
 from ...utilities.pyhocon import ConfigTree
 from .action import Action
@@ -116,7 +115,7 @@ class Service:
         refs = set()
         if isinstance(s, dict):
             for k, v in s.items():
-                if isinstance(v, six.string_types):
+                if isinstance(v, str):
                     m = self.__jsonschema_ref_ex.match(v)
                     if m:
                         refs.add(m.group(1))

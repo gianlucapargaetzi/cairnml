@@ -3,7 +3,6 @@ from functools import wraps
 from typing import Callable, List, Type, Union, Any
 
 import attr
-import six
 
 
 class DeferredExecutionPool:
@@ -90,7 +89,7 @@ class DeferredExecution:
     ) -> Any:
         if callable(condition_or_attr_name):
             return condition_or_attr_name(instance)
-        elif isinstance(condition_or_attr_name, six.string_types):
+        elif isinstance(condition_or_attr_name, str):
             return getattr(instance, condition_or_attr_name)
         return condition_or_attr_name
 

@@ -1112,13 +1112,13 @@ class BaseModel:
 
     @staticmethod
     def _config_dict_to_text(config: Union[str, dict]) -> str:
-        if not isinstance(config, six.string_types) and not isinstance(config, dict):
+        if not isinstance(config, (str, dict)):
             raise ValueError("Model configuration only supports dictionary or string objects")
         return config_dict_to_text(config)
 
     @staticmethod
     def _text_to_config_dict(text: str) -> dict:
-        if not isinstance(text, six.string_types):
+        if not isinstance(text, str):
             raise ValueError("Model configuration parsing only supports string")
         return text_to_config_dict(text)
 
@@ -2655,7 +2655,7 @@ class OutputModel(BaseModel):
         """
         validate_dict(
             labels,
-            key_types=six.string_types,
+            key_types=str,
             value_types=six.integer_types,
             desc="label enumeration",
         )

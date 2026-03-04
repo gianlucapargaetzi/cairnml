@@ -1,7 +1,6 @@
 import sys
 from typing import Callable, Union, IO, Optional, Any
 
-import six
 from pathlib2 import Path
 
 from ..frameworks import _patched_call, WeightsFileHandler, _Empty
@@ -49,7 +48,7 @@ class PatchLIGHTgbmModelIO(PatchBaseModelIO):
         if not PatchLIGHTgbmModelIO._current_task:
             return ret
 
-        if isinstance(f, six.string_types):
+        if isinstance(f, str):
             filename = f
         elif hasattr(f, "name"):
             filename = f.name
@@ -82,11 +81,11 @@ class PatchLIGHTgbmModelIO(PatchBaseModelIO):
         if not PatchLIGHTgbmModelIO._current_task:
             return original_fn(model_file, *args, **kwargs)
 
-        if isinstance(model_file, six.string_types):
+        if isinstance(model_file, str):
             filename = model_file
         elif hasattr(model_file, "name"):
             filename = model_file.name
-        elif len(args) == 1 and isinstance(args[0], six.string_types):
+        elif len(args) == 1 and isinstance(args[0], str):
             filename = args[0]
         else:
             filename = None
