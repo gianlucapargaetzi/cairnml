@@ -2,7 +2,7 @@ import getpass
 import re
 from _socket import gethostname
 from datetime import datetime, timezone
-from typing import Optional, Any
+from typing import Optional, Any, Tuple, Union
 
 from ..backend_api.services import projects, queues
 from ..debugging.log import get_logger, LoggerRoot
@@ -245,7 +245,12 @@ def mutually_exclusive(
         raise _exception_cls("Only one of (%s) is allowed" % ", ".join(kwargs.keys()))
 
 
-def validate_dict(obj: dict, key_types: type, value_types: type, desc: str = "") -> None:
+def validate_dict(
+    obj: dict,
+    key_types: Union[type, Tuple[type]],
+    value_types: Union[type, Tuple[type]],
+    desc: str = "",
+) -> None:
     if not isinstance(obj, dict):
         raise ValueError("%sexpected a dictionary" % ("%s: " % desc if desc else ""))
     if not all(isinstance(x, key_types) for x in obj.keys()):

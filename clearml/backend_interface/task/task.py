@@ -206,8 +206,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         self._raise_on_validation_errors = raise_on_validation_errors
         self._parameters_allowed_types = tuple(
             set(
-                six.string_types
-                + six.integer_types
+                six.integer_types
                 + (str, float, list, tuple, dict, type(None), Enum)  # noqa
             )
         )
@@ -1564,7 +1563,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
                 return
             if not (
                 isinstance(enumeration, dict)
-                and all(isinstance(k, six.string_types) and isinstance(v, int) for k, v in enumeration.items())
+                and all(isinstance(k, str) and isinstance(v, int) for k, v in enumeration.items())
             ):
                 raise ValueError("Expected label to be a dict[str => int]")
             execution.model_labels = enumeration
@@ -1897,7 +1896,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
             return
 
         if not project_id:
-            assert isinstance(project_name, six.string_types)
+            assert isinstance(project_name, str)
             res = self.send(
                 projects.GetAllRequest(name=exact_match_regex(project_name)),
                 raise_on_errors=False,
@@ -1906,7 +1905,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
                 return False
             project_id = res.response.projects[0].id
 
-        assert isinstance(project_id, six.string_types)
+        assert isinstance(project_id, str)
         self._set_task_property("project", project_id)
         self._edit(project=project_id)
 
@@ -2839,7 +2838,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         # make sure we have str as values:
         for key in requirements.keys():
             # fix python2 support (str/unicode)
-            if requirements[key] and not isinstance(requirements[key], six.string_types):
+            if requirements[key] and not isinstance(requirements[key], str):
                 requirements[key] = "\n".join(requirements[key])
 
         # protection, Old API might not support it

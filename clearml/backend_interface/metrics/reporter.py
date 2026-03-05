@@ -546,7 +546,7 @@ class Reporter(InterfaceBase, AbstractContextManager, SetupUploadMixin, AsyncMan
                         else:
                             d[k] = to_base_type(v)
             plot = json.dumps(plot, default=default)
-        elif not isinstance(plot, six.string_types):
+        elif not isinstance(plot, str):
             raise ValueError("Plot should be a string or a dict")
 
         ev = PlotEvent(
@@ -686,7 +686,7 @@ class Reporter(InterfaceBase, AbstractContextManager, SetupUploadMixin, AsyncMan
             raise ValueError("Upload configuration is required (use setup_upload())")
         if len([x for x in (path, stream) if x is not None]) != 1:
             raise ValueError("Expected only one of [filename, stream]")
-        if isinstance(stream, six.string_types):
+        if isinstance(stream, str):
             stream = six.StringIO(stream)
 
         kwargs = dict(

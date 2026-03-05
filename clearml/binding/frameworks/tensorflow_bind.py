@@ -592,7 +592,7 @@ class EventTrainsWriter:
         # update scalar cache
         num, value = self._scalar_report_cache.get((title, series), (0, 0))
         # nan outputs is a string, it's probably a NaN
-        if isinstance(scalar_data, six.string_types):
+        if isinstance(scalar_data, str):
             # noinspection PyBroadException
             try:
                 scalar_data = float(scalar_data)

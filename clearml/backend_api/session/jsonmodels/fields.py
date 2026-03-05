@@ -2,8 +2,6 @@ import datetime
 import re
 from typing import Union, List, Optional, Type, Iterable, Tuple, Any
 from weakref import WeakKeyDictionary
-
-import six
 from dateutil.parser import parse
 
 from .errors import ValidationError
@@ -142,7 +140,7 @@ class BaseField:
 class StringField(BaseField):
     """String field."""
 
-    types = six.string_types
+    types = (str,)
 
 
 class IntField(BaseField):
@@ -213,7 +211,7 @@ class ListField(BaseField):
 
         types = []
         for type_ in self.items_types:
-            if isinstance(type_, six.string_types):
+            if isinstance(type_, str):
                 types.append(_LazyType(type_))
             else:
                 types.append(type_)
@@ -301,7 +299,7 @@ class EmbeddedField(BaseField):
 
         types = []
         for type_ in model_types:
-            if isinstance(type_, six.string_types):
+            if isinstance(type_, str):
                 types.append(_LazyType(type_))
             else:
                 types.append(type_)
