@@ -2,8 +2,6 @@ from typing import Any
 
 import requests
 
-import six
-
 from . import jsonmodels
 from .apimodel import ApiModel
 from .datamodel import NonStrictDataModelMixin
@@ -14,7 +12,7 @@ class FloatOrStringField(jsonmodels.fields.BaseField):
 
     types = (
         float,
-        six.string_types,
+        str,
     )
 
 

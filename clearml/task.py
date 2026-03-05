@@ -36,7 +36,6 @@ from typing import (
 )
 
 import psutil
-import six
 from pathlib2 import Path
 
 from .backend_config.defs import get_active_config_file, get_config_file
@@ -233,7 +232,7 @@ class Task(_Task):
 
         @classmethod
         def _options(cls):
-            return {var for var, val in vars(cls).items() if isinstance(val, six.string_types)}
+            return {var for var, val in vars(cls).items() if isinstance(val, str)}
 
     def __init__(self, private: Optional[Any] = None, **kwargs: Any) -> None:
         """
@@ -587,7 +586,7 @@ class Task(_Task):
             # Backwards compatibility: if called from Task.current_task and task_type
             # was not specified, keep legacy default value of TaskTypes.training
             task_type = cls.TaskTypes.training
-        elif isinstance(task_type, six.string_types):
+        elif isinstance(task_type, str):
             if task_type not in Task.TaskTypes.__members__:
                 raise ValueError(
                     "Task type '{}' not supported, options are: {}".format(task_type, Task.TaskTypes.__members__.keys())
@@ -1791,15 +1790,15 @@ class Task(_Task):
         :return: The new cloned Task (experiment).
         :rtype: Task
         """
-        assert isinstance(source_task, (six.string_types, Task))
+        assert isinstance(source_task, (str, Task))
         if not Session.check_min_api_version("2.4"):
             raise ValueError(
                 "ClearML-server does not support DevOps features, upgrade clearml-server to 0.12.0 or above"
             )
 
-        task_id = source_task if isinstance(source_task, six.string_types) else source_task.id
+        task_id = source_task if isinstance(source_task, str) else source_task.id
         if not parent:
-            if isinstance(source_task, six.string_types):
+            if isinstance(source_task, str):
                 source_task = cls.get_task(task_id=source_task)
             parent = source_task.id if not source_task.parent else source_task.parent
         elif isinstance(parent, Task):
@@ -1864,7 +1863,7 @@ class Task(_Task):
               - ``execution.queue`` - The ID of the queue where the Task is enqueued. ``null`` indicates not enqueued.
 
         """
-        assert isinstance(task, (six.string_types, Task))
+        assert isinstance(task, (str, Task))
         if not Session.check_min_api_version("2.4"):
             raise ValueError(
                 "ClearML-server does not support DevOps features, upgrade clearml-server to 0.12.0 or above"
@@ -1873,7 +1872,7 @@ class Task(_Task):
         # make sure we have wither name ot id
         mutually_exclusive(queue_name=queue_name, queue_id=queue_id)
 
-        task_id = task if isinstance(task, six.string_types) else task.id
+        task_id = task if isinstance(task, str) else task.id
         session = cls._get_default_session()
         if not queue_id:
             queue_id = get_queue_id(session, queue_name)
@@ -1964,13 +1963,13 @@ class Task(_Task):
         - ``updated`` - The number of Tasks updated (an integer or ``null``).
 
         """
-        assert isinstance(task, (six.string_types, Task))
+        assert isinstance(task, (str, Task))
         if not Session.check_min_api_version("2.4"):
             raise ValueError(
                 "ClearML-server does not support DevOps features, upgrade clearml-server to 0.12.0 or above"
             )
 
-        task_id = task if isinstance(task, six.string_types) else task.id
+        task_id = task if isinstance(task, str) else task.id
         session = cls._get_default_session()
         req = tasks.DequeueRequest(task=task_id)
         res = cls._send(session=session, req=req)
@@ -2009,7 +2008,7 @@ class Task(_Task):
         :param tags: A list of tags which describe the Task to add.
         """
 
-        if isinstance(tags, six.string_types):
+        if isinstance(tags, str):
             tags = tags.split(" ")
 
         self.data.tags = list(
@@ -2219,7 +2218,7 @@ class Task(_Task):
         )
         pathlib_Path = None  # noqa
         cast_Path = Path
-        if not isinstance(configuration, (dict, list, Path, six.string_types)):
+        if not isinstance(configuration, (dict, list, Path, str)):
             try:
                 from pathlib import Path as pathlib_Path  # noqa
             except ImportError:
@@ -3868,7 +3867,7 @@ class Task(_Task):
         if not target_task:
             project_name = task_data.get("project_name") or Task._get_project_name(task_data.get("project", ""))
             target_task = Task.create(project_name=project_name, task_name=task_data.get("name", None))
-        elif isinstance(target_task, six.string_types):
+        elif isinstance(target_task, str):
             target_task: Optional[Task] = Task.get_task(task_id=target_task)
         elif not isinstance(target_task, Task):
             raise ValueError(
@@ -5227,7 +5226,7 @@ class Task(_Task):
         **kwargs: Any,
     ) -> List["Task"]:
         if task_ids:
-            if isinstance(task_ids, six.string_types):
+            if isinstance(task_ids, str):
                 task_ids = [task_ids]
             return [
                 cls(
@@ -5262,7 +5261,7 @@ class Task(_Task):
         res = None
         if not task_ids:
             task_ids = None
-        elif isinstance(task_ids, six.string_types):
+        elif isinstance(task_ids, str):
             task_ids = [task_ids]
 
         if project_name and isinstance(project_name, str):

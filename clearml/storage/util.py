@@ -7,7 +7,6 @@ import sys
 from typing import Optional, Union, Sequence, Dict, Callable, List, Any, Tuple
 from zlib import crc32
 
-import six
 from pathlib2 import Path
 from six.moves.urllib.parse import quote, urlparse, urlunparse
 
@@ -15,7 +14,7 @@ from ..debugging.log import LoggerRoot
 
 
 def get_config_object_matcher(**patterns: Any) -> Callable:
-    unsupported = {k: v for k, v in patterns.items() if not isinstance(v, six.string_types)}
+    unsupported = {k: v for k, v in patterns.items() if not isinstance(v, str)}
     if unsupported:
         raise ValueError(
             "Unsupported object matcher (expecting string): %s"

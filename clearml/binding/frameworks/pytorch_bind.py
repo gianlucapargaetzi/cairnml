@@ -3,7 +3,6 @@ import sys
 import threading
 from typing import Callable, Optional, Any
 
-import six
 from pathlib2 import Path
 
 from ..frameworks import (
@@ -225,7 +224,7 @@ class PatchPyTorchModelIO(PatchBaseModelIO):
 
         # noinspection PyBroadException
         try:
-            if isinstance(f, six.string_types):
+            if isinstance(f, str):
                 filename = f
             elif hasattr(f, "as_posix"):
                 filename = f.as_posix()
@@ -236,7 +235,7 @@ class PatchPyTorchModelIO(PatchBaseModelIO):
                 except Exception:
                     pass
 
-                if not isinstance(f.name, six.string_types):
+                if not isinstance(f.name, str):
                     # Probably a BufferedRandom object that has no meaningful name (still no harm flushing)
                     return ret
 
@@ -271,7 +270,7 @@ class PatchPyTorchModelIO(PatchBaseModelIO):
 
         # noinspection PyBroadException
         try:
-            if isinstance(f, six.string_types):
+            if isinstance(f, str):
                 filename = f
             elif hasattr(f, "as_posix"):
                 filename = f.as_posix()
@@ -314,7 +313,7 @@ class PatchPyTorchModelIO(PatchBaseModelIO):
 
         # noinspection PyBroadException
         try:
-            if isinstance(f, six.string_types):
+            if isinstance(f, str):
                 filename = f
             elif hasattr(f, "as_posix"):
                 filename = f.as_posix()

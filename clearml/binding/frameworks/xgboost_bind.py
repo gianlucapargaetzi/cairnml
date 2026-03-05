@@ -1,7 +1,6 @@
 import sys
 from typing import Callable, Union, IO, Optional, Dict, List, TYPE_CHECKING, Any
 
-import six
 from pathlib2 import Path
 
 from ..frameworks import _patched_call, WeightsFileHandler, _Empty
@@ -72,7 +71,7 @@ class PatchXGBoostModelIO(PatchBaseModelIO):
         if not PatchXGBoostModelIO._current_task:
             return ret
 
-        if isinstance(f, six.string_types):
+        if isinstance(f, str):
             filename = f
         elif hasattr(f, "name"):
             filename = f.name
@@ -105,11 +104,11 @@ class PatchXGBoostModelIO(PatchBaseModelIO):
         if not PatchXGBoostModelIO._current_task:
             return original_fn(f, *args, **kwargs)
 
-        if isinstance(f, six.string_types):
+        if isinstance(f, str):
             filename = f
         elif hasattr(f, "name"):
             filename = f.name
-        elif len(args) == 1 and isinstance(args[0], six.string_types):
+        elif len(args) == 1 and isinstance(args[0], str):
             filename = args[0]
         else:
             filename = None
