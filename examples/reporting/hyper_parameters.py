@@ -115,6 +115,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    print('Running under Python {0[0]}.{0[1]}.{0[2]}'.format(sys.version_info), file=sys.stderr)
+    python_version = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+    print(f"Running under Python {python_version}", file=sys.stderr)
     task_params = task.get_parameters()
     print("Task parameters are: {}".format(task_params))
