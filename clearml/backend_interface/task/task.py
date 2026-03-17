@@ -23,7 +23,6 @@ try:
 except ImportError:
     from collections import Iterable
 
-import six
 from six.moves.urllib.parse import quote
 
 from ...utilities.locks import RLock as FileRLock
@@ -204,12 +203,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         self.__reporter = None
         self._curr_label_stats = {}
         self._raise_on_validation_errors = raise_on_validation_errors
-        self._parameters_allowed_types = tuple(
-            set(
-                six.integer_types
-                + (str, float, list, tuple, dict, type(None), Enum)  # noqa
-            )
-        )
+        self._parameters_allowed_types = (str, int, float, list, tuple, dict, type(None), Enum)
         self._app_server = None
         self._files_server = None
         self._initial_iteration_offset = 0
