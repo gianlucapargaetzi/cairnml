@@ -1,5 +1,4 @@
 import os
-import sys
 from typing import Any
 
 from . import constants
@@ -8,10 +7,7 @@ from . import exceptions
 if os.name == "nt":  # pragma: no cover
     import msvcrt
 
-    if sys.version_info.major == 2:
-        lock_length = -1
-    else:
-        lock_length = int(2**31 - 1)
+    lock_length = int(2**31 - 1)
 
     def lock(file_: Any, flags: int) -> None:
         if flags & constants.LOCK_SH:
@@ -20,17 +16,10 @@ if os.name == "nt":  # pragma: no cover
             import winerror
 
             __overlapped = pywintypes.OVERLAPPED()
-            if sys.version_info.major == 2:
-                if flags & constants.LOCK_NB:
-                    mode = constants.LOCKFILE_FAIL_IMMEDIATELY
-                else:
-                    mode = 0
-
+            if flags & constants.LOCK_NB:
+                mode = msvcrt.LK_NBRLCK
             else:
-                if flags & constants.LOCK_NB:
-                    mode = msvcrt.LK_NBRLCK
-                else:
-                    mode = msvcrt.LK_RLCK
+                mode = msvcrt.LK_RLCK
 
             # is there any reason not to reuse the following structure?
             hfile = win32file._get_osfhandle(file_.fileno())
