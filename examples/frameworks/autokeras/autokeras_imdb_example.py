@@ -5,7 +5,7 @@ except ImportError:
 
     raise ImportError(
         "autokeras package is missing, you can install it using pip: pip install autokeras"
-        if sys.version_info.minor > 6
+        if (sys.version_info.major, sys.version_info.minor) > (3, 6)
         else "AutoKeras does not support python version < 3.7"
     )
 
