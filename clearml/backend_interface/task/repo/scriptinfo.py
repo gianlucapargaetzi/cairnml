@@ -227,7 +227,8 @@ class ScriptRequirements:
             pass
 
         # python version header
-        requirements_txt = "# Python " + sys.version.replace("\n", " ").replace("\r", " ") + "\n"
+        python_version = sys.version.replace('\n', ' ').replace('\r', ' ')
+        requirements_txt = f"# Python {python_version}\n"
 
         if local_pks:
             requirements_txt += "\n# Local modules found - skipping:\n"
@@ -1239,7 +1240,7 @@ class ScriptInfo:
             diff=diff,
             ide=ide,
             requirements={"pip": requirements, "conda": conda_requirements} if requirements else None,
-            binary="python{}.{}".format(sys.version_info.major, sys.version_info.minor),
+            binary=f"python{sys.version_info.major}.{sys.version_info.minor}",
             repo_root=repo_root,
             jupyter_filepath=jupyter_filepath,
         )
