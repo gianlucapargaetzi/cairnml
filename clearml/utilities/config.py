@@ -4,7 +4,6 @@ import json
 from typing import Union, Any
 
 import pyparsing
-import six
 
 from .dicts import hocon_quote_key, hocon_unquote_key
 from .pyhocon import ConfigFactory, HOCONConverter
@@ -116,7 +115,7 @@ def verify_basic_value(value: Any) -> bool:
     # return True if value of of basic type (json serializable)
     if not isinstance(
         value,
-        six.integer_types + (str, float, list, tuple, dict, type(None)),
+        (str, int, float, list, tuple, dict, type(None)),
     ):
         return False
     try:
