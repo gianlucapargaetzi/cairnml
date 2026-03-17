@@ -26,7 +26,6 @@ jobs:
             --arg user_login "$USER_LOGIN" \
             --arg issue_url "$ISSUE_URL" \
             --arg pylon_account_id "$PYLON_ACCOUNT_ID" \
-            --arg body_html_template "$BODY_HTML_TEMPLATE" \
             '{
               title: $issue_title,
               body_html: (
