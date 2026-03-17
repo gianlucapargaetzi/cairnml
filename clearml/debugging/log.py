@@ -55,8 +55,8 @@ class PickledLogger(logging.getLoggerClass()):
 
     @staticmethod
     def wrapper(a_instance: "PickledLogger", func: callable, **kwargs: Any) -> "PickledLogger":
-        # if python 3.7 and above Loggers are pickle-able
-        if sys.version_info.major >= 3 and sys.version_info.minor >= 7:
+        # if python version is >= 3.7, Loggers are pickle-able
+        if (sys.version_info.major, sys.version_info.minor) >= (3, 7):
             return a_instance
 
         safe_logger = PickledLogger(name=kwargs.get("name"))

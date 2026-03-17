@@ -29,7 +29,7 @@ def _lowlevel_async_raise(thread_obj: threading.Thread, exception: Exception = N
     if not exception:
         exception = SystemExit()
 
-    if sys.version_info.major >= 3 and sys.version_info.minor >= 7:
+    if (sys.version_info.major, sys.version_info.minor) >= (3, 7):
         target_tid = ctypes.c_ulong(target_tid)
         NULL = ctypes.c_ulong(NULL)  # noqa
     else:
