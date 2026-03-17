@@ -22,7 +22,8 @@ flags.DEFINE_string("echo5", "5", "Text to echo.", module_name="test")
 
 
 def main(_):
-    print("Running under Python {0[0]}.{0[1]}.{0[2]}".format(sys.version_info), file=sys.stderr)
+    python_version = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+    print(f"Running under Python {python_version}", file=sys.stderr)
     logging.info("echo is %s.", FLAGS.echo)
     logging.info("echo3 is %s.", FLAGS.echo3)
 

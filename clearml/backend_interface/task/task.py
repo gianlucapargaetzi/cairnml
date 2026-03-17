@@ -376,9 +376,8 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
                         requirements, conda_requirements = pip_freeze(
                             combine_conda_with_pip=config.get("development.detect_with_conda_freeze", True)
                         )
-                    requirements = (
-                        "# Python " + sys.version.replace("\n", " ").replace("\r", " ") + "\n\n" + requirements
-                    )
+                    python_version = sys.version.replace('\n', ' ').replace('\r', ' ')
+                    requirements = f"# Python {python_version}\n\n{requirements}"
                 else:
                     (
                         requirements,
