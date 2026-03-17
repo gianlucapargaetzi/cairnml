@@ -17,7 +17,7 @@ try:
 except ImportError:
     raise ImportError(
         "megengine package is missing, you can install it using pip: pip install megengine"
-        if sys.version_info.minor <= 8
+        if (sys.version_info.major, sys.version_info.minor) <= (3, 8)
         else "MegEngine does not support python version >= 3.9"
     )
 
