@@ -1,7 +1,5 @@
 from typing import Tuple, Dict, Iterator, Any, Generator
 
-import six
-
 from . import parsers, errors
 from .fields import BaseField
 from .errors import ValidationError
@@ -23,7 +21,7 @@ class JsonmodelMeta(type):
             taken_names.add(structue_name)
 
 
-class Base(six.with_metaclass(JsonmodelMeta, object)):
+class Base(metaclass=JsonmodelMeta):
     """Base class for all models."""
 
     def __init__(self, **kwargs: Any) -> None:
