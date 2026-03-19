@@ -4,7 +4,6 @@ from copy import copy
 from logging import getLogger
 from typing import Callable, Union, Optional, Mapping, Tuple, Dict, Any
 
-import six
 import yaml
 
 
@@ -452,7 +451,7 @@ class WrapperBase(type):
         return type.__new__(mcs, classname, bases, attrs)
 
 
-class LazyEvalWrapper(six.with_metaclass(WrapperBase)):
+class LazyEvalWrapper(metaclass=WrapperBase):
     # This class acts as a proxy for the wrapped instance it is passed. All
     # access to its attributes are delegated to the wrapped class, except
     # those contained in __overrides__.
@@ -512,7 +511,7 @@ class LazyEvalWrapper(six.with_metaclass(WrapperBase)):
 
 
 def lazy_eval_wrapper_spec_class(class_type: type) -> type:
-    class TypedLazyEvalWrapper(six.with_metaclass(WrapperBase)):
+    class TypedLazyEvalWrapper(metaclass=WrapperBase):
         _base_class_ = class_type
         __slots__ = ["_wrapped", "_callback", "__weakref__"]
 
