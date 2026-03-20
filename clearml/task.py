@@ -1,5 +1,3 @@
-import itertools
-
 import numpy
 import copy
 import json
@@ -2007,15 +2005,38 @@ class Task(_Task):
 
         :param tags: A list of tags which describe the Task to add.
         """
-
-        if isinstance(tags, str):
-            tags = tags.split(" ")
-
-        self.data.tags = list(
-            set(
-                itertools.chain(self.data.tags or [], tags)
-            )
+        tags_to_add = (
+            tags.split(" ")
+            if isinstance(tags, str)
+            else tags
         )
+
+        self.data.tags = list(set(
+            *(self.data.tags or []),
+            *tags_to_add,
+        ))
+
+        self._edit(tags=self.data.tags)
+
+    def remove_tags(self, tags: Union[Sequence[str], str]):
+        """
+        Remove Tags from this task. Old tags that aren't specified are not deleted. When executing a Task (experiment) remotely,
+        this method has no effect).
+
+        :param tags: A list of tags to add to the Task.
+        """
+        tags_to_remove = (
+            tags.split(" ")
+            if isinstance(tags, str)
+            else tags
+        )
+
+        self.data.tags = [
+            tag
+            for tag in (self.data.tags or [])
+            if tag not in tags_to_remove
+        ]
+
         self._edit(tags=self.data.tags)
 
     def connect(
