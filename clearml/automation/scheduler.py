@@ -19,6 +19,18 @@ from ..backend_interface.util import (
 from ..task import Task
 
 
+def _as_utc_datetime(value: Optional[datetime]) -> Optional[datetime]:
+    if value is None:
+        return None
+    if value.tzinfo is None or value.tzinfo.utcoffset(value) is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
+def _datetime_from_isoformat_as_utc(value: Union[str, datetime, None]) -> Optional[datetime]:
+    return _as_utc_datetime(datetime_from_isoformat(value))
+
+
 @attrs
 class BaseScheduleJob:
     name = attrib(type=str, default=None)
@@ -92,16 +104,16 @@ class ScheduleJob(BaseScheduleJob):
 
     execution_limit_hours = attrib(type=float, default=None)
     recurring = attrib(type=bool, default=True)
-    starting_time = attrib(type=datetime, converter=datetime_from_isoformat, default=None)
+    starting_time = attrib(type=datetime, converter=_datetime_from_isoformat_as_utc, default=None)
     minute = attrib(type=float, default=None)
     hour = attrib(type=float, default=None)
     day = attrib(default=None)
     weekdays = attrib(default=None)
     month = attrib(type=float, default=None)
     year = attrib(type=float, default=None)
-    _next_run = attrib(type=datetime, converter=datetime_from_isoformat, default=None)
-    _execution_timeout = attrib(type=datetime, converter=datetime_from_isoformat, default=None)
-    _last_executed = attrib(type=datetime, converter=datetime_from_isoformat, default=None)
+    _next_run = attrib(type=datetime, converter=_datetime_from_isoformat_as_utc, default=None)
+    _execution_timeout = attrib(type=datetime, converter=_datetime_from_isoformat_as_utc, default=None)
+    _last_executed = attrib(type=datetime, converter=_datetime_from_isoformat_as_utc, default=None)
     _schedule_counter = attrib(type=int, default=0)
 
     def verify(self) -> None:
@@ -159,6 +171,7 @@ class ScheduleJob(BaseScheduleJob):
                 day=int(self.day or 1),
                 hour=int(self.hour or 0),
                 minute=int(self.minute or 0),
+                tzinfo=timezone.utc,
             )
             if self.weekdays:
                 self._next_run += relativedelta(weekday=self.get_weekday_ord(self.weekdays[0]))
@@ -198,18 +211,22 @@ class ScheduleJob(BaseScheduleJob):
         return self._next_run
 
     def _calc_next_run(self, prev_timestamp: datetime, weekday: Optional[int]) -> datetime:
+        prev_timestamp = _as_utc_datetime(prev_timestamp)
+
         # make sure that if we have a specific day we zero the minutes/hours/seconds
         if self.year:
             prev_timestamp = datetime(
                 year=prev_timestamp.year,
                 month=self.month or prev_timestamp.month,
                 day=self.day or 1,
+                tzinfo=timezone.utc,
             )
         elif self.month:
             prev_timestamp = datetime(
                 year=prev_timestamp.year,
                 month=prev_timestamp.month,
                 day=self.day or 1,
+                tzinfo=timezone.utc,
             )
         elif self.day is None and weekday is not None:
             # notice we assume every X hours on specific weekdays
@@ -220,6 +237,7 @@ class ScheduleJob(BaseScheduleJob):
                 day=prev_timestamp.day,
                 hour=prev_timestamp.hour,
                 minute=prev_timestamp.minute,
+                tzinfo=timezone.utc,
             )
             next_timestamp += relativedelta(
                 years=self.year or 0,
@@ -234,6 +252,7 @@ class ScheduleJob(BaseScheduleJob):
                     year=prev_timestamp.year,
                     month=prev_timestamp.month,
                     day=prev_timestamp.day,
+                    tzinfo=timezone.utc,
                 ) + relativedelta(
                     years=self.year or 0,
                     months=0 if self.year else (self.month or 0),
@@ -250,6 +269,7 @@ class ScheduleJob(BaseScheduleJob):
                 year=prev_timestamp.year,
                 month=prev_timestamp.month,
                 day=prev_timestamp.day,
+                tzinfo=timezone.utc,
             ) + relativedelta(days=1)
         elif self.day:
             # reset minutes in the hour (we will be adding additional hour/minute anyhow)
@@ -257,6 +277,7 @@ class ScheduleJob(BaseScheduleJob):
                 year=prev_timestamp.year,
                 month=prev_timestamp.month,
                 day=prev_timestamp.day,
+                tzinfo=timezone.utc,
             )
         elif self.hour:
             # reset minutes in the hour (we will be adding additional minutes anyhow)
@@ -265,6 +286,7 @@ class ScheduleJob(BaseScheduleJob):
                 month=prev_timestamp.month,
                 day=prev_timestamp.day,
                 hour=prev_timestamp.hour,
+                tzinfo=timezone.utc,
             )
 
         return prev_timestamp + relativedelta(
@@ -278,7 +300,7 @@ class ScheduleJob(BaseScheduleJob):
 
     def run(self, task_id: Optional[str]) -> datetime:
         super(ScheduleJob, self).run(task_id)
-        if self._last_executed or self.starting_time != datetime.fromtimestamp(0):
+        if self._last_executed or self.starting_time != datetime.fromtimestamp(0, timezone.utc):
             self._schedule_counter += 1
 
         self._last_executed = datetime.now(timezone.utc)
@@ -301,8 +323,8 @@ class ScheduleJob(BaseScheduleJob):
 @attrs
 class ExecutedJob:
     name = attrib(type=str, default=None)
-    started = attrib(type=datetime, converter=datetime_from_isoformat, default=None)
-    finished = attrib(type=datetime, converter=datetime_from_isoformat, default=None)
+    started = attrib(type=datetime, converter=_datetime_from_isoformat_as_utc, default=None)
+    finished = attrib(type=datetime, converter=_datetime_from_isoformat_as_utc, default=None)
     task_id = attrib(type=str, default=None)
     thread_id = attrib(type=str, default=None)
 
@@ -706,7 +728,7 @@ class TaskScheduler(BaseScheduler):
             task_parameters=task_parameters,
             task_overrides=task_overrides,
             clone_task=not bool(reuse_task),
-            starting_time=datetime.fromtimestamp(0) if execute_immediately else datetime.now(timezone.utc),
+            starting_time=datetime.fromtimestamp(0, timezone.utc) if execute_immediately else datetime.now(timezone.utc),
             minute=minute,
             hour=hour,
             day=day,
@@ -759,6 +781,14 @@ class TaskScheduler(BaseScheduler):
         # update next execution datetime
         for j in self._schedule_jobs:
             j.next()
+
+        if self._timeout_jobs and any(
+            timeout_dt is not None and (timeout_dt.tzinfo is None or timeout_dt.tzinfo.utcoffset(timeout_dt) is None)
+            for timeout_dt in self._timeout_jobs
+        ):
+            self._timeout_jobs = {
+                _as_utc_datetime(timeout_dt): task_id for timeout_dt, task_id in self._timeout_jobs.items() if timeout_dt
+            }
 
         # get idle timeout (aka sleeping)
         scheduled_jobs = sorted(
@@ -851,7 +881,10 @@ class TaskScheduler(BaseScheduler):
                     serialized_jobs_dicts=state_dict.get("scheduled_jobs", []),
                     current_jobs=self._schedule_jobs,
                 )
-                self._timeout_jobs = {datetime_from_isoformat(k): v for k, v in (state_dict.get("timeout_jobs") or {})}
+                self._timeout_jobs = {
+                    _datetime_from_isoformat_as_utc(k): v
+                    for k, v in (state_dict.get("timeout_jobs") or {}).items()
+                }
                 self._executed_jobs = [ExecutedJob(**j) for j in state_dict.get("executed_jobs", [])]
 
     def _deserialize(self) -> None:
@@ -1002,7 +1035,7 @@ class TaskScheduler(BaseScheduler):
             # add timeout check
             if job.get_execution_timeout():
                 # we should probably make sure we are not overwriting a Task
-                self._timeout_jobs[job.get_execution_timeout()] = task_job.task_id()
+                self._timeout_jobs[_as_utc_datetime(job.get_execution_timeout())] = task_job.task_id()
         return task_job
 
     def _launch_job_function(self, job: ScheduleJob, func_args: Optional[Sequence] = None) -> Optional[Thread]:
