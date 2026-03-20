@@ -2651,8 +2651,8 @@ class OutputModel(BaseModel):
         """
         validate_dict(
             labels,
-            key_types=str,
-            value_types=six.integer_types,
+            key_types=(str,),
+            value_types=(int,),
             desc="label enumeration",
         )
 
