@@ -1,6 +1,6 @@
 from __future__ import unicode_literals
 
-import abc
+from abc import ABC, abstractmethod
 import types
 from argparse import Namespace
 from collections import OrderedDict
@@ -274,8 +274,7 @@ class TableResponse(Response):
         return len(self.response)
 
 
-@six.add_metaclass(abc.ABCMeta)
-class Entity:
+class Entity(ABC):
     """
     Represent a server object.
     Enables calls like:
@@ -287,7 +286,7 @@ class Entity:
     """
 
     @property
-    @abc.abstractmethod
+    @abstractmethod
     def entity_name(self) -> str:
         """
         Singular name of entity
@@ -295,7 +294,7 @@ class Entity:
         pass
 
     @property
-    @abc.abstractmethod
+    @abstractmethod
     def get_by_id_request(self) -> Type[APIRequest]:
         """
         get_by_id request class
@@ -433,17 +432,17 @@ def make_action(service: "Service", request_cls: Type["APIRequest"]) -> Callable
     return get
 
 
-@six.add_metaclass(abc.ABCMeta)
-class Service:
+class Service(ABC):
     """
     Superclass for action-grouping classes.
     """
-
-    name = abc.abstractproperty()
-    __doc__ = abc.abstractproperty()
-
     def __init__(self, session: Session) -> None:
         self.session = session
+
+    @property
+    @abstractmethod
+    def name(self):
+        pass
 
 
 def get_requests(service: Service) -> OrderedDict:

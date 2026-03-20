@@ -1,4 +1,4 @@
-import abc
+from abc import ABC, abstractmethod
 import math
 import os
 import shutil
@@ -19,7 +19,6 @@ from typing import (
 from uuid import uuid4
 
 import numpy as np
-import six
 
 try:
     import pandas as pd
@@ -170,8 +169,7 @@ class Framework(Options):
         )
 
 
-@six.add_metaclass(abc.ABCMeta)
-class BaseModel:
+class BaseModel(ABC):
     # noinspection PyProtectedMember
     _archived_tag = _Task.archived_tag
     _package_tag = "package"
@@ -1094,11 +1092,11 @@ class BaseModel:
             raise ValueError("task argument must be of Task type")
         self._task = value
 
-    @abc.abstractmethod
+    @abstractmethod
     def _get_model_data(self) -> Any:
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def _get_base_model(self) -> _Model:
         pass
 

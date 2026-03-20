@@ -11,7 +11,6 @@ from typing import (
     Any,
 )
 
-import six
 import attr
 from attr import validators
 
@@ -123,8 +122,7 @@ class _AttrsMeta(type):
         return attr.s(new_class)
 
 
-@six.add_metaclass(_AttrsMeta)
-class TaskParameters:
+class TaskParameters(metaclass=_AttrsMeta):
     """
     Base class for task parameters.
 
