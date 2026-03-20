@@ -1,14 +1,11 @@
-from abc import ABCMeta, abstractmethod
+from abc import ABC, abstractmethod
 from typing import Callable, Union, IO, TYPE_CHECKING, Any
-
-import six
 
 if TYPE_CHECKING:
     from clearml import Task
 
 
-@six.add_metaclass(ABCMeta)
-class PatchBaseModelIO:
+class PatchBaseModelIO(ABC):
     """
     Base class for patched models
 

@@ -1,7 +1,5 @@
-from abc import ABCMeta, abstractmethod
+from abc import ABC, abstractmethod
 from typing import Any
-
-import six
 
 
 class SendError(Exception):
@@ -16,8 +14,7 @@ class SendError(Exception):
         self._result = result
 
 
-@six.add_metaclass(ABCMeta)
-class SessionInterface:
+class SessionInterface(ABC):
     """Session wrapper interface providing a session property and a send convenience method"""
 
     @property
