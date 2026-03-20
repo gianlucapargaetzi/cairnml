@@ -332,10 +332,35 @@ def get_common_path(list_of_files: Sequence[Union[str, Path]]) -> Optional[str]:
 
 
 def is_within_directory(directory: str, target: str) -> bool:
-    abs_directory = os.path.abspath(directory)
-    abs_target = os.path.abspath(target)
-    prefix = os.path.commonprefix([abs_directory, abs_target])
-    return prefix == abs_directory
+    """
+    Checks if the 'target' path (formatted as a str) is within the suggested directory (also a str).
+    Converts paths to absolute paths by prefixing relative paths with the output of os.getcwd()
+    (via `os.path.abspath`), so that relative paths can be compared
+    on equal terms with other paths.
+
+    Examples:
+        is_within_directory("a", "a/b.txt") == True
+        is_within_directory("", "a/b.txt") == True
+        is_within_directory("a/b", "a/b/c/d.txt") == True
+        is_within_directory("a", "a.txt") == False # 'directory' variable refers to folder, not file
+        is_within_directory("a/b/c", "a/b/cd") == False # sibling directories with related names don't work
+        is_within_directory("a/b/cd", "a/b/ce") == False # sibling directories with related names don't work
+        is_within_directory("a/b/c/e", "a/b/cd") == False # sibling directories don't work
+
+    :param str target: Path to folder/file to check for containment in directory.
+    :param str directory: Path to folder to check for containment of target file/folder.
+    """
+    directory_absolute_path = Path(os.path.abspath(directory))
+    target_absolute_path = Path(os.path.abspath(target))
+
+    return (
+        len(target_absolute_path.parts) >= len(directory_absolute_path.parts)
+        and
+        directory_absolute_path.parts == (
+            target_absolute_path.parts[:len(directory_absolute_path.parts)]
+        )
+    )
+
 
 
 def create_zip_directories(zipfile: Any, path: Optional[Union[str, os.PathLike]] = None) -> None:
