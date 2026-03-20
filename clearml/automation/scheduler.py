@@ -13,6 +13,7 @@ from .job import ClearmlJob
 from ..backend_interface.util import (
     datetime_from_isoformat,
     datetime_to_isoformat,
+    get_queue_id,
     mutually_exclusive,
 )
 from ..task import Task
@@ -455,6 +456,19 @@ class BaseScheduler:
                 job.run(None)
                 return None
 
+        # noinspection PyProtectedMember
+        queue_id = get_queue_id(Task._get_default_session(), job.queue)
+        if not queue_id:
+            self._log(
+                "Skipping Task {} scheduling, queue '{}' was not found or is inaccessible.".format(
+                    job.name,
+                    job.queue,
+                ),
+                level=logging.WARNING,
+            )
+            job.run(None)
+            return None
+
         # actually run the job
         task_job = ClearmlJob(
             base_task_id=job.base_task_id,
@@ -466,9 +480,19 @@ class BaseScheduler:
             tags=[add_tags] if add_tags and isinstance(add_tags, str) else add_tags,
         )
         self._log("Scheduling Job {}, Task {} on queue {}.".format(job.name, task_job.task_id(), job.queue))
-        if task_job.launch(queue_name=job.queue):
-            # mark as run
-            job.run(task_job.task_id())
+        if not task_job.launch(queue_name=queue_id):
+            self._log(
+                "Skipping Task {} scheduling, failed enqueuing Task {} on queue '{}'.".format(
+                    job.name,
+                    task_job.task_id(),
+                    job.queue,
+                ),
+                level=logging.WARNING,
+            )
+            job.run(None)
+            return None
+
+        job.run(task_job.task_id())
         return task_job
 
     def _launch_job_function(self, job: BaseScheduleJob, func_args: Optional[Sequence] = None) -> Optional[Thread]:
