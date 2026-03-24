@@ -6,14 +6,7 @@ from ..base import IdObjectBase
 from ..util import exact_match_regex
 from ..session import SendError
 from ...task import Task
-
-# handle import in offline mode
-_SaveFramesRequest = datasets.SaveFramesRequest if getattr(datasets, "SaveFramesRequest", None) else object
-
-
-class _SaveFramesRequestNoValidate(_SaveFramesRequest):
-    def validate(self, schema=None):
-        pass
+from .save_frames_request_no_validate_wrapped import _get_save_frames_request_no_validate
 
 
 class HyperDatasetManagementBackend(IdObjectBase):
@@ -134,7 +127,7 @@ class HyperDatasetManagementBackend(IdObjectBase):
                 frames.append(de.to_api_object())
             else:
                 frames.append(de)
-        req = _SaveFramesRequestNoValidate(version=dataset_id, frames=frames)
+        req = _get_save_frames_request_no_validate()(version=dataset_id, frames=frames)
         res = cls._send(cls._get_default_session(), req)
         return res.response
 
