@@ -2011,10 +2011,10 @@ class Task(_Task):
             else tags
         )
 
-        self.data.tags = list(set(
+        self.data.tags = list(set((
             *(self.data.tags or []),
             *tags_to_add,
-        ))
+        )))
 
         self._edit(tags=self.data.tags)
 
@@ -4486,7 +4486,7 @@ class Task(_Task):
 
         # add Task tags
         if tags:
-            task.add_tags([tags] if isinstance(tags, str) else tags)
+            task.add_tags(tags)
 
         # force update of base logger to this current task (this is the main logger task)
         logger = task._get_logger(auto_connect_streams=auto_connect_streams)
