@@ -333,14 +333,14 @@ class Task(_Task):
             task.upload_artifact('myArtifact', d)
 
         .. note::
-            Call `Task.init` at the very beginning of your script's execution
+            Call ``Task.init`` at the very beginning of your script's execution
             (you can define classes and functions before that if needed).
-            The `clearml` code intercepts the execution done by your libraries such as pytorch,
+            The ``clearml`` code intercepts the execution done by your libraries such as pytorch,
             so if you execute code before initializing your task, this might lead to memory leaks,
             zombie child processes, etc.
 
-            An ideal location to call it is right after the `if __name__ == "__main__":` line
-            (assuming all your code execution is in this `if` statement block).
+            An ideal location to call it is right after the ``if __name__ == "__main__":`` line
+            (assuming all your code execution is in this ``if`` statement block).
 
         :param str project_name: The name of the project in which the experiment will be created. If the project does
             not exist, it is created. If ``project_name`` is ``None``, the repository name is used. (Optional)
