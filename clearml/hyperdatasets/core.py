@@ -6,7 +6,7 @@ import psutil
 from requests.compat import json as requests_json
 
 from clearml.backend_api import Session
-from clearml.backend_interface.datasets.hyper_dataset import HyperDatasetManagementBackend, _SaveFramesRequestNoValidate
+from clearml.backend_interface.datasets.hyper_dataset import HyperDatasetManagementBackend
 from clearml.backend_interface.util import get_or_create_project
 from clearml.storage.helper import StorageHelperDiskSpaceFileSizeStrategy
 from clearml.storage.manager import StorageManagerDiskSpaceFileSizeStrategy
@@ -14,6 +14,7 @@ from clearml.storage.util import sha256sum
 from .data_entry import DataEntry, ENTRY_CLASS_KEY, _resolve_class
 from .data_entry_image import DataEntryImage
 from .management import HyperDatasetManagement
+from ..backend_interface.datasets.save_frames_request_no_validate_wrapped import _get_save_frames_request_no_validate
 
 
 COMMIT_ERROR_KEY = "__commit_version_error__"
@@ -167,7 +168,7 @@ class HyperDataset(HyperDatasetManagement):
         current_batch_size = 0
         errors = {}
         request_fixed_size = len(
-            requests_json.dumps(_SaveFramesRequestNoValidate(version=self._version_id, frames=[]).to_dict()).encode(
+            requests_json.dumps(_get_save_frames_request_no_validate()(version=self._version_id, frames=[]).to_dict()).encode(
                 "utf-8"
             )
         )
