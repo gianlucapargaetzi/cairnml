@@ -878,10 +878,14 @@ class Session(TokenManager):
         if isinstance(feature_set, str):
             feature_set = [feature_set]
         if cls.feature_set not in feature_set:
-            raise ValueError("ClearML-server does not support requested feature set '{}'{}".format(
-                feature_set,
-                f" ({extra_msg})" if extra_msg else ""
-            ))
+            # make sure the feature set is fetched from a session
+            if not cls._get_all_active_sessions():
+                Session()  # create a temporary session such that feature_set is populated
+            if cls.feature_set not in feature_set:
+                raise ValueError("ClearML-server does not support requested feature set '{}'{}".format(
+                    feature_set,
+                    f" ({extra_msg})" if extra_msg else ""
+                ))
 
     @staticmethod
     def _version_tuple(v: str) -> Tuple[int]:

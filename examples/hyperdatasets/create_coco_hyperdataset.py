@@ -227,7 +227,7 @@ def build_data_entries(
                 "annotation_id": ann.get("id"),
                 "category_id": category_id,
                 "category_name": category_name,
-                "area": ann.get("area"),
+                "area": float(ann.get("area")),
                 "iscrowd": bool(ann.get("iscrowd", 0)),
             }
 
