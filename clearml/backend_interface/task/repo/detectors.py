@@ -1,11 +1,10 @@
-import abc
+from abc import ABC
 import logging
 import os
 from subprocess import call, CalledProcessError
 from typing import Any
 
 import attr
-import six
 from pathlib2 import Path
 
 from ....config.defs import (
@@ -41,8 +40,7 @@ class Result:
         return not any(attr.asdict(self).values())
 
 
-@six.add_metaclass(abc.ABCMeta)
-class Detector:
+class Detector(ABC):
     """Base class for repository detection"""
 
     """

@@ -1,15 +1,13 @@
 import sys
-from abc import ABCMeta, abstractmethod
+from abc import ABC, abstractmethod
 from time import time
 from typing import Optional, Any
 
 import jwt
 from jwt.algorithms import get_default_algorithms
-import six
 
 
-@six.add_metaclass(ABCMeta)
-class TokenManager:
+class TokenManager(ABC):
     @property
     def token_expiration_threshold_sec(self) -> int:
         return self.__token_expiration_threshold_sec

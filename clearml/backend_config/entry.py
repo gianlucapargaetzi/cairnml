@@ -1,7 +1,5 @@
-import abc
+from abc import ABC, abstractmethod
 from typing import Optional, Any, Tuple, Callable, Dict
-
-import six
 
 from .converters import any_to_bool
 
@@ -10,8 +8,7 @@ NotSet = object()
 Converter = Callable[[Any], Any]
 
 
-@six.add_metaclass(abc.ABCMeta)
-class Entry:
+class Entry(ABC):
     """
     Configuration entry definition
     """
@@ -80,11 +77,11 @@ class Entry:
     def _set(self, key: str, value: str) -> None:
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def _get(self, key: str) -> Any:
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def error(self, message: str) -> None:
         pass
 
