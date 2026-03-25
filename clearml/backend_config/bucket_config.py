@@ -1,4 +1,4 @@
-import abc
+from abc import ABC, abstractmethod
 import logging
 import warnings
 from copy import copy
@@ -7,7 +7,6 @@ from os import getenv
 from typing import Tuple, Dict, List, Union, Optional, Any
 
 import furl
-import six
 from attr import attrib, attrs
 
 
@@ -93,8 +92,7 @@ class S3BucketConfig:
 BucketConfig = S3BucketConfig
 
 
-@six.add_metaclass(abc.ABCMeta)
-class BaseBucketConfigurations:
+class BaseBucketConfigurations(ABC):
     def __init__(self, buckets: Optional[List[Any]] = None, *_: Any, **__: Any) -> None:
         self._buckets = buckets or []
         self._prefixes = None
@@ -105,7 +103,7 @@ class BaseBucketConfigurations:
         prefixes = ((config, self._get_prefix_from_bucket_config(config)) for config in self._buckets)
         self._prefixes = sorted(prefixes, key=itemgetter(1), reverse=True)
 
-    @abc.abstractmethod
+    @abstractmethod
     def _get_prefix_from_bucket_config(self, config: "GSBucketConfig") -> str:
         pass
 

@@ -1,9 +1,8 @@
-import abc
+from abc import ABC, abstractmethod
 import logging
 from typing import Any, Optional
 
 import requests.exceptions
-import six
 import jsonschema
 
 from ..backend_api import Session, CallResult
@@ -175,8 +174,7 @@ class InterfaceBase(SessionInterface):
         return self._get_default_session()
 
 
-@six.add_metaclass(abc.ABCMeta)
-class IdObjectBase(InterfaceBase):
+class IdObjectBase(InterfaceBase, ABC):
     def __init__(self, id: str, session: Session = None, log: logging.Logger = None, **kwargs: Any) -> None:
         super(IdObjectBase, self).__init__(session, log, **kwargs)
         self._data = None
@@ -200,7 +198,7 @@ class IdObjectBase(InterfaceBase):
             self.reload()
         return self._data
 
-    @abc.abstractmethod
+    @abstractmethod
     def _reload(self) -> None:
         pass
 

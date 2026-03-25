@@ -14,7 +14,7 @@ import sys
 import threading
 import uuid
 from _socket import gethostname
-from abc import ABCMeta, abstractmethod
+from abc import ABC, abstractmethod
 from collections import namedtuple
 from concurrent.futures import ThreadPoolExecutor
 from copy import copy
@@ -92,7 +92,7 @@ class DownloadError(Exception):
     pass
 
 
-class _Driver(metaclass=ABCMeta):
+class _Driver(ABC):
     _certs_cache_context = "certs"
     _file_server_hosts = None
 

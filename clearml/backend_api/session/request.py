@@ -1,7 +1,6 @@
-import abc
+from abc import ABC, abstractmethod
 from typing import Union, List, Tuple, Dict, Any
 
-import six
 from jsonschema.exceptions import FormatError, SchemaError, ValidationError
 
 try:
@@ -45,9 +44,11 @@ class Request(ApiModel):
         return self._method
 
 
-@six.add_metaclass(abc.ABCMeta)
-class BatchRequest(Request):
-    _batched_request_cls = abc.abstractproperty()
+class BatchRequest(Request, ABC):
+    @property
+    @abstractmethod
+    def _batched_request_cls(self):
+        pass
 
     _schema_errors = (SchemaError, ValidationError, FormatError, Unresolvable)
 

@@ -1,20 +1,17 @@
 """ Convenience classes supporting python3-like concepts """
-import abc
+from abc import ABC, abstractmethod
 from types import TracebackType
 from typing import Optional, Type
 
-import six
 
-
-@six.add_metaclass(abc.ABCMeta)
-class AbstractContextManager:
+class AbstractContextManager(ABC):
     """An abstract base class for context managers. Supported in contextlib from python 3.6 and up"""
 
     def __enter__(self) -> "AbstractContextManager":
         """Return `self` upon entering the runtime context."""
         return self
 
-    @abc.abstractmethod
+    @abstractmethod
     def __exit__(
         self,
         exc_type: Optional[Type[BaseException]],
