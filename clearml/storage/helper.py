@@ -288,8 +288,13 @@ class _HttpDriver(_Driver):
         self._containers = {}
 
     @classmethod
-    def _get_extra_file_server_hosts(cls) -> List[str]:
-        return config.get("storage.http.legacy_fileservers", None) or None
+    def _get_extra_file_server_hosts(cls) -> Optional[List[str]]:
+        plot_dest = str(config.get("metrics.plot_upload_destination", "") or "").strip()
+        hosts = [
+          *(config.get("storage.http.legacy_fileservers", []) or []),
+          *([plot_dest] if plot_dest else []),
+        ]
+        return hosts or None
 
     def get_container(
         self,
