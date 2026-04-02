@@ -200,22 +200,25 @@ class _Driver(ABC):
         # import here to avoid circular imports
         from .manager import StorageManager
 
-        cls.get_logger().info(f"Attempting to download remote certificate '{cert_url}'")
+        logger = cls.get_logger()
+        logger.info(f"Attempting to download remote certificate '{cert_url}'")
         potential_exception = None
         downloaded_verify = None
         try:
             downloaded_verify = StorageManager.get_local_copy(cert_url, cache_context=cls._certs_cache_context)
         except Exception as e:
             potential_exception = e
+
         if not downloaded_verify:
-            cls.get_logger().error(
-                "Failed downloading remote certificate '{}'{}".format(
-                    cert_url,
-                    "Error is: {}".format(potential_exception) if potential_exception else "",
-                )
+            error_msg = (
+                f"Failed downloading remote certificate '{cert_url}' Error is: {potential_exception}"
+                if potential_exception
+                else f"Failed downloading remote certificate '{cert_url}'"
             )
+            logger.error(error_msg, exc_info=logger.isEnabledFor(logging.DEBUG))
         else:
-            cls.get_logger().info(f"Successfully downloaded remote certificate '{cert_url}'")
+            logger.info(f"Successfully downloaded remote certificate '{cert_url}'")
+
         return downloaded_verify
 
 
@@ -517,7 +520,11 @@ class _Stream:
                     self.closed = True
                     raise StopIteration()
                 except Exception as ex:
-                    _Driver.get_logger().error("Failed downloading: %s" % ex)
+                    logger = _Driver.get_logger()
+                    logger.error(
+                        f"Failed downloading: {ex}",
+                        exc_info=logger.isEnabledFor(logging.DEBUG),
+                    )
             else:
                 # in/out stream
                 try:
@@ -691,6 +698,7 @@ class _Boto3Driver(_Driver):
     ) -> bool:
         import boto3.s3.transfer
 
+        logger = self.get_logger()
         stream = _Stream(iterator)
         extra_args = {}
         try:
@@ -726,10 +734,16 @@ class _Boto3Driver(_Driver):
                     ExtraArgs=extra_args,
                 )
             except Exception as ex:
-                self.get_logger().error("Failed uploading: %s" % ex)
+                logger.error(
+                    f"Failed uploading: {ex}",
+                    exc_info=logger.isEnabledFor(logging.DEBUG),
+                )
                 return False
         except Exception as ex:
-            self.get_logger().error("Failed uploading: %s" % ex)
+            logger.error(
+                f"Failed uploading: {ex}",
+                exc_info=logger.isEnabledFor(logging.DEBUG),
+            )
             return False
         return True
 
@@ -743,6 +757,7 @@ class _Boto3Driver(_Driver):
         **kwargs: Any,
     ) -> bool:
         import boto3.s3.transfer
+        logger = self.get_logger()
 
         extra_args = {}
         try:
@@ -778,10 +793,16 @@ class _Boto3Driver(_Driver):
                     ExtraArgs=extra_args,
                 )
             except Exception as ex:
-                self.get_logger().error("Failed uploading: %s" % ex)
+                logger.error(
+                    f"Failed uploading: {ex}",
+                    exc_info=logger.isEnabledFor(logging.DEBUG),
+                )
                 return False
         except Exception as ex:
-            self.get_logger().error("Failed uploading: %s" % ex)
+            logger.error(
+                f"Failed uploading: {ex}",
+                exc_info=logger.isEnabledFor(logging.DEBUG),
+            )
             return False
         return True
 
@@ -838,7 +859,12 @@ class _Boto3Driver(_Driver):
             except Exception as ex:
                 if cb:
                     cb.close()
-                (log or self.get_logger()).error("Failed downloading: %s" % ex)
+
+                logger = log or self.get_logger()
+                logger.error(
+                    f"Failed downloading: {ex}",
+                    exc_info=logger.isEnabledFor(logging.DEBUG),
+                )
             a_stream.close()
 
         import boto3.s3.transfer
@@ -935,7 +961,7 @@ class _Boto3Driver(_Driver):
         except ClientError as ex:
             msg = ex.response["Error"]["Message"]
             if log_on_error and log:
-                log.error(msg)
+                log.error(msg, exc_info=log.isEnabledFor(logging.DEBUG))
 
             if raise_on_error:
                 raise
@@ -943,7 +969,7 @@ class _Boto3Driver(_Driver):
         except Exception as ex:
             msg = str(ex)
             if log_on_error and log:
-                log.error(msg)
+                log.error(msg, exc_info=log.isEnabledFor(logging.DEBUG))
 
             if raise_on_error:
                 raise
@@ -951,7 +977,7 @@ class _Boto3Driver(_Driver):
         msg = ("Failed testing access to bucket %s: " % conf.bucket) + msg
 
         if log_on_error and log:
-            log.error(msg)
+            log.error(msg, exc_info=log.isEnabledFor(logging.DEBUG))
 
         if raise_on_error:
             raise StorageError(msg)
@@ -1106,7 +1132,8 @@ class _GoogleCloudStorageDriver(_Driver):
             blob = container.bucket.blob(object_name)
             blob.upload_from_file(iterator)
         except Exception as ex:
-            self.get_logger().error("Failed uploading: %s" % ex)
+            logger = self.get_logger()
+            logger.error(f"Failed uploading: {ex}", exc_info=logger.isEnabledFor(logging.DEBUG))
             return False
         return True
 
@@ -1122,7 +1149,8 @@ class _GoogleCloudStorageDriver(_Driver):
             blob = container.bucket.blob(object_name)
             blob.upload_from_filename(file_path)
         except Exception as ex:
-            self.get_logger().error("Failed uploading: %s" % ex)
+            logger = self.get_logger()
+            logger.error(f"Failed uploading: {ex}", exc_info=logger.isEnabledFor(logging.DEBUG))
             return False
         return True
 
@@ -1177,7 +1205,8 @@ class _GoogleCloudStorageDriver(_Driver):
             try:
                 a_obj.download_to_file(a_stream)
             except Exception as ex:
-                self.get_logger().error("Failed downloading: %s" % ex)
+                logger = self.get_logger()
+                logger.error(f"Failed downloading: {ex}", exc_info=logger.isEnabledFor(logging.DEBUG))
             a_stream.close()
 
         # return iterable object
@@ -1462,6 +1491,7 @@ class _AzureBlobServiceStorageDriver(_Driver):
 
             AzureHttpError = HttpResponseError  # noqa
 
+        logger = self.get_logger()
         blob_name = self._blob_name_from_object_path(object_name, container.name)  # noqa: F841
         try:
             container.create_blob_from_data(
@@ -1474,9 +1504,15 @@ class _AzureBlobServiceStorageDriver(_Driver):
             )
             return True
         except AzureHttpError as ex:
-            self.get_logger().error("Failed uploading (Azure error): %s" % ex)
+            logger.error(
+                f"Failed uploading (Azure error): {ex}",
+                exc_info=logger.isEnabledFor(logging.DEBUG),
+            )
         except Exception as ex:
-            self.get_logger().error("Failed uploading: %s" % ex)
+            logger.error(
+                f"Failed uploading: {ex}",
+                exc_info=logger.isEnabledFor(logging.DEBUG),
+            )
         return False
 
     def upload_object(
@@ -1496,6 +1532,7 @@ class _AzureBlobServiceStorageDriver(_Driver):
 
             AzureHttpError = HttpResponseError  # noqa
 
+        logger = self.get_logger()
         blob_name = self._blob_name_from_object_path(object_name, container.name)
         try:
             from azure.storage.blob import ContentSettings  # noqa
@@ -1510,9 +1547,15 @@ class _AzureBlobServiceStorageDriver(_Driver):
             )
             return True
         except AzureHttpError as ex:
-            self.get_logger().error("Failed uploading (Azure error): %s" % ex)
+            logger.error(
+                f"Failed uploading (Azure error): {ex}",
+                exc_info=logger.isEnabledFor(logging.DEBUG),
+            )
         except Exception as ex:
-            self.get_logger().error("Failed uploading: %s" % ex)
+            logger.error(
+                f"Failed uploading: {ex}",
+                exc_info=logger.isEnabledFor(logging.DEBUG),
+            )
 
     def list_container_objects(
         self,
@@ -2407,14 +2450,18 @@ class _StorageHelper:
         if (instance_key in cls._helpers) and (not force_create) and base_url != "file://":
             return cls._helpers[instance_key]
 
+        logger = cls._get_logger()
         # Don't canonize URL since we already did it
         try:
             instance = cls(base_url=base_url, url=url, logger=logger, canonize_url=False, **kwargs)
         except (StorageError, UsageError) as ex:
-            cls._get_logger().error(str(ex))
+            logger.error(str(ex), exc_info=logger.isEnabledFor(logging.DEBUG))
             return None
         except Exception as ex:
-            cls._get_logger().error(f"Failed creating storage object {base_url or url} Reason: {ex}")
+            logger.error(
+                f"Failed creating storage object {base_url or url} Reason: {ex}",
+                exc_info=logger.isEnabledFor(logging.DEBUG),
+            )
             return None
 
         cls._helpers[instance_key] = instance
@@ -2453,13 +2500,17 @@ class _StorageHelper:
     ) -> None:
         level = config.get("storage.log.level", None)
 
+        storage_logger = self._get_logger()
         if level:
             try:
-                self._get_logger().setLevel(level)
+                storage_logger.setLevel(level)
             except (TypeError, ValueError):
-                self._get_logger().error("invalid storage log level in configuration: %s" % level)
+                storage_logger.error(
+                    f"invalid storage log level in configuration: {level}",
+                    exc_info=storage_logger.isEnabledFor(logging.DEBUG),
+                )
 
-        self._log = logger or self._get_logger()
+        self._log = logger or storage_logger
         self._verbose = verbose
         self._retries = retries
         self._extra = {}
@@ -3177,7 +3228,10 @@ class _StorageHelper:
         except Exception as e:
             if cb:
                 cb.close()
-            self._log.error(f"Could not download {remote_path} , err: {e} ")
+            self._log.error(
+                f"Could not download {remote_path} , err: {e} ",
+                exc_info=self._log.isEnabledFor(logging.DEBUG),
+            )
             if delete_on_failure and temp_local_path:
                 # noinspection PyBroadException
                 try:
@@ -3198,7 +3252,10 @@ class _StorageHelper:
         except DownloadError:
             raise
         except Exception as e:
-            self._log.error("Could not download file : %s, err:%s " % (remote_path, str(e)))
+            self._log.error(
+                f"Could not download file : {remote_path}, err:{e} ",
+                exc_info=self._log.isEnabledFor(logging.DEBUG),
+            )
             return None
 
     def download_as_nparray(self, remote_path: str, chunk_size: Optional[int] = None) -> Optional[numpy.ndarray]:
@@ -3218,7 +3275,10 @@ class _StorageHelper:
                 return np.asarray(bytearray(b"".join(stream)), dtype=np.uint8)
 
         except Exception as e:
-            self._log.error("Could not download file : %s, err:%s " % (remote_path, str(e)))
+            self._log.error(
+                f"Could not download file : {remote_path}, err:{e} ",
+                exc_info=self._log.isEnabledFor(logging.DEBUG),
+            )
 
     def delete(self, path: str, silent: bool = False) -> bool:
         path = self._canonize_url(path)
@@ -3428,7 +3488,10 @@ class _StorageHelper:
             try:
                 cb(None)
             except Exception as e:
-                self._log.error("Calling upload callback when starting upload: %s" % str(e))
+                self._log.error(
+                    f"Calling upload callback when starting upload: {e}",
+                    exc_info=self._log.isEnabledFor(logging.DEBUG),
+                )
         if verbose:
             msg = "Starting upload: {} => {}{}".format(
                 src_path,
@@ -3454,7 +3517,10 @@ class _StorageHelper:
                 last_ex = e
 
         if last_ex:
-            self._log.error("Exception encountered while uploading %s" % str(last_ex))
+            self._log.error(
+                f"Exception encountered while uploading {last_ex}",
+                exc_info=self._log.isEnabledFor(logging.DEBUG),
+            )
             if cb:
                 try:
                     cb(False)
@@ -3878,7 +3944,8 @@ class StorageHelper(_StorageHelper):
                 except Exception:
                     if not silence_errors:
                         self._log.error(
-                            f"Could not download {remote_path} to local path. Note that the download to the cache succeeded"
+                            f"Could not download {remote_path} to local path. Note that the download to the cache succeeded",
+                            exc_info=self._log.isEnabledFor(logging.DEBUG),
                         )
             return download_path
         except self._NotDirectOrCached:
@@ -4078,9 +4145,12 @@ class StorageHelper(_StorageHelper):
         direct_path, canonized_url, absolute_url = self._get_direct_access_path(remote_path)
         if direct_path and allow_direct_access:
             if not os.path.isfile(direct_path) and not silence_errors:
-                self._log.error("Direct access path does not exist " +
-                                ("%s" % remote_path if remote_path == direct_path else
-                                 "(%s => %s)" % (remote_path, direct_path)))
+                error_msg = (
+                    f"Direct access path does not exist {remote_path}"
+                    if remote_path == direct_path else
+                    f"Direct access path does not exist ({remote_path} => {direct_path})"
+                )
+                self._log.error(error_msg, exc_info=self._log.isEnabledFor(logging.DEBUG))
                 return None
             return str(direct_path)
         # don't bother checking, look for the entry on the cache lookup table
@@ -4319,7 +4389,10 @@ class StorageHelper(_StorageHelper):
                         self._pre_delete_hooks[client_name](candidate)
                     except Exception as exc:
                         if log:
-                            log.error(f"Pre delete hook of client {client_name} failed: {exc}")
+                            log.error(
+                                f"Pre delete hook of client {client_name} failed: {exc}",
+                                exc_info=log.isEnabledFor(logging.DEBUG),
+                            )
 
                 try:
                     # Remove file and update cache size
