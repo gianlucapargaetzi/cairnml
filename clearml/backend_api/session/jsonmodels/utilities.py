@@ -1,6 +1,6 @@
 from __future__ import absolute_import
 
-from typing import Union, Any
+from typing import Any
 
 import re
 from collections import namedtuple
@@ -15,6 +15,7 @@ ECMA_TO_PYTHON_FLAGS = {
 PYTHON_TO_ECMA_FLAGS = dict((value, key) for key, value in ECMA_TO_PYTHON_FLAGS.items())
 
 PythonRegex = namedtuple("PythonRegex", ["regex", "flags"])
+
 
 def _compare_dicts(one: dict, two: dict) -> bool:
     if len(one) != len(two):

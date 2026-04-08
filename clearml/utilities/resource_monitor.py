@@ -3,7 +3,6 @@ import os
 import platform
 import sys
 import warnings
-from math import ceil, log10
 from time import time
 from typing import Dict, List, Any
 
@@ -133,7 +132,7 @@ class ResourceMonitor(BackgroundMonitor):
         multi_node_single_task_reporting = False
         report_node_as_series = False
         rank = 0
-        world_size_digits = 0
+        world_size_digits = 1
         # check if we are in multi-node reporting to the same Task
         # noinspection PyBroadException
         try:
@@ -152,8 +151,27 @@ class ResourceMonitor(BackgroundMonitor):
 
                 # noinspection PyBroadException
                 try:
-                    rank = int(os.environ.get("RANK", os.environ.get("SLURM_PROCID")) or 0)
-                    world_size_digits = ceil(log10(int(os.environ.get("WORLD_SIZE") or 0)))
+                    if "GROUP_RANK" in os.environ:
+                        rank = int(os.environ["GROUP_RANK"])
+                    elif "NODE_RANK" in os.environ:
+                        rank = int(os.environ["NODE_RANK"])
+                    elif all(k in os.environ for k in ("RANK", "LOCAL_WORLD_SIZE", "LOCAL_RANK")):
+                        rank = (int(os.environ["RANK"]) - int(os.environ["LOCAL_RANK"])) // int(
+                            os.environ["LOCAL_WORLD_SIZE"]
+                        )
+                    elif "RANK" in os.environ:
+                        rank = int(os.environ["RANK"])
+                    elif "SLURM_NODEID" in os.environ:
+                        rank = int(os.environ["SLURM_NODEID"])
+                except Exception:
+                    pass
+
+                # noinspection PyBroadException
+                try:
+                    if "WORLD_SIZE" in os.environ:
+                        world_size_digits = len(str(os.environ["WORLD_SIZE"])) or 1
+                    elif "SLURM_NNODES" in os.environ:
+                        world_size_digits = len(str(os.environ["SLURM_NNODES"])) or 1
                 except Exception:
                     pass
         except Exception:
