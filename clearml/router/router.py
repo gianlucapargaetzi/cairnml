@@ -190,14 +190,12 @@ class HttpRouter:
             instead of generating it based on the task ID. Useful for creating
             persistent, load balanced routes.
 
-        :return: If wait is False, this method will return None.
-            If no endpoint could be found while waiting, this method returns None.
-            Otherwise, it returns a dictionary containing the following values:
+        :return: If wait is False, this method will return None. If no endpoint could be found while waiting, this method returns None. Otherwise, it returns a dictionary containing the following values:
 
-            - endpoint - raw endpoint. One might need to authenticate in order to use this endpoint
-            - browser_endpoint - endpoint to be used in browser. Authentication will be handled via the browser
-            - port - the port exposed by the application
-            - protocol - the protocol used by the endpoint
+            - ``endpoint`` - raw endpoint. One might need to authenticate in order to use this endpoint
+            - ``browser_endpoint`` - endpoint to be used in browser. Authentication will be handled via the browser
+            - ``port`` - the port exposed by the application
+            - ``protocol`` - the protocol used by the endpoint
         """
         self._proxy = self._proxy or HttpProxy(**self._proxy_params)
         return self._task.request_external_endpoint(
@@ -221,13 +219,12 @@ class HttpRouter:
         :param wait_timeout_seconds: If this timeout is exceeded while waiting for the endpoint,
             the method will no longer wait
 
-        :return: If no endpoint could be found while waiting, this method returns None.
-            Otherwise, it returns a dictionary containing the following values:
+        :return: If no endpoint could be found while waiting, this method returns None. Otherwise, it returns a dictionary containing the following values:
 
-            - endpoint - raw endpoint. One might need to authenticate in order to use this endpoint
-            - browser_endpoint - endpoint to be used in browser. Authentication will be handled via the browser
-            - port - the port exposed by the application
-            - protocol - the protocol used by the endpoint
+            - ``endpoint`` - raw endpoint. One might need to authenticate in order to use this endpoint
+            - ``browser_endpoint`` - endpoint to be used in browser. Authentication will be handled via the browser
+            - ``port`` - the port exposed by the application
+            - ``protocol`` - the protocol used by the endpoint
         """
         return self._task.wait_for_external_endpoint(
             protocol="http",
@@ -241,9 +238,9 @@ class HttpRouter:
 
         :return: A list of dictionaries. Each dictionary contains the following values:
 
-            - endpoint - raw endpoint. One might need to authenticate in order to use this endpoint
-            - browser_endpoint - endpoint to be used in browser. Authentication will be handled via the browser
-            - port - the port exposed by the application
-            - protocol - the protocol used by the endpoint
+            - ``endpoint`` - raw endpoint. One might need to authenticate in order to use this endpoint
+            - ``browser_endpoint`` - endpoint to be used in browser. Authentication will be handled via the browser
+            - ``port`` - the port exposed by the application
+            - ``protocol`` - the protocol used by the endpoint
         """
         return self._task.list_external_endpoints(protocol="http")
