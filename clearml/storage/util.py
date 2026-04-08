@@ -362,7 +362,6 @@ def is_within_directory(directory: str, target: str) -> bool:
     )
 
 
-
 def create_zip_directories(zipfile: Any, path: Optional[Union[str, os.PathLike]] = None) -> None:
     try:
         path = os.getcwd() if path is None else os.fspath(path)

@@ -34,7 +34,7 @@ class CreateAndPopulate:
             "/bin/bash",
         )
     )
-    
+
     def __init__(
         self,
         project_name: Optional[str] = None,

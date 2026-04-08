@@ -1761,7 +1761,7 @@ class Dataset:
         """
         Get a specific Dataset. If multiple datasets are found, the dataset with the
         highest semantic version is returned. If no semantic version is found, the most recently
-        updated dataset is returned. This functions raises an Exception in case no dataset
+        updated dataset is returned. This function raises an Exception in case no dataset
         can be found and the ``auto_create=True`` flag is not set
 
         :param dataset_id: Requested dataset ID
@@ -1985,7 +1985,7 @@ class Dataset:
             Notice order does matter. The versions are merged from first to last.
         :param output_url: Target storage for the compressed dataset (default: file server)
             Examples: `s3://bucket/data`, `gs://bucket/data` , `azure://bucket/data` , `/mnt/share/data`
-        :param close_squashed_dataset: Whether the newly created dataset should be uploaded to `output_url` and finalized. 
+        :param close_squashed_dataset: Whether the newly created dataset should be uploaded to `output_url` and finalized.
         :return: Newly created dataset object.
         """
         if Dataset.is_offline():
