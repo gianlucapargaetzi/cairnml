@@ -186,10 +186,10 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         :type project_name: str
         :param task_type: Optional task type, used only if a new task is created. Default is training task.
         :type task_type: str (see tasks.TaskTypeEnum)
-        :param log_to_backend: If True, all calls to the task's log will be logged to the backend using the API.
+        :param log_to_backend: If ``True``, all calls to the task's log will be logged to the backend using the API.
             This value can be overridden using the environment variable TRAINS_LOG_TASK_TO_BACKEND.
         :type log_to_backend: bool
-        :param force_create: If True, a new task will always be created (task_id, if provided, will be ignored)
+        :param force_create: If ``True``, a new task will always be created (``task_id``, if provided, will be ignored)
         :type force_create: bool
         """
         self._offline_output_models = []
@@ -451,9 +451,9 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
     @property
     def storage_uri(self) -> Optional[str]:
         """
-        The storage / output url for this task. This is the default location for output models and other artifacts.
+        The storage / output URL for this task. This is the default location for output models and other artifacts.
 
-        :return: The url string or None if not set.
+        :return: The URL string or ``None`` if not set.
         """
         if self._storage_uri:
             return self._storage_uri
@@ -465,7 +465,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
     @storage_uri.setter
     def storage_uri(self, value: str) -> None:
         """
-        Set the storage / output url for this task. This is the default location for output models and other artifacts.
+        Set the storage / output URL for this task. This is the default location for output models and other artifacts.
 
         :param str value: The value to set for output URI.
         """
@@ -525,7 +525,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
     @property
     def parent(self) -> str:
         """
-        Returns the current Task's parent task ID (str).
+        Returns the current Task's parent task ID (``str``).
         """
         return self.data.parent
 
@@ -723,8 +723,8 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         """
         Reset the task. Task will be reloaded following a successful reset.
 
-        :param set_started_on_success: If True, automatically set Task status to started after resetting it.
-        :param force: If not true, call fails if the task status is 'completed'
+        :param set_started_on_success: If ``True``, automatically set Task status to started after resetting it.
+        :param force: If not ``True``, call fails if the task status is 'completed'
         """
         self.send(tasks.ResetRequest(task=self.id, force=force))
         if set_started_on_success:
@@ -770,12 +770,12 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         change the task status to stopped and kill the Task's processes
 
         Notice: calling this on your own Task, will cause
-        the watchdog to call the on_abort callback and kill the process
+        the watchdog to call the ``on_abort`` callback and kill the process
 
-        :param bool force: If not True, call fails if the task status is not 'in_progress'
-        :param bool ignore_errors: if False raise exception on error
+        :param bool force: If not ``True``, call fails if the task status is not ``in_progress``
+        :param bool ignore_errors: If ``False``, raise exception on error
         :param str status_message: Optional, add status change message to the stop request.
-            This message will be stored as status_message on the Task's info panel
+            This message will be stored as ``status_message`` on the Task's info panel
         """
         # request task stop
         return self.send(
@@ -790,7 +790,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
 
     def completed(self, ignore_errors: bool = True) -> Optional[CallResult]:
         """
-        .. note:: Deprecated, use mark_completed(...) instead
+        .. note:: Deprecated, use ```Task.mark_completed()``` instead
         """
         warnings.warn(
             "'completed' is deprecated; use 'mark_completed' instead.",
@@ -815,7 +815,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         Let's say that process A created the task and process B has a handle on the task, e.g., with :meth:`Task.get_task`.
         Then, if we call :meth:`Task.mark_completed`, process A is terminated, but process B is not.
 
-        However, if :meth:`Task.mark_completed` was called from the same process in which the task was created,
+        However, if ``Task.mark_completed`` was called from the same process in which the task was created,
         then - effectively - the process terminates itself.
         For example, in
 
@@ -829,8 +829,8 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
 
         the text will not be printed, because the Python process is immediately terminated.
 
-        :param bool ignore_errors: If True (default), ignore any errors raised
-        :param bool force: If True, the task status will be changed to `stopped` regardless of the current Task state.
+        :param bool ignore_errors: If ``True`` (default), ignore any errors raised
+        :param bool force: If ``True``, the task status will be changed to ``stopped`` regardless of the current Task state.
         :param str status_message: Optional, add status change message to the stop request.
             This message will be stored as status_message on the Task's info panel
         """
@@ -927,15 +927,15 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         configured in your configuration file (e.g. if an artifact is stored in S3, make sure sdk.aws.s3.credentials
         are properly configured and that you have delete permission in the related buckets).
 
-        :param delete_artifacts_and_models: If True, artifacts and models would also be deleted (default True).
+        :param delete_artifacts_and_models: If ``True`` (default), artifacts and models will also be deleted.
                                             If callback is provided, this argument is ignored.
-        :param skip_models_used_by_other_tasks: If True, models used by other tasks would not be deleted (default True)
-        :param raise_on_error: If True, an exception will be raised when encountering an error.
-                               If False, an error would be printed and no exception will be raised.
-        :param callback: An optional callback accepting a uri type (string) and a uri (string) that will be called
+        :param skip_models_used_by_other_tasks: If ``True`` (default), models used by other tasks would not be deleted
+        :param raise_on_error: If ``True``, an exception will be raised when encountering an error.
+                               If ``False``, an error would be printed and no exception will be raised.
+        :param callback: An optional callback accepting a URI type (string) and a URI (string) that will be called
                          for each artifact and model. If provided, the delete_artifacts_and_models is ignored.
-                         Return True to indicate the artifact/model should be deleted or False otherwise.
-        :return: True if the task was deleted successfully.
+                         Return ``True`` to indicate the artifact/model should be deleted or ``False`` otherwise.
+        :return: ``True`` if the task was deleted successfully.
         """
         try:
             res = self.send(tasks.GetByIdRequest(self.task_id))
@@ -1125,11 +1125,11 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         then ClearML updates the model object associated with the Task. The API call uses the URI
         of the uploaded file, and other values provided by additional arguments.
 
-        Notice: A local model file will be uploaded to the task's `output_uri` destination,
-        If no `output_uri` was specified, the default files-server will be used to store the model file/s.
+        Notice: A local model file will be uploaded to the task's ``output_uri`` destination,
+        If no ``output_uri`` was specified, the default files-server will be used to store the model file/s.
 
         :param model_path: A local weights file or folder to be uploaded.
-            If remote URI is provided (e.g. ``http://`` or ``s3://`` etc) then the URI is stored as is, without any upload
+            If remote URI is provided (e.g. ``http://`` or ``s3://`` etc.) then the URI is stored as is, without any upload
         :param name: The updated model name.
             If not provided, the name is the model weights file filename without the extension.
         :param comment: The updated model description. (Optional)
@@ -1204,7 +1204,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
             - ``True`` - ClearML copies the Task's label enumeration from the input model.
             - ``False`` - ClearML does not copy the Task's label enumeration from the input model.
 
-        :param name: Model section name to be stored on the Task (unrelated to the model object name itself)
+        :param name: Model section name to be stored on the Task (unrelated to the model object name itself).
             Default: the model weight filename is used (excluding file extension)
         """
         if model_id is None and not model_name:
@@ -1279,10 +1279,10 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         Notice the returned parameter dict is flat:
         i.e. ``{'Args/param': 'value'}`` is the argument "param" from section "Args"
 
-        :param backwards_compatibility: If True (default), parameters without section name
-            (API version ``<2.9``, clearml-server ``<0.16``) will be at dict root level.
-            If False, parameters without section name, will be nested under "Args/" key.
-        :param cast: If True, cast the parameter to the original type. Default False,
+        :param backwards_compatibility: If ``True`` (default), parameters without section name
+            (API version \<2.9, clearml-server \<0.16) will be at dict root level.
+            If ``False``, parameters without section name, will be nested under "Args/" key.
+        :param cast: If ``True``, cast the parameter to the original type. Default ``False``,
             values are returned in their string representation
 
         :return: dict of the task parameters, all flattened to key/value.
@@ -1511,7 +1511,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
 
         :param name: Parameter name
         :param default: Default value
-        :param cast: If value is found, cast to original type. If False, return string.
+        :param cast: If value is found, cast to original type. If ``False``, return string.
         :return: The Parameter value (or default value if parameter is not defined).
         """
         params = self.get_parameters(cast=cast)
@@ -1522,9 +1522,9 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         Delete a parameter by its full name Section/name.
 
         :param name: Parameter name in full, i.e. Section/name. For example, 'Args/batch_size'
-        :param force: If set to True then both new and running task hyper params can be deleted.
-            Otherwise only the new task ones. Default is False
-        :return: True if the parameter was deleted successfully
+        :param force: If set to ``True`` then both new and running task hyperparams can be deleted.
+            Otherwise, only the new task ones. Default is ``False``
+        :return: ``True`` if the parameter was deleted successfully
         """
         if not Session.check_min_api_version("2.9"):
             raise ValueError(
@@ -1560,9 +1560,9 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
 
     def set_model_label_enumeration(self, enumeration: Mapping[str, int] = None) -> None:
         """
-        Set a dictionary of labels (text) to ids (integers) {str(label): integer(id)}
+        Set a dictionary of labels (text) to IDs (integers) ``{str(label): int(id)}``
 
-        :param dict enumeration: For example: {str(label): integer(id)}
+        :param dict enumeration: For example: ``{str(label): int(id)}``
         """
         enumeration = enumeration or {}
         with self._edit_lock:
@@ -1582,10 +1582,10 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         """
         Remove input models from the current task. Note that the models themselves are not deleted,
         but the tasks' reference to the models is removed.
-        To delete the models themselves, see `Models.remove`
+        To delete the models themselves, see ``Models.remove``
 
-        :param models_to_remove: The models to remove from the task. Can be a list of ids,
-            or of `BaseModel` (including its subclasses: `Model` and `InputModel`)
+        :param models_to_remove: The models to remove from the task. Can be a list of IDs,
+            or of ``BaseModel`` (including its subclasses: ``Model`` and ``InputModel``)
         """
         ids_to_remove = [model if isinstance(model, str) else model.id for model in models_to_remove]
         with self._edit_lock:
@@ -1608,15 +1608,15 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         docker_setup_bash_script: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         """
-        Set the base docker image for this experiment
+        Set the base docker image for this experiment.
         If provided, this value will be used by clearml-agent to execute this experiment
         inside the provided docker image.
         When running remotely the call is ignored
 
-        :param docker_cmd: docker container image (example: 'nvidia/cuda:11.1')
-        :param docker_arguments: docker execution parameters (example: '-e ENV=1')
+        :param docker_cmd: docker container image (example: ``'nvidia/cuda:11.1'``)
+        :param docker_arguments: docker execution parameters (example: ``'-e ENV=1'``)
         :param docker_setup_bash_script: bash script to run at the
-            beginning of the docker before launching the Task itself. example: ['apt update', 'apt-get install -y gcc']
+            beginning of the docker before launching the Task itself. Example: ``'['apt update', 'apt-get install -y gcc']'``
         """
         image = docker_cmd.split(" ")[0] if docker_cmd else ""
         if not docker_arguments and docker_cmd:
@@ -1667,9 +1667,10 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
 
     def set_artifacts(self, artifacts_list: Sequence["tasks.Artifact"] = None) -> Optional[List["tasks.Artifact"]]:
         """
-        List of artifacts (tasks.Artifact) to update the task
+        List of artifacts (``tasks.Artifact``) to update the task
 
-        :param list artifacts_list: list of artifacts (type tasks.Artifact)
+        :param list artifacts_list: list of artifacts (type ``tasks.Artifact``)
+
         :return: List of current Task's Artifacts or None if error.
         """
         if not Session.check_min_api_version("2.3"):
@@ -1726,13 +1727,13 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         """
         Delete a list of artifacts, by artifact name, from the Task.
 
-        :param list artifact_names: list of artifact names
-        :param bool raise_on_errors: if True, do not suppress connectivity related exceptions
-        :param bool delete_from_storage: If True, try to delete the actual
+        :param list artifact_names: List of artifact names
+        :param bool raise_on_errors: If ``True``, do not suppress connectivity related exceptions
+        :param bool delete_from_storage: If ``True``, try to delete the actual
             file from the external storage (e.g. S3, GS, Azure, File Server etc.)
-        :param silent_on_errors: If True, do not log connectivity related errors
+        :param silent_on_errors: If ``True``, do not log connectivity related errors
 
-        :return: True if successful
+        :return: ``True`` if successful
         """
         return self._delete_artifacts(
             artifact_names=artifact_names,
@@ -1751,13 +1752,13 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         """
         Delete a list of artifacts, by artifact name, from the Task.
 
-        :param list artifact_names: list of artifact names
-        :param bool raise_on_errors: if True, do not suppress connectivity related exceptions
-        :param bool delete_from_storage: If True, try to delete the actual
+        :param list artifact_names: List of artifact names
+        :param bool raise_on_errors: If ``True``, do not suppress connectivity related exceptions
+        :param bool delete_from_storage: If ``True``, try to delete the actual
             file from the external storage (e.g. S3, GS, Azure, File Server etc.)
-        :param silent_on_errors: If True, do not log connectivity related errors
+        :param silent_on_errors: If ``True``, do not log connectivity related errors
 
-        :return: True if successful
+        :return: ``True`` if successful
         """
         if not Session.check_min_api_version("2.3"):
             return False
@@ -1881,8 +1882,8 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         """
         Set the default random seed for any new initialized tasks
 
-        :param random_seed: If None or False, disable random seed initialization. If True, use the default random seed,
-          otherwise use the provided int value for random seed initialization when initializing a new task.
+        :param random_seed: If ``None`` or ``False``, disable random seed initialization. If ``True``, use the default random seed.
+          Otherwise, use the provided int value for random seed initialization when initializing a new task.
         """
         if random_seed is not None:
             if isinstance(random_seed, bool):
@@ -1970,7 +1971,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         """
         Set the current Task's tags. Please note this will overwrite anything that is there already.
 
-        :param Sequence(str) tags: Any sequence of tags to set.
+        :param Sequence(``str``) tags: Any sequence of tags to set.
         """
         assert isinstance(tags, (list, tuple))
         if not Session.check_min_api_version("2.3"):
@@ -1995,8 +1996,8 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         """
         Set the parent task for the Task.
 
-        :param parent: The parent task ID (or parent Task object) for the Task. Set None for no parent.
-        :type parent: str or Task
+        :param parent: The parent task ID (or parent Task object) for the Task. Set ``None`` for no parent.
+        :type parent: ``str``, ``None``, or ``Task``
         """
         if parent:
             assert isinstance(parent, (str, Task))
@@ -2019,9 +2020,9 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
 
     def set_task_type(self, task_type: Union[str, "Task.TaskTypes"]) -> None:
         """
-        Set the task_type for the Task.
+        Set the ``task_type`` for the Task.
 
-        :param task_type: The task_type of the Task.
+        :param task_type: The ``task_type`` of the Task.
 
             Valid task types:
 
@@ -2037,7 +2038,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
             - ``TaskTypes.qc``
             - ``TaskTypes.custom``
 
-        :type task_type: str or TaskTypes
+        :type task_type: ``str`` or ``TaskTypes``
 
         """
         if not isinstance(task_type, self.TaskTypes):
@@ -2050,7 +2051,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         """
         Archive the Task or remove it from the archived folder.
 
-        :param archive: If True, archive the Task. If False, make sure it is removed from the archived folder
+        :param archive: If ``True``, archive the Task. If ``False``, make sure it is removed from the archived folder
         """
         with self._edit_lock:
             system_tags = (
@@ -2064,7 +2065,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         """
         Return the Archive state of the Task
 
-        :return: If True, the Task is archived, otherwise it is not.
+        :return: If ``True``, the Task is archived, otherwise it is not.
         """
         return self.archived_tag in self.get_system_tags()
 
@@ -2136,13 +2137,13 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         Value is a dict with 'x': values and 'y': values
 
         .. note::
-           This call is not cached, any call will retrieve all the scalar reports from the back-end.
+           This call is not cached, any call will retrieve all the scalar reports from the backend.
            If the Task has many scalars reported, it might take long for the call to return.
 
         .. note::
            Calling this method will return potentially downsampled scalars. The maximum number of returned samples is 5000.
-           Even when setting `max_samples` to a value larger than 5000, it will be limited to at most 5000 samples.
-           To fetch all scalar values, please see the :meth:`Task.get_all_reported_scalars`.
+           Even when setting ``max_samples`` to a value larger than 5000, it will be limited to at most 5000 samples.
+           To fetch all scalar values, see ```Task.get_all_reported_scalars```.
 
         Example:
 
@@ -2157,7 +2158,8 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
             With sample limit, average scalar values inside sampling window.
         :param str x_axis: scalar x_axis, possible values:
             'iter': iteration (default), 'timestamp': timestamp as milliseconds since epoch, 'iso_time': absolute time
-        :return: dict: Nested scalar graphs: dict[title(str), dict[series(str), dict[axis(str), list(float)]]]
+
+        :return: dict: Nested scalar graphs: ``dict[title(str), dict[series(str), dict[axis(str), list(float)]]]``
         """
 
         if x_axis not in ("iter", "timestamp", "iso_time"):
@@ -2188,15 +2190,15 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         Return a nested dictionary for the all scalar graphs, containing all the registered samples,
         where the first key is the graph title and the second is the series name.
         Value is a dict with 'x': values and 'y': values.
-        To fetch downsampled scalar values, please see the :meth:`Task.get_reported_scalars`.
+        To fetch downsampled scalar values, please see the ``Task.get_reported_scalars``.
 
         .. note::
-           This call is not cached, any call will retrieve all the scalar reports from the back-end.
+           This call is not cached, any call will retrieve all the scalar reports from the backend.
            If the Task has many scalars reported, it might take long for the call to return.
 
         :param str x_axis: scalar x_axis, possible values:
             'iter': iteration (default), 'timestamp': timestamp as milliseconds since epoch, 'iso_time': absolute time
-        :return: dict: Nested scalar graphs: dict[title(str), dict[series(str), dict[axis(str), list(float)]]]
+        :return: dict: Nested scalar graphs: ``dict[title(str), dict[series(str), dict[axis(str), list(float)]]]``
         """
         reported_scalars = {}
         batch_size = 1000
@@ -2247,7 +2249,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         Notice the plot data is plotly compatible.
 
         .. note::
-           This call is not cached, any call will retrieve all the plot reports from the back-end.
+           This call is not cached, any call will retrieve all the plot reports from the backend.
            If the Task has many plots reported, it might take long for the call to return.
 
         Example:
@@ -2320,31 +2322,31 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
 
     def get_configuration_object(self, name: str) -> Optional[str]:
         """
-        Get the Task's configuration object section as a blob of text
-        Use only for automation (externally), otherwise use `Task.connect_configuration`.
+        Get the Task's configuration object section as a blob of text.
+        Use only for automation (externally), otherwise use ``Task.connect_configuration``.
 
         :param str name: Configuration section name
-        :return: The Task's configuration as a text blob (unconstrained text string)
-            return None if configuration name is not valid
+        :return: The Task's configuration as a text blob (unconstrained text string).
+            Return ``None`` if configuration name is not valid
         """
         return self._get_configuration_text(name)
 
     def get_configuration_object_as_dict(self, name: str) -> Optional[Union[dict, list]]:
         """
-        Get the Task's configuration object section as parsed dictionary
-        Parsing supports JSON and HOCON, otherwise parse manually with `get_configuration_object()`
-        Use only for automation (externally), otherwise use `Task.connect_configuration`.
+        Get the Task's configuration object section as parsed dictionary.
+        Parsing supports JSON and HOCON, otherwise parse manually with ``get_configuration_object()``.
+        Use only for automation (externally), otherwise use ``Task.connect_configuration``.
 
         :param str name: Configuration section name
         :return: The Task's configuration as a parsed dict.
-            return None if configuration name is not valid
+            Return ``None`` if configuration name is not valid
         """
         return self._get_configuration_dict(name)
 
     def get_configuration_objects(self) -> Optional[Mapping[str, str]]:
         """
-        Get the Task's configuration object section as a blob of text
-        Use only for automation (externally), otherwise use `Task.connect_configuration`.
+        Get the Task's configuration object section as a blob of text.
+        Use only for automation (externally), otherwise use ``Task.connect_configuration``.
 
         :return: The Task's configurations as a dict (config name as key) and text blob as value (unconstrained text
             string)
@@ -2381,12 +2383,12 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
 
     def get_reported_single_value(self, name: str) -> Optional[float]:
         """
-        Get a single reported value, identified by its name. Note that this function calls
-        `Task.get_reported_single_values`.
+        Get a single reported value identified by its name. Note that this function calls
+        ``Task.get_reported_single_values``.
 
         :param name: The name of the reported value
 
-        :return: The actual value of the reported value, if found. Otherwise, returns None
+        :return: The actual value of the reported value, if found. Otherwise, returns ``None``
         """
         return self.get_reported_single_values().get(name)
 
@@ -2400,15 +2402,15 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
     ) -> None:
         """
         Set the Task's configuration object as a blob of text or automatically encoded dictionary/list.
-        Use only for automation (externally), otherwise use `Task.connect_configuration`.
+        Use only for automation (externally), otherwise use ``Task.connect_configuration``.
 
         :param str name: Configuration section name
-        :param config_text: configuration as a blob of text (unconstrained text string)
+        :param config_text: Configuration as a blob of text (unconstrained text string)
             usually the content of a configuration file of a sort
         :param str description: Configuration section description
         :param str config_type: Optional configuration format type
-        :param dict config_dict: configuration dictionary/list to be encoded using HOCON (json alike) into stored text
-            Notice you can either pass `config_text` or `config_dict`, not both
+        :param dict config_dict: Configuration dictionary/list to be encoded using HOCON (json alike) into stored text
+            Notice you can either pass ``config_text`` or ``config_dict``, not both
         """
         return self._set_configuration(
             name=name,
@@ -2423,7 +2425,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         """
         Return a list of projects in the system, sorted by last updated time
 
-        :return: A list of all the projects in the system. Each entry is a `services.projects.Project` object.
+        :return: A list of all the projects in the system. Each entry is a ``services.projects.Project`` object.
         """
         ret_projects = []
         page = kwargs.pop("page", -1)
@@ -2446,11 +2448,11 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
     @classmethod
     def get_project_id(cls, project_name: str, search_hidden: bool = True) -> Optional[str]:
         """
-        Return a project's unique ID (str).
-        If more than one project matched the project_name, return the last updated project
-        If no project matched the requested name, returns None
+        Return a project's unique ID (``str``).
+        If more than one project matched the ``project_name``, return the last updated project.
+        If no project matched the requested name, returns ``None``
 
-        :return: Project unique ID (str), or None if no project was found.
+        :return: Unique Project ID (``str``), or ``None`` if no project was found.
         """
         assert project_name
         assert isinstance(project_name, str)
@@ -2469,7 +2471,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         """
         Is the task running locally (i.e., ``clearml-agent`` is not executing it)
 
-        :return: True, if the task is running locally. False, if the task is not running locally.
+        :return: ``True``, if the task is running locally. ``False``, if the task is not running locally.
 
         """
         return not running_remotely()
@@ -2477,12 +2479,12 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
     @classmethod
     def add_requirements(cls, package_name: str, package_version: Optional[str] = None) -> None:
         """
-        Force the adding of a package to the requirements list. If ``package_version`` is None, use the
+        Force the adding of a package to the requirements list. If ``package_version`` is ``None``, use the
         installed package version, if found.
 
         Example: ``Task.add_requirements('tensorflow', '2.4.0')``
 
-        Example: ``Task.add_requirements('tensorflow', '>=2.4')``
+        Example: `Task.add_requirements('tensorflow', '>=2.4')`
 
         Example: ``Task.add_requirements('tensorflow')`` -> use the installed tensorflow version
 
@@ -2493,9 +2495,9 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         Example: ``Task.add_requirements('/path/to/your/project/requirements.txt')``
 
         .. note::
-            Task.add_requirements does not directly modify the task's requirements. Instead, it improves the accuracy
+            ```Task.add_requirements``` does not directly modify the task's requirements. Instead, it improves the accuracy
             of capturing a task's Python packages. To explicitly change task requirements, use
-            Task.set_packages, which overwrites existing packages with the specified ones.
+            ```Task.set_packages```, which overwrites existing packages with the specified ones.
 
         :param str package_name: The package name or path to a requirements file
             to add to the "Installed Packages" section of the task.
@@ -2541,7 +2543,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         """
         Force the use of ``pip freeze`` or ``conda list`` to capture the requirements from the active
         environment (instead of statically analyzing the running code and listing directly imported packages).
-        Notice: Must be called before `Task.init` !
+        Notice: Must be called before ``Task.init`` !
 
         :param force: If ``True`` (default), force the use of ``pip freeze`` or ``conda list`` to capture the
             requirements. If ``False``, ClearML statistically analyzes the code for requirements.
@@ -2561,7 +2563,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         Force using storing the main python file as a single standalone script, instead of linking with the
         local git repository/commit ID.
 
-        Notice: Must be called before `Task.init` !
+        Notice: Must be called before ``Task.init`` !
 
         :param force: Set force storing the main python file as a single standalone script
         """
@@ -2585,14 +2587,14 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
 
     def get_status_message(self) -> (Optional[str], Optional[str]):
         """
-        Return The task status without refreshing the entire Task object (only the status property)
+        Return the task status without refreshing the entire Task object (only the status property)
         Return also the last message coupled with the status change
 
         Task Status options: ["created", "in_progress", "stopped", "closed", "failed", "completed",
-        "queued", "published", "publishing", "unknown"]
-        Message: is a string
+        "queued", "published", "publishing", "unknown"].
+        Message is a string
 
-        :return: (Task status as string, last message)
+        :return: Task status as string, last message
         """
         status, status_message, _ = self._get_tasks_status([self.id])[0]
         if self._data and status:
@@ -2603,11 +2605,11 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
 
     def _get_status(self) -> (Optional[str], Optional[str]):
         """
-        retrieve Task status & message, But do not update the Task local status
+        Retrieve Task status and message, but do not update the Task local status
         this is important if we want to query in the background without breaking Tasks consistency
 
         backwards compatibility,
-        :return: (status enum as string or None, str or None)
+        :return: Status enum as string or ``None``
         """
         status, status_message, _ = self._get_tasks_status([self.id])[0]
         return status, status_message
@@ -2615,8 +2617,8 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
     @classmethod
     def _get_tasks_status(cls, ids: List[str]) -> List[Optional[str]]:
         """
-        :param ids: task IDs (str) to query
-        :return: list of tuples (status, status_message, task_id)
+        :param ids: task IDs (``str``) to query
+        :return: list of tuples (``status``, ``status_message``, ``task_id``)
         """
         if cls._offline_mode:
             return [(cls.TaskStatusEnum.created, "offline", i) for i in ids]
@@ -2682,12 +2684,12 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         (i.e. under `input.*`), so the DataView appears in the UI, without using
         runtime properties.
 
-        - If `dataview` is a string id, the backend is queried to fetch its full
-          definition and it is serialized into the task's `input` section.
-        - If `dataview` is a `DataView`, its current state is serialized
-          into the task's `input` section.
+        - If ``dataview`` is a string ID, the backend is queried to fetch its full
+          definition, and it is serialized into the task's ``input`` section.
+        - If ``dataview`` is a ``DataView``, its current state is serialized
+          into the task's ``input`` section.
 
-        :param dataview: DataView instance or dataview id string
+        :param dataview: DataView instance or dataview ID string
         """
         from ...hyperdatasets import util as _hyperdataset_util
 
@@ -2793,7 +2795,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
 
     def _is_remote_main_task(self) -> bool:
         """
-        :return: return True if running remotely and this Task is the registered main task
+        :return: ``True`` if running remotely and this Task is the registered main task
         """
         return running_remotely() and get_remote_task_id() == self.id
 
@@ -2883,11 +2885,11 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
 
         :param str name: Configuration name.
         :param str description: Configuration section description.
-        :param str config_type: Optional configuration format type (str).
+        :param str config_type: Optional configuration format type (``str``).
         :param config_text: model configuration (unconstrained text string). usually the content
-            of a configuration file. If `config_text` is not None, `config_dict` must not be provided.
+            of a configuration file. If ``config_text`` is not ``None``, ``config_dict`` must not be provided.
         :param config_dict: model configuration parameters dictionary.
-            If `config_dict` is not None, `config_text` must not be provided.
+            If ``config_dict`` is not ``None``, ``config_text`` must not be provided.
         """
         # make sure we have either dict or text
         mutually_exclusive(config_dict=config_dict, config_text=config_text, _check_none=True)
@@ -2919,7 +2921,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
 
         :param str name: Configuration name.
         :return: The Task configuration as text (unconstrained text string).
-            return None if configuration name is not valid.
+            Return ``None`` if configuration name is not valid.
         """
         if not Session.check_min_api_version("2.9"):
             raise ValueError(
@@ -2938,7 +2940,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
 
         :param str name: Configuration name.
         :return: The Task configuration as dictionary.
-            return None if configuration name is not valid.
+            Return ``None`` if configuration name is not valid.
         """
         config_text = self._get_configuration_text(name)
         if not config_text:
@@ -2980,7 +2982,8 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
     def get_offline_mode_folder(self) -> Optional[Path]:
         """
         Return the folder where all the task outputs and logs are stored in the offline session.
-        :return: Path object, local folder, later to be used with `report_offline_session()`
+
+        :return: Path object, local folder, later to be used with ``report_offline_session()``
         """
         if not self.task_id:
             return None
@@ -3015,7 +3018,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         :param list tags: Optional updated model tags
         :param str parent: Optional parent Task ID of the new task.
         :param str project: Optional project ID of the new task.
-            If None, the new task will inherit the cloned task's project.
+            If ``None``, the new task will inherit the cloned task's project.
         :param logging.Logger log: Log object used by the infrastructure.
         :param Session session: Session object used for sending requests to the API
         :return: The new task's ID.
@@ -3100,8 +3103,8 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
 
         :param Session session: The session object used for sending requests to the API.
         :param logging.Logger log: The Log object.
-        :param kwargs: Keyword args passed to the GetAllRequest
-            (see :class:`.backend_api.service.v?.tasks.GetAllRequest` for details; the ? needs to be replaced by the appropriate version.)
+        :param kwargs: Keyword args passed to the ``GetAllRequest``
+            (see :class:`.backend_api.service.v?.tasks.GetAllRequest` for details; the ``?`` needs to be replaced by the appropriate version.)
 
             For example:
 
@@ -3191,11 +3194,11 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
 
         Warning: Debug only. Do not use outside of testing.
 
-        :param max_events: The maximum events the function will return. Pass None
+        :param max_events: The maximum events the function will return. Pass ``None``
             to return all the reported events.
         :param batch_size: The maximum number of events retrieved by each internal call performed by this method.
         :param order: Events order (by timestamp) - "asc" for ascending, "desc" for descending.
-        :param event_type: Event type. Pass None to get all event types.
+        :param event_type: Event type. Pass ``None`` to get all event types.
         :param unique_selector: If provided, used to select a value from each event, only a unique set of these
             values will be returned by this method.
 
