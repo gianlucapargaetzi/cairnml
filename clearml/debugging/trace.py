@@ -27,7 +27,6 @@ def _thread_py_id() -> int:
 
 
 def _log_stderr(name: str, fnc: callable, args: tuple, kwargs: dict, is_return: bool) -> None:
-    global __stream_write, __stream_flush, __trace_level, __trace_start, __thread_id
     # noinspection PyBroadException
     try:
         if is_return and __trace_level not in (-1, -2):
@@ -309,7 +308,7 @@ def trace_level(level: int = 1) -> bool:
     :param int level: Trace level
     :return: True if trace level changed
     """
-    global __patched_trace, __trace_level
+    global __trace_level
     if not __patched_trace:
         return False
     __trace_level = level
