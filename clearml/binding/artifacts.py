@@ -425,7 +425,7 @@ class Artifacts:
         local_filename = None
 
         # try to convert string Path object (it might reference a file/folder)
-        # dont not try to serialize long texts.
+        # don't try to serialize long texts.
         if isinstance(artifact_object, str) and artifact_object and len(artifact_object) < 2048:
             # noinspection PyBroadException
             try:
