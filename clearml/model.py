@@ -2120,7 +2120,8 @@ class OutputModel(BaseModel):
 
         if OfflineTask.is_offline():
             if not self._base_model_id:
-                self._base_model_id = "offline-{}".format(str(uuid4()).replace("-", ""))
+                random_uuid = str(uuid4()).replace("-", "")
+                self._base_model_id = f"offline-{random_uuid}"
             return self._base_model_id
         return super(OutputModel, self).id
 
@@ -2188,13 +2189,21 @@ class OutputModel(BaseModel):
         self._name = name
         self._label_enumeration = label_enumeration
         # noinspection PyProtectedMember
+        action_comment = (
+            f"Created by task id: {task.id}"
+            if not base_model_id
+            else f"Overwritten by task id: {task.id}"
+        )
         self._floating_data = create_dummy_model(
             design=_Model._wrap_design(config_text),
             labels=label_enumeration or task.get_labels_enumeration(),
             name=name or self._task.name,
             tags=tags,
-            comment="{} by task id: {}".format("Created" if not base_model_id else "Overwritten", task.id)
-            + ("\n" + comment if comment else ""),
+            comment=(
+                f"{action_comment}\n{comment}"
+                if comment
+                else action_comment
+            ),
             framework=framework,
             upload_storage_uri=task.output_uri,
         )
@@ -2309,7 +2318,7 @@ class OutputModel(BaseModel):
         try:
             uri = storage.verify_upload(folder_uri=uri)
         except Exception:
-            raise ValueError("Could not set destination uri to: %s [Check write permissions]" % uri)
+            raise ValueError(f"Could not set destination uri to: {uri} [Check write permissions]")
 
         # store default uri
         self._get_base_model().upload_storage_uri = uri
@@ -2362,7 +2371,7 @@ class OutputModel(BaseModel):
                 if filename:
                     os.remove(filename)
             except OSError:
-                self._log.debug("Failed removing temporary file %s" % filename)
+                self._log.debug(f"Failed removing temporary file {filename}")
 
         # test if we can update the model
         if self.id and self.published:
@@ -2445,21 +2454,24 @@ class OutputModel(BaseModel):
             self.set_upload_destination(upload_uri)
 
         # let us know the iteration number, we put it in the comment section for now.
-        if update_comment:
-            comment = self.comment or ""
-            iteration_msg = f"snapshot {weights_filename or register_uri} stored"
-            if not comment.startswith("\n"):
-                comment = "\n" + comment
-            comment = iteration_msg + comment
-        else:
-            comment = None
+        iteration_msg = f"snapshot {weights_filename or register_uri} stored"
+        line_break = "" if (self.comment or "").startswith("\n") else "\n"
+        comment = (
+            (
+                f"{iteration_msg}{line_break}{self.comment}"
+                if self.comment
+                else f"{iteration_msg}{line_break}"
+            )
+            if update_comment
+            else None
+        )
 
         # if we have no output destination, just register the local model file
         if weights_filename and not self.upload_storage_uri and not self._task.storage_uri:
             register_uri = weights_filename
             weights_filename = None
             auto_delete_file = False
-            self._log.info("No output storage destination defined, registering local model %s" % register_uri)
+            self._log.info(f"No output storage destination defined, registering local model {register_uri}")
 
         # start the upload
         if weights_filename:
@@ -2572,12 +2584,13 @@ class OutputModel(BaseModel):
             target_filename += ".zip"
 
         # and now we should upload the file, always delete the temporary zip file
-        comment = self.comment or ""
-        iteration_msg = "snapshot {} stored".format(str(weights_filenames))
-        if not comment.startswith("\n"):
-            comment = "\n" + comment
-        comment = iteration_msg + comment
-        self.comment = comment
+        iteration_msg = f"snapshot {weights_filenames} stored"
+        line_break = "" if (self.comment or "").startswith("\n") else "\n"
+        self.comment = (
+            f"{iteration_msg}{line_break}{self.comment}"
+            if self.comment
+            else f"{iteration_msg}{line_break}"
+        )
         uploaded_uri = self.update_weights(
             weights_filename=zip_file,
             auto_delete_file=True,

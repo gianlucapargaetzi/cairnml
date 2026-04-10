@@ -223,10 +223,10 @@ class DataSubEntryImage(DataSubEntry):
                 force_download=force_download,
             )
         except Exception as ex:
-            logging.getLogger("HyperDataset").warning("Could not fetch local mask copy for %s: %s", uri, ex)
+            logging.getLogger("HyperDataset").warning(f"Could not fetch local mask copy for {uri}: {ex}")
             local_file = None
         if not local_file and raise_on_error:
-            raise ValueError("Failed downloading file: {}".format(uri))
+            raise ValueError(f"Failed downloading file: {uri}")
         return local_file
 
     def get_local_masks_source(
@@ -256,12 +256,16 @@ class DataSubEntryImage(DataSubEntry):
                 logging.getLogger("HyperDataset").warning("Could not fetch local mask copy for %s: %s", uri, ex)
                 local_file = None
             if not local_file and raise_on_error:
-                raise ValueError("Failed downloading file: {}".format(uri))
+                raise ValueError(f"Failed downloading file: {uri}")
             masks[mid] = local_file
         return masks
 
     def __repr__(self) -> str:
-        meta_keys = sorted((self._metadata or {}).keys()) if isinstance(self._metadata, dict) else []
+        meta_keys = (
+            sorted((self._metadata or {}).keys())
+            if isinstance(self._metadata, dict)
+            else []
+        )
         return (
             f"{self.__class__.__name__}(name={self._name!r}, source={self._source!r}, "
             f"preview={self._preview_source!r}, size=({self._width},{self._height}), "
