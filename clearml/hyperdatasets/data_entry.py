@@ -507,10 +507,10 @@ class DataSubEntry:
                 force_download=force_download,
             )
         except Exception as ex:
-            _LOGGER.warning("Could not fetch local copy for %s: %s", uri, ex)
+            _LOGGER.warning(f"Could not fetch local copy for {uri}: {ex}")
             local_file = None
         if not local_file and raise_on_error:
-            raise ValueError("Failed downloading file: {}".format(uri))
+            raise ValueError(f"Failed downloading file: {uri}")
         return local_file
 
     @property
