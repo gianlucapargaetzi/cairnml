@@ -58,7 +58,7 @@ class HyperDatasetQuery:
         try:
             lucene_parser.parse(lucene_query)
         except LuceneParseError as e:
-            raise type(e)("Failed parsing lucene query '{}': {}".format(lucene_query, e))
+            raise type(e)(f"Failed parsing lucene query '{lucene_query}': {e}")
 
     def __init__(
         self,
@@ -185,9 +185,9 @@ class HyperDatasetQuery:
         )
         if not exists:
             raise ValueError(
-                "HyperDataset query references non-existent dataset/version: dataset_id={} version_id={}".format(
-                    self._dataset_id, self._version_id
-                )
+                f"HyperDataset query references non-existent dataset/version:"
+                f" dataset_id={self._dataset_id}"
+                f" version_id={self._version_id}"
             )
 
 
@@ -342,7 +342,7 @@ class DataView:
                 dataview_id=self._id, filter_rules=self._filter_rules
             )
             if not result:
-                raise ValueError("Failed updating DataView {}".format(self._id))
+                raise ValueError(f"Failed updating DataView {self._id}")
             self._resync_task_attachment()
 
     def set_queries(self, queries: Optional[Iterable["HyperDatasetQuery"]]) -> None:

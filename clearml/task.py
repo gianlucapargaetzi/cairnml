@@ -524,13 +524,9 @@ class Task(_Task):
                 if default is not None and default != current:
                     raise UsageError(
                         "Current task already created "
-                        "and requested {field} '{default}' does not match current {field} '{current}'. "
+                        f"and requested {field} '{default}' does not match current {field} '{current}'. "
                         "If you wish to create additional tasks use `Task.create`, "
-                        "or close the current task with `task.close()` before calling `Task.init(...)`".format(
-                            field=field,
-                            default=default,
-                            current=current,
-                        )
+                        "or close the current task with `task.close()` before calling `Task.init(...)`"
                     )
 
         if cls.__main_task is not None and deferred_init != cls.__nested_deferred_init_flag:
@@ -599,7 +595,7 @@ class Task(_Task):
         elif isinstance(task_type, str):
             if task_type not in Task.TaskTypes.__members__:
                 raise ValueError(
-                    "Task type '{}' not supported, options are: {}".format(task_type, Task.TaskTypes.__members__.keys())
+                    f"Task type '{task_type}' not supported, options are: {Task.TaskTypes.__members__.keys()}"
                 )
             task_type = Task.TaskTypes.__members__[str(task_type)]
 
@@ -884,10 +880,10 @@ class Task(_Task):
         if not is_sub_process_task_id:
             if cls._offline_mode:
                 logger.report_text(
-                    "ClearML running in offline mode, session stored in {}".format(task.get_offline_mode_folder())
+                    f"ClearML running in offline mode, session stored in {task.get_offline_mode_folder()}"
                 )
             else:
-                logger.report_text("ClearML results page: {}".format(task.get_output_log_web_page()))
+                logger.report_text(f"ClearML results page: {task.get_output_log_web_page()}")
         # Make sure we start the dev worker if required, otherwise it will only be started when we write
         # something to the log.
         task._dev_mode_setup_worker()
@@ -952,7 +948,11 @@ class Task(_Task):
 
     @staticmethod
     def _compose_runtime_key(base_key: str, suffix: Optional[str]) -> str:
-        return base_key if not suffix else "{}__{}".format(base_key, suffix)
+        return (
+            f"{base_key}__{suffix}"
+            if suffix
+            else base_key
+        )
 
     def _collect_endpoint_suffixes(self, protocol: str, runtime_props: Mapping[str, Any]) -> Dict[str, Any]:
         port_key = self._external_endpoint_port_map[protocol]
@@ -1001,7 +1001,7 @@ class Task(_Task):
         """
         Session.verify_feature_set("advanced")
         if protocol not in self._external_endpoint_port_map.keys():
-            raise ValueError("Invalid protocol: {}".format(protocol))
+            raise ValueError(f"Invalid protocol: {protocol}")
         if static_route:
             self._validate_static_route(static_route)
 
@@ -1032,21 +1032,24 @@ class Task(_Task):
                         # we found a match
                         out_port = int(out_range[0]) + (port - int(in_range[0]))
                         print(
-                            "INFO: Task.request_external_endpoint(...) changed requested external port to {}, "
-                            "conforming to mapped external host ports [{} -> {}]".format(out_port, port, port_range)
+                            f"INFO: Task.request_external_endpoint(...) changed requested external port to {out_port}, "
+                            f"conforming to mapped external host ports [{port} -> {port_range}]"
                         )
                         break
             except Exception:
                 print(
                     "WARNING: Task.request_external_endpoint(...) failed matching requested port to "
-                    "mapped external host port [{} to {}], proceeding with original port {}".format(
-                        port, external_host_port_mapping, port
-                    )
+                    f"mapped external host port [{port} to {external_host_port_mapping}], "
+                    f"proceeding with original port {port}"
                 )
             if out_port:
                 port = out_port
 
-        runtime_key_suffix = None if resolved_suffix == DEFAULT_ENDPOINT_NAME else resolved_suffix
+        runtime_key_suffix = (
+            resolved_suffix
+            if resolved_suffix != DEFAULT_ENDPOINT_NAME
+            else None
+        )
         runtime_properties_to_set: Dict[str, Union[str, int]] = {
             self._compose_runtime_key("_SERVICE", runtime_key_suffix): self._external_endpoint_service_map[protocol],
             self._compose_runtime_key(
@@ -1140,7 +1143,7 @@ class Task(_Task):
         unwaited_protocols = [p for p in protocols if p not in waited_protocols]
         if wait_timeout_seconds <= 0 and unwaited_protocols:
             LoggerRoot.get_base_logger().warning(
-                "Timeout exceeded while waiting for {} endpoint(s)".format(",".join(unwaited_protocols))
+                f"Timeout exceeded while waiting for {','.join(unwaited_protocols)} endpoint(s)"
             )
         return results
 
@@ -1163,15 +1166,19 @@ class Task(_Task):
                 if warn and first_iteration:
                     if resolved_suffix == DEFAULT_ENDPOINT_NAME:
                         LoggerRoot.get_base_logger().warning(
-                            "No external {} endpoints have been requested".format(protocol)
+                            f"No external {protocol} endpoints have been requested"
                         )
                     else:
                         LoggerRoot.get_base_logger().warning(
-                            "No external {} endpoint named '{}' has been requested".format(protocol, resolved_suffix)
+                            f"No external {protocol} endpoint named '{resolved_suffix}' has been requested"
                         )
                 return None
             endpoint, browser_endpoint = None, None
-            runtime_key_suffix = None if resolved_suffix == DEFAULT_ENDPOINT_NAME else resolved_suffix
+            runtime_key_suffix = (
+                resolved_suffix
+                if resolved_suffix != DEFAULT_ENDPOINT_NAME
+                else None
+            )
             if protocol == "http":
                 endpoint = runtime_props.get(self._compose_runtime_key("endpoint", runtime_key_suffix))
                 browser_endpoint = runtime_props.get(self._compose_runtime_key("browser_endpoint", runtime_key_suffix))
@@ -1187,7 +1194,7 @@ class Task(_Task):
                         self._compose_runtime_key(self._external_endpoint_port_map[protocol], runtime_key_suffix)
                     )
                     if address_value and port_value:
-                        endpoint = "{}:{}".format(address_value, port_value)
+                        endpoint = f"{address_value}:{port_value}"
             if endpoint or browser_endpoint:
                 port_value = registry.get(resolved_suffix)
                 return {
@@ -1199,11 +1206,11 @@ class Task(_Task):
                 }
             if time.time() >= start_time + wait_timeout_seconds:
                 if warn:
-                    warning_message = "Timeout exceeded while waiting for {} endpoint{}".format(
-                        protocol,
-                        "" if runtime_key_suffix is None else " '{}'".format(runtime_key_suffix),
+                    LoggerRoot.get_base_logger().warning(
+                        f"Timeout exceeded while waiting for {protocol} endpoint"
+                        if runtime_key_suffix is None
+                        else f"Timeout exceeded while waiting for {protocol} endpoint '{runtime_key_suffix}'"
                     )
-                    LoggerRoot.get_base_logger().warning(warning_message)
                 return None
             time.sleep(wait_interval_seconds)
             first_iteration = False
@@ -1252,7 +1259,7 @@ class Task(_Task):
                             self._compose_runtime_key(self._external_endpoint_port_map[protocol], runtime_key_suffix)
                         )
                         if address_value and external_port_value:
-                            endpoint_value = "{}:{}".format(address_value, external_port_value)
+                            endpoint_value = f"{address_value}:{external_port_value}"
                 if endpoint_value or browser_endpoint_value:
                     results.append(
                         {
@@ -1705,8 +1712,8 @@ class Task(_Task):
             helper = StorageHelper.get(value)
             if not helper:
                 raise ValueError(
-                    "Could not get access credentials for '{}' "
-                    ", check configuration file ~/clearml.conf".format(value)
+                    f"Could not get access credentials for '{value}' "
+                    ", check configuration file ~/clearml.conf"
                 )
             helper.check_write_permissions(value)
         self.storage_uri = value
@@ -1887,7 +1894,7 @@ class Task(_Task):
         if not queue_id:
             queue_id = get_queue_id(session, queue_name)
             if not queue_id:
-                raise ValueError('Could not find queue named "{}"'.format(queue_name))
+                raise ValueError(f'Could not find queue named "{queue_name}"')
 
         req = tasks.EnqueueRequest(task=task_id, queue=queue_id)
         exception = None
@@ -1929,10 +1936,10 @@ class Task(_Task):
         if not queue_id:
             queue_id = get_queue_id(session, queue_name)
             if not queue_id:
-                raise ValueError('Could not find queue named "{}"'.format(queue_name))
+                raise ValueError(f'Could not find queue named "{queue_name}"')
         result = get_num_enqueued_tasks(session, queue_id)
         if result is None:
-            raise ValueError("Could not query the number of enqueued tasks in queue with ID {}".format(queue_id))
+            raise ValueError(f"Could not query the number of enqueued tasks in queue with ID {queue_id}")
         return result
 
     @classmethod
@@ -1993,7 +2000,7 @@ class Task(_Task):
         :param progress: numeric value (0 - 100)
         """
         if not isinstance(progress, int) or progress < 0 or progress > 100:
-            self.log.warning("Can't set progress {} as it is not and int between 0 and 100".format(progress))
+            self.log.warning(f"Can't set progress {progress} as it is not and int between 0 and 100")
             return
         self._set_runtime_properties({"progress": str(progress)})
 
@@ -2115,7 +2122,7 @@ class Task(_Task):
             if isinstance(mutable, mutable_type):
                 return method(mutable, name=name, ignore_remote_overrides=ignore_remote_overrides)
 
-        raise Exception("Unsupported mutable type %s: no connect function found" % type(mutable).__name__)
+        raise Exception(f"Unsupported mutable type {type(mutable).__name__}: no connect function found")
 
     def set_packages(self, packages: Union[str, Path, Sequence[str]]) -> None:
         """
@@ -2260,7 +2267,7 @@ class Task(_Task):
             if not pathlib_Path or not isinstance(configuration, pathlib_Path):
                 raise ValueError(
                     "connect_configuration supports `dict`, `str` and 'Path' types, "
-                    "{} is not supported".format(type(configuration))
+                    f"{type(configuration)} is not supported"
                 )
         if pathlib_Path and isinstance(configuration, pathlib_Path):
             cast_Path = pathlib_Path
@@ -2330,8 +2337,8 @@ class Task(_Task):
 
                 if remote_configuration is None:
                     LoggerRoot.get_base_logger().warning(
-                        "Could not retrieve remote configuration named '{}'\n"
-                        "Using default configuration: {}".format(name, str(configuration))
+                        f"Could not retrieve remote configuration named '{name}'\n"
+                        f"Using default configuration: {configuration}"
                     )
                     # update back configuration section
                     if multi_config_support:
@@ -2370,9 +2377,8 @@ class Task(_Task):
                     configuration_text = f.read()
             except Exception:
                 raise ValueError(
-                    "Could not connect configuration file {}, file could not be read".format(
-                        configuration_path.as_posix()
-                    )
+                    f"Could not connect configuration file {configuration_path.as_posix()}, "
+                    "file could not be read"
                 )
             if multi_config_support:
                 self._set_configuration(
@@ -2394,8 +2400,8 @@ class Task(_Task):
             )
             if configuration_text is None:
                 LoggerRoot.get_base_logger().warning(
-                    "Could not retrieve remote configuration named '{}'\n"
-                    "Using default configuration: {}".format(name, str(configuration))
+                    f"Could not retrieve remote configuration named '{name}'\n"
+                    f"Using default configuration: {configuration}"
                 )
                 # update back configuration section
                 if multi_config_support:
@@ -2454,7 +2460,7 @@ class Task(_Task):
         )
         if not isinstance(enumeration, dict):
             raise ValueError(
-                "connect_label_enumeration supports only `dict` type, {} is not supported".format(type(enumeration))
+                f"connect_label_enumeration supports only `dict` type, {type(enumeration)} is not supported"
             )
 
         if (
@@ -2579,7 +2585,10 @@ class Task(_Task):
         def set_launch_multi_node_runtime_props(task: Task, conf: Dict[str, Any]) -> None:
             # noinspection PyProtectedMember
             task._set_runtime_properties(
-                {"{}/{}".format(self._launch_multi_node_section, k): v for k, v in conf.items()}
+                {
+                    f"{self._launch_multi_node_section}/{k}": v
+                    for k, v in conf.items()
+                }
             )
 
         if total_num_nodes < 1:
@@ -2608,13 +2617,13 @@ class Task(_Task):
             return master_conf
         master_conf.update(editable_conf)
         runtime_properties = self._get_runtime_properties()
-        remote_node_rank = runtime_properties.get("{}/node_rank".format(self._launch_multi_node_section))
+        remote_node_rank = runtime_properties.get(f"{self._launch_multi_node_section}/node_rank")
 
         current_conf = master_conf
         if remote_node_rank:
             # self is a child node, build the conf from the runtime proprerties
             current_conf = {
-                entry: runtime_properties.get("{}/{}".format(self._launch_multi_node_section, entry))
+                entry: runtime_properties.get(f"{self._launch_multi_node_section}/{entry}")
                 for entry in master_conf.keys()
             }
         elif os.environ.get("CLEARML_MULTI_NODE_MASTER") is None:
@@ -2641,7 +2650,7 @@ class Task(_Task):
                 nodes_to_wait,
                 range(1, master_conf.get("total_num_nodes", total_num_nodes)),
             ):
-                self.log.info("Waiting for node with task ID {} and rank {}".format(node_to_wait.id, rank))
+                self.log.info(f"Waiting for node with task ID {node_to_wait.id} and rank {rank}")
                 node_to_wait.wait_for_status(
                     status=(
                         Task.TaskStatusEnum.completed,
@@ -2652,7 +2661,7 @@ class Task(_Task):
                     ),
                     check_interval_sec=10,
                 )
-                self.log.info("Node with task ID {} and rank {} detected".format(node_to_wait.id, rank))
+                self.log.info(f"Node with task ID {node_to_wait.id} and rank {rank} detected")
             os.environ["CLEARML_MULTI_NODE_MASTER"] = "1"
 
         num_devices = 1
@@ -2663,9 +2672,9 @@ class Task(_Task):
                 try:
                     num_devices = len(devices)
                 except Exception as ex:
-                    raise ValueError("Failed parsing number of devices: {}".format(ex))
+                    raise ValueError(f"Failed parsing number of devices: {ex}")
             except ValueError as ex:
-                raise ValueError("Failed parsing number of devices: {}".format(ex))
+                raise ValueError(f"Failed parsing number of devices: {ex}")
             if num_devices < 0:
                 try:
                     import torch
@@ -3029,7 +3038,7 @@ class Task(_Task):
                 exception_to_raise = e
             if retry < retries:
                 getLogger().warning(
-                    "Failed uploading artifact '{}'. Retrying... ({}/{})".format(name, retry + 1, retries)
+                    f"Failed uploading artifact '{name}'. Retrying... ({retry + 1}/{retries})"
                 )
         if exception_to_raise:
             raise exception_to_raise
@@ -3058,7 +3067,7 @@ class Task(_Task):
         else:
             raise TypeError(
                 "Parameter n_last_iterations is expected to be a positive integer value,"
-                " but instead got n_last_iterations={}".format(n_last_iterations)
+                f" but instead got n_last_iterations={n_last_iterations}"
             )
 
         return samples
@@ -3585,7 +3594,7 @@ class Task(_Task):
         if not self.is_main_task():
             LoggerRoot.get_base_logger().warning(
                 "Calling task.execute_remotely is only supported on main Task (created with Task.init)\n"
-                "Defaulting to self.enqueue(queue_name={})".format(queue_name)
+                f"Defaulting to self.enqueue(queue_name={queue_name})"
             )
             if not queue_name:
                 raise ValueError("queue_name must be provided")
@@ -3625,7 +3634,7 @@ class Task(_Task):
         if queue_name:
             Task.enqueue(task, queue_name=queue_name)
             LoggerRoot.get_base_logger().warning(
-                "Switching to remote execution, output log page {}".format(task.get_output_log_web_page())
+                f"Switching to remote execution, output log page {task.get_output_log_web_page()}"
             )
         else:
             # Remove the development system tag
@@ -3685,8 +3694,8 @@ class Task(_Task):
         func_name = str(func_name or func.__name__).strip()
         if func_name in self._remote_functions_generated:
             raise ValueError(
-                "Function name must be unique, a function by the name '{}' "
-                "was already created by this Task.".format(func_name)
+                f"Function name must be unique, a function by the name '{func_name}' "
+                "was already created by this Task."
             )
 
         section_name = "Function"
@@ -3694,11 +3703,18 @@ class Task(_Task):
         func_marker = "__func_readonly__"
 
         # sanitize the dict, leave only basic types that we might want to override later in the UI
-        func_params = {k: v for k, v in kwargs.items() if verify_basic_value(v)}
+        func_params = {
+            k: v
+            for k, v in kwargs.items()
+            if verify_basic_value(v)
+        }
         func_params[func_marker] = func_name
 
         # do not query if we are running locally, there is no need.
-        task_func_marker = self.running_locally() or self.get_parameter("{}/{}".format(section_name, func_marker))
+        task_func_marker = (
+            self.running_locally()
+            or self.get_parameter(f"{section_name}/{func_marker}")
+        )
 
         # if we are running locally or if we are running remotely but we are not a forked tasks
         # condition explained:
@@ -3708,7 +3724,10 @@ class Task(_Task):
             self._wait_for_repo_detection(300)
             task = self.clone(
                 self,
-                name=task_name or "{} <{}>".format(self.name, func_name),
+                name=(
+                    task_name
+                    or f"{self.name} <{func_name}>"
+                ),
                 parent=self.id,
             )
             task.set_system_tags((task.get_system_tags() or []) + [tag_name])
@@ -3758,7 +3777,7 @@ class Task(_Task):
             time.sleep(check_interval_sec)
 
         if raise_on_status and self.status in raise_on_status:
-            raise RuntimeError("Task {} has status: {}.".format(self.task_id, self.status))
+            raise RuntimeError(f"Task {self.task_id} has status: {self.status}.")
 
         # make sure we have the Task object
         self.reload()
@@ -3864,7 +3883,7 @@ class Task(_Task):
 
         if float(callback_execution_timeout) <= 0:
             raise ValueError(
-                "function_timeout_sec must be positive timeout in seconds, got {}".format(callback_execution_timeout)
+                f"function_timeout_sec must be positive timeout in seconds, got {callback_execution_timeout}"
             )
 
         # if we are running remotely we might not have a DevWorker monitoring us, so let's create one
@@ -3911,7 +3930,7 @@ class Task(_Task):
         elif not isinstance(target_task, Task):
             raise ValueError(
                 "`target_task` must be either Task id (str) or Task object, "
-                "received `target_task` type {}".format(type(target_task))
+                f"received `target_task` type {type(target_task)}"
             )
         target_task.reload()
         cur_data = target_task.data.to_dict()
@@ -4016,7 +4035,7 @@ class Task(_Task):
 
         :return: Newly created task ID or the ID of the continued task (``previous_task_id``)
         """
-        print("ClearML: Importing offline session from {}".format(session_folder_zip))
+        print(f"ClearML: Importing offline session from {session_folder_zip}")
 
         temp_folder = None
         if Path(session_folder_zip).is_file():
@@ -4027,14 +4046,14 @@ class Task(_Task):
 
         session_folder = Path(session_folder_zip)
         if not session_folder.is_dir():
-            raise ValueError("Could not find the session folder / zip-file {}".format(session_folder))
+            raise ValueError(f"Could not find the session folder / zip-file {session_folder}")
 
         try:
             with open((session_folder / cls._offline_filename).as_posix(), "rt") as f:
                 export_data = json.load(f)
         except Exception as ex:
             raise ValueError(
-                "Could not read Task object {}: Exception {}".format(session_folder / cls._offline_filename, ex)
+                f"Could not read Task object {session_folder / cls._offline_filename}: Exception {ex}"
             )
         current_task = cls.import_task(export_data)
         if previous_task_id:
@@ -4061,11 +4080,11 @@ class Task(_Task):
                 local_file = session_folder / "data" / local_path
                 if local_file.is_file():
                     remote_path = local_path.replace(
-                        ".{}{}".format(export_data["id"], os.sep),
-                        ".{}{}".format(current_task.id, os.sep),
+                        f".{export_data['id']}{os.sep}",
+                        f".{current_task.id}{os.sep}",
                         1,
                     )
-                    artifact.uri = "{}/{}".format(remote_url, remote_path)
+                    artifact.uri = f"{remote_url}/{remote_path}"
                     StorageManager.upload_file(local_file=local_file.as_posix(), remote_url=artifact.uri)
             # noinspection PyProtectedMember
             task_holding_reports._edit(execution=current_task.data.execution)
@@ -4093,7 +4112,7 @@ class Task(_Task):
             session=task_holding_reports.session,
         )
         # print imported results page
-        print("ClearML results page: {}".format(task_holding_reports.get_output_log_web_page()))
+        print(f"ClearML results page: {task_holding_reports.get_output_log_web_page()}")
         task_holding_reports.mark_completed()
         # close task
         task_holding_reports.close()
@@ -4171,7 +4190,7 @@ class Task(_Task):
             active_conf_file = get_active_config_file()
             if active_conf_file:
                 getLogger().warning(
-                    "Could not store credentials in configuration file, '{}' already exists".format(active_conf_file)
+                    f"Could not store credentials in configuration file, '{active_conf_file}' already exists"
                 )
             else:
                 conf = {
@@ -4209,7 +4228,7 @@ class Task(_Task):
         # verify Task ID exists
         task = Task.get_task(task_id=task_id)
         if not task:
-            raise ValueError("Task ID '{}' could not be found".format(task_id))
+            raise ValueError(f"Task ID '{task_id}' could not be found")
 
         if reset_task:
             task.reset(set_started_on_success=False, force=True)
@@ -4237,7 +4256,7 @@ class Task(_Task):
             queue_name_result = Task._send(Task._get_default_session(), queues.GetByIdRequest(queue_id))
             return queue_name_result.response.queue.name
         except Exception as e:
-            getLogger().warning("Could not get name of queue with ID '{}': {}".format(queue_id, e))
+            getLogger().warning(f"Could not get name of queue with ID '{queue_id}': {e}")
             return None
 
     @classmethod
@@ -4508,16 +4527,16 @@ class Task(_Task):
         # force update of base logger to this current task (this is the main logger task)
         logger = task._get_logger(auto_connect_streams=auto_connect_streams)
         if closed_old_task:
-            logger.report_text("ClearML Task: Closing old development task id={}".format(default_task.get("id")))
+            logger.report_text(f"ClearML Task: Closing old development task id={default_task.get('id')}")
         # print warning, reusing/creating a task
         if default_task_id and not continue_last_task:
-            logger.report_text("ClearML Task: overwriting (reusing) task id=%s" % task.id)
+            logger.report_text(f"ClearML Task: overwriting (reusing) task id={task.id}")
         elif default_task_id and continue_last_task:
             logger.report_text(
-                "ClearML Task: continuing previous task id=%s Notice this run will not be reproducible!" % task.id
+                f"ClearML Task: continuing previous task id={task.id} Notice this run will not be reproducible!"
             )
         else:
-            logger.report_text("ClearML Task: created new task id=%s" % task.id)
+            logger.report_text(f"ClearML Task: created new task id={task.id}")
 
         # update current repository and put warning into logs
         if detect_repo:
@@ -4651,7 +4670,7 @@ class Task(_Task):
 
         if not comment.endswith("\n"):
             comment += "\n"
-        comment += "Using model id: {}".format(model.id)
+        comment += f"Using model id: {model.id}"
         self.set_comment(comment)
 
         model.connect(self, name, ignore_remote_overrides=ignore_remote_overrides)
@@ -4730,9 +4749,7 @@ class Task(_Task):
                     return
                 if not isinstance(k, str):
                     getLogger().warning(
-                        "Unsupported key of type '{}' found when connecting dictionary. It will be converted to str".format(
-                            type(k)
-                        )
+                        f"Unsupported key of type '{type(k)}' found when connecting dictionary. It will be converted to str"
                     )
                     warning_sent = True
                 if isinstance(v, dict):
@@ -4766,9 +4783,11 @@ class Task(_Task):
         if running_remotely() and (self.is_main_task() or self._is_remote_main_task()) and not ignore_remote_overrides:
             parameters = self.get_parameters(cast=True)
             if name:
-                parameters = dict(
-                    (k[len(name) + 1 :], v) for k, v in parameters.items() if k.startswith("{}/".format(name))
-                )
+                parameters = {
+                    k[len(name) + 1 :]: v
+                    for k, v in parameters.items()
+                    if k.startswith(f"{name}/")
+                }
             parameters.pop(ignore_remote_overrides_section, None)
             attr_class.update_from_dict(parameters)
         else:
@@ -4811,7 +4830,7 @@ class Task(_Task):
         if self._at_exit_called:
             return
 
-        self.log.warning("### TASK STOPPED - USER ABORTED - {} ###".format(stop_reason.upper().replace("_", " ")))
+        self.log.warning(f"### TASK STOPPED - USER ABORTED - {stop_reason.upper().replace('_', ' ')} ###")
         self.flush(wait_for_uploads=True)
 
         # if running remotely, we want the daemon to kill us
@@ -4905,7 +4924,7 @@ class Task(_Task):
                         # because join has no return value
                         if self._detect_repo_async_thread.is_alive():
                             self.log.info(
-                                "Repository and package analysis timed out ({} sec), giving up".format(timeout)
+                                f"Repository and package analysis timed out ({timeout} sec), giving up"
                             )
                             # done waiting, kill the thread
                             from .utilities.lowlevel.threads import kill_thread
@@ -5020,9 +5039,9 @@ class Task(_Task):
                         task_status = (
                             "failed",
                             (
-                                "Exception {}".format(is_exception)
+                                f"Exception {is_exception}"
                                 if is_exception
-                                else "Signal {}".format(self.__exit_hook.signal)
+                                else f"Signal {self.__exit_hook.signal}"
                             ),
                         )
                         wait_for_uploads = False
@@ -5134,7 +5153,7 @@ class Task(_Task):
                         if filename.is_file():
                             relative_file_name = filename.relative_to(offline_folder).as_posix()
                             zf.write(filename.as_posix(), arcname=relative_file_name)
-                print("ClearML Task: Offline session stored in {}".format(zip_file))
+                print(f"ClearML Task: Offline session stored in {zip_file}")
             except Exception:
                 pass
 
@@ -5204,7 +5223,7 @@ class Task(_Task):
         system_tags = "system_tags" if hasattr(tasks.Task, "system_tags") else "tags"
         task_filter = task_filter or {}
         if not include_archived:
-            task_filter["system_tags"] = (task_filter.get("system_tags") or []) + ["-{}".format(cls.archived_tag)]
+            task_filter["system_tags"] = (task_filter.get("system_tags") or []) + [f"-{cls.archived_tag}"]
         if tags:
             task_filter["tags"] = (task_filter.get("tags") or []) + list(tags)
         res = cls._send(
@@ -5328,7 +5347,7 @@ class Task(_Task):
             if projects_not_found:
                 # If any of the given project names does not exist, fire off a warning
                 LoggerRoot.get_base_logger().warning(
-                    "No projects were found with name(s): {}".format(", ".join(projects_not_found))
+                    f"No projects were found with name(s): {', '.join(projects_not_found)}"
                 )
             if not project_ids:
                 # If not a single project exists or was found, return empty right away
@@ -5384,10 +5403,14 @@ class Task(_Task):
 
     @classmethod
     def __get_hash_key(cls, *args: Any) -> str:
-        def normalize(x: Any) -> str:
-            return "<{}>".format(x) if x is not None else ""
-
-        return ":".join(map(normalize, args))
+        return ":".join([
+            (
+                f"<{arg}>"
+                if arg is not None
+                else ""
+            )
+            for arg in args
+        ])
 
     @classmethod
     def __get_last_used_task_id(cls, default_project_name, default_task_name, default_task_type):
@@ -5410,9 +5433,9 @@ class Task(_Task):
             task_data["type"] = cls.TaskTypes(task_data["type"])
         except (ValueError, KeyError):
             LoggerRoot.get_base_logger().warning(
-                "Corrupted session cache entry: {}. "
-                "Unsupported task type: {}"
-                "Creating a new task.".format(hash_key, task_data["type"]),
+                f"Corrupted session cache entry: {hash_key}. "
+                f"Unsupported task type: {task_data['type']}"
+                "Creating a new task.",
             )
 
             return None
@@ -5528,9 +5551,9 @@ class Task(_Task):
             and not Session.check_min_api_version(2.8)
         ):
             print(
-                'WARNING: Changing task type to "{}" : '
-                'clearml-server does not support task type "{}", '
-                "please upgrade clearml-server.".format(cls.TaskTypes.training, task_data["type"].value)
+                f'WARNING: Changing task type to "{cls.TaskTypes.training}" : '
+                f'clearml-server does not support task type "{task_data["type"].value}", '
+                "please upgrade clearml-server."
             )
             task_data["type"] = cls.TaskTypes.training
 

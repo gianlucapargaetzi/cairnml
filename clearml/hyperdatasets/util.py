@@ -192,7 +192,7 @@ def set_dataview(task: "Task", dataview) -> None:
                 "artifacts": getattr(getattr(task.data, "execution", {}), "artifacts", []) or [],
             }
         except Exception as e:
-            get_logger("task").exception("Failed fetching dataview by id {}: {}".format(dv_id, e))
+            get_logger("task").exception(f"Failed fetching dataview by id {dv_id}: {e}")
             return
     # Case 2: SDK DataView object
     elif DataView and isinstance(dataview, DataView):
@@ -287,7 +287,7 @@ def set_dataview(task: "Task", dataview) -> None:
                 "artifacts": getattr(getattr(task.data, "execution", {}), "artifacts", []) or [],
             }
         except Exception as e:
-            get_logger("task").exception("Failed serializing DataView to task input: {}".format(e))
+            get_logger("task").exception(f"Failed serializing DataView to task input: {e}")
             return
     else:
         return
@@ -298,7 +298,7 @@ def set_dataview(task: "Task", dataview) -> None:
         task._edit(**payload)
         task.reload()
     except Exception as e:
-        get_logger("task").warning("Failed applying dataview payload onto task input: {}".format(e))
+        get_logger("task").warning(f"Failed applying dataview payload onto task input: {e}")
 
 
 def get_dataviews(task: "Task") -> Dict[str, Any]:

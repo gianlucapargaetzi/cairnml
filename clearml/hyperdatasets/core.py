@@ -145,10 +145,8 @@ class HyperDataset(HyperDatasetManagement):
         helper = StorageHelperDiskSpaceFileSizeStrategy.get(upload_destination)
         if not helper:
             raise ValueError(
-                "Could not get access credentials for '{}' "
-                ", check configuration file ~/clearml.conf".format(
-                    upload_destination
-                )
+                f"Could not get access credentials for '{upload_destination}' "
+                ", check configuration file ~/clearml.conf"
             )
         helper.check_write_permissions(upload_destination)
 
@@ -344,7 +342,11 @@ class HyperDataset(HyperDatasetManagement):
 
             # add query to fetch the frames with sources that have the same hash as the ones we want to upload
             if hashes:
-                lucene = " OR ".join('"{}"'.format(h) for h in hashes if h not in hash_to_uploaded_file)
+                lucene = " OR ".join(
+                    f'"{hash_}"'
+                    for hash_ in hashes
+                    if hash_ not in hash_to_uploaded_file
+                )
                 if lucene:
                     have_hashes = True
                     data_view.add_query(
