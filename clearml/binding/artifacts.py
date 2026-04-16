@@ -48,6 +48,11 @@ if TYPE_CHECKING:
     import pandas
 
 
+class ArtifactIntegrityError(ValueError):
+    """Raised when the hash of a local file does not match its metadata."""
+    pass
+
+
 class Artifact:
     """
     Read-Only Artifact object
@@ -184,6 +189,7 @@ class Artifact:
                 elif self._content_type == "application/feather":
                     self._object = pd.read_feather(local_file)
                 elif self._content_type == "application/pickle":
+                    self.verify_pickle_file_integrity(local_file=local_file)
                     self._object = pd.read_pickle(local_file)
                 elif self.type == Artifacts._pd_artifact_type:
                     self._object = pd.read_csv(local_file)
@@ -201,17 +207,13 @@ class Artifact:
                 with open(local_file, "rt") as f:
                     self._object = f.read()
             elif self.type == "pickle":
-                if self.hash:
-                    file_hash, _ = sha256sum(local_file, block_size=Artifacts._hash_block_size)
-                    if self.hash != file_hash:
-                        raise Exception("incorrect pickle file hash, artifact file might be corrupted")
+                self.verify_pickle_file_integrity(local_file=local_file)
                 with open(local_file, "rb") as f:
                     self._object = pickle.load(f)
         except Exception as e:
             LoggerRoot.get_base_logger().warning(
-                "Exception '{}' encountered when getting artifact with type {} and content type {}".format(
-                    e, self.type, self._content_type
-                )
+                f"Encountered {type(e).__name__}('{e}') when getting artifact "
+                f"with type {self.type} and content type {self._content_type}"
             )
 
         if self._object is self._not_set:
@@ -249,6 +251,25 @@ class Artifact:
             )
 
         return local_copy
+
+    def verify_pickle_file_integrity(self, local_file: str) -> None:
+        """
+        Verifies the integrity of the local file by comparing its hash against the hash of the artifact.
+
+        :param str local_file: The path to the local copy of the artifact file
+            to be verified.
+        :raise ValueError: Raised if the calculated hash of the local file
+            does not match the expected hash stored in the artifact metadata,
+            indicating a corrupted or tampered file.
+        """
+        if self.hash:
+            file_hash, _ = sha256sum(
+                local_file,
+                block_size=Artifacts._hash_block_size,
+            )
+            print(f"Hashes: \nself.hash: {self.hash}\nfile_hash: {file_hash}")
+            if self.hash != file_hash:
+                raise ArtifactIntegrityError("incorrect pickle file hash, artifact file might be corrupted")
 
     def __repr__(self) -> str:
         return str(
@@ -460,12 +481,8 @@ class Artifacts:
             if extension_name_ in valid_extensions:
                 return extension_name_
             LoggerRoot.get_base_logger().warning(
-                "{} artifact can not be uploaded with extension {}. Valid extensions are: {}. Defaulting to {}.".format(
-                    artifact_type_,
-                    extension_name_,
-                    ", ".join(valid_extensions),
-                    default_extension,
-                )
+                f"{artifact_type_} artifact can not be uploaded with extension {extension_name_}. "
+                f"Valid extensions are: {', '.join(valid_extensions)}. Defaulting to {default_extension}."
             )
             return default_extension
 
