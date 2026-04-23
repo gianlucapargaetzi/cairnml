@@ -1,8 +1,9 @@
 import socket
 import subprocess
-from typing import Optional
-
 import requests
+
+from typing import Optional
+from ..backend_config import EnvEntry
 
 
 def get_private_ip() -> str:
@@ -12,6 +13,7 @@ def get_private_ip() -> str:
     :return: A string representing the IP of this machine
     """
     approaches = (
+        _get_private_ip_from_env_vars,
         _get_private_ip_from_socket,
         _get_private_ip_from_subprocess,
     )
@@ -74,6 +76,13 @@ def get_public_ip_from_external_service(external_service: str, timeout: Optional
             return ip
     except Exception:
         return None
+
+
+def _get_private_ip_from_env_vars() -> str:
+    clearml_agent_host_ip = EnvEntry("CLEARML_AGENT_HOST_IP", type=str).get()
+    if not clearml_agent_host_ip:
+        raise ValueError("CLEARML_AGENT_HOST_IP is not set")
+    return clearml_agent_host_ip
 
 
 def _get_private_ip_from_socket() -> str:
