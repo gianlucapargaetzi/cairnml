@@ -12,7 +12,7 @@ from pathlib2 import Path
 from six.moves.queue import PriorityQueue, Queue, Empty
 
 from ..debugging.log import LoggerRoot
-from ..storage.util import format_size
+from ..storage.size import format_size
 
 
 class _DeferredClass:
@@ -294,7 +294,7 @@ class ParallelZipper:
             preview_path = arcname
             if not preview_path:
                 preview_path = file_path
-            self.archive_preview.append("{} - {}".format(preview_path, format_size(self.size)))
+            self.archive_preview.append(f"{preview_path} - {format_size(self.size)}")
             self.files_zipped.add(Path(file_path).as_posix())
             if self._chunk_size <= 0 or self.size < self._chunk_size:
                 self._zipper_queue.put(self)

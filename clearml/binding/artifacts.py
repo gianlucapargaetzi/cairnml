@@ -25,7 +25,9 @@ from ..backend_interface.metrics.events import UploadEvent
 from ..config import deferred_config, config
 from ..debugging.log import LoggerRoot
 from ..storage.helper import remote_driver_schemes
-from ..storage.util import sha256sum, format_size, get_common_path
+from ..storage.util import get_common_path
+from ..storage.size import format_size
+from ..storage.hashing import sha256sum
 from ..utilities.process.mp import SafeEvent, ForkSafeRLock
 from ..utilities.proxy_object import LazyEvalWrapper
 
@@ -694,10 +696,7 @@ class Artifacts:
                         for filename in sorted(files):
                             if filename.is_file():
                                 relative_file_name = filename.relative_to(folder).as_posix()
-                                archive_preview += "{} - {}\n".format(
-                                    relative_file_name,
-                                    format_size(filename.stat().st_size),
-                                )
+                                archive_preview += f"{relative_file_name} - {format_size(filename.stat().st_size)}\n"
                                 zf.write(filename.as_posix(), arcname=relative_file_name)
                 except Exception as e:
                     # failed uploading folder:
@@ -717,8 +716,9 @@ class Artifacts:
                     raise ValueError("Artifact file '{}' could not be found".format(artifact_object.as_posix()))
 
                 override_filename_in_uri = artifact_object.parts[-1]
-                artifact_type_data.preview = preview or "{} - {}\n".format(
-                    artifact_object.name, format_size(artifact_object.stat().st_size)
+                artifact_type_data.preview = (
+                    preview
+                    or f"{artifact_object.name} - {format_size(artifact_object.stat().st_size)}\n"
                 )
                 artifact_object = artifact_object.as_posix()
                 artifact_type = "custom"
@@ -747,9 +747,7 @@ class Artifacts:
                                 if common_path
                                 else filename.as_posix()
                             )
-                            archive_preview += "{} - {}\n".format(
-                                relative_file_name, format_size(filename.stat().st_size)
-                            )
+                            archive_preview += f"{relative_file_name} - {format_size(filename.stat().st_size)}\n"
                             zf.write(filename.as_posix(), arcname=relative_file_name)
                         else:
                             LoggerRoot.get_base_logger().warning(
