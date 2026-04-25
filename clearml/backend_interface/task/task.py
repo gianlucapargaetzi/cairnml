@@ -1280,7 +1280,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         i.e. ``{'Args/param': 'value'}`` is the argument "param" from section "Args"
 
         :param backwards_compatibility: If ``True`` (default), parameters without section name
-            (API version \<2.9, clearml-server \<0.16) will be at dict root level.
+            (API version \\<2.9, clearml-server \\<0.16) will be at dict root level.
             If ``False``, parameters without section name, will be nested under "Args/" key.
         :param cast: If ``True``, cast the parameter to the original type. Default ``False``,
             values are returned in their string representation

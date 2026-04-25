@@ -10,7 +10,7 @@ from clearml.backend_interface.datasets.hyper_dataset import HyperDatasetManagem
 from clearml.backend_interface.util import get_or_create_project
 from clearml.storage.helper import StorageHelperDiskSpaceFileSizeStrategy
 from clearml.storage.manager import StorageManagerDiskSpaceFileSizeStrategy
-from clearml.storage.util import sha256sum
+from clearml.storage.hashing import sha256sum
 from .data_entry import DataEntry, ENTRY_CLASS_KEY, _resolve_class
 from .data_entry_image import DataEntryImage
 from .management import HyperDatasetManagement

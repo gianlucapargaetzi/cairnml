@@ -32,7 +32,9 @@ from ..config import deferred_config, running_remotely, get_remote_task_id
 from ..debugging.log import LoggerRoot
 from ..storage.cache import CacheManager
 from ..storage.helper import StorageHelper, cloud_driver_schemes
-from ..storage.util import sha256sum, is_windows, md5text, format_size
+from ..storage.util import is_windows
+from ..storage.size import format_size
+from ..storage.hashing import sha256sum, md5text
 from ..utilities.files import is_path_traversal
 from ..utilities.matching import matches_any_wildcard
 from ..utilities.parallel import ParallelZipper
@@ -792,12 +794,11 @@ class Dataset:
                 zip_path = Path(zip_.zip_path)
                 artifact_name = self._data_artifact_name
                 self._data_artifact_name = self._get_next_data_artifact_name(self._data_artifact_name)
+                zip_size = format_size(zip_.size, binary=True, use_b_instead_of_bytes=True)
                 self._task.get_logger().report_text(
-                    "Uploading dataset changes ({} files compressed to {}) to {}".format(
-                        zip_.count,
-                        format_size(zip_.size, binary=True, use_b_instead_of_bytes=True),
-                        self.get_default_storage(),
-                    )
+                    "Uploading dataset changes"
+                    f" ({zip_.count} files compressed to {zip_size}) "
+                    f"to {self.get_default_storage()}"
                 )
                 total_size += zip_.size
                 chunks_count += 1
@@ -840,16 +841,16 @@ class Dataset:
                             file_entry.local_path = None
                 self._serialize()
 
+        formatted_total_size = format_size(total_size, binary=True, use_b_instead_of_bytes=True)
+        average_chunk_size = format_size(
+            0 if chunks_count == 0 else total_size / chunks_count,
+            binary=True,
+            use_b_instead_of_bytes=True,
+        )
         self._task.get_logger().report_text(
-            "File compression and upload completed: total size {}, {} chunk(s) stored (average size {})".format(
-                format_size(total_size, binary=True, use_b_instead_of_bytes=True),
-                chunks_count,
-                format_size(
-                    0 if chunks_count == 0 else total_size / chunks_count,
-                    binary=True,
-                    use_b_instead_of_bytes=True,
-                ),
-            )
+            "File compression and upload completed: "
+            f"total size {formatted_total_size}, {chunks_count} chunk(s) stored "
+            f"(average size {average_chunk_size})"
         )
         self._ds_total_size_compressed = total_size + self._get_total_size_compressed_parents()
 
@@ -2391,19 +2392,18 @@ class Dataset:
         if update_dependency_chunk_lookup:
             state["dependency_chunk_lookup"] = self._build_dependency_chunk_lookup()
 
+        files_added_or_modified_count = modified_files_count + added_files_count
+        files_added_or_modified_size = format_size(
+            added_files_size + modified_files_size,
+            binary=True,
+            use_nonbinary_notation=True,
+            use_b_instead_of_bytes=True,
+        )
+        current_dependency_graph = json.dumps(self._dependency_graph, indent=2, sort_keys=True)
         preview = (
             "Dataset state\n"
-            "Files added/modified: {0} - total size {1}\n"
-            "Current dependency graph: {2}\n".format(
-                modified_files_count + added_files_count,
-                format_size(
-                    added_files_size + modified_files_size,
-                    binary=True,
-                    use_nonbinary_notation=True,
-                    use_b_instead_of_bytes=True,
-                ),
-                json.dumps(self._dependency_graph, indent=2, sort_keys=True),
-            )
+            f"Files added/modified: {files_added_or_modified_count} - total size {files_added_or_modified_size}\n"
+            f"Current dependency graph: {current_dependency_graph}\n"
         )
         # store as artifact of the Task and add the amount of files added or removed as metadata, so we can use those
         # later to create the table
@@ -2963,7 +2963,7 @@ class Dataset:
         :param dataset_id:
         :return:
         """
-        return "dsh{}".format(md5text(dataset_id))
+        return f"dsh{md5text(dataset_id)}"
 
     @classmethod
     def is_offline(cls) -> bool:
@@ -3277,33 +3277,26 @@ class Dataset:
             preview_index += 1
         if not self._ds_total_size:
             self._report_dataset_struct()
-        if not self._dataset_link_entries:
-            dataset_details = (
-                "File Name ({} files), File Size (total {}), Hash (SHA2)\n".format(
-                    len(self._dataset_file_entries),
-                    format_size(
-                        self._ds_total_size,
-                        binary=True,
-                        use_nonbinary_notation=True,
-                        use_b_instead_of_bytes=True,
-                    ),
-                )
-                + dataset_details
+
+        file_name_remark = (
+            f"{len(self._dataset_file_entries)} files + {len(self._dataset_link_entries)} links"
+            if self._dataset_link_entries
+            else f"{len(self._dataset_file_entries)} files"
+        )
+        ds_total_size = format_size(
+            self._ds_total_size,
+            binary=True,
+            use_nonbinary_notation=True,
+            use_b_instead_of_bytes=True,
+        )
+        dataset_details = (
+            (
+                f"File Name ({file_name_remark}), "
+                f"File Size (total {ds_total_size}), "
+                "Hash (SHA2)\n"
             )
-        else:
-            dataset_details = (
-                "File Name ({} files + {} links), File Size (total {}), Hash (SHA2)\n".format(
-                    len(self._dataset_file_entries),
-                    len(self._dataset_link_entries),
-                    format_size(
-                        self._ds_total_size,
-                        binary=True,
-                        use_nonbinary_notation=True,
-                        use_b_instead_of_bytes=True,
-                    ),
-                )
-                + dataset_details
-            )
+            + dataset_details
+        )
 
         # noinspection PyProtectedMember
         self._task._set_configuration(
