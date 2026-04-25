@@ -16,7 +16,7 @@ from pathlib2 import Path
 from ..backend_api import Session
 from ..backend_api.services import tasks as tasks_service
 from ..backend_interface.util import get_or_create_project, exact_match_regex
-from ..storage.util import hash_dict
+from ..storage.hashing import hash_dict
 from ..task import Task
 
 logger = getLogger("clearml.automation.job")

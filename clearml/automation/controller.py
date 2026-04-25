@@ -28,7 +28,7 @@ from ..config import get_remote_task_id
 from ..debugging.log import LoggerRoot
 from ..errors import UsageError
 from ..model import BaseModel, OutputModel
-from ..storage.util import hash_dict
+from ..storage.hashing import hash_dict
 from ..task import Task
 from ..utilities.process.mp import leave_process
 from ..utilities.proxy_object import (
@@ -3250,7 +3250,7 @@ class PipelineController:
             self._task._set_configuration(
                 name=self._config_section,
                 config_type="dictionary",
-                description="pipeline state: {}".format(hash_dict(pipeline_dag)),
+                description=f"pipeline state: {hash_dict(pipeline_dag)}",
                 config_text=json.dumps(pipeline_dag, indent=2),
                 force=True,
             )

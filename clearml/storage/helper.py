@@ -73,7 +73,7 @@ from ..backend_config.bucket_config import (
     AzureContainerConfig,
     S3BucketConfig,
 )
-from .util import format_size
+from .size import format_size
 from ..config import config, deferred_config, SESSION_CACHE_FILE, CLEARML_CACHE_DIR, DEFAULT_CACHE_DIR
 from ..debugging import get_logger
 from ..errors import UsageError
@@ -4311,10 +4311,6 @@ class StorageHelper(_StorageHelper):
             first_cleanup_scan = self._synced_cache_time is None
             self._synced_cache_time = time()
 
-            # check if we need to run the cache cleanup
-            def get_cache_size_str():
-                format_size(self._cache_size) if self._cache_size is not None else "N/A"
-
             if first_cleanup_scan and used_bytes_limit_enabled:
                 # if this is the first time we need to clean the cache (first download)
                 # we should need to scan the files if we have a max cache size limit
@@ -4334,23 +4330,19 @@ class StorageHelper(_StorageHelper):
 
             if log:
                 log.warning(
-                    "Cleaning cache: max_used_bytes=%s, min_free_bytes=%s, free_space=%s"
-                    % (
-                        format_size(max_used_bytes_target),
-                        format_size(min_free_bytes_target),
-                        format_size(self.get_free_bytes()),
-                    )
+                    "Cleaning cache: "
+                    f"max_used_bytes={format_size(max_used_bytes_target)}, "
+                    f"min_free_bytes={format_size(min_free_bytes_target)}, "
+                    f"free_space={format_size(self.get_free_bytes())}"
                 )
-                log.warning(
-                    "Cache cleanup started (clearing %s)"
-                    % (
-                        "scan"
-                        if first_cleanup_scan
-                        else format_size(self._cache_size - max_used_bytes_target)
-                        if used_bytes_limit_enabled
-                        else format_size(self.cache_size_min_free_bytes - self.get_free_bytes())
-                    )
+                cache_clearing_size = (
+                    "scan"
+                    if first_cleanup_scan
+                    else format_size(self._cache_size - max_used_bytes_target)
+                    if used_bytes_limit_enabled
+                    else format_size(self.cache_size_min_free_bytes - self.get_free_bytes())
                 )
+                log.warning(f"Cache cleanup started (clearing {cache_clearing_size})")
 
             # Calc and store cache size
             cleanup_session_timestamp = time()
@@ -4409,9 +4401,11 @@ class StorageHelper(_StorageHelper):
 
             if log:
                 if free_bytes_limit_enabled and self.get_free_bytes() <= self.cache_size_min_free_bytes:
-                    log.warning("Cache free bytes limit not satisfied after cleaning entire cache (limit is %s)"
-                                % format_size(self.cache_size_min_free_bytes))
-                log.warning("Cache cleanup done, current size %s" % (format_size(self._cache_size)))
+                    log.warning(
+                        "Cache free bytes limit not satisfied after cleaning entire cache "
+                        f"(limit is {format_size(self.cache_size_min_free_bytes)})"
+                    )
+                log.warning(f"Cache cleanup done, current size {format_size(self._cache_size)}")
         finally:
             self._cache_clean_in_progress.release()
 
