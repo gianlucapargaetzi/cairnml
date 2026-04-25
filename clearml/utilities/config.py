@@ -7,7 +7,7 @@ import pyparsing
 
 from .dicts import hocon_quote_key, hocon_unquote_key
 from .pyhocon import ConfigFactory, HOCONConverter
-from ..storage.util import parse_size
+from ..storage.size import parse_size
 
 
 def parse_human_size(value: Any) -> Any:
