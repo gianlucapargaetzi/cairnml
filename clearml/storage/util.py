@@ -1,12 +1,22 @@
 import fnmatch
 import os
 import sys
-from typing import Optional, Union, Sequence, Callable, Any
+from typing import Optional, Union, Callable, Any
+from six.moves.urllib.parse import quote
 
-from pathlib2 import Path
-from six.moves.urllib.parse import quote, urlparse, urlunparse
-
+from .filepaths import is_within_directory
 from ..debugging.log import LoggerRoot
+# Imports backwards compatibility
+from .filepaths import get_common_path  # noqa: F401
+from .hashing import (  # noqa: F401
+    sha256sum,
+    md5text,
+    crc32text,
+    hash_text,
+    hash_dict,
+)
+from .url import quote_url  # noqa: F401
+from .size import format_size, parse_size  # noqa: F401
 
 
 def get_config_object_matcher(**patterns: Any) -> Callable:
@@ -37,18 +47,6 @@ def get_config_object_matcher(**patterns: Any) -> Callable:
     return _matcher
 
 
-def quote_url(url: str, valid_schemes: Sequence[str] = ("http", "https")) -> str:
-    parsed = urlparse(url)
-    if parsed.scheme not in valid_schemes:
-        return url
-    parsed = parsed._replace(path=quote(parsed.path))
-    return str(urlunparse(parsed))
-
-
-def encode_string_to_filename(text: str) -> str:
-    return quote(text, safe=" ")
-
-
 def is_windows() -> bool:
     """
     :return: True if currently running on windows OS
@@ -56,74 +54,11 @@ def is_windows() -> bool:
     return sys.platform == "win32"
 
 
-def get_common_path(list_of_files: Sequence[Union[str, Path]]) -> Optional[str]:
+def encode_string_to_filename(text: str) -> str:
     """
-    Return the common path of a list of files
-
-    :param list_of_files: list of files (str or Path objects)
-    :return: Common path string (always absolute) or None if common path could not be found
+    Encodes a string to be a valid filename.
     """
-    if not list_of_files:
-        return None
-
-    # a single file has its parent as common path
-    if len(list_of_files) == 1:
-        return Path(list_of_files[0]).absolute().parent.as_posix()
-
-    # find common path to support folder structure inside zip
-    common_path_parts = Path(list_of_files[0]).absolute().parts
-    for f in list_of_files:
-        f_parts = Path(f).absolute().parts
-        num_p = min(len(f_parts), len(common_path_parts))
-        if f_parts[:num_p] == common_path_parts[:num_p]:
-            common_path_parts = common_path_parts[:num_p]
-            continue
-        num_p = min([i for i, (a, b) in enumerate(zip(common_path_parts[:num_p], f_parts[:num_p])) if a != b] or [-1])
-        # no common path, break
-        if num_p < 0:
-            common_path_parts = []
-            break
-        # update common path
-        common_path_parts = common_path_parts[:num_p]
-
-    if common_path_parts:
-        common_path = Path()
-        for f in common_path_parts:
-            common_path /= f
-        return common_path.as_posix()
-
-    return None
-
-
-def is_within_directory(directory: str, target: str) -> bool:
-    """
-    Checks if the 'target' path (formatted as a str) is within the suggested directory (also a str).
-    Converts paths to absolute paths by prefixing relative paths with the output of os.getcwd()
-    (via `os.path.abspath`), so that relative paths can be compared
-    on equal terms with other paths.
-
-    Examples:
-        is_within_directory("a", "a/b.txt") == True
-        is_within_directory("", "a/b.txt") == True
-        is_within_directory("a/b", "a/b/c/d.txt") == True
-        is_within_directory("a", "a.txt") == False # 'directory' variable refers to folder, not file
-        is_within_directory("a/b/c", "a/b/cd") == False # sibling directories with related names don't work
-        is_within_directory("a/b/cd", "a/b/ce") == False # sibling directories with related names don't work
-        is_within_directory("a/b/c/e", "a/b/cd") == False # sibling directories don't work
-
-    :param str target: Path to folder/file to check for containment in directory.
-    :param str directory: Path to folder to check for containment of target file/folder.
-    """
-    directory_absolute_path = Path(os.path.abspath(directory))
-    target_absolute_path = Path(os.path.abspath(target))
-
-    return (
-        len(target_absolute_path.parts) >= len(directory_absolute_path.parts)
-        and
-        directory_absolute_path.parts == (
-            target_absolute_path.parts[:len(directory_absolute_path.parts)]
-        )
-    )
+    return quote(text, safe=" ")
 
 
 def create_zip_directories(zipfile: Any, path: Optional[Union[str, os.PathLike]] = None) -> None:

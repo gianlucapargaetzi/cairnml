@@ -44,7 +44,7 @@ from .debugging.log import get_logger
 from .errors import UsageError
 from .storage.cache import CacheManager
 from .storage.helper import StorageHelper
-from .storage.util import get_common_path
+from .storage.filepaths import get_common_path
 from .utilities.enum import Options
 from .backend_interface import Task as _Task
 from .backend_interface.model import create_dummy_model, Model as _Model
