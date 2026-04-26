@@ -16,7 +16,7 @@ from six.moves.urllib.parse import urlparse, urlunparse
 from ...backend_api.services import events
 from ...config import deferred_config
 from ...debugging.log import LoggerRoot
-from ...storage.util import quote_url
+from ...storage.url import quote_url
 from ...utilities.attrs import attrs
 from ...utilities.process.mp import SingletonLock
 

@@ -7,13 +7,14 @@ from random import random
 from time import time
 from typing import List, Optional, Union
 from zipfile import ZipFile
+from six.moves.urllib.parse import quote
 
 from pathlib2 import Path
 
 from .cache import CacheManager
 from .callbacks import ProgressReport
 from .helper import StorageHelper, StorageHelperDiskSpaceFileSizeStrategy
-from .util import encode_string_to_filename, safe_extract, create_zip_directories
+from .util import safe_extract, create_zip_directories
 from ..config import deferred_config
 from ..debugging.log import LoggerRoot
 
@@ -167,7 +168,11 @@ class StorageManager:
 
         cache_folder = Path(cache_path_encoding or cached_file).parent
         archive_suffix = (cache_path_encoding or cached_file).name[: -len(suffix)]
-        name = encode_string_to_filename(name) if name else name
+        name = (
+            quote(name, safe=" ")  # Encoding string to filename
+            if name
+            else name
+        )
         if target_folder:
             target_folder = Path(target_folder)
         else:

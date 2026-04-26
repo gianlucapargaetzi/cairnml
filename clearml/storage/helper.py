@@ -62,7 +62,7 @@ from clearml.utilities.requests_toolbelt import (
     MultipartEncoder,
 )
 from .callbacks import UploadProgressReport, DownloadProgressReport
-from .util import quote_url
+from .url import quote_url
 from ..backend_api.session import Session
 from ..backend_api.utils import get_http_session_with_retry
 from ..backend_config.bucket_config import (
@@ -2995,7 +2995,11 @@ class _StorageHelper:
 
             # quote link
             def callback(result: bool) -> str:
-                return a_cb(quote_url(result_path, _StorageHelper._quotable_uri_schemes) if result else result)
+                return a_cb(
+                    quote_url(result_path, _StorageHelper._quotable_uri_schemes)
+                    if result
+                    else result
+                )
 
             # replace callback with wrapper
             cb = callback
