@@ -25,7 +25,7 @@ from ..backend_interface.metrics.events import UploadEvent
 from ..config import deferred_config, config
 from ..debugging.log import LoggerRoot
 from ..storage.helper import remote_driver_schemes
-from ..storage.util import get_common_path
+from ..storage.filepaths import get_common_path
 from ..storage.size import format_size
 from ..storage.hashing import sha256sum
 from ..utilities.process.mp import SafeEvent, ForkSafeRLock

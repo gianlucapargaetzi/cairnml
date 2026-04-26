@@ -9,7 +9,7 @@ from typing import Union, Optional, Tuple, Dict
 from pathlib2 import Path
 
 from .helper import StorageHelper
-from .util import quote_url
+from .url import quote_url
 from ..config import get_cache_dir, deferred_config
 from ..debugging.log import LoggerRoot
 from ..utilities.files import get_filename_max_length
@@ -109,7 +109,7 @@ class CacheManager:
         def get_hashed_url_file(cls, url: str) -> str:
             str_hash = hashlib.md5(url.encode()).hexdigest()
             filename = url.split("/")[-1]
-            return "{}.{}".format(str_hash, quote_url(filename))
+            return f"{str_hash}.{quote_url(filename)}"
 
         def _conform_filename(self, file_name: str) -> str:
             """
