@@ -41,25 +41,20 @@ if TYPE_CHECKING:
 
 class Logger:
     """
-    The ``Logger`` class is the ClearML console log and metric statistics interface, and contains methods for explicit
-    reporting.
+    The ``Logger`` class is the console log and metric statistics interface, providing methods for explicit reporting.
 
-    Explicit reporting extends ClearML automagical capturing of inputs and output. Explicit reporting
-    methods include scalar plots, line plots, histograms, confusion matrices, 2D and 3D scatter
-    diagrams, text logging, tables, and image uploading and reporting.
+    Explicit reporting extends ClearML automagical capturing of inputs and output.  It supports scalar plots, line plots,
+    histograms, confusion matrices, 2D and 3D scatter diagrams, text logging, tables, and image uploading.
 
-    In the ClearML Web-App (UI), ``Logger`` output appears in CONSOLE, SCALARS,
-    PLOTS, and DEBUG SAMPLES tabs. When you compare experiments, ``Logger`` output appears in the
-    comparisons.
-
-    .. warning::
-
-       Do not construct Logger objects directly.
+    In the ClearML WebApp (UI), ``Logger`` output appears in the CONSOLE, SCALARS,
+    PLOTS, and DEBUG SAMPLES tabs.
 
     You must get a Logger object before calling any of the other ``Logger`` class methods by calling
     ``Task.get_logger`` or ``Logger.current_logger``.
 
-
+    .. warning::
+        **Do not construct Logger manually!**
+        Use ```Logger.get_current```
     """
 
     SeriesInfo = SeriesInfo
@@ -73,11 +68,7 @@ class Logger:
         connect_stderr: bool = True,
         connect_logging: bool = False,
     ) -> None:
-        """
-        .. warning::
-            **Do not construct Logger manually!**
-            Please use :meth:`Logger.get_current`
-        """
+
         assert isinstance(
             private_task, _Task
         ), "Logger object cannot be instantiated externally, use Logger.current_logger()"
@@ -150,14 +141,14 @@ class Logger:
 
            logger.report_text('log some text', level=logging.DEBUG, print_console=False)
 
-        You can view the reported text in the **ClearML Web-App (UI)**, **RESULTS** tab, **CONSOLE** sub-tab.
+        You can view the reported text in the **ClearML WebApp (UI)**, **RESULTS** tab, **CONSOLE** sub-tab.
 
         :param str msg: The text to log.
         :param int level: The log level from the Python ``logging`` package. The default value is ``logging.INFO``.
         :param bool print_console: In addition to the log, print to the console.
             The values are:
 
-          - ``True`` - Print to the console. (default)
+          - ``True`` - Print to the console (default)
           - ``False`` - Do not print to the console.
         """
         force_send = not print_console and self._parse_level(level) >= logging.WARNING
@@ -178,7 +169,7 @@ class Logger:
                    title='scalar metrics', series='series', value=scalar_series[iteration], iteration=iteration
                )
 
-        You can view the scalar plots in the **ClearML Web-App (UI)**, **RESULTS** tab, **SCALARS** sub-tab.
+        You can view the scalar plots in the **ClearML WebApp (UI)**, **RESULTS** tab, **SCALARS** sub-tab.
 
         :param str title: The title (metric) of the plot. Plot more than one scalar series on the same plot by using
             the same ``title`` for each call to this method.
@@ -196,7 +187,7 @@ class Logger:
     def report_single_value(self, name: str, value: float) -> None:
         """
         Reports a single value metric (for example, total experiment accuracy or mAP)
-        You can view the metrics in the **ClearML Web-App (UI)**, **RESULTS** tab, **SCALARS** sub-tab.
+        You can view the metrics in the **ClearML WebApp (UI)**, **RESULTS** tab, **SCALARS** sub-tab.
 
         :param name: Metric's name
         :param value: Metric's value
@@ -220,8 +211,7 @@ class Logger:
         For explicit reporting, plot a vector as (default stacked) histogram.
 
         .. note::
-            This method is the same as :meth:`Logger.report_histogram`.
-            This method is deprecated, use :meth:`Logger.report_histogram` instead.
+            This method is deprecated. Use ```Logger.report_histogram``` instead.
 
         For example:
 
@@ -231,22 +221,22 @@ class Logger:
            logger.report_vector(title='vector example', series='vector series', values=vector_series, iteration=0,
                 labels=['A','B'], xaxis='X axis label', yaxis='Y axis label')
 
-        You can view the vectors plot in the **ClearML Web-App (UI)**, **RESULTS** tab, **PLOTS** sub-tab.
+        You can view the vector plot in the **ClearML WebApp (UI)**, **RESULTS** tab, **PLOTS** sub-tab.
 
         :param title: The title (metric) of the plot.
         :param series: The series name (variant) of the reported histogram.
         :param values: The series values. A list of floats, or an N-dimensional Numpy array containing
             data for each histogram bar.
         :param iteration: The reported iteration / step. Each ``iteration`` creates another plot.
-        :param labels: Labels for each bar group, creating a plot legend labeling each series. (Optional)
+        :param labels: Labels for each bar group, creating a plot legend labeling each series (Optional)
         :param xlabels: Labels per entry in each bucket in the histogram (vector), creating a set of labels
-            for each histogram bar on the x-axis. (Optional)
-        :param xaxis: The x-axis title. (Optional)
-        :param yaxis: The y-axis title. (Optional)
+            for each histogram bar on the x-axis (Optional)
+        :param xaxis: The x-axis title (Optional)
+        :param yaxis: The y-axis title (Optional)
         :param mode: Multiple histograms mode, stack / group / relative. Default is 'group'.
         :param extra_layout: Optional dictionary for layout configuration, passed directly to plotly.
-            See full details on the supported configuration: https://plotly.com/javascript/reference/layout/
-            example: ``extra_layout={'showlegend': False, 'plot_bgcolor': 'yellow'}``
+            See full details on the supported configuration: https://plotly.com/javascript/reference/layout/.
+            Example: ``extra_layout={'showlegend': False, 'plot_bgcolor': 'yellow'}``
         """
         warnings.warn(
             ":meth:`Logger.report_vector` is deprecated; use :meth:`Logger.report_histogram` instead.",
@@ -283,7 +273,7 @@ class Logger:
         """
         For explicit reporting, plot a (default grouped) histogram.
         Notice this function will not calculate the histogram,
-        it assumes the histogram was already calculated in `values`
+        it assumes the histogram was already calculated in ``values``
 
         For example:
 
@@ -293,25 +283,25 @@ class Logger:
            logger.report_histogram(title='histogram example', series='histogram series',
                 values=vector_series, iteration=0, labels=['A','B'], xaxis='X axis label', yaxis='Y axis label')
 
-        You can view the reported histograms in the **ClearML Web-App (UI)**, **RESULTS** tab, **PLOTS** sub-tab.
+        You can view the reported histograms in the **ClearML WebApp (UI)**, **RESULTS** tab, **PLOTS** sub-tab.
 
         :param title: The title (metric) of the plot.
         :param series: The series name (variant) of the reported histogram.
         :param values: The series values. A list of floats, or an N-dimensional Numpy array containing
             data for each histogram bar.
         :param iteration: The reported iteration / step. Each ``iteration`` creates another plot.
-        :param labels: Labels for each bar group, creating a plot legend labeling each series. (Optional)
+        :param labels: Labels for each bar group, creating a plot legend labeling each series (Optional)
         :param xlabels: Labels per entry in each bucket in the histogram (vector), creating a set of labels
-            for each histogram bar on the x-axis. (Optional)
-        :param xaxis: The x-axis title. (Optional)
-        :param yaxis: The y-axis title. (Optional)
+            for each histogram bar on the x-axis (Optional)
+        :param xaxis: The x-axis title (Optional)
+        :param yaxis: The y-axis title (Optional)
         :param mode: Multiple histograms mode, stack / group / relative. Default is 'group'.
-        :param data_args: optional dictionary for data configuration, passed directly to plotly
-            See full details on the supported configuration: https://plotly.com/javascript/reference/bar/
-            example: ``data_args={'orientation': 'h', 'marker': {'color': 'blue'}}``
-        :param extra_layout: optional dictionary for layout configuration, passed directly to plotly
-            See full details on the supported configuration: https://plotly.com/javascript/reference/bar/
-            example: ``extra_layout={'xaxis': {'type': 'date', 'range': ['2020-01-01', '2020-01-31']}}``
+        :param data_args: Optional dictionary for data configuration, passed directly to plotly.
+            See full details on the supported configuration: https://plotly.com/javascript/reference/bar/.
+            Example: ``data_args={'orientation': 'h', 'marker': {'color': 'blue'}}``
+        :param extra_layout: Optional dictionary for layout configuration, passed directly to plotly.
+            See full details on the supported configuration: https://plotly.com/javascript/reference/bar/.
+            Example: ``extra_layout={'xaxis': {'type': 'date', 'range': ['2020-01-01', '2020-01-31']}}``
         """
 
         if not isinstance(values, np.ndarray):
@@ -366,16 +356,16 @@ class Logger:
 
            logger.report_table(title='table example',series='pandas DataFrame',iteration=0,table_plot=df)
 
-        You can view the reported tables in the **ClearML Web-App (UI)**, **RESULTS** tab, **PLOTS** sub-tab.
+        You can view the reported tables in the **ClearML WebApp (UI)**, **RESULTS** tab, **PLOTS** sub-tab.
 
         :param title: The title (metric) of the table.
         :param series: The series name (variant) of the reported table.
         :param iteration: The reported iteration / step.
         :param table_plot: The output table plot object
-        :param csv: path to local csv file
-        :param url: A URL to the location of csv file.
-        :param extra_layout: optional dictionary for layout configuration, passed directly to plotly
-            See full details on the supported configuration: https://plotly.com/javascript/reference/layout/
+        :param csv: Path to local CSV file
+        :param url: A URL to the location of CSV file.
+        :param extra_layout: Optional dictionary for layout configuration, passed directly to plotly.
+            See full details on the supported configuration: https://plotly.com/javascript/reference/layout/.
             For example:
 
             .. code-block:: py
@@ -388,8 +378,8 @@ class Logger:
                     extra_layout={'height': 600}
                 )
 
-        :param extra_data: optional dictionary for data configuration, like column width, passed directly to plotly
-            See full details on the supported configuration: https://plotly.com/javascript/reference/table/
+        :param extra_data: Optional dictionary for data configuration, like column width, passed directly to plotly.
+            See full details on the supported configuration: https://plotly.com/javascript/reference/table/.
             For example:
 
             .. code-block:: py
@@ -458,11 +448,15 @@ class Logger:
         """
         For explicit reporting, plot one or more series as lines.
 
+        .. note::
+            This method is the same as ```Logger.report_scatter2d``` with ```mode='lines'```.
+            This method is deprecated, use ```Logger.report_scatter2d``` instead.
+
         :param str title: The title (metric) of the plot.
         :param list series: All the series data, one list element for each line in the plot.
         :param int iteration: The reported iteration / step.
-        :param str xaxis: The x-axis title. (Optional)
-        :param str yaxis: The y-axis title. (Optional)
+        :param str xaxis: The x-axis title (Optional)
+        :param str yaxis: The y-axis title (Optional)
         :param str mode: The type of line plot.
             The values are:
 
@@ -474,16 +468,12 @@ class Logger:
             The values are:
 
           - ``True`` - The x-axis is high to low  (reversed).
-          - ``False`` - The x-axis is low to high  (not reversed). (default)
+          - ``False`` - The x-axis is low to high  (not reversed) (default)
 
         :param str comment: A comment displayed with the plot, underneath the title.
-        :param dict extra_layout: optional dictionary for layout configuration, passed directly to plotly
-            See full details on the supported configuration: https://plotly.com/javascript/reference/scatter/
-            example: ``extra_layout={'xaxis': {'type': 'date', 'range': ['2020-01-01', '2020-01-31']}}``
-
-        .. note::
-            This method is the same as :meth:`Logger.report_scatter2d` with :param:`mode='lines'`.
-            This method is deprecated, use :meth:`Logger.report_scatter2d` instead.
+        :param dict extra_layout: optional dictionary for layout configuration, passed directly to plotly.
+            See full details on the supported configuration: https://plotly.com/javascript/reference/scatter/.
+            Example: ``extra_layout={'xaxis': {'type': 'date', 'range': ['2020-01-01', '2020-01-31']}}``
         """
         warnings.warn(
             ":meth:`Logger.report_line_plot` is deprecated;"
@@ -551,8 +541,8 @@ class Logger:
         :param str series: The series name (variant) of the reported scatter plot.
         :param list scatter: The scatter data. numpy.ndarray or list of (pairs of x,y) scatter:
         :param int iteration: The reported iteration / step.
-        :param str xaxis: The x-axis title. (Optional)
-        :param str yaxis: The y-axis title. (Optional)
+        :param str xaxis: The x-axis title (Optional)
+        :param str yaxis: The y-axis title (Optional)
         :param list(str) labels: Labels per point in the data assigned to the ``scatter`` parameter. The labels must be
             in the same order as the data.
         :param str mode: The type of scatter plot. The values are:
@@ -562,9 +552,9 @@ class Logger:
           - ``lines+markers``
 
         :param str comment: A comment displayed with the plot, underneath the title.
-        :param dict extra_layout: optional dictionary for layout configuration, passed directly to plotly
-            See full details on the supported configuration: https://plotly.com/javascript/reference/scatter/
-            example: ``extra_layout={'xaxis': {'type': 'date', 'range': ['2020-01-01', '2020-01-31']}}``
+        :param dict extra_layout: Optional dictionary for layout configuration, passed directly to plotly.
+            See full details on the supported configuration: https://plotly.com/javascript/reference/scatter/.
+            Example: ``extra_layout={'xaxis': {'type': 'date', 'range': ['2020-01-01', '2020-01-31']}}``
         """
 
         if not isinstance(scatter, np.ndarray):
@@ -607,34 +597,34 @@ class Logger:
         """
         For explicit reporting, plot a 3d scatter graph (with markers).
 
+        For example:
+
+        .. code-block:: py
+
+           scatter3d = np.random.randint(10, size=(10, 3))
+           logger.report_scatter3d(title="example_scatter_3d", series="series_xyz", iteration=1, scatter=scatter3d,
+                xaxis="title x", yaxis="title y", zaxis="title z")
+
         :param str title: The title (metric) of the plot.
         :param str series: The series name (variant) of the reported scatter plot.
         :param scatter: The scatter data.
             list of (pairs of x,y,z), list of series [[(x1,y1,z1)...]], or numpy.ndarray
         :param int iteration: The reported iteration / step.
-        :param str xaxis: The x-axis title. (Optional)
-        :param str yaxis: The y-axis title. (Optional)
-        :param str zaxis: The z-axis title. (Optional)
+        :param str xaxis: The x-axis title (Optional)
+        :param str yaxis: The y-axis title (Optional)
+        :param str zaxis: The z-axis title (Optional)
         :param list(str) labels: Labels per point in the data assigned to the ``scatter`` parameter. The labels must be
             in the same order as the data.
         :param str mode: The type of scatter plot. The values are: ``lines``, ``markers``, ``lines+markers``.
-            For example:
-
-            .. code-block:: py
-
-               scatter3d = np.random.randint(10, size=(10, 3))
-               logger.report_scatter3d(title="example_scatter_3d", series="series_xyz", iteration=1, scatter=scatter3d,
-                    xaxis="title x", yaxis="title y", zaxis="title z")
-
         :param bool fill: Fill the area under the curve. The values are:
 
           - ``True`` - Fill
           - ``False`` - Do not fill (default)
 
         :param str comment: A comment displayed with the plot, underneath the title.
-        :param dict extra_layout: optional dictionary for layout configuration, passed directly to plotly
-            See full details on the supported configuration: https://plotly.com/javascript/reference/scatter3d/
-            example: ``extra_layout={'xaxis': {'type': 'date', 'range': ['2020-01-01', '2020-01-31']}}``
+        :param dict extra_layout: Optional dictionary for layout configuration, passed directly to plotly.
+            See full details on the supported configuration: https://plotly.com/javascript/reference/scatter3d/.
+            Example: ``extra_layout={'xaxis': {'type': 'date', 'range': ['2020-01-01', '2020-01-31']}}``
         """
         # check if multiple series
         multi_series = isinstance(scatter, list) and (
@@ -700,15 +690,15 @@ class Logger:
         :param str series: The series name (variant) of the reported confusion matrix.
         :param numpy.ndarray matrix: A heat-map matrix (example: confusion matrix)
         :param int iteration: The reported iteration / step.
-        :param str xaxis: The x-axis title. (Optional)
-        :param str yaxis: The y-axis title. (Optional)
-        :param list(str) xlabels: Labels for each column of the matrix. (Optional)
-        :param list(str) ylabels: Labels for each row of the matrix. (Optional)
-        :param bool yaxis_reversed: If False 0,0 is at the bottom left corner. If True, 0,0 is at the top left corner
+        :param str xaxis: The x-axis title (Optional)
+        :param str yaxis: The y-axis title (Optional)
+        :param list(str) xlabels: Labels for each column of the matrix (Optional)
+        :param list(str) ylabels: Labels for each row of the matrix (Optional)
+        :param bool yaxis_reversed: If ``False`` 0,0 is at the bottom left corner. If ``True``, 0,0 is at the top left corner
         :param str comment: A comment displayed with the plot, underneath the title.
-        :param dict extra_layout: optional dictionary for layout configuration, passed directly to plotly
-            See full details on the supported configuration: https://plotly.com/javascript/reference/heatmap/
-            example: ``extra_layout={'xaxis': {'type': 'date', 'range': ['2020-01-01', '2020-01-31']}}``
+        :param dict extra_layout: Optional dictionary for layout configuration, passed directly to plotly.
+            See full details on the supported configuration: https://plotly.com/javascript/reference/heatmap/.
+            Example: ``extra_layout={'xaxis': {'type': 'date', 'range': ['2020-01-01', '2020-01-31']}}``
         """
 
         if not isinstance(matrix, np.ndarray):
@@ -752,21 +742,20 @@ class Logger:
         For explicit reporting, plot a confusion matrix.
 
         .. note::
-            This method is the same as :meth:`Logger.report_confusion_matrix`.
-            This method is deprecated, use :meth:`Logger.report_confusion_matrix` instead.
+            This method is deprecated, use ```Logger.report_confusion_matrix``` instead.
 
         :param str title: The title (metric) of the plot.
         :param str series: The series name (variant) of the reported confusion matrix.
         :param numpy.ndarray matrix: A heat-map matrix (example: confusion matrix)
         :param int iteration: The reported iteration / step.
-        :param str xaxis: The x-axis title. (Optional)
-        :param str yaxis: The y-axis title. (Optional)
-        :param list(str) xlabels: Labels for each column of the matrix. (Optional)
-        :param list(str) ylabels: Labels for each row of the matrix. (Optional)
-        :param bool yaxis_reversed: If False, 0,0 is in the bottom left corner. If True, 0,0 is in the top left corner
-        :param dict extra_layout: optional dictionary for layout configuration, passed directly to plotly
-            See full details on the supported configuration: https://plotly.com/javascript/reference/heatmap/
-            example: ``extra_layout={'xaxis': {'type': 'date', 'range': ['2020-01-01', '2020-01-31']}}``
+        :param str xaxis: The x-axis title (Optional)
+        :param str yaxis: The y-axis title (Optional)
+        :param list(str) xlabels: Labels for each column of the matrix (Optional)
+        :param list(str) ylabels: Labels for each row of the matrix (Optional)
+        :param bool yaxis_reversed: If ``False``, 0,0 is in the bottom left corner. If ``True``, 0,0 is in the top left corner
+        :param dict extra_layout: optional dictionary for layout configuration, passed directly to plotly.
+            See full details on the supported configuration: https://plotly.com/javascript/reference/heatmap/.
+            Example: ``extra_layout={'xaxis': {'type': 'date', 'range': ['2020-01-01', '2020-01-31']}}``
         """
         warnings.warn(
             ":meth:`Logger.report_matrix` is deprecated; use :meth:`Logger.report_confusion_matrix` instead.",
@@ -818,16 +807,16 @@ class Logger:
         :param str series: The series name (variant) of the reported surface.
         :param numpy.ndarray matrix: A heat-map matrix (example: confusion matrix)
         :param int iteration: The reported iteration / step.
-        :param str xaxis: The x-axis title. (Optional)
-        :param str yaxis: The y-axis title. (Optional)
-        :param str zaxis: The z-axis title. (Optional)
-        :param list(str) xlabels: Labels for each column of the matrix. (Optional)
-        :param list(str) ylabels: Labels for each row of the matrix. (Optional)
+        :param str xaxis: The x-axis title (Optional)
+        :param str yaxis: The y-axis title (Optional)
+        :param str zaxis: The z-axis title (Optional)
+        :param list(str) xlabels: Labels for each column of the matrix (Optional)
+        :param list(str) ylabels: Labels for each row of the matrix (Optional)
         :param list(float) camera: X,Y,Z coordinates indicating the camera position. The default value is ``(1,1,1)``.
         :param str comment: A comment displayed with the plot, underneath the title.
-        :param dict extra_layout: optional dictionary for layout configuration, passed directly to plotly
-            See full details on the supported configuration: https://plotly.com/javascript/reference/surface/
-            example: ``extra_layout={'xaxis': {'type': 'date', 'range': ['2020-01-01', '2020-01-31']}}``
+        :param dict extra_layout: Optional dictionary for layout configuration, passed directly to plotly.
+            See full details on the supported configuration: https://plotly.com/javascript/reference/surface/.
+            Example: ``extra_layout={'xaxis': {'type': 'date', 'range': ['2020-01-01', '2020-01-31']}}``
         """
 
         if not isinstance(matrix, np.ndarray):
@@ -894,17 +883,17 @@ class Logger:
         :param local_path: A path to an image file.
         :param url: A URL for the location of a pre-uploaded image.
         :param image: Image data (RGB).
-        :param matrix: Deprecated, Image data (RGB).
+        :param matrix: **Deprecated**, Image data (RGB).
 
             .. note::
-               The ``matrix`` parameter is deprecated. Use the ``image`` parameters.
+               The ```matrix``` parameter is deprecated. Use the ```image``` parameters.
         :param max_image_history: The maximum number of images to store per metric/variant combination.
             For an unlimited number, use a negative value. The default value is set in global configuration
             (default=``5``).
         :param delete_after_upload: After the upload, delete the local copy of the image. The values are:
 
           - ``True`` - Delete after upload.
-          - ``False`` - Do not delete after upload. (default)
+          - ``False`` - Do not delete after upload (default)
         """
         mutually_exclusive(
             UsageError,
@@ -979,7 +968,7 @@ class Logger:
         """
         Report media upload its contents, including images, audio, and video.
 
-        Media is uploaded to a preconfigured bucket (see setup_upload()) with a key (filename)
+        Media is uploaded to a preconfigured bucket (see ``setup_upload()``) with a key (filename)
         describing the task ID, title, series and iteration.
 
         One and only one of the following parameters must be provided
@@ -1059,7 +1048,7 @@ class Logger:
         iteration: Optional[int] = None,
     ) -> None:
         """
-        Report a ``Plotly`` figure (plot) directly
+        Report a ``Plotly`` figure directly.
 
         ``Plotly`` figure can be a ``plotly.graph_objs._figure.Figure`` or a dictionary as defined by ``plotly.js``
 
@@ -1097,7 +1086,7 @@ class Logger:
         report_interactive: bool = True,
     ) -> None:
         """
-        Report a ``matplotlib`` figure / plot directly
+        Report a ``matplotlib`` figure / plot directly.
 
         ``matplotlib.figure.Figure`` / ``matplotlib.pyplot``
 
@@ -1105,10 +1094,10 @@ class Logger:
         :param str series: The series name (variant) of the reported plot.
         :param int iteration: The reported iteration / step.
         :param MatplotlibFigure figure: A ``matplotlib`` Figure object
-        :param report_image: Default False. If True, the plot will be uploaded as a debug sample (png image),
+        :param report_image: Default ``False``. If ``True``, the plot will be uploaded as a debug sample (png image),
             and will appear under the debug samples tab (instead of the Plots tab).
-        :param report_interactive: If True (default), it will try to convert the matplotlib into interactive
-            plot in the UI. If False, the matplotlib is saved as is and will
+        :param report_interactive: If ``True`` (default), it will try to convert the ``matplotlib`` into interactive
+            plot in the UI. If ``False``, the ``matplotlib`` is saved as is and will
             be non-interactive (except zooming in/out)
         """
         # if task was not started, we have to start it
@@ -1132,12 +1121,12 @@ class Logger:
 
         .. note::
            Credentials for the destination storage are specified in the  ClearML configuration file,
-           ``~/clearml.conf``.
+           ```~/clearml.conf```.
 
-        :param str uri: example: 's3://bucket/directory/' or 'file:///tmp/debug/'
+        :param str uri: Example: ``'s3://bucket/directory/'`` or ``'file:///tmp/debug/'``
 
-        :return: True, if the destination scheme is supported (for example, ``s3://``, ``file://``, or ``gs://``).
-            False, if not supported.
+        :return: ``True``, if the destination scheme is supported (for example, ``s3://``, ``file://``, or ``gs://``).
+            ``False``, if not supported.
 
         """
 
@@ -1165,9 +1154,9 @@ class Logger:
         """
         Flush cached reports and console outputs to backend.
 
-        :param wait: Wait for all outstanding uploads and events to be sent (default False)
+        :param wait: Wait for all outstanding uploads and events to be sent (default ``False``)
 
-        :return: True, if successfully flushed the cache. False, if failed.
+        :return: ``True``, if successfully flushed the cache. ``False``, if failed.
         """
         self._flush_stdout_handler()
         if self._task:
@@ -1188,7 +1177,8 @@ class Logger:
         """
         Set the logger flush period.
 
-        Deprecated - Use ``sdk.development.worker.report_period_sec`` to externally control the flush period.
+        .. note::
+            This method is deprecated. Use ```sdk.development.worker.report_period_sec``` to externally control the flush period.
 
         :param float period: The period to flush the logger in seconds. To set no periodic flush,
             specify ``None`` or ``0``.
@@ -1201,8 +1191,8 @@ class Logger:
         Overrides the configuration file defaults.
         When reporting debug samples with the same title/series combination and running iterations,
         only the last X samples are stored (in other words samples are overwritten).
-        The default history size set with `max_history` is used when calling
-        `report_image`, `report_media` etc. without specifying `max_history`
+        The default history size set with ``max_history`` is used when calling
+        ``report_image``, ``report_media`` etc. without specifying ``max_history``.
 
         :param max_history: Number of samples (files) to store on a unique set of title/series being reported
             with different iteration counters. This is used to make sure users do not end up exploding storage
@@ -1226,7 +1216,7 @@ class Logger:
         Return the default max debug sample history when reporting media/debug samples.
         If value was not set specifically, the function returns the configuration file default value.
 
-        :return: default number of samples (files) to store on a unique set of title/series being reported
+        :return: Default number of samples (files) to store on a unique set of title/series being reported
             with different iteration counters. This is used to make sure users do not end up exploding storage
             on server storage side.
         """
@@ -1246,8 +1236,8 @@ class Logger:
         delete_after_upload: bool = False,
     ) -> None:
         """
-        .. deprecated:: 0.13.0
-            Use :meth:`Logger.report_image` instead
+        .. note::
+            This method is deprecated, use ```Logger.report_image``` instead.
         """
         self.report_image(
             title=title,
@@ -1292,16 +1282,18 @@ class Logger:
 
             The values are:
 
-            - ``True`` - Scalars without specific titles are grouped together in the "Scalars" plot, preserving
-              backward compatibility with ClearML automagical behavior.
-            - ``False`` - TensorBoard scalars without titles get a title/series with the same tag. (default)
+            - ``True`` - Groups scalars without a title together in the "Scalars" plot
+            - ``False`` - TensorBoard scalars without titles get a title/series with the same tag (default)
         """
         cls._tensorboard_logging_auto_group_scalars = group_scalars
 
     @classmethod
     def tensorboard_single_series_per_graph(cls, single_series: bool = False) -> None:
         """
-        Deprecated, this is now controlled from the UI!
+
+        .. note::
+            This method is deprecated. This is now controlled from the UI!
+
         Group TensorBoard scalar series together or in separate plots.
 
         :param single_series: Group TensorBoard scalar series together
@@ -1309,7 +1301,7 @@ class Logger:
             The values are:
 
             - ``True`` - Generate a separate plot for each TensorBoard scalar series.
-            - ``False`` - Group the TensorBoard scalar series together in the same plot. (default)
+            - ``False`` - Group the TensorBoard scalar series together in the same plot (default)
 
         """
         cls._tensorboard_single_series_per_graph = single_series
@@ -1317,11 +1309,11 @@ class Logger:
     @classmethod
     def matplotlib_force_report_non_interactive(cls, force: bool) -> None:
         """
-        If True, all matplotlib are always converted to non-interactive static plots (images), appearing in under
-        the Plots section. If False (default), matplotlib figures are converted into interactive web UI plotly
+        If ``True``, all ``matplotlib`` are always converted to non-interactive static plots (images), appearing in under
+        the Plots section. If ``False`` (default), ``matplotlib`` figures are converted into interactive web UI plotly
         figures, in case figure conversion fails, it defaults to non-interactive plots.
 
-        :param force: If True, all matplotlib figures are converted automatically to non-interactive plots.
+        :param force: If ``True``, all ``matplotlib`` figures are converted automatically to non-interactive plots.
         """
         from clearml.backend_interface.metrics import Reporter
 
@@ -1385,10 +1377,10 @@ class Logger:
         :param msg: text to print to the console (always send to the backend and displayed in console)
         :param level: logging level, default: logging.INFO
         :param omit_console: Omit the console output, and only send the ``msg`` value to the log
-        :param force_send: Report with an explicit log level. Only supported if ``omit_console`` is True
+        :param force_send: Report with an explicit log level. Only supported if ``omit_console`` is ``True``
 
             - ``True`` - Omit the console output.
-            - ``False`` - Print the console output. (default)
+            - ``False`` - Print the console output (default)
 
         """
         level = self._parse_level(level)
@@ -1463,9 +1455,9 @@ class Logger:
         :param iteration: Iteration number
         :param path: A path to an image file. Required unless matrix is provided.
         :param matrix: A 3D numpy.ndarray object containing image data (RGB). Required unless filename is provided.
-        :param max_image_history: maximum number of image to store per metric/variant combination \
-        use negative value for unlimited. default is set in global configuration (default=5)
-        :param delete_after_upload: if True, one the file was uploaded the local copy will be deleted
+        :param max_image_history: Maximum number of image to store per metric/variant combination \
+        use negative value for unlimited. Default is set in global configuration (default=5)
+        :param delete_after_upload: If ``True``, one the file was uploaded the local copy will be deleted
         """
 
         # if task was not started, we have to start it
@@ -1514,9 +1506,9 @@ class Logger:
         :param series: Series (AKA variant)
         :param iteration: Iteration number
         :param path: A path to file to be uploaded
-        :param max_file_history: maximum number of files to store per metric/variant combination \
+        :param max_file_history: Maximum number of files to store per metric/variant combination \
         use negative value for unlimited. default is set in global configuration (default=5)
-        :param delete_after_upload: if True, one the file was uploaded the local copy will be deleted
+        :param delete_after_upload: If ``True``, one the file was uploaded the local copy will be deleted
         """
 
         # if task was not started, we have to start it
@@ -1582,17 +1574,17 @@ class Logger:
     @classmethod
     def _get_tensorboard_auto_group_scalars(cls) -> bool:
         """
-        :return: True, if we preserve Tensorboard backward compatibility behaviour,
-            i.e., scalars without specific title will be under the "Scalars" graph
-            default is False: Tensorboard scalars without title will have title/series with the same tag
+        :return: ``True``, if we preserve Tensorboard backward compatibility behaviour,
+            i.e., scalars without specific title will be under the "Scalars" graph.
+            Default is ``False``: Tensorboard scalars without title will have title/series with the same tag
         """
         return cls._tensorboard_logging_auto_group_scalars
 
     @classmethod
     def _get_tensorboard_single_series_per_graph(cls) -> bool:
         """
-        :return: True, if we generate a separate graph (plot) for each Tensorboard scalar series
-            default is False: Tensorboard scalar series will be grouped according to their title
+        :return: ``True``, if we generate a separate graph (plot) for each Tensorboard scalar series.
+            Default is ``False``: Tensorboard scalar series will be grouped according to their title
         """
         return cls._tensorboard_single_series_per_graph
 
