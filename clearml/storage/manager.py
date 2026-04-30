@@ -5,7 +5,6 @@ from multiprocessing.pool import ThreadPool
 from random import random
 from time import time
 from typing import List, Optional, Union
-from zipfile import ZipFile
 from six.moves.urllib.parse import quote
 
 from pathlib2 import Path
@@ -13,7 +12,7 @@ from pathlib2 import Path
 from .cache import CacheManager
 from .callbacks import ProgressReport
 from .helper import StorageHelper, StorageHelperDiskSpaceFileSizeStrategy
-from .archive import extract_tar_archive, create_zip_directories
+from .archive import extract_tar_archive, extract_zip_archive
 from ..config import deferred_config
 from ..debugging.log import LoggerRoot
 
@@ -172,12 +171,11 @@ class StorageManager:
             if name
             else name
         )
-        if target_folder:
-            target_folder = Path(target_folder)
-        else:
-            target_folder = cache_folder / CacheManager.get_context_folder_lookup(cache_context).format(
-                archive_suffix, name
-            )
+        target_folder = (
+            Path(target_folder)
+            if target_folder
+            else cache_folder / CacheManager.get_context_folder_lookup(cache_context).format(archive_suffix, name)
+        )
 
         if target_folder.is_dir() and not force:
             # noinspection PyBroadException
@@ -190,18 +188,18 @@ class StorageManager:
         base_logger = LoggerRoot.get_base_logger()
         try:
             # if target folder exists, meaning this is forced ao we extract directly into target folder
-            if target_folder.is_dir():
-                temp_target_folder = target_folder
-            else:
-                temp_target_folder = cache_folder / "{0}_{1}_{2}".format(
-                    target_folder.name, time() * 1000, str(random()).replace(".", "")
-                )
-                temp_target_folder.mkdir(parents=True, exist_ok=True)
+            temp_target_folder = (
+                target_folder
+                if target_folder.is_dir()
+                else cache_folder / f"{target_folder.name}_{time() * 1000}_{str(random()).replace('.', '')}"
+            )
+            temp_target_folder.mkdir(parents=True, exist_ok=True)
 
             if suffix == ".zip":
-                zip_file = ZipFile(cached_file.as_posix())
-                create_zip_directories(zip_file, path=temp_target_folder.as_posix())
-                zip_file.extractall(path=temp_target_folder.as_posix())
+                extract_zip_archive(
+                    archive_path=cached_file.as_posix(),
+                    target=temp_target_folder.as_posix(),
+                )
             elif suffix in (".tar.gz", ".tgz"):
                 extract_tar_archive(
                     archive_path=cached_file.as_posix(),
@@ -221,17 +219,17 @@ class StorageManager:
                         target_folder.touch(exist_ok=True)
                     else:
                         base_logger.warning(
-                            "Failed renaming {0} to {1}".format(temp_target_folder.as_posix(), target_folder.as_posix())
+                            f"Failed renaming {temp_target_folder.as_posix()} to {target_folder.as_posix()}"
                         )
                     try:
                         shutil.rmtree(temp_target_folder.as_posix())
                     except Exception as ex:
                         base_logger.warning(
-                            "Exception {}\nFailed deleting folder {}".format(ex, temp_target_folder.as_posix())
+                            f"Exception {ex}\nFailed deleting folder {temp_target_folder.as_posix()}"
                         )
         except Exception as ex:
             # failed extracting the file:
-            base_logger.warning("Exception {}\nFailed extracting zip file {}".format(ex, cached_file.as_posix()))
+            base_logger.warning(f"Exception {ex}\nFailed extracting zip file {cached_file.as_posix()}")
             # noinspection PyBroadException
             try:
                 target_folder.rmdir()
@@ -468,7 +466,7 @@ class StorageManager:
                 remote_path = (
                     str(Path(helper.base_url) / Path(path))
                     if helper.get_driver_direct_access(helper.base_url)
-                    else "{}/{}".format(helper.base_url.rstrip("/"), path.lstrip("/"))
+                    else f"{helper.base_url.rstrip('/')}/{path.lstrip('/')}"
                 )
                 if match_wildcard and not fnmatch.fnmatch(remote_path, match_wildcard):
                     continue
@@ -486,7 +484,7 @@ class StorageManager:
             for res in results:
                 res.wait()
         if not results and not silence_errors:
-            LoggerRoot.get_base_logger().warning("Did not download any files matching {}".format(remote_url))
+            LoggerRoot.get_base_logger().warning(f"Did not download any files matching {remote_url}")
         return local_folder
 
     @classmethod
@@ -519,20 +517,20 @@ class StorageManager:
         try:
             helper_list_result = helper.list(prefix=remote_url, with_metadata=with_metadata)
         except Exception as ex:
-            LoggerRoot.get_base_logger().warning("Can not list files for '{}' - {}".format(remote_url, ex))
+            LoggerRoot.get_base_logger().warning(f"Can not list files for '{remote_url}' - {ex}")
             return None
 
         prefix = remote_url.rstrip("/") if helper.base_url == "file://" else helper.base_url
         if not with_metadata:
             return (
-                ["{}/{}".format(prefix, name) for name in helper_list_result]
+                [f"{prefix}/{name}" for name in helper_list_result]
                 if return_full_path
                 else helper_list_result
             )
         else:
             if return_full_path:
                 for obj in helper_list_result:
-                    obj["name"] = "{}/{}".format(prefix, obj.get("name"))
+                    obj["name"] = f"{prefix}/{obj.get('name')}"
             return helper_list_result
 
     @classmethod

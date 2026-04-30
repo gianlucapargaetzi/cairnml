@@ -1,44 +1,33 @@
 import os
 import tarfile
-from typing import Optional, Union, Any
+from typing import Union, Any
 from pathlib import Path
+from zipfile import ZipFile
 
 from .filepaths import is_within_directory
-from ..debugging.log import LoggerRoot
 
 
-def create_zip_directories(
-    zipfile: Any,
-    path: Optional[Union[str, os.PathLike]] = None,
+def extract_zip_archive(
+    archive_path: str,
+    target: str = ".",
 ) -> None:
-    try:
-        path = os.getcwd() if path is None else os.fspath(path)
-        for member in zipfile.namelist():
-            arcname = member.replace("/", os.path.sep)
-            if os.path.altsep:
-                arcname = arcname.replace(os.path.altsep, os.path.sep)
-            # interpret absolute pathname as relative, remove drive letter or
-            # UNC path, redundant separators, "." and ".." components.
-            arcname = os.path.splitdrive(arcname)[1]
-            invalid_path_parts = ("", os.path.curdir, os.path.pardir)
-            arcname = os.path.sep.join(x for x in arcname.split(os.path.sep) if x not in invalid_path_parts)
-            if os.path.sep == "\\":
-                # noinspection PyBroadException
-                try:
-                    # filter illegal characters on Windows
-                    # noinspection PyProtectedMember
-                    arcname = zipfile._sanitize_windows_name(arcname, os.path.sep)
-                except Exception:
-                    pass
+    """
+    Extracts a .zip archive file to a target location.
 
-            targetpath = os.path.normpath(os.path.join(path, arcname))
+    :param str archive_path: The path to the .zip archive file.
+    :param str target: The location in the filesystem where the contents of the .zip archive should be extracted.
+    """
+    with ZipFile(file=archive_path, mode='r') as zip_file:
+        base_directory = os.path.abspath(target)
+        for file_path in zip_file.namelist():
+            flag_path_traversal_vulnerability(
+                extraction_folder=base_directory,
+                extraction_file_path=file_path,
+            )
+            # No need to run flag_symlink_escape_vulnerability
+            # zip_file.extractall does not create symlinks
 
-            # Create all upper directories if necessary.
-            upperdirs = os.path.dirname(targetpath)
-            if upperdirs:
-                os.makedirs(upperdirs, exist_ok=True)
-    except Exception as e:
-        LoggerRoot.get_base_logger().warning("Failed creating zip directories: " + str(e))
+        zip_file.extractall(path=target)
 
 
 def extract_tar_archive(
@@ -48,14 +37,19 @@ def extract_tar_archive(
     **kwargs: Any,
 ) -> None:
     """
+    Extracts a .tar.gz or .tgz archive file to a target location after sanitization of the archive's contents.
     Tarfile member sanitization (addresses CVE-2007-4559)
+
+    :param str archive_path: The path to the tar archive file.
+    :param str suffix: The full extension of the tar file. Either '.tar.gz' or '.tgz'.
+    :param str target: The location in the filesystem where the contents of the tar archive should be extracted.
     """
     mode = {
         ".tar.gz": "r",
         ".tgz": "r:gz",
     }[suffix]
 
-    with tarfile.open(archive_path, mode=mode) as tar_file:
+    with tarfile.open(name=archive_path, mode=mode) as tar_file:
         base_dir = os.path.abspath(target)
         for member in tar_file.getmembers():
             flag_path_traversal_vulnerability(

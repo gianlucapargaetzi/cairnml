@@ -14,7 +14,7 @@ from .hashing import (  # noqa: F401
 )
 from .url import quote_url  # noqa: F401
 from .size import format_size, parse_size  # noqa: F401
-from .archive import extract_tar_archive as safe_extract, create_zip_directories  # noqa: F401
+from .archive import extract_tar_archive as safe_extract  # noqa: F401
 
 
 def get_config_object_matcher(**patterns: Any) -> Callable:
