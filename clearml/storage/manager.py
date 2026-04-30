@@ -1,7 +1,6 @@
 import fnmatch
 import logging
 import shutil
-import tarfile
 from multiprocessing.pool import ThreadPool
 from random import random
 from time import time
@@ -14,7 +13,7 @@ from pathlib2 import Path
 from .cache import CacheManager
 from .callbacks import ProgressReport
 from .helper import StorageHelper, StorageHelperDiskSpaceFileSizeStrategy
-from .util import safe_extract, create_zip_directories
+from .archive import extract_tar_archive, create_zip_directories
 from ..config import deferred_config
 from ..debugging.log import LoggerRoot
 
@@ -203,12 +202,12 @@ class StorageManager:
                 zip_file = ZipFile(cached_file.as_posix())
                 create_zip_directories(zip_file, path=temp_target_folder.as_posix())
                 zip_file.extractall(path=temp_target_folder.as_posix())
-            elif suffix == ".tar.gz":
-                with tarfile.open(cached_file.as_posix()) as file:
-                    safe_extract(file, temp_target_folder.as_posix())
-            elif suffix == ".tgz":
-                with tarfile.open(cached_file.as_posix(), mode="r:gz") as file:
-                    safe_extract(file, temp_target_folder.as_posix())
+            elif suffix in (".tar.gz", ".tgz"):
+                extract_tar_archive(
+                    archive_path=cached_file.as_posix(),
+                    target=temp_target_folder.as_posix(),
+                    suffix=suffix,
+                )
 
             if temp_target_folder != target_folder:
                 # we assume we will have such folder if we already extract the file
