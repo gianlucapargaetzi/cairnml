@@ -80,6 +80,7 @@ from ..errors import UsageError
 from ..utilities.process.mp import ForkSafeRLock, SafeEvent
 
 from ..storage.util import get_config_object_matcher
+from ..storage.hashing import sha256sum
 from ..utilities.config import get_percentage, get_human_size_default
 from ..backend_config.environment import EnvEntry
 
@@ -628,6 +629,7 @@ class _Boto3Driver(_Driver):
     class ListResult:
         name = attrib(default=None)
         size = attrib(default=None)
+        metadata = attrib(default=None)
 
     def __init__(self) -> None:
         pass
@@ -762,6 +764,8 @@ class _Boto3Driver(_Driver):
         extra_args = {}
         try:
             extra_args = {"ContentType": get_file_mimetype(object_name or file_path)}
+            if extra and extra.get("upload_hash"):
+                extra_args["Metadata"] = {"sha256": extra["upload_hash"]}
             extra_args.update(container.config.extra_args or {})
             container.bucket.upload_file(
                 file_path,
@@ -812,12 +816,19 @@ class _Boto3Driver(_Driver):
         ex_prefix: Optional[str] = None,
         **kwargs: Any,
     ) -> Generator[ListResult, None, None]:
+        read_hash = kwargs.get("read_hash", False)
         if ex_prefix:
             res = container.bucket.objects.filter(Prefix=ex_prefix)
         else:
             res = container.bucket.objects.all()
         for res in res:
-            yield self.ListResult(name=res.key, size=res.size)
+            obj_metadata = None
+            if read_hash:
+                try:
+                    obj_metadata = container.resource.Object(container.bucket.name, res.key).metadata
+                except Exception:
+                    pass
+            yield self.ListResult(name=res.key, size=res.size, metadata=obj_metadata)
 
     def delete_object(self, object: Any, **kwargs: Any) -> bool:
         from botocore.exceptions import ClientError
@@ -1147,6 +1158,8 @@ class _GoogleCloudStorageDriver(_Driver):
     ) -> bool:
         try:
             blob = container.bucket.blob(object_name)
+            if extra and extra.get("upload_hash"):
+                blob.metadata = {"sha256": extra["upload_hash"]}
             blob.upload_from_filename(file_path)
         except Exception as ex:
             logger = self.get_logger()
@@ -1280,6 +1293,7 @@ class _AzureBlobServiceStorageDriver(_Driver):
                 self.__legacy = False
             except ImportError:
                 try:
+                    # TODO: 'BlockBlobService' not available in Python 3.6+, marked as dead code.  
                     from azure.storage.blob import BlockBlobService  # noqa
                     from azure.common import AzureHttpError  # noqa
 
@@ -1330,6 +1344,7 @@ class _AzureBlobServiceStorageDriver(_Driver):
             max_connections: Optional[int] = None,
             progress_callback: Optional[Callable] = None,
             content_settings: Optional["ContentSettings"] = None,
+            metadata: Optional[Dict[str,str]] = None,
         ) -> None:
             if self.__legacy:
                 self.__blob_service.create_blob_from_bytes(
@@ -1345,6 +1360,7 @@ class _AzureBlobServiceStorageDriver(_Driver):
                     data,
                     overwrite=True,
                     content_settings=content_settings,
+                    **({"metadata": metadata} if metadata else {}),
                     **self._get_max_connections_dict(max_connections, key="max_concurrency"),
                 )
 
@@ -1356,6 +1372,7 @@ class _AzureBlobServiceStorageDriver(_Driver):
             max_connections: Optional[int] = None,
             content_settings: Optional["ContentSettings"] = None,
             progress_callback: Optional[Callable[[int, int], None]] = None,
+            metadata: Optional[Dict[str,str]] = None,
         ) -> None:
             if self.__legacy:
                 self.__blob_service.create_blob_from_path(
@@ -1369,12 +1386,13 @@ class _AzureBlobServiceStorageDriver(_Driver):
             else:
                 with open(path, "rb") as f:
                     self.create_blob_from_data(
-                        container_name,
-                        None,
-                        blob_name,
-                        f,
+                        container_name=container_name,
+                        object_name=None,
+                        blob_name=blob_name,
+                        data=f,
                         content_settings=content_settings,
                         max_connections=max_connections,
+                        metadata=metadata,
                     )
 
         def delete_blob(self, container_name: str, blob_name: str) -> None:
@@ -1394,12 +1412,23 @@ class _AzureBlobServiceStorageDriver(_Driver):
                 client = self.__blob_service.get_blob_client(container_name, blob_name)
                 return client.exists()
 
-        def list_blobs(self, container_name: str, prefix: Optional[str] = None) -> Any:
+        def list_blobs(
+            self,
+            container_name: str,
+            prefix: Optional[str] = None,
+            include: Optional[List[str]] = None,
+        ) -> Any:
             if self.__legacy:
-                return self.__blob_service.list_blobs(container_name=container_name, prefix=prefix)
+                return self.__blob_service.list_blobs(
+                    container_name=container_name,
+                    prefix=prefix,
+                )
             else:
                 client = self.__blob_service.get_container_client(container_name)
-                return client.list_blobs(name_starts_with=prefix)
+                return client.list_blobs(
+                    name_starts_with=prefix,
+                    **({"include": include} if include else {}),
+                )
 
         def get_blob_properties(self, container_name: str, blob_name: str) -> Any:
             if self.__legacy:
@@ -1480,7 +1509,7 @@ class _AzureBlobServiceStorageDriver(_Driver):
         container: Any,
         object_name: str,
         callback: Any = None,
-        extra: dict = None,
+        extra: Optional[Dict[str, str]] = None,
         max_connections: int = None,
         **kwargs: Any,
     ) -> bool:
@@ -1493,6 +1522,8 @@ class _AzureBlobServiceStorageDriver(_Driver):
 
         logger = self.get_logger()
         blob_name = self._blob_name_from_object_path(object_name, container.name)  # noqa: F841
+        sha256 = extra.get("upload_hash") if extra else None
+        metadata = {"sha256": sha256} if sha256 else None
         try:
             container.create_blob_from_data(
                 container.name,
@@ -1501,6 +1532,7 @@ class _AzureBlobServiceStorageDriver(_Driver):
                 iterator.read() if hasattr(iterator, "read") else bytes(iterator),
                 max_connections=max_connections,
                 progress_callback=callback,
+                metadata=metadata,
             )
             return True
         except AzureHttpError as ex:
@@ -1534,16 +1566,19 @@ class _AzureBlobServiceStorageDriver(_Driver):
 
         logger = self.get_logger()
         blob_name = self._blob_name_from_object_path(object_name, container.name)
+        sha256 = extra.get("upload_hash") if extra else None
+        metadata = {"sha256": sha256} if sha256 else None
         try:
             from azure.storage.blob import ContentSettings  # noqa
 
             container.create_blob_from_path(
-                container.name,
-                blob_name,
-                file_path,
+                container_name=container.name,
+                blob_name=blob_name,
+                path=file_path,
                 max_connections=max_connections,
                 content_settings=ContentSettings(content_type=get_file_mimetype(object_name or file_path)),
                 progress_callback=callback,
+                metadata=metadata,
             )
             return True
         except AzureHttpError as ex:
@@ -1561,9 +1596,14 @@ class _AzureBlobServiceStorageDriver(_Driver):
         self,
         container: Any,
         ex_prefix: Optional[str] = None,
-        **kwargs: Any,
+        read_hash: Optional[bool] = False,
+        **_: Any,
     ) -> List[Any]:
-        return list(container.list_blobs(container_name=container.name, prefix=ex_prefix))
+        return list(container.list_blobs(
+            container_name=container.name,
+            prefix=ex_prefix,
+            include=["metadata"] if read_hash else None,
+        ))
 
     def delete_object(self, object: Any, **kwargs: Any) -> bool:
         container = object.container
@@ -2861,12 +2901,15 @@ class _StorageHelper:
                 self.log.warning("Failed getting object size: {}('{}')".format(e.__class__.__name__, str(e)))
         return size
 
-    def get_object_metadata(self, obj: Any) -> dict:
+    def get_object_metadata(self, obj: Any, read_hash: bool = False) -> dict:
         """
         Get the metadata of the remote object.
         The metadata is a dict containing the following keys: `name`, `size`.
+        If `read_hash` is True and the object has a SHA-256 stored in its custom metadata,
+        a ``hash`` key is also included.
 
         :param object obj: The remote object
+        :param bool read_hash: If True, attempt to read SHA-256 from the object's custom metadata.
 
         :return: A dict containing the metadata of the remote object
         """
@@ -2875,6 +2918,17 @@ class _StorageHelper:
             "size": self._get_object_size_bytes(obj),
             "name": next(filter(None, (getattr(obj, f, None) for f in name_fields)), None),
         }
+        if read_hash:
+            blob_meta = getattr(obj, "metadata", None)
+            if blob_meta is None and hasattr(obj, "reload"):
+                try:
+                    obj.reload()
+                    blob_meta = getattr(obj, "metadata", None)
+                except Exception:
+                    pass
+            sha256 = (blob_meta or {}).get("sha256")
+            if sha256:
+                metadata["hash"] = sha256
         return metadata
 
     def verify_upload(
@@ -3031,7 +3085,12 @@ class _StorageHelper:
                 result_path = quote_url(result_path, _StorageHelper._quotable_uri_schemes)
             return result_path
 
-    def list(self, prefix: Optional[str] = None, with_metadata: bool = False) -> List[Union[str, Dict[str, Any]]]:
+    def list(
+        self,
+        prefix: Optional[str] = None,
+        with_metadata: bool = False,
+        read_hash: bool = False,
+    ) -> List[Union[str, Dict[str, Any]]]:
         """
         List entries in the helper base path.
 
@@ -3051,6 +3110,9 @@ class _StorageHelper:
             containing the name and metadata of the remote file. Thus, each dictionary will contain the following
             keys: `name`, `size`.
 
+        :param read_hash: If True and `with_metadata` is True, include SHA-256 hash in each metadata dict
+            (under the ``hash`` key) when the object has it stored in its custom metadata.
+
         :return: The paths of all the objects in the storage base path under prefix or
             a list of dictionaries containing the objects' metadata.
             Listed relative to the base path.
@@ -3065,8 +3127,15 @@ class _StorageHelper:
                 prefix = prefix.rstrip("/")
                 if prefix.startswith(str(self._driver.base_path)):
                     prefix = prefix[len(str(self._driver.base_path)) :]
-            res = self._driver.list_container_objects(self._container, ex_prefix=prefix)
-            result = [obj.name if not with_metadata else self.get_object_metadata(obj) for obj in res]
+            res = self._driver.list_container_objects(
+                self._container,
+                ex_prefix=prefix,
+                read_hash=read_hash,
+            )
+            result = [
+                obj.name if not with_metadata else self.get_object_metadata(obj, read_hash=read_hash)
+                for obj in res
+            ]
 
             if self._base_url == "file://":
                 if not with_metadata:
@@ -3077,8 +3146,8 @@ class _StorageHelper:
             return result
         else:
             return [
-                obj.name if not with_metadata else self.get_object_metadata(obj)
-                for obj in self._driver.list_container_objects(self._container)
+                obj.name if not with_metadata else self.get_object_metadata(obj, read_hash=read_hash)
+                for obj in self._driver.list_container_objects(self._container, read_hash=read_hash)
             ]
 
     def download_to_file(
@@ -3464,6 +3533,8 @@ class _StorageHelper:
             object_name = self._normalize_object_name(dest_path)
             extra = extra.copy() if extra else {}
             extra.update(self._extra)
+            if "upload_hash" in extra and extra["upload_hash"] is None:
+                extra["upload_hash"], _ = sha256sum(local_path)
             cb = UploadProgressReport.from_file(local_path, self._verbose, self._log)
             res = self._driver.upload_object(
                 file_path=local_path,
@@ -3481,7 +3552,7 @@ class _StorageHelper:
         src_path: str,
         dest_path: str,
         canonized_dest_path: str,
-        extra: Optional[dict] = None,
+        extra: Optional[Dict[str, str]] = None,
         cb: Optional[Callable] = None,
         verbose: bool = False,
         retries: int = 1,
@@ -3511,7 +3582,11 @@ class _StorageHelper:
         last_ex = None
         for _i in range(max(1, int(retries))):
             try:
-                if not self._upload_from_file(local_path=src_path, dest_path=canonized_dest_path, extra=extra):
+                if not self._upload_from_file(
+                    local_path=src_path,
+                    dest_path=canonized_dest_path,
+                    extra=extra,
+                ):
                     # retry if failed
                     last_ex = ValueError("Upload failed")
                     continue
