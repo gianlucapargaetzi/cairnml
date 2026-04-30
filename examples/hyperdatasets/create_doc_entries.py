@@ -182,7 +182,7 @@ def main() -> None:
             break
 
     if not documents:
-        raise ValueError(f"No Markdown files found under {docs_dir}")
+        raise ValueError(f"No Markdown files found in the urls {urls}")
 
     embeddings = None
     if args.embed:
