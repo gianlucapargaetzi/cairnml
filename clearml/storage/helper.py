@@ -1293,7 +1293,7 @@ class _AzureBlobServiceStorageDriver(_Driver):
                 self.__legacy = False
             except ImportError:
                 try:
-                    # TODO: 'BlockBlobService' not available in Python 3.6+, marked as dead code.  
+                    # TODO: 'BlockBlobService' not available in Python 3.6+, marked as dead code.
                     from azure.storage.blob import BlockBlobService  # noqa
                     from azure.common import AzureHttpError  # noqa
 
@@ -1344,7 +1344,7 @@ class _AzureBlobServiceStorageDriver(_Driver):
             max_connections: Optional[int] = None,
             progress_callback: Optional[Callable] = None,
             content_settings: Optional["ContentSettings"] = None,
-            metadata: Optional[Dict[str,str]] = None,
+            metadata: Optional[Dict[str, str]] = None,
         ) -> None:
             if self.__legacy:
                 self.__blob_service.create_blob_from_bytes(
@@ -1372,7 +1372,7 @@ class _AzureBlobServiceStorageDriver(_Driver):
             max_connections: Optional[int] = None,
             content_settings: Optional["ContentSettings"] = None,
             progress_callback: Optional[Callable[[int, int], None]] = None,
-            metadata: Optional[Dict[str,str]] = None,
+            metadata: Optional[Dict[str, str]] = None,
         ) -> None:
             if self.__legacy:
                 self.__blob_service.create_blob_from_path(
