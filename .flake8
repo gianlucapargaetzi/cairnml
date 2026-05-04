@@ -1,4 +1,14 @@
 [flake8]
-max-line-length=120
-statistics
-extend-ignore=E501
+max-line-length = 120
+statistics = True
+show-source = True
+extend-ignore = B, E203, E501, W605
+exclude = 
+    clearml/utilities/gpu/pynvml.py,
+    clearml/utilities/gpu/pyrsmi.py,
+    clearml/utilities/lowlevel/astor_unparse.py,
+    clearml/utilities/pigar,
+    clearml/utilities/plotlympl,
+    clearml/utilities/pyhocon,
+    clearml/utilities/requests_toolbelt,
+    clearml/backend_api/services
