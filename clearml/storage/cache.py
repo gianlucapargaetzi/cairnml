@@ -52,7 +52,7 @@ class CacheManager:
             helper = StorageHelper.get(remote_url)
 
             if not helper:
-                raise ValueError("Storage access failed: {}".format(remote_url))
+                raise ValueError(f"Storage access failed: {remote_url}")
 
             if helper.base_url == "file://":
                 remote_url = os.path.expanduser(remote_url)
@@ -62,7 +62,7 @@ class CacheManager:
                 # noinspection PyProtectedMember
                 direct_access = helper.get_driver_direct_access(remote_url)
             except (OSError, ValueError):
-                LoggerRoot.get_base_logger().debug("Failed accessing local file: {}".format(remote_url))
+                LoggerRoot.get_base_logger().debug(f"Failed accessing local file: {remote_url}")
                 return None
 
             if direct_access:
@@ -149,7 +149,7 @@ class CacheManager:
             new_file_name = file_basename + file_ext
 
             LoggerRoot.get_base_logger().warning(
-                'Renaming file to "{}" due to filename length limit'.format(new_file_name)
+                f'Renaming file to "{new_file_name}" due to filename length limit'
             )
 
             return new_file_name
@@ -276,7 +276,7 @@ class CacheManager:
                         shutil.rmtree(f.as_posix(), ignore_errors=False)
                     except Exception as e:
                         # failed deleting folder
-                        LoggerRoot.get_base_logger().debug("Exception {}\nFailed deleting folder {}".format(e, f))
+                        LoggerRoot.get_base_logger().debug(f"Exception {e}\nFailed deleting folder {f}")
 
             # cleanup old lock files
             for lock_files in lock_files.values():
@@ -304,11 +304,9 @@ class CacheManager:
             i = 0
             # try to create a lock if we do not already have one (if we do, we assume it is locked)
             while not lock:
-                lock_path = local_path.parent / "{}{:03d}.{}{}".format(
-                    CacheManager._lockfile_prefix,
-                    i,
-                    local_path.name,
-                    CacheManager._lockfile_suffix,
+                lock_path = (
+                    local_path.parent
+                    / f"{CacheManager._lockfile_prefix}{i:03d}.{local_path.name}{CacheManager._lockfile_suffix}"
                 )
                 lock = FileLock(filename=lock_path)
 
