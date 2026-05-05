@@ -58,10 +58,9 @@ class ProgressReport:
 
         if report_summary:
             self._log.info(
-                "{} {:.2f} MB successfully {}".format(
-                    report_prefix or self._description_prefix,
-                    self._total_size,
-                    report_suffix or self._description_suffix,
+                (
+                    f"{report_prefix or self._description_prefix} {self._total_size:.2f} MB successfully "
+                    f"{report_suffix or self._description_suffix}"
                 ).strip()
             )
 
@@ -77,7 +76,7 @@ class ProgressReport:
             try:
                 self._tqdm = tqdm(
                     total=round(float(self._total_size), 2),
-                    # desc="{} {}".format(description_prefix, description_suffix).strip(),
+                    # desc=f"{description_prefix} {description_suffix}".strip(),
                     unit="MB",
                     unit_scale=False,
                     ncols=80,
@@ -111,7 +110,7 @@ class ProgressReport:
         if self._report_start and self.last_reported <= 0:
             # first time - print before initializing the tqdm bar
             self._log.info(
-                "{}: {:.2f}MB {}".format(self._description_prefix, total_mb, self._description_suffix).strip(" :")
+                f"{self._description_prefix}: {total_mb:.2f}MB {self._description_suffix}".strip(" :")
             )
 
         # initialize or reuse the bar
@@ -126,12 +125,9 @@ class ProgressReport:
                 _tqdm.update(current_mb - self.last_reported)
         else:
             self._log.info(
-                "{}: {:.2f}MB / {:.2f}MB @ {:.2f}MBs {}".format(
-                    self._description_prefix,
-                    current_mb,
-                    total_mb,
-                    speed_mbps,
-                    self._description_suffix,
+                (
+                    f"{self._description_prefix}: {current_mb:.2f}MB "
+                    f"/ {total_mb:.2f}MB @ {speed_mbps:.2f}MBs {self._description_suffix}"
                 ).strip(" :")
             )
 
@@ -158,7 +154,7 @@ class UploadProgressReport(ProgressReport):
             log,
             report_chunk_size_mb,
             description_prefix="Uploading",
-            description_suffix="from {}".format(filename),
+            description_suffix=f"from {filename}",
             report_start=report_start,
         )
         self._filename = filename
@@ -214,7 +210,7 @@ class DownloadProgressReport(ProgressReport):
             log,
             report_chunk_size_mb,
             description_prefix="Downloading",
-            description_suffix="from {}".format(remote_path),
+            description_suffix=f"from {remote_path}",
             report_start=report_start,
         )
         self._remote_path = remote_path
