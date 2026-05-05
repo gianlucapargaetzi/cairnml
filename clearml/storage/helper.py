@@ -12,7 +12,7 @@ import platform
 import shutil
 import sys
 import threading
-import uuid
+from uuid import uuid4
 from _socket import gethostname
 from abc import ABC, abstractmethod
 from collections import namedtuple
@@ -2882,7 +2882,7 @@ class _StorageHelper:
                     except Exception as e:
                         if not silence_errors:
                             self.log.warning(
-                                "Failed obtaining object size on reload: {}('{}')".format(e.__class__.__name__, str(e))
+                                f"Failed obtaining object size on reload: {e.__class__.__name__}('{e}')"
                             )
             elif hasattr(obj, "content_length"):
                 # noinspection PyBroadException
@@ -2892,13 +2892,11 @@ class _StorageHelper:
                 except Exception as e:
                     if not silence_errors:
                         self.log.warning(
-                            "Failed obtaining content_length while getting object size: {}('{}')".format(
-                                e.__class__.__name__, str(e)
-                            )
+                            f"Failed obtaining content_length while getting object size: {e.__class__.__name__}('{e}')"
                         )
         except Exception as e:
             if not silence_errors:
-                self.log.warning("Failed getting object size: {}('{}')".format(e.__class__.__name__, str(e)))
+                self.log.warning(f"Failed getting object size: {e.__class__.__name__}('{e}')")
         return size
 
     def get_object_metadata(self, obj: Any, read_hash: bool = False) -> dict:
@@ -3182,7 +3180,7 @@ class _StorageHelper:
         try:
             tmp_remote_path = normalize_local_path(tmp_remote_path)
             if tmp_remote_path.exists():
-                remote_path = "file://{}".format(str(tmp_remote_path))
+                remote_path = f"file://{tmp_remote_path}"
         except Exception:
             pass
         # Check if driver type supports direct access:
@@ -3360,7 +3358,7 @@ class _StorageHelper:
     def check_write_permissions(self, dest_path: Optional[str] = None) -> bool:
         # create a temporary file, then delete it
         base_url = dest_path or self._base_url
-        dest_path = base_url + "/.clearml.{}.test".format(str(uuid.uuid4()))
+        dest_path = f"{base_url}/.clearml.{uuid4()}.test"
         # do not check http/s connection permissions
         if dest_path.startswith("http"):
             return True
@@ -3495,7 +3493,7 @@ class _StorageHelper:
     def _absolute_object_name(self, path: str) -> str:
         """Returns absolute remote path, including any prefix that is handled by the container"""
         if not path.startswith(self.base_url):
-            return self.base_url.rstrip("/") + "///" + path.lstrip("/")
+            return f"{self.base_url.rstrip('/')}///{path.lstrip('/')}"
         return path
 
     def _normalize_object_name(self, path: str) -> str:
@@ -3568,13 +3566,12 @@ class _StorageHelper:
                     exc_info=self._log.isEnabledFor(logging.DEBUG),
                 )
         if verbose:
-            msg = "Starting upload: {} => {}{}".format(
-                src_path,
-                (self._container.name if self._container.name.endswith("/") else self._container.name + "/")
+            upload_destination = (
+                f"{self._container.name.rstrip('/')}/"
                 if self._container and self._container.name
-                else "",
-                object_name,
+                else ""
             )
+            msg = f"Starting upload: {src_path} => {upload_destination}{object_name}"
             if object_name.startswith("file://") or object_name.startswith("/"):
                 self._log.debug(msg)
             else:
@@ -3639,7 +3636,7 @@ class _StorageHelper:
             raise DownloadError
         except Exception as e:
             if not silence_errors:
-                self.log.warning("Storage helper problem for {}: {}".format(str(object_name), str(e)))
+                self.log.warning(f"Storage helper problem for {object_name}: {e}")
             return None
 
     @staticmethod
@@ -4545,8 +4542,15 @@ class StorageHelper(_StorageHelper):
 
         sep = '/'
         return sep.join(
-            [f if len(f) <= 255 else '{}.{}'.format(hashlib.md5(f.encode()).hexdigest(), f[-200:])
-             for f in folder_path.split(sep)])
+            [
+                (
+                    f
+                    if len(f) <= 255
+                    else f"{hashlib.md5(f.encode()).hexdigest()}.{f[-200:]}"
+                )
+                for f in folder_path.split(sep)
+            ]
+        )
 
 
 class _FileStorageDriverDiskSpaceFileSizeStrategy(_FileStorageDriver):
@@ -4627,7 +4631,7 @@ def _get_cache_dir(cache_name=None):
     if cache_name == "secondary":
         env_var = CLEARML_SECONDARY_CACHE_DIR.get()
         nested_default = config.get(
-            "{}.{}.secondary.default_base_dir".format("storage.cache", _DISK_STRATEGY_SECTION),
+            f"storage.cache.{_DISK_STRATEGY_SECTION}.secondary.default_base_dir",
             None,
         )
     else:
