@@ -284,12 +284,13 @@ class PipelineController:
             By default, if this callback is not specified, the function will be retried the number of
             times indicated by `retry_on_failure`.
 
-              .. code-block:: py
+            .. code-block:: py
 
-                  def example_retry_on_failure_callback(pipeline, node, retries):
-                      print(node.name, ' failed')
-                      # allow up to 5 retries (total of 6 runs)
-                      return retries < 5
+                def example_retry_on_failure_callback(pipeline, node, retries):
+                    print(f"{node.name} failed")
+                    # allow up to 5 retries (total of 6 runs)
+                    return retries < 5
+
         :param docker: Select the docker image to be executed in by the remote session
         :param docker_args: Add docker arguments, pass a single string
         :param docker_bash_setup_script: Add bash script to be executed
@@ -323,6 +324,7 @@ class PipelineController:
                 def serialize(obj):
                     import dill
                     return dill.dumps(obj)
+
         :param artifact_deserialization_function: A deserialization function that takes one parameter of type `bytes`,
             which represents the serialized object. This function should return the deserialized object.
             All parameter/return artifacts fetched by the pipeline will be deserialized using this function.
@@ -333,6 +335,7 @@ class PipelineController:
                 def deserialize(bytes_):
                     import dill
                     return dill.loads(bytes_)
+
         :param output_uri: The storage / output url for this pipeline. This is the default location for output
             models and other artifacts. Check Task.init reference docs for more info (output_uri is a parameter).
             The `output_uri` of this pipeline's steps will default to this value.
@@ -638,12 +641,12 @@ class PipelineController:
             By default, if this callback is not specified, the function will be retried the number of
             times indicated by `retry_on_failure`.
 
-              .. code-block:: py
+            .. code-block:: py
 
-                  def example_retry_on_failure_callback(pipeline, node, retries):
-                      print(node.name, ' failed')
-                      # allow up to 5 retries (total of 6 runs)
-                      return retries < 5
+                def example_retry_on_failure_callback(pipeline, node, retries):
+                    print(f"{node.name} failed")
+                    # allow up to 5 retries (total of 6 runs)
+                    return retries < 5
 
         :param status_change_callback: Callback function, called when the status of a step (Task) changes.
             Use `node.job` to access the ClearmlJob object, or `node.job.task` to directly access the Task object.
@@ -967,12 +970,12 @@ class PipelineController:
             By default, if this callback is not specified, the function will be retried the number of
             times indicated by `retry_on_failure`.
 
-              .. code-block:: py
+            .. code-block:: py
 
-                  def example_retry_on_failure_callback(pipeline, node, retries):
-                      print(node.name, ' failed')
-                      # allow up to 5 retries (total of 6 runs)
-                      return retries < 5
+                def example_retry_on_failure_callback(pipeline, node, retries):
+                    print(node.name, ' failed')
+                    # allow up to 5 retries (total of 6 runs)
+                    return retries < 5
 
         :param status_change_callback: Callback function, called when the status of a step (Task) changes.
             Use `node.job` to access the ClearmlJob object, or `node.job.task` to directly access the Task object.
@@ -1200,14 +1203,14 @@ class PipelineController:
 
         .. code-block:: py
 
-           config_file = pipe.connect_configuration(config_file)
-           my_params = json.load(open(config_file,'rt'))
+            config_file = pipe.connect_configuration(config_file)
+            my_params = json.load(open(config_file,'rt'))
 
         A parameter dictionary/list:
 
         .. code-block:: py
 
-           my_params = pipe.connect_configuration(my_params)
+            my_params = pipe.connect_configuration(my_params)
 
         :param configuration: The configuration. This is usually the configuration used in the model training process.
             Specify one of the following:
@@ -3992,9 +3995,10 @@ class PipelineDecorator(PipelineController):
               .. code-block:: py
 
                   def example_retry_on_failure_callback(pipeline, node, retries):
-                      print(node.name, ' failed')
+                      print(f"{node.name} failed")
                       # allow up to 5 retries (total of 6 runs)
                       return retries < 5
+
         :param docker: Select the docker image to be executed in by the remote session
         :param docker_args: Add docker arguments, pass a single string
         :param docker_bash_setup_script: Add bash script to be executed
@@ -4025,6 +4029,7 @@ class PipelineDecorator(PipelineController):
                 def serialize(obj):
                     import dill
                     return dill.dumps(obj)
+
         :param artifact_deserialization_function: A deserialization function that takes one parameter of type `bytes`,
             which represents the serialized object. This function should return the deserialized object.
             All parameter/return artifacts fetched by the pipeline will be deserialized using this function.
@@ -4035,6 +4040,7 @@ class PipelineDecorator(PipelineController):
                 def deserialize(bytes_):
                     import dill
                     return dill.loads(bytes_)
+
         :param output_uri: The storage / output url for this pipeline. This is the default location for output
             models and other artifacts. Check Task.init reference docs for more info (output_uri is a parameter).
             The `output_uri` of this pipeline's steps will default to this value.
@@ -5024,6 +5030,7 @@ class PipelineDecorator(PipelineController):
                       print(node.name, ' failed')
                       # allow up to 5 retries (total of 6 runs)
                       return retries < 5
+
         :param docker: Select the docker image to be executed in by the remote session
         :param docker_args: Add docker arguments, pass a single string
         :param docker_bash_setup_script: Add bash script to be executed
@@ -5054,6 +5061,7 @@ class PipelineDecorator(PipelineController):
                 def serialize(obj):
                     import dill
                     return dill.dumps(obj)
+
         :param artifact_deserialization_function: A deserialization function that takes one parameter of type `bytes`,
             which represents the serialized object. This function should return the deserialized object.
             All parameter/return artifacts fetched by the pipeline will be deserialized using this function.
@@ -5064,6 +5072,7 @@ class PipelineDecorator(PipelineController):
                 def deserialize(bytes_):
                     import dill
                     return dill.loads(bytes_)
+
         :param output_uri: The storage / output url for this pipeline. This is the default location for output
             models and other artifacts. Check Task.init reference docs for more info (output_uri is a parameter).
             The `output_uri` of this pipeline's steps will default to this value.
@@ -5435,7 +5444,11 @@ class PipelineDecorator(PipelineController):
         .. code-block:: py
 
             @PipelineDecorator.pipeline(
-                multi_instance_support=True, name="custom pipeline logic", project="examples", version="1.0")
+                multi_instance_support=True,
+                name="custom pipeline logic",
+                project="examples",
+                version="1.0",
+            )
             def pipeline(parameter=1):
                 print(f"running with parameter={parameter}")
 

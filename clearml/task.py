@@ -412,14 +412,14 @@ class Task(_Task):
 
             .. code-block:: py
 
-               auto_connect_arg_parser={"do_not_include_me": False, }
+                auto_connect_arg_parser={"do_not_include_me": False, }
 
             .. code-block:: py
 
-               auto_connect_arg_parser={"only_include_me": True, "*": False}
+                auto_connect_arg_parser={"only_include_me": True, "*": False}
 
             .. note::
-               To manually connect an argparse, use ```Task.connect```.
+                To manually connect an argparse, use ```Task.connect```.
 
         :param auto_connect_frameworks: Automatically connect frameworks.
             This includes patching MatplotLib, XGBoost,
@@ -441,12 +441,23 @@ class Task(_Task):
 
             .. code-block:: py
 
-               auto_connect_frameworks={
-                   'matplotlib': True, 'tensorflow': ['*.hdf5', 'something_else*'], 'tensorboard': True,
-                   'pytorch': ['*.pt'], 'xgboost': True, 'scikit': True, 'fastai': True,
-                   'lightgbm': True, 'hydra': True, 'detect_repository': True, 'tfdefines': True,
-                   'joblib': True, 'megengine': True, 'catboost': True, 'gradio': True
-               }
+                auto_connect_frameworks={
+                    'matplotlib': True,
+                    'tensorflow': ['*.hdf5', 'something_else*'],
+                    'tensorboard': True,
+                    'pytorch': ['*.pt'],
+                    'xgboost': True,
+                    'scikit': True,
+                    'fastai': True,
+                    'lightgbm': True,
+                    'hydra': True,
+                    'detect_repository': True,
+                    'tfdefines': True,
+                    'joblib': True,
+                    'megengine': True,
+                    'catboost': True,
+                    'gradio': True
+                }
 
             .. code-block:: py
 
@@ -489,7 +500,7 @@ class Task(_Task):
 
             .. code-block:: py
 
-               auto_connect_streams={'stdout': True, 'stderr': True, 'logging': False}
+                auto_connect_streams={'stdout': True, 'stderr': True, 'logging': False}
 
         :param deferred_init: (default: ``False``) Wait for Task to be fully initialized (regular behaviour).
             ** BETA feature! use with care **.
@@ -2221,14 +2232,14 @@ class Task(_Task):
 
         .. code-block:: py
 
-           config_file = task.connect_configuration(config_file)
-           my_params = json.load(open(config_file,'rt'))
+            config_file = task.connect_configuration(config_file)
+            my_params = json.load(open(config_file,'rt'))
 
         A parameter dictionary/list:
 
         .. code-block:: py
 
-           my_params = task.connect_configuration(my_params)
+            my_params = task.connect_configuration(my_params)
 
         When running remotely, the value of the connected configuration is overridden by the corresponding value found
         under the experiment's UI/backend (unless ``ignore_remote_overrides`` is ``True``).
@@ -2524,16 +2535,16 @@ class Task(_Task):
             import torch.distributed as dist
 
             def run(rank, size):
-                print('World size is ', size)
+                print(f"World size is {size}")
                 tensor = torch.zeros(1)
                 if rank == 0:
                     for i in range(1, size):
                         tensor += 1
                         dist.send(tensor=tensor, dst=i)
-                        print('Sending from rank ', rank, ' to rank ', i, ' data: ', tensor[0])
+                        print(f"Sending from rank {rank} to rank {i} data: {tensor[0]}")
                 else:
                     dist.recv(tensor=tensor, src=0)
-                    print('Rank ', rank, ' received data: ', tensor[0])
+                    print(f"Rank {rank} received data: {tensor[0]}")
 
             if __name__ == '__main__':
                 task = Task.init('some_name', 'some_name')
@@ -2549,7 +2560,12 @@ class Task(_Task):
 
         .. code-block:: py
 
-            agent.extra_docker_arguments=["--ipc=host", "--network=host", "-p", "29500:29500", "--env", "CLEARML_MULTI_NODE_MASTER_DEF_ADDR=`hostname -I | awk '{print $1}'`"]`
+            agent.extra_docker_arguments=[
+                "--ipc=host",
+                "--network=host",
+                "-p", "29500:29500",
+                "--env", "CLEARML_MULTI_NODE_MASTER_DEF_ADDR=`hostname -I | awk '{print $1}'`"
+            ]`
 
         :param total_num_nodes: The total number of nodes to be enqueued, including the master node,
             which should already be enqueued when running remotely

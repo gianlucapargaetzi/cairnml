@@ -883,7 +883,7 @@ class SearchStrategy:
 
             .. code-block:: py
 
-               naming_functor(base_task_name, argument_dict) -> str
+                naming_functor(base_task_name, argument_dict) -> str
 
         """
         self._naming_function = naming_function
