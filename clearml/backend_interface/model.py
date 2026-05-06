@@ -205,7 +205,7 @@ class Model(IdObjectBase, AsyncManagerMixin, _StorageUriMixin):
         :param design: If it is a dictionary with a 'design' key in it, return
             design['design'].
             If it is a dictionary without 'design' key, return the first value
-            in it's values list.
+            in its values list.
             If it is an empty dictionary, None, or any other False value,
             return an empty string.
             If it is a string, return design as-is.

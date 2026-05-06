@@ -875,6 +875,7 @@ if __name__ == '__main__':
                 def serialize(obj):
                     import dill
                     return dill.dumps(obj)
+
         :param artifact_deserialization_function: A deserialization function that takes one parameter of type `bytes`,
             which represents the serialized object. This function should return the deserialized object.
             All parameter/return artifacts fetched by the pipeline will be deserialized using this function.
@@ -885,6 +886,7 @@ if __name__ == '__main__':
                 def deserialize(bytes_):
                     import dill
                     return dill.loads(bytes_)
+
         :param _sanitize_function: Sanitization function for the function string.
         :param _sanitize_helper_functions: Sanitization function for the helper function string.
         :param skip_global_imports: If True, the global imports will not be fetched from the function's file, otherwise
