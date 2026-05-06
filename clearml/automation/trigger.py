@@ -274,8 +274,8 @@ class TriggerScheduler(BaseScheduler):
 
         .. code-block:: py
 
-           def schedule_function(model_id):
-               pass
+            def schedule_function(model_id):
+                pass
 
 
         :param schedule_task_id: Task/task ID to be cloned and scheduled for execution
@@ -354,8 +354,8 @@ class TriggerScheduler(BaseScheduler):
 
         .. code-block:: py
 
-           def schedule_function(dataset_id):
-               pass
+            def schedule_function(dataset_id):
+                pass
 
 
         :param schedule_task_id: Task/task ID to be cloned and scheduled for execution
@@ -465,8 +465,8 @@ class TriggerScheduler(BaseScheduler):
 
         .. code-block:: py
 
-           def schedule_function(task_id):
-               pass
+            def schedule_function(task_id):
+                pass
 
         :param schedule_task_id: Task/task ID to be cloned and scheduled for execution
         :param schedule_queue: Queue name or ID to put the Task into (i.e. schedule)

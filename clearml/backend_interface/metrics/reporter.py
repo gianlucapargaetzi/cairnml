@@ -720,29 +720,25 @@ class Reporter(InterfaceBase, AbstractContextManager, SetupUploadMixin, AsyncMan
     ) -> None:
         """
         Report an histogram bar plot
-        :param title: Title (AKA metric)
-        :type title: str
-        :param series: Series (AKA variant)
-        :type series: str
-        :param histogram: The histogram data.
-            A row for each dataset(bar in a bar group). A column for each bucket.
+        :param str title: Title (metric)
+        :param str series: Series (variant)
+        :param np.ndarray nd.histogram: The histogram data. A row for each dataset(bar in a bar group).
+            A column for each bucket.
         :type histogram: numpy array
-        :param iter: Iteration number
-        :type iter: int
-        :param labels: The labels for each bar group.
-        :type labels: list of strings.
-        :param xlabels: The labels of the x axis.
-        :type xlabels: List of strings.
+        :param int iter: Iteration number
+        :param List[str] labels: The labels for each bar group.
+        :param List[str] xlabels: The labels of the x axis.
         :param str xtitle: optional x-axis title
         :param str ytitle: optional y-axis title
-        :param comment: comment underneath the title
-        :type comment: str
-        :param mode: multiple histograms mode. valid options are: stack / group / relative. Default is 'group'.
-        :type mode: str
-        :param data_args: optional dictionary for data configuration, passed directly to plotly
-        :type data_args: dict or None
-        :param layout_config: optional dictionary for layout configuration, passed directly to plotly
-        :type layout_config: dict or None
+        :param str comment: comment underneath the title
+        :param mode: Display mode for multiple histograms. The options are:
+
+          - ``group`` (default)
+          - ``stack``
+          - ``relative``
+
+        :param Optional[dict] data_args: optional dictionary for data configuration, passed directly to plotly
+        :param Optional[dict] layout_config: optional dictionary for layout configuration, passed directly to plotly
         """
         assert mode in ("stack", "group", "relative")
 
@@ -824,9 +820,9 @@ class Reporter(InterfaceBase, AbstractContextManager, SetupUploadMixin, AsyncMan
         :type series: An iterable of LineSeriesInfo.
         :param iter: Iteration number
         :type iter: int
-        :param xtitle: x-axis title
+        :param xtitle: The title of the x-axis
         :type xtitle: str
-        :param ytitle: y-axis title
+        :param ytitle: The title of the y-axis
         :type ytitle: str
         :param mode: 'lines' / 'markers' / 'lines+markers'
         :type mode: str

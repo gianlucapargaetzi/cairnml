@@ -1899,9 +1899,15 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
     ) -> Optional[bool]:
         """
         Set the project of the current task by either specifying a project name or ID
+
+        :param project_id: The ClearML project ID. If provided, ``project_name`` is ignored.
+        :param project_name: The name of the project. Must match **exactly** one existing project.
+
+        :return: ``None`` if running as a remote main task, or if a unique project was found.
+            ``False`` if the project name matched zero or multiple projects.
         """
 
-        # if running remotely and we are the main task, skip setting ourselves.
+        # if running remotely, and we are the main task, skip setting ourselves.
         if self._is_remote_main_task():
             return
 
@@ -2149,10 +2155,15 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
 
         .. code-block:: py
 
-          {"title": {"series": {
-                      "x": [0, 1 ,2],
-                      "y": [10, 11 ,12]
-          }}}
+            {
+                "title":
+                {
+                    "series": {
+                        "x": [0, 1 ,2],
+                        "y": [10, 11 ,12]
+                    }
+                }
+            }
 
         :param int max_samples: Maximum samples per series to return. Default is 0 returning up to 5000 samples.
             With sample limit, average scalar values inside sampling window.
@@ -2256,19 +2267,20 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
 
         .. code-block:: py
 
-          [{
-            "timestamp": 1636921296370,
-            "type": "plot",
-            "task": "0ce5e89bbe484f428e43e767f1e2bb11",
-            "iter": 0,
-            "metric": "Manual Reporting",
-            "variant": "Just a plot",
-            "plot_str": "{'data': [{'type': 'scatter', 'mode': 'markers', 'name': null,
-                                    'x': [0.2620246750155817], 'y': [0.2620246750155817]}]}",
-            "@timestamp": "2021-11-14T20:21:42.387Z",
-            "worker": "machine-ml",
-            "plot_len": 6135,
-          },]
+            [{
+                "timestamp": 1636921296370,
+                "type": "plot",
+                "task": "0ce5e89bbe484f428e43e767f1e2bb11",
+                "iter": 0,
+                "metric": "Manual Reporting",
+                "variant": "Just a plot",
+                "plot_str": "{'data': [{'type': 'scatter', 'mode': 'markers', 'name': null,
+                                        'x': [0.2620246750155817], 'y': [0.2620246750155817]}]}",
+                "@timestamp": "2021-11-14T20:21:42.387Z",
+                "worker": "machine-ml",
+                "plot_len": 6135,
+            },]
+
         :param int max_iterations: Maximum number of historic plots (iterations from end) to return.
         :return: list: List of dicts, each one represents a single plot
         """

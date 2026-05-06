@@ -166,7 +166,10 @@ class Logger:
            scalar_series = [random.randint(0,10) for i in range(10)]
            for iteration in range(10):
                logger.report_scalar(
-                   title='scalar metrics', series='series', value=scalar_series[iteration], iteration=iteration
+                   title='scalar metrics',
+                   series='series',
+                   value=scalar_series[iteration],
+                   iteration=iteration,
                )
 
         You can view the scalar plots in the **ClearML WebApp (UI)**, **RESULTS** tab, **SCALARS** sub-tab.
@@ -217,9 +220,16 @@ class Logger:
 
         .. code-block:: py
 
-           vector_series = np.random.randint(10, size=10).reshape(2,5)
-           logger.report_vector(title='vector example', series='vector series', values=vector_series, iteration=0,
-                labels=['A','B'], xaxis='X axis label', yaxis='Y axis label')
+            vector_series = np.random.randint(10, size=10).reshape(2,5)
+            logger.report_vector(
+                title='vector example',
+                series='vector series',
+                values=vector_series,
+                iteration=0,
+                labels=['A','B'],
+                xaxis='X axis label',
+                yaxis='Y axis label',
+            )
 
         You can view the vector plot in the **ClearML WebApp (UI)**, **RESULTS** tab, **PLOTS** sub-tab.
 
@@ -279,9 +289,16 @@ class Logger:
 
         .. code-block:: py
 
-           vector_series = np.random.randint(10, size=10).reshape(2,5)
-           logger.report_histogram(title='histogram example', series='histogram series',
-                values=vector_series, iteration=0, labels=['A','B'], xaxis='X axis label', yaxis='Y axis label')
+            vector_series = np.random.randint(10, size=10).reshape(2,5)
+            logger.report_histogram(
+                title='histogram example',
+                series='histogram series',
+                values=vector_series,
+                iteration=0,
+                labels=['A','B'],
+                xaxis='X axis label',
+                yaxis='Y axis label',
+            )
 
         You can view the reported histograms in the **ClearML WebApp (UI)**, **RESULTS** tab, **PLOTS** sub-tab.
 
@@ -349,10 +366,14 @@ class Logger:
 
         .. code-block:: py
 
-           df = pd.DataFrame({'num_legs': [2, 4, 8, 0],
-                   'num_wings': [2, 0, 0, 0],
-                   'num_specimen_seen': [10, 2, 1, 8]},
-                   index=['falcon', 'dog', 'spider', 'fish'])
+            df = pd.DataFrame(
+                {
+                    'num_legs': [2, 4, 8, 0],
+                    'num_wings': [2, 0, 0, 0],
+                    'num_specimen_seen': [10, 2, 1, 8],
+                },
+                index=['falcon', 'dog', 'spider', 'fish'],
+            )
 
            logger.report_table(title='table example',series='pandas DataFrame',iteration=0,table_plot=df)
 
@@ -520,22 +541,49 @@ class Logger:
 
         .. code-block:: py
 
-           scatter2d = np.hstack((np.atleast_2d(np.arange(0, 10)).T, np.random.randint(10, size=(10, 1))))
-           logger.report_scatter2d(title="example_scatter", series="series", iteration=0, scatter=scatter2d,
-                xaxis="title x", yaxis="title y")
+            scatter2d = np.hstack((
+                np.atleast_2d(np.arange(0, 10)).T,
+                np.random.randint(10, size=(10, 1)),
+            ))
+            logger.report_scatter2d(
+                title="example_scatter",
+                series="series",
+                iteration=0,
+                scatter=scatter2d,
+                xaxis="title x",
+                yaxis="title y",
+            )
 
         Plot multiple 2D scatter series on the same plot by passing the same ``title`` and ``iteration`` values
         to this method:
 
         .. code-block:: py
 
-           scatter2d_1 = np.hstack((np.atleast_2d(np.arange(0, 10)).T, np.random.randint(10, size=(10, 1))))
-           logger.report_scatter2d(title="example_scatter", series="series_1", iteration=1, scatter=scatter2d_1,
-                xaxis="title x", yaxis="title y")
+            scatter2d_1 = np.hstack((
+                np.atleast_2d(np.arange(0, 10)).T,
+                np.random.randint(10, size=(10, 1))
+            ))
+            logger.report_scatter2d(
+                title="example_scatter",
+                series="series_1",
+                iteration=1,
+                scatter=scatter2d_1,
+                xaxis="title x",
+                yaxis="title y",
+            )
 
-           scatter2d_2 = np.hstack((np.atleast_2d(np.arange(0, 10)).T, np.random.randint(10, size=(10, 1))))
-           logger.report_scatter2d("example_scatter", "series_2", iteration=1, scatter=scatter2d_2,
-                xaxis="title x", yaxis="title y")
+            scatter2d_2 = np.hstack((
+                np.atleast_2d(np.arange(0, 10)).T,
+                np.random.randint(10, size=(10, 1)),
+            ))
+            logger.report_scatter2d(
+                "example_scatter",
+                "series_2",
+                iteration=1,
+                scatter=scatter2d_2,
+                xaxis="title x",
+                yaxis="title y",
+            )
 
         :param str title: The title (metric) of the plot.
         :param str series: The series name (variant) of the reported scatter plot.
@@ -601,28 +649,35 @@ class Logger:
 
         .. code-block:: py
 
-           scatter3d = np.random.randint(10, size=(10, 3))
-           logger.report_scatter3d(title="example_scatter_3d", series="series_xyz", iteration=1, scatter=scatter3d,
-                xaxis="title x", yaxis="title y", zaxis="title z")
+            scatter3d = np.random.randint(10, size=(10, 3))
+            logger.report_scatter3d(
+                title="example_scatter_3d",
+                series="series_xyz",
+                iteration=1,
+                scatter=scatter3d,
+                xaxis="title x",
+                yaxis="title y",
+                zaxis="title z",
+            )
 
         :param str title: The title (metric) of the plot.
         :param str series: The series name (variant) of the reported scatter plot.
         :param scatter: The scatter data.
             list of (pairs of x,y,z), list of series [[(x1,y1,z1)...]], or numpy.ndarray
-        :param int iteration: The reported iteration / step.
-        :param str xaxis: The x-axis title (Optional)
-        :param str yaxis: The y-axis title (Optional)
-        :param str zaxis: The z-axis title (Optional)
-        :param list(str) labels: Labels per point in the data assigned to the ``scatter`` parameter. The labels must be
-            in the same order as the data.
+        :param Optional[int] iteration: The reported iteration / step.
+        :param Optional[str] xaxis: The x-axis title (Optional)
+        :param Optional[str] yaxis: The y-axis title (Optional)
+        :param Optional[str] zaxis: The z-axis title (Optional)
+        :param Optional[List[str]] labels: Labels per point in the data assigned to the ``scatter`` parameter.
+            The labels must be in the same order as the data.
         :param str mode: The type of scatter plot. The values are: ``lines``, ``markers``, ``lines+markers``.
         :param bool fill: Fill the area under the curve. The values are:
 
           - ``True`` - Fill
           - ``False`` - Do not fill (default)
 
-        :param str comment: A comment displayed with the plot, underneath the title.
-        :param dict extra_layout: Optional dictionary for layout configuration, passed directly to plotly.
+        :param Optional[str] comment: A comment displayed with the plot, underneath the title.
+        :param Optional[dict] extra_layout: Optional dictionary for layout configuration, passed directly to plotly.
             See full details on the supported configuration: https://plotly.com/javascript/reference/scatter3d/.
             Example: ``extra_layout={'xaxis': {'type': 'date', 'range': ['2020-01-01', '2020-01-31']}}``
         """
@@ -682,21 +737,28 @@ class Logger:
 
         .. code-block:: py
 
-           confusion = np.random.randint(10, size=(10, 10))
-           logger.report_confusion_matrix("example confusion matrix", "ignored", iteration=1, matrix=confusion,
-                xaxis="title X", yaxis="title Y")
+            confusion = np.random.randint(10, size=(10, 10))
+            logger.report_confusion_matrix(
+                "example confusion matrix",
+                "ignored",
+                iteration=1,
+                matrix=confusion,
+                xaxis="title X",
+                yaxis="title Y",
+            )
 
         :param str title: The title (metric) of the plot.
         :param str series: The series name (variant) of the reported confusion matrix.
         :param numpy.ndarray matrix: A heat-map matrix (example: confusion matrix)
-        :param int iteration: The reported iteration / step.
-        :param str xaxis: The x-axis title (Optional)
-        :param str yaxis: The y-axis title (Optional)
-        :param list(str) xlabels: Labels for each column of the matrix (Optional)
-        :param list(str) ylabels: Labels for each row of the matrix (Optional)
-        :param bool yaxis_reversed: If ``False`` 0,0 is at the bottom left corner. If ``True``, 0,0 is at the top left corner
-        :param str comment: A comment displayed with the plot, underneath the title.
-        :param dict extra_layout: Optional dictionary for layout configuration, passed directly to plotly.
+        :param Optional[int] iteration: The reported iteration / step.
+        :param Optional[str] xaxis: The x-axis title (Optional)
+        :param Optional[str] yaxis: The y-axis title (Optional)
+        :param Optional[list(str)] xlabels: Labels for each column of the matrix (Optional)
+        :param Optional[list(str)] ylabels: Labels for each row of the matrix (Optional)
+        :param bool yaxis_reversed: If ``False``, the ``(0, 0)`` coordinate is at the bottom left corner.
+            If ``True``, the ``(0, 0)`` coordinate is at the top left corner.
+        :param Optional[str] comment: A comment displayed with the plot, underneath the title.
+        :param Optional[dict] extra_layout: Optional dictionary for layout configuration, passed directly to ``plotly``.
             See full details on the supported configuration: https://plotly.com/javascript/reference/heatmap/.
             Example: ``extra_layout={'xaxis': {'type': 'date', 'range': ['2020-01-01', '2020-01-31']}}``
         """
@@ -747,13 +809,14 @@ class Logger:
         :param str title: The title (metric) of the plot.
         :param str series: The series name (variant) of the reported confusion matrix.
         :param numpy.ndarray matrix: A heat-map matrix (example: confusion matrix)
-        :param int iteration: The reported iteration / step.
-        :param str xaxis: The x-axis title (Optional)
-        :param str yaxis: The y-axis title (Optional)
-        :param list(str) xlabels: Labels for each column of the matrix (Optional)
-        :param list(str) ylabels: Labels for each row of the matrix (Optional)
-        :param bool yaxis_reversed: If ``False``, 0,0 is in the bottom left corner. If ``True``, 0,0 is in the top left corner
-        :param dict extra_layout: optional dictionary for layout configuration, passed directly to plotly.
+        :param Optional[int] iteration: The reported iteration / step.
+        :param Optional[str] xaxis: The x-axis title (Optional)
+        :param Optional[str] yaxis: The y-axis title (Optional)
+        :param Optional[list(str)] xlabels: Labels for each column of the matrix (Optional)
+        :param Optional[list(str)] ylabels: Labels for each row of the matrix (Optional)
+        :param bool yaxis_reversed: If ``False``, the ``(0, 0)`` coordinate is at the bottom left corner.
+            If ``True``, the ``(0, 0)`` coordinate is at the top left corner.
+        :param dict extra_layout: optional dictionary for layout configuration, passed directly to ``plotly``.
             See full details on the supported configuration: https://plotly.com/javascript/reference/heatmap/.
             Example: ``extra_layout={'xaxis': {'type': 'date', 'range': ['2020-01-01', '2020-01-31']}}``
         """
@@ -799,22 +862,30 @@ class Logger:
 
         .. code-block:: py
 
-           surface_matrix = np.random.randint(10, size=(10, 10))
-           logger.report_surface("example surface", "series", iteration=0, matrix=surface_matrix,
-                xaxis="title X", yaxis="title Y", zaxis="title Z")
+            surface_matrix = np.random.randint(10, size=(10, 10))
+            logger.report_surface(
+                "example surface",
+                "series",
+                iteration=0,
+                matrix=surface_matrix,
+                xaxis="title X",
+                yaxis="title Y",
+                zaxis="title Z",
+            )
 
         :param str title: The title (metric) of the plot.
         :param str series: The series name (variant) of the reported surface.
         :param numpy.ndarray matrix: A heat-map matrix (example: confusion matrix)
-        :param int iteration: The reported iteration / step.
-        :param str xaxis: The x-axis title (Optional)
-        :param str yaxis: The y-axis title (Optional)
-        :param str zaxis: The z-axis title (Optional)
-        :param list(str) xlabels: Labels for each column of the matrix (Optional)
-        :param list(str) ylabels: Labels for each row of the matrix (Optional)
-        :param list(float) camera: X,Y,Z coordinates indicating the camera position. The default value is ``(1,1,1)``.
-        :param str comment: A comment displayed with the plot, underneath the title.
-        :param dict extra_layout: Optional dictionary for layout configuration, passed directly to plotly.
+        :param Optional[int] iteration: The reported iteration / step.
+        :param Optional[str] xaxis: The x-axis title (Optional)
+        :param Optional[str] yaxis: The y-axis title (Optional)
+        :param Optional[str] zaxis: The z-axis title (Optional)
+        :param Optional[List[str]] xlabels: Labels for each column of the matrix (Optional)
+        :param Optional[List[str]] ylabels: Labels for each row of the matrix (Optional)
+        :param Optional[List[float]] camera: X,Y,Z coordinates indicating the camera position.
+            The default value is ``(1,1,1)``.
+        :param Optional[str] comment: A comment displayed with the plot, underneath the title.
+        :param Optional[dict] extra_layout: Optional dictionary for layout configuration, passed directly to ``plotly``.
             See full details on the supported configuration: https://plotly.com/javascript/reference/surface/.
             Example: ``extra_layout={'xaxis': {'type': 'date', 'range': ['2020-01-01', '2020-01-31']}}``
         """
@@ -863,12 +934,18 @@ class Logger:
 
         .. code-block:: py
 
-           matrix = np.eye(256, 256, dtype=np.uint8)*255
-           matrix = np.concatenate((np.atleast_3d(matrix), np.zeros((256, 256, 2), dtype=np.uint8)), axis=2)
-           logger.report_image("test case", "image color red", iteration=1, image=m)
+            matrix = np.eye(256, 256, dtype=np.uint8)*255
+            matrix = np.concatenate(
+                (
+                    np.atleast_3d(matrix),
+                    np.zeros((256, 256, 2), dtype=np.uint8)
+                ),
+                axis=2,
+            )
+            logger.report_image("test case", "image color red", iteration=1, image=m)
 
-           image_open = Image.open(os.path.join("<image_path>", "<image_filename>"))
-           logger.report_image("test case", "image PIL", iteration=1, image=image_open)
+            image_open = Image.open(os.path.join("<image_path>", "<image_filename>"))
+            logger.report_image("test case", "image PIL", iteration=1, image=image_open)
 
         One and only one of the following parameters must be provided.
 
