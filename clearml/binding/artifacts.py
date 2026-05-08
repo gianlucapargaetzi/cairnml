@@ -23,6 +23,7 @@ from ..backend_api import Session
 from ..backend_api.services import tasks
 from ..backend_interface.metrics.events import UploadEvent
 from ..config import deferred_config, config
+from ..config.defs import BLOCK_PICKLED_ARTIFACTS
 from ..debugging.log import LoggerRoot
 from ..storage.helper import remote_driver_schemes
 from ..storage.filepaths import get_common_path
@@ -51,8 +52,52 @@ if TYPE_CHECKING:
 
 
 class ArtifactIntegrityError(ValueError):
-    """Raised when the hash of a local file does not match its metadata."""
+    """
+    Raised when the hash of a local file does not match its metadata.
+    """
+
     pass
+
+
+class BlockedArtifactTypeError(ValueError):
+    """
+    Raised when an artifact is blocked from being downloaded due to its type.
+    """
+
+    def __init__(
+        self,
+        artifact_filepath: str,
+        artifact_type: str,
+        content_type: str,
+        comment: str = "",
+    ):
+        super().__init__(
+            f"The artifact '{artifact_filepath}' of type '{artifact_type}' and content type '{content_type}' "
+            f"cannot be downloaded. "
+            f"{comment}"
+        )
+
+
+class BlockedPickledArtifactError(BlockedArtifactTypeError):
+    """
+    Raised when a pickled artifact is blocked from being downloaded via configuration.
+    """
+
+    def __init__(
+        self,
+        artifact_filepath: str,
+        artifact_type: str,
+        content_type: str,
+    ):
+        super().__init__(
+            artifact_filepath=artifact_filepath,
+            artifact_type=artifact_type,
+            content_type=content_type,
+            comment=(
+                "To allow download, set 'sdk.storage.block_pickled_artifacts' configuration option to 'False'"
+                f" or use the environment variable '{BLOCK_PICKLED_ARTIFACTS.key}=False'"
+            )
+        )
 
 
 class Artifact:
@@ -61,6 +106,13 @@ class Artifact:
     """
 
     _not_set = object()
+    _block_pickled_artifacts: bool = (
+        BLOCK_PICKLED_ARTIFACTS.get()
+        or deferred_config(
+            "storage.block_pickled_artifacts",
+            False,
+        )
+    )
 
     @property
     def url(self) -> str:
@@ -167,8 +219,16 @@ class Artifact:
             which represents the serialized object. This function should return the deserialized object.
             Useful when the artifact was uploaded using a custom serialization function when calling the
             `Task.upload_artifact` method with the `serialization_function` argument.
-        :return: Usually, one of the following objects: Numpy.array, pandas.DataFrame, PIL.Image, dict (json), or pathlib2.Path.
-            An object with an arbitrary type may also be returned if it was serialized (using pickle or a custom serialization function).
+        :return: Usually, one of the following objects:
+
+          - Numpy.array
+          - pandas.DataFrame
+          - PIL.Image
+          - dict (json)
+          - pathlib2.Path.
+
+            An object with an arbitrary type may also be returned if it was serialized
+            (using pickle or a custom serialization function).
         """
         if self._object is not self._not_set:
             return self._object
@@ -191,6 +251,13 @@ class Artifact:
                 elif self._content_type == "application/feather":
                     self._object = pd.read_feather(local_file)
                 elif self._content_type == "application/pickle":
+                    if self._block_pickled_artifacts:
+                        raise BlockedPickledArtifactError(
+                            artifact_filepath=local_file,
+                            artifact_type=self.type,
+                            content_type=self._content_type,
+                        )
+
                     self.verify_pickle_file_integrity(local_file=local_file)
                     self._object = pd.read_pickle(local_file)
                 elif self.type == Artifacts._pd_artifact_type:
@@ -209,12 +276,19 @@ class Artifact:
                 with open(local_file, "rt") as f:
                     self._object = f.read()
             elif self.type == "pickle":
+                if self._block_pickled_artifacts:
+                    raise BlockedPickledArtifactError(
+                        artifact_filepath=local_file,
+                        artifact_type=self.type,
+                        content_type=self._content_type,
+                    )
+
                 self.verify_pickle_file_integrity(local_file=local_file)
                 with open(local_file, "rb") as f:
                     self._object = pickle.load(f)
         except Exception as e:
             LoggerRoot.get_base_logger().warning(
-                f"Encountered {type(e).__name__}('{e}') when getting artifact "
+                f'Encountered {type(e).__name__}("{e}") when getting artifact '
                 f"with type {self.type} and content type {self._content_type}"
             )
 
@@ -269,9 +343,8 @@ class Artifact:
                 local_file,
                 block_size=Artifacts._hash_block_size,
             )
-            print(f"Hashes: \nself.hash: {self.hash}\nfile_hash: {file_hash}")
             if self.hash != file_hash:
-                raise ArtifactIntegrityError("incorrect pickle file hash, artifact file might be corrupted")
+                raise ArtifactIntegrityError("Incorrect pickle file hash. The artifact file might be corrupted.")
 
     def __repr__(self) -> str:
         return str(
