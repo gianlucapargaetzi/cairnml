@@ -587,7 +587,7 @@ class GPUStatCollection(object):
             else:
                 driver_version = None
                 cuda_driver_version = None
-                
+
             return GPUStatCollection(
                 gpu_list,
                 driver_version=driver_version,
@@ -597,7 +597,6 @@ class GPUStatCollection(object):
             if shutdown and initialized:
                 N.nvmlShutdown()
                 GPUStatCollection._initialized = False
-
 
     @staticmethod
     def new_query(
