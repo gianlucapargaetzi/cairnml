@@ -384,219 +384,220 @@ class GPUStatCollection(object):
         get_driver_info: bool = False,
     ) -> "GPUStatCollection":
         """Query the information of all the GPUs on local machine"""
-        initialized = False
-        if not GPUStatCollection._initialized:
-            N.nvmlInit()
-            GPUStatCollection._initialized = True
-            initialized = True
+        try:
+            initialized = False
+            if not GPUStatCollection._initialized:
+                N.nvmlInit()
+                GPUStatCollection._initialized = True
+                initialized = True
 
-        def _decode(b: bytes) -> str:
-            if isinstance(b, bytes):
-                return b.decode()  # for python3, to unicode
-            return b
+            def _decode(b: bytes) -> str:
+                if isinstance(b, bytes):
+                    return b.decode()  # for python3, to unicode
+                return b
 
-        def get_gpu_info(index: int, handle: Any, is_mig: bool = False) -> dict:
-            """Get one GPU information specified by nvml handle"""
+            def get_gpu_info(index: int, handle: Any, is_mig: bool = False) -> dict:
+                """Get one GPU information specified by nvml handle"""
 
-            def get_process_info(nv_process: Any) -> dict:
-                """Get the process information of specific pid"""
-                process = {}
-                if nv_process.pid not in GPUStatCollection.global_processes:
-                    GPUStatCollection.global_processes[nv_process.pid] = psutil.Process(pid=nv_process.pid)
-                process["pid"] = nv_process.pid
-                # noinspection PyBroadException
-                try:
-                    # ps_process = GPUStatCollection.global_processes[nv_process.pid]
-                    # we do not actually use these, so no point in collecting them
-                    # process['username'] = ps_process.username()
-                    # # cmdline returns full path;
-                    # # as in `ps -o comm`, get short cmdnames.
-                    # _cmdline = ps_process.cmdline()
-                    # if not _cmdline:
-                    #     # sometimes, zombie or unknown (e.g. [kworker/8:2H])
-                    #     process['command'] = '?'
-                    #     process['full_command'] = ['?']
-                    # else:
-                    #     process['command'] = os.path.basename(_cmdline[0])
-                    #     process['full_command'] = _cmdline
-                    # process['cpu_percent'] = ps_process.cpu_percent()
-                    # process['cpu_memory_usage'] = \
-                    #     round((ps_process.memory_percent() / 100.0) *
-                    #           psutil.virtual_memory().total)
-                    # Bytes to MBytes
-                    process["gpu_memory_usage"] = nv_process.usedGpuMemory // MB
-                except Exception:
-                    # insufficient permissions
-                    pass
-                return process
-
-            device_info = GPUStatCollection._mig_device_info if is_mig else GPUStatCollection._gpu_device_info
-            if not device_info.get(index):
-                name = _decode(N.nvmlDeviceGetName(handle))
-                uuid = _decode(N.nvmlDeviceGetUUID(handle))
-                device_info[index] = (name, uuid)
-
-            name, uuid = device_info[index]
-
-            try:
-                temperature = N.nvmlDeviceGetTemperature(handle, N.NVML_TEMPERATURE_GPU)
-            except N.NVMLError:
-                temperature = None  # Not supported
-
-            try:
-                fan_speed = N.nvmlDeviceGetFanSpeed(handle)
-            except N.NVMLError:
-                fan_speed = None  # Not supported
-
-            try:
-                memory = N.nvmlDeviceGetMemoryInfo(handle)  # in Bytes
-            except N.NVMLError:
-                memory = None  # Not supported
-
-            try:
-                utilization = N.nvmlDeviceGetUtilizationRates(handle)
-            except N.NVMLError:
-                utilization = None  # Not supported
-
-            try:
-                power = N.nvmlDeviceGetPowerUsage(handle)
-            except N.NVMLError:
-                power = None
-
-            try:
-                power_limit = N.nvmlDeviceGetEnforcedPowerLimit(handle)
-            except N.NVMLError:
-                power_limit = None
-
-            try:
-                nv_comp_processes = N.nvmlDeviceGetComputeRunningProcesses(handle)
-            except N.NVMLError:
-                nv_comp_processes = None  # Not supported
-            try:
-                nv_graphics_processes = N.nvmlDeviceGetGraphicsRunningProcesses(handle)
-            except N.NVMLError:
-                nv_graphics_processes = None  # Not supported
-
-            if not per_process_stats or (nv_comp_processes is None and nv_graphics_processes is None):
-                processes = None
-            else:
-                processes = []
-                nv_comp_processes = nv_comp_processes or []
-                nv_graphics_processes = nv_graphics_processes or []
-                for nv_process in nv_comp_processes + nv_graphics_processes:
+                def get_process_info(nv_process: Any) -> dict:
+                    """Get the process information of specific pid"""
+                    process = {}
+                    if nv_process.pid not in GPUStatCollection.global_processes:
+                        GPUStatCollection.global_processes[nv_process.pid] = psutil.Process(pid=nv_process.pid)
+                    process["pid"] = nv_process.pid
+                    # noinspection PyBroadException
                     try:
-                        process = get_process_info(nv_process)
-                    except psutil.NoSuchProcess:
-                        # TODO: add some reminder for NVML broken context
-                        # e.g. nvidia-smi reset  or  reboot the system
-                        process = None
-                    processes.append(process)
+                        # ps_process = GPUStatCollection.global_processes[nv_process.pid]
+                        # we do not actually use these, so no point in collecting them
+                        # process['username'] = ps_process.username()
+                        # # cmdline returns full path;
+                        # # as in `ps -o comm`, get short cmdnames.
+                        # _cmdline = ps_process.cmdline()
+                        # if not _cmdline:
+                        #     # sometimes, zombie or unknown (e.g. [kworker/8:2H])
+                        #     process['command'] = '?'
+                        #     process['full_command'] = ['?']
+                        # else:
+                        #     process['command'] = os.path.basename(_cmdline[0])
+                        #     process['full_command'] = _cmdline
+                        # process['cpu_percent'] = ps_process.cpu_percent()
+                        # process['cpu_memory_usage'] = \
+                        #     round((ps_process.memory_percent() / 100.0) *
+                        #           psutil.virtual_memory().total)
+                        # Bytes to MBytes
+                        process["gpu_memory_usage"] = nv_process.usedGpuMemory // MB
+                    except Exception:
+                        # insufficient permissions
+                        pass
+                    return process
 
-                # we do not actually use these, so no point in collecting them
-                # # TODO: Do not block if full process info is not requested
-                # time.sleep(0.1)
-                # for process in processes:
-                #     pid = process['pid']
-                #     cache_process = GPUStatCollection.global_processes[pid]
-                #     process['cpu_percent'] = cache_process.cpu_percent()
+                device_info = GPUStatCollection._mig_device_info if is_mig else GPUStatCollection._gpu_device_info
+                if not device_info.get(index):
+                    name = _decode(N.nvmlDeviceGetName(handle))
+                    uuid = _decode(N.nvmlDeviceGetUUID(handle))
+                    device_info[index] = (name, uuid)
 
-            index = N.nvmlDeviceGetIndex(handle)
-            gpu_info = {
-                "index": index,
-                "uuid": uuid,
-                "name": name,
-                "temperature.gpu": temperature,
-                "fan.speed": fan_speed,
-                "utilization.gpu": utilization.gpu if utilization else None,
-                "power.draw": power // 1000 if power is not None else None,
-                "enforced.power.limit": power_limit // 1000 if power_limit is not None else None,
-                # Convert bytes into MBytes
-                "memory.used": memory.used // MB if memory else None,
-                "memory.total": memory.total // MB if memory else None,
-                "processes": None if (processes and all(p is None for p in processes)) else processes,
-            }
-            if per_process_stats:
-                GPUStatCollection.clean_processes()
-            return gpu_info
+                name, uuid = device_info[index]
 
-        # 1. get the list of gpu and status
-        gpu_list = []
-        if GPUStatCollection._device_count is None:
-            GPUStatCollection._device_count = N.nvmlDeviceGetCount()
+                try:
+                    temperature = N.nvmlDeviceGetTemperature(handle, N.NVML_TEMPERATURE_GPU)
+                except N.NVMLError:
+                    temperature = None  # Not supported
 
-        for index in range(GPUStatCollection._device_count):
-            handle = N.nvmlDeviceGetHandleByIndex(index)
-            gpu_info = get_gpu_info(index, handle)
-            mig_cnt = 0
-            # noinspection PyBroadException
-            try:
-                mig_cnt = N.nvmlDeviceGetMaxMigDeviceCount(handle)
-            except Exception:
-                pass
+                try:
+                    fan_speed = N.nvmlDeviceGetFanSpeed(handle)
+                except N.NVMLError:
+                    fan_speed = None  # Not supported
 
-            if mig_cnt <= 0:
-                gpu_list.append(GPUStat(gpu_info))
-                continue
+                try:
+                    memory = N.nvmlDeviceGetMemoryInfo(handle)  # in Bytes
+                except N.NVMLError:
+                    memory = None  # Not supported
 
-            got_mig_info = False
-            for mig_index in range(mig_cnt):
+                try:
+                    utilization = N.nvmlDeviceGetUtilizationRates(handle)
+                except N.NVMLError:
+                    utilization = None  # Not supported
+
+                try:
+                    power = N.nvmlDeviceGetPowerUsage(handle)
+                except N.NVMLError:
+                    power = None
+
+                try:
+                    power_limit = N.nvmlDeviceGetEnforcedPowerLimit(handle)
+                except N.NVMLError:
+                    power_limit = None
+
+                try:
+                    nv_comp_processes = N.nvmlDeviceGetComputeRunningProcesses(handle)
+                except N.NVMLError:
+                    nv_comp_processes = None  # Not supported
+                try:
+                    nv_graphics_processes = N.nvmlDeviceGetGraphicsRunningProcesses(handle)
+                except N.NVMLError:
+                    nv_graphics_processes = None  # Not supported
+
+                if not per_process_stats or (nv_comp_processes is None and nv_graphics_processes is None):
+                    processes = None
+                else:
+                    processes = []
+                    nv_comp_processes = nv_comp_processes or []
+                    nv_graphics_processes = nv_graphics_processes or []
+                    for nv_process in nv_comp_processes + nv_graphics_processes:
+                        try:
+                            process = get_process_info(nv_process)
+                        except psutil.NoSuchProcess:
+                            # TODO: add some reminder for NVML broken context
+                            # e.g. nvidia-smi reset  or  reboot the system
+                            process = None
+                        processes.append(process)
+
+                    # we do not actually use these, so no point in collecting them
+                    # # TODO: Do not block if full process info is not requested
+                    # time.sleep(0.1)
+                    # for process in processes:
+                    #     pid = process['pid']
+                    #     cache_process = GPUStatCollection.global_processes[pid]
+                    #     process['cpu_percent'] = cache_process.cpu_percent()
+
+                index = N.nvmlDeviceGetIndex(handle)
+                gpu_info = {
+                    "index": index,
+                    "uuid": uuid,
+                    "name": name,
+                    "temperature.gpu": temperature,
+                    "fan.speed": fan_speed,
+                    "utilization.gpu": utilization.gpu if utilization else None,
+                    "power.draw": power // 1000 if power is not None else None,
+                    "enforced.power.limit": power_limit // 1000 if power_limit is not None else None,
+                    # Convert bytes into MBytes
+                    "memory.used": memory.used // MB if memory else None,
+                    "memory.total": memory.total // MB if memory else None,
+                    "processes": None if (processes and all(p is None for p in processes)) else processes,
+                }
+                if per_process_stats:
+                    GPUStatCollection.clean_processes()
+                return gpu_info
+
+            # 1. get the list of gpu and status
+            gpu_list = []
+            if GPUStatCollection._device_count is None:
+                GPUStatCollection._device_count = N.nvmlDeviceGetCount()
+
+            for index in range(GPUStatCollection._device_count):
+                handle = N.nvmlDeviceGetHandleByIndex(index)
+                gpu_info = get_gpu_info(index, handle)
+                mig_cnt = 0
                 # noinspection PyBroadException
                 try:
-                    mig_handle = N.nvmlDeviceGetMigDeviceHandleByIndex(handle, mig_index)
-                    mig_info = get_gpu_info(mig_index, mig_handle, is_mig=True)
-                    mig_info["mig_name"] = mig_info["name"]
-                    mig_info["name"] = gpu_info["name"]
-                    mig_info["mig_index"] = mig_info["index"]
-                    mig_info["mig_uuid"] = mig_info["uuid"]
-                    mig_info["index"] = gpu_info["index"]
-                    mig_info["uuid"] = gpu_info["uuid"]
-                    mig_info["temperature.gpu"] = gpu_info["temperature.gpu"]
-                    mig_info["fan.speed"] = gpu_info["fan.speed"]
-                    gpu_list.append(GPUStat(mig_info))
-                    got_mig_info = True
+                    mig_cnt = N.nvmlDeviceGetMaxMigDeviceCount(handle)
                 except Exception:
                     pass
-            if not got_mig_info:
-                gpu_list.append(GPUStat(gpu_info))
 
-        # 2. additional info (driver version, etc).
-        if get_driver_info:
-            try:
-                driver_version = _decode(N.nvmlSystemGetDriverVersion())
-            except N.NVMLError:
-                driver_version = None  # N/A
+                if mig_cnt <= 0:
+                    gpu_list.append(GPUStat(gpu_info))
+                    continue
 
-            # noinspection PyBroadException
-            try:
-                cuda_driver_version = str(N.nvmlSystemGetCudaDriverVersion())
-            except BaseException:
+                got_mig_info = False
+                for mig_index in range(mig_cnt):
+                    # noinspection PyBroadException
+                    try:
+                        mig_handle = N.nvmlDeviceGetMigDeviceHandleByIndex(handle, mig_index)
+                        mig_info = get_gpu_info(mig_index, mig_handle, is_mig=True)
+                        mig_info["mig_name"] = mig_info["name"]
+                        mig_info["name"] = gpu_info["name"]
+                        mig_info["mig_index"] = mig_info["index"]
+                        mig_info["mig_uuid"] = mig_info["uuid"]
+                        mig_info["index"] = gpu_info["index"]
+                        mig_info["uuid"] = gpu_info["uuid"]
+                        mig_info["temperature.gpu"] = gpu_info["temperature.gpu"]
+                        mig_info["fan.speed"] = gpu_info["fan.speed"]
+                        gpu_list.append(GPUStat(mig_info))
+                        got_mig_info = True
+                    except Exception:
+                        pass
+                if not got_mig_info:
+                    gpu_list.append(GPUStat(gpu_info))
+
+            # 2. additional info (driver version, etc).
+            if get_driver_info:
+                try:
+                    driver_version = _decode(N.nvmlSystemGetDriverVersion())
+                except N.NVMLError:
+                    driver_version = None  # N/A
+
                 # noinspection PyBroadException
                 try:
-                    cuda_driver_version = str(N.nvmlSystemGetCudaDriverVersion_v2())
+                    cuda_driver_version = str(N.nvmlSystemGetCudaDriverVersion())
                 except BaseException:
-                    cuda_driver_version = None
-            if cuda_driver_version:
-                try:
-                    cuda_driver_version = "{}.{}".format(
-                        int(cuda_driver_version) // 1000,
-                        (int(cuda_driver_version) % 1000) // 10,
-                    )
-                except (ValueError, TypeError):
-                    pass
-        else:
-            driver_version = None
-            cuda_driver_version = None
+                    # noinspection PyBroadException
+                    try:
+                        cuda_driver_version = str(N.nvmlSystemGetCudaDriverVersion_v2())
+                    except BaseException:
+                        cuda_driver_version = None
+                if cuda_driver_version:
+                    try:
+                        cuda_driver_version = "{}.{}".format(
+                            int(cuda_driver_version) // 1000,
+                            (int(cuda_driver_version) % 1000) // 10,
+                        )
+                    except (ValueError, TypeError):
+                        pass
+            else:
+                driver_version = None
+                cuda_driver_version = None
+                
+            return GPUStatCollection(
+                gpu_list,
+                driver_version=driver_version,
+                driver_cuda_version=cuda_driver_version,
+            )
+        finally:
+            if shutdown and initialized:
+                N.nvmlShutdown()
+                GPUStatCollection._initialized = False
 
-        # no need to shutdown:
-        if shutdown and initialized:
-            N.nvmlShutdown()
-            GPUStatCollection._initialized = False
-
-        return GPUStatCollection(
-            gpu_list,
-            driver_version=driver_version,
-            driver_cuda_version=cuda_driver_version,
-        )
 
     @staticmethod
     def new_query(
