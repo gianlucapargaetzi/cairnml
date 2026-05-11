@@ -71,6 +71,11 @@ from .backend_interface.util import (
     get_or_create_project,
 )
 from .binding.absl_bind import PatchAbsl
+from .binding.args import (
+    argparser_parseargs_called,
+    get_argparser_last_args,
+    argparser_update_currenttask,
+)
 from .binding.artifacts import Artifacts, Artifact
 from .binding.environ_bind import EnvironmentBind, PatchOsFork
 from .binding.frameworks.fastai_bind import PatchFastai
@@ -104,13 +109,9 @@ from .debugging.log import LoggerRoot
 from .errors import UsageError
 from .logger import Logger
 from .model import Model, InputModel, OutputModel, Framework
+from .storage.archive import extract_zip_archive
 from .task_parameters import TaskParameters
 from .utilities.config import verify_basic_value
-from .binding.args import (
-    argparser_parseargs_called,
-    get_argparser_last_args,
-    argparser_update_currenttask,
-)
 from .utilities.dicts import ReadOnlyDict, merge_dicts, RequirementsDict
 from .utilities.proxy_object import (
     ProxyDictPreWrite,
@@ -4037,7 +4038,10 @@ class Task(_Task):
 
     @classmethod
     def import_offline_session(
-        cls, session_folder_zip: str, previous_task_id: Optional[str] = None, iteration_offset: Optional[int] = 0
+        cls,
+        session_folder_zip: str,
+        previous_task_id: Optional[str] = None,
+        iteration_offset: Optional[int] = 0,
     ) -> Optional[str]:
         """
         Upload an offline session (execution) of a Task.
@@ -4055,9 +4059,8 @@ class Task(_Task):
 
         temp_folder = None
         if Path(session_folder_zip).is_file():
-            # unzip the file:
             temp_folder = mkdtemp(prefix="clearml-offline-")
-            ZipFile(session_folder_zip).extractall(path=temp_folder)
+            extract_zip_archive(archive_path=session_folder_zip, target=temp_folder)
             session_folder_zip = temp_folder
 
         session_folder = Path(session_folder_zip)
