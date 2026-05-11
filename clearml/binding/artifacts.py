@@ -88,14 +88,19 @@ class BlockedPickledArtifactError(BlockedArtifactTypeError):
         artifact_filepath: str,
         artifact_type: str,
         content_type: str,
+        blocked_by_get_argument: bool,
     ):
         super().__init__(
             artifact_filepath=artifact_filepath,
             artifact_type=artifact_type,
             content_type=content_type,
             comment=(
-                "To allow download, set 'sdk.storage.block_pickled_artifacts' configuration option to 'False'"
-                f" or use the environment variable '{BLOCK_PICKLED_ARTIFACTS.key}=False'"
+                "Use 'Artifact.get' with the argument 'block_pickled_artifacts=False' to download this artifact."
+                if blocked_by_get_argument
+                else (
+                    "To allow download, set 'sdk.storage.block_pickled_artifacts' configuration option to 'False'"
+                    f" or use the environment variable '{BLOCK_PICKLED_ARTIFACTS.key}=False'"
+                )
             )
         )
 
@@ -200,6 +205,7 @@ class Artifact:
         self,
         force_download: bool = False,
         deserialization_function: Optional[Callable[[bytes], Any]] = None,
+        block_pickled_artifacts: bool = False,
     ) -> Any:
         """
         Return an object constructed from the artifact file
@@ -210,15 +216,21 @@ class Artifact:
             - pandas.DataFrame - ``.csv.gz``, ``.parquet``, ``.feather``, ``.pickle``
             - numpy.ndarray - ``.npz``, ``.csv.gz``
             - PIL.Image - whatever content types PIL supports
-        All other types will return a pathlib2.Path object pointing to a local copy of the artifacts file (or directory).
-        In case the content of a supported type could not be parsed, a pathlib2.Path object
+        All other types will return a pathlib2.Path object pointing to a local copy of the artifacts file
+        (or directory). In case the content of a supported type could not be parsed, a pathlib2.Path object
         pointing to a local copy of the artifacts file (or directory) will be returned
 
         :param bool force_download: download file from remote even if exists in local cache
-        :param Callable[bytes, object] deserialization_function: A deserialization function that takes one parameter of type `bytes`,
-            which represents the serialized object. This function should return the deserialized object.
+        :param Callable[bytes, object] deserialization_function: A deserialization function that takes one parameter
+            of type `bytes`, which represents the serialized object.
+            This function should return the deserialized object.
             Useful when the artifact was uploaded using a custom serialization function when calling the
             `Task.upload_artifact` method with the `serialization_function` argument.
+        :param bool block_pickled_artifacts: When set to True, triggers a raised BlockedPickledArtifactError
+            if a pickled file is attempted to be downloaded. Ignored if set to False (default).
+            Alternatively, blocking the retrieval of pickled artifacts can be done via configuration:
+                - Set 'sdk.storage.block_pickled_artifacts' configuration option to 'False', or
+                - Use the environment variable 'CLEARML_BLOCK_PICKLED_ARTIFACTS=False'.
         :return: Usually, one of the following objects:
 
           - Numpy.array
@@ -234,6 +246,7 @@ class Artifact:
             return self._object
 
         local_file = self.get_local_copy(raise_on_error=True, force_download=force_download)
+        pickled_artifacts_are_blocked = block_pickled_artifacts or self._block_pickled_artifacts
 
         # noinspection PyBroadException
         try:
@@ -244,6 +257,15 @@ class Artifact:
                 if self._content_type == "text/csv":
                     self._object = np.genfromtxt(local_file, delimiter=",")
                 else:
+                    if pickled_artifacts_are_blocked:
+                        raise BlockedPickledArtifactError(
+                            artifact_filepath=local_file,
+                            artifact_type=self.type,
+                            content_type=self._content_type,
+                            blocked_by_get_argument=block_pickled_artifacts,
+                        )
+                    self.verify_pickle_file_integrity(local_file=local_file)
+
                     self._object = np.load(local_file)[self.name]
             elif self.type == Artifacts._pd_artifact_type or self.type == "pandas" and pd:
                 if self._content_type == "application/parquet":
@@ -251,11 +273,12 @@ class Artifact:
                 elif self._content_type == "application/feather":
                     self._object = pd.read_feather(local_file)
                 elif self._content_type == "application/pickle":
-                    if self._block_pickled_artifacts:
+                    if pickled_artifacts_are_blocked:
                         raise BlockedPickledArtifactError(
                             artifact_filepath=local_file,
                             artifact_type=self.type,
                             content_type=self._content_type,
+                            blocked_by_get_argument=block_pickled_artifacts,
                         )
 
                     self.verify_pickle_file_integrity(local_file=local_file)
@@ -276,11 +299,12 @@ class Artifact:
                 with open(local_file, "rt") as f:
                     self._object = f.read()
             elif self.type == "pickle":
-                if self._block_pickled_artifacts:
+                if pickled_artifacts_are_blocked:
                     raise BlockedPickledArtifactError(
                         artifact_filepath=local_file,
                         artifact_type=self.type,
                         content_type=self._content_type,
+                        blocked_by_get_argument=block_pickled_artifacts,
                     )
 
                 self.verify_pickle_file_integrity(local_file=local_file)
