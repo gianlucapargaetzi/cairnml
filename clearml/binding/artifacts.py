@@ -205,7 +205,7 @@ class Artifact:
         self,
         force_download: bool = False,
         deserialization_function: Optional[Callable[[bytes], Any]] = None,
-        block_pickled_artifacts: bool = False,
+        block_unsafe_artifacts: bool = False,
     ) -> Any:
         """
         Return an object constructed from the artifact file
@@ -226,11 +226,8 @@ class Artifact:
             This function should return the deserialized object.
             Useful when the artifact was uploaded using a custom serialization function when calling the
             `Task.upload_artifact` method with the `serialization_function` argument.
-        :param bool block_pickled_artifacts: When set to True, triggers a raised BlockedPickledArtifactError
-            if a pickled file is attempted to be downloaded. Ignored if set to False (default).
-            Alternatively, blocking the retrieval of pickled artifacts can be done via configuration:
-                - Set 'sdk.storage.block_pickled_artifacts' configuration option to 'False', or
-                - Use the environment variable 'CLEARML_BLOCK_PICKLED_ARTIFACTS=False'.
+        :param bool block_unsafe_artifacts: When set to True, triggers a raised BlockedArtifactTypeError
+            if an unsafe file format is attempted to be downloaded. Ignored if set to False (default).
         :return: Usually, one of the following objects:
 
           - Numpy.array
@@ -246,7 +243,7 @@ class Artifact:
             return self._object
 
         local_file = self.get_local_copy(raise_on_error=True, force_download=force_download)
-        pickled_artifacts_are_blocked = block_pickled_artifacts or self._block_pickled_artifacts
+        pickled_artifacts_are_blocked = block_unsafe_artifacts or self._block_pickled_artifacts
 
         # noinspection PyBroadException
         try:
@@ -262,7 +259,7 @@ class Artifact:
                             artifact_filepath=local_file,
                             artifact_type=self.type,
                             content_type=self._content_type,
-                            blocked_by_get_argument=block_pickled_artifacts,
+                            blocked_by_get_argument=block_unsafe_artifacts,
                         )
                     self.verify_pickle_file_integrity(local_file=local_file)
 
@@ -278,7 +275,7 @@ class Artifact:
                             artifact_filepath=local_file,
                             artifact_type=self.type,
                             content_type=self._content_type,
-                            blocked_by_get_argument=block_pickled_artifacts,
+                            blocked_by_get_argument=block_unsafe_artifacts,
                         )
 
                     self.verify_pickle_file_integrity(local_file=local_file)
@@ -304,7 +301,7 @@ class Artifact:
                         artifact_filepath=local_file,
                         artifact_type=self.type,
                         content_type=self._content_type,
-                        blocked_by_get_argument=block_pickled_artifacts,
+                        blocked_by_get_argument=block_unsafe_artifacts,
                     )
 
                 self.verify_pickle_file_integrity(local_file=local_file)
