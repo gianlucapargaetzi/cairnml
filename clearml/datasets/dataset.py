@@ -30,6 +30,7 @@ from ..backend_interface.util import (
 )
 from ..config import deferred_config, running_remotely, get_remote_task_id
 from ..debugging.log import LoggerRoot
+from ..storage.archive import flag_path_traversal_vulnerability
 from ..storage.cache import CacheManager
 from ..storage.helper import StorageHelper, cloud_driver_schemes
 from ..storage.util import is_windows
@@ -3652,7 +3653,11 @@ class Dataset:
         max_workers = max_workers or psutil.cpu_count()
         pool = ThreadPool(max_workers)
         link_entries_of_interest = (
-            {k: v for k, v in self._dataset_link_entries.items() if k in files_of_interest}
+            {
+                key: link_entry
+                for key, link_entry in self._dataset_link_entries.items()
+                if key in files_of_interest
+            }
             if files_of_interest
             else self._dataset_link_entries
         )
@@ -3660,7 +3665,11 @@ class Dataset:
             # make sure we skip over empty dependencies
             if dataset_version_id not in self._dependency_graph:
                 continue
-            selected_chunks = chunk_selection.get(dataset_version_id) if chunk_selection else None
+            selected_chunks = (
+                chunk_selection.get(dataset_version_id)
+                if chunk_selection
+                else None
+            )
 
             ds = Dataset.get(dataset_id=dataset_version_id)
             ds_base_folder = Path(
@@ -3675,16 +3684,36 @@ class Dataset:
             )
             ds_base_folder.touch()
 
-            def copy_file(file_entry: Union[FileEntry, LinkEntry]) -> Optional[Exception]:
-                if file_entry.parent_dataset_id != dataset_version_id or (
-                    selected_chunks is not None
-                    and self._get_chunk_idx_from_artifact_name(file_entry.artifact_name) not in selected_chunks
+            def copy_file(entry: Union[FileEntry, LinkEntry]) -> Optional[Exception]:
+                if (
+                    entry.parent_dataset_id != dataset_version_id
+                    or (
+                        selected_chunks is not None
+                        and self._get_chunk_idx_from_artifact_name(entry.artifact_name) not in selected_chunks
+                    )
+                    or (
+                        files_of_interest
+                        and entry.relative_path not in files_of_interest
+                    )
                 ):
                     return
-                if files_of_interest and file_entry.relative_path not in files_of_interest:
-                    return
-                source = (ds_base_folder / file_entry.relative_path).as_posix()
-                target = (target_base_folder / file_entry.relative_path).as_posix()
+                
+                # Validate that there are no path-traversal attacks happening
+                try:
+                    flag_path_traversal_vulnerability(
+                        target_folder=ds_base_folder,
+                        target_file_path=entry.relative_path,
+                    )
+                    flag_path_traversal_vulnerability(
+                        target_folder=target_base_folder,
+                        target_file_path=entry.relative_path,
+                    )
+                except ValueError as ex:
+                    return ex
+                
+                source = (ds_base_folder / entry.relative_path).as_posix()
+                target = (target_base_folder / entry.relative_path).as_posix()
+
                 try:
                     # make sure we have can overwrite the target file
                     # noinspection PyBroadException
@@ -3696,32 +3725,36 @@ class Dataset:
                     # copy / link
                     if use_soft_links:
                         if not os.path.isfile(source):
-                            raise ValueError("Extracted file missing {}".format(source))
+                            raise ValueError(f"Extracted file missing {source}")
                         os.symlink(source, target)
                     else:
                         shutil.copy2(source, target, follow_symlinks=True)
                 except Exception as ex:
                     LoggerRoot.get_base_logger().warning(
-                        "{}\nFailed {} file {} to {}".format(
-                            ex,
-                            "linking" if use_soft_links else "copying",
-                            source,
-                            target,
-                        )
+                        f"{ex}\nFailed linking file {source} to {target}"
+                        if use_soft_links
+                        else f"{ex}\nFailed copying file {source} to {target}"
                     )
                     return ex
 
                 return None
 
-            errors = list(pool.map(copy_file, self._dataset_file_entries.values()))
-            errors.extend(list(pool.map(copy_file, self._dataset_link_entries.values())))
+            errors = [
+                error
+                for error in itertools.chain(
+                    pool.map(copy_file, self._dataset_file_entries.values()),
+                    pool.map(copy_file, self._dataset_link_entries.values()),
+                )
+                if error is not None
+            ]
 
             CacheManager.get_cache_manager(cache_context=self.__cache_context).unlock_cache_folder(
                 ds_base_folder.as_posix()
             )
 
             if raise_on_error and any(errors):
-                raise ValueError("Dataset merging failed: {}".format([e for e in errors if e is not None]))
+                raise ValueError(f"Dataset merging failed: {errors}")
+            
         pool.close()
 
     def _verify_dataset_folder(
