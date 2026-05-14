@@ -21,8 +21,8 @@ def extract_zip_archive(
         base_directory = os.path.abspath(target)
         for file_path in zip_file.namelist():
             flag_path_traversal_vulnerability(
-                extraction_folder=base_directory,
-                extraction_file_path=file_path,
+                target_folder=base_directory,
+                target_file_path=file_path,
             )
             # No need to run flag_symlink_escape_vulnerability
             # zip_file.extractall does not create symlinks
@@ -53,52 +53,63 @@ def extract_tar_archive(
         base_dir = os.path.abspath(target)
         for member in tar_file.getmembers():
             flag_path_traversal_vulnerability(
-                extraction_folder=base_dir,
-                extraction_file_path=member.name,
+                target_folder=base_dir,
+                target_file_path=member.name,
             )
 
             if member.issym() or member.islnk():
                 flag_symlink_escape_vulnerability(
-                    extraction_folder=base_dir,
-                    extraction_file_path=member.name,
-                    extraction_symlink_target=member.linkname,
+                    target_folder=base_dir,
+                    target_file_path=member.name,
+                    symlink_target=member.linkname,
                 )
 
         tar_file.extractall(path=base_dir, **kwargs)
 
 
 def flag_path_traversal_vulnerability(
-    extraction_folder: Union[str, Path],
-    extraction_file_path: Union[str, Path],
+    target_folder: Union[str, Path],
+    target_file_path: Union[str, Path],
 ) -> None:
     """
-    Raises a ValueError if the extraction_file_path is not contained within the extraction_folder.
+    Raises a ValueError if the target_file_path is not contained within the target_folder.
     """
     extraction_file_absolute_path = os.path.abspath(os.path.join(
-        extraction_folder,
-        extraction_file_path,
+        target_folder,
+        target_file_path,
     ))
     if not is_within_directory(
-        extraction_folder,
+        target_folder,
         extraction_file_absolute_path,
     ):
-        raise ValueError(f"Path traversal detected in archive member: {extraction_file_path}")
+        raise ValueError(
+            "\n".join([
+                "Path traversal detected!",
+                f"Target folder: '{target_folder}'",
+                f"Target path: '{target_file_path}'",
+            ])
+        )
 
 
 def flag_symlink_escape_vulnerability(
-    extraction_folder: Union[str, Path],
-    extraction_file_path: Union[str, Path],
-    extraction_symlink_target: Union[str, Path],
+    target_folder: Union[str, Path],
+    target_file_path: Union[str, Path],
+    symlink_target: Union[str, Path],
 ) -> None:
     """
-    Raises a ValueError if the extraction_symlink_target points outside of the extraction_folder.
+    Raises a ValueError if the symlink_target points outside of the target_folder.
     """
     extraction_link_absolute_path = os.path.abspath(os.path.join(
-        extraction_folder,
-        extraction_symlink_target,
+        target_folder,
+        symlink_target,
     ))
     if not is_within_directory(
-        extraction_folder,
+        target_folder,
         extraction_link_absolute_path,
     ):
-        raise ValueError(f"Link target escapes extraction dir: {extraction_file_path} -> {extraction_symlink_target}")
+        raise ValueError(
+            "\n".join([
+                f"Link target escapes target_folder '{target_folder}': ",
+                f"{target_file_path} -> {symlink_target}",
+            ])
+        )
