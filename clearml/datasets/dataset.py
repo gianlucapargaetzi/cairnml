@@ -3697,7 +3697,7 @@ class Dataset:
                     )
                 ):
                     return
-                
+
                 # Validate that there are no path-traversal attacks happening
                 try:
                     flag_path_traversal_vulnerability(
@@ -3710,7 +3710,7 @@ class Dataset:
                     )
                 except ValueError as ex:
                     return ex
-                
+
                 source = (ds_base_folder / entry.relative_path).as_posix()
                 target = (target_base_folder / entry.relative_path).as_posix()
 
@@ -3754,7 +3754,7 @@ class Dataset:
 
             if raise_on_error and any(errors):
                 raise ValueError(f"Dataset merging failed: {errors}")
-            
+
         pool.close()
 
     def _verify_dataset_folder(
