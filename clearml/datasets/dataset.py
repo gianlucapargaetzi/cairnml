@@ -2169,24 +2169,30 @@ class Dataset:
             type=[str(Task.TaskTypes.data_processing)],
             tags=tags or None,
             status=["stopped", "published", "completed", "closed"] if only_completed else None,
-            only_fields=["created", "id", "name", "project", "tags", "runtime"],
+            only_fields=["created", "id", "name", "project", "tags", "runtime", "status"],
             search_hidden=True,
             exact_match_regex_flag=False,
             _allow_extra_fields_=True,
         )
-        project_ids = {d.project for d in datasets if d.project is not None}
+        project_ids = {
+            dataset.project
+            for dataset in datasets
+            if dataset.project is not None
+        }
         # noinspection PyProtectedMember
         project_id_lookup = Task._get_project_names(list(project_ids))
         return [
             {
-                "name": d.name,
-                "created": d.created,
-                "project": cls._remove_hidden_part_from_dataset_project(project_id_lookup[d.project]),
-                "id": d.id,
-                "tags": d.tags,
-                "version": d.runtime.get("version"),
+                "name": dataset.name,
+                "created": dataset.created,
+                "project": cls._remove_hidden_part_from_dataset_project(project_id_lookup[dataset.project]),
+                "id": dataset.id,
+                "tags": dataset.tags,
+                "version": dataset.runtime.get("version"),
+                "status": dataset.status,
             }
-            for d in datasets if d.project is not None and d.project in project_id_lookup
+            for dataset in datasets
+            if dataset.project is not None and dataset.project in project_id_lookup
         ]
 
     def _add_files(
