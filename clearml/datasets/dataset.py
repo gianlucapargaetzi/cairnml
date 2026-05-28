@@ -121,6 +121,19 @@ class LinkEntry:
 
 
 class Dataset:
+    """
+    A Dataset represents a versioned snapshot of a collection of files.
+
+    A dataset is mutable until finalized, after which it becomes immutable and can be used as a parent for new dataset
+    versions, enabling incremental updates and full lineage tracking.
+
+    Datasets can be stored on any storage service of your choice (``s3``,
+    ``gs``, ``azure``, Network Storage). Once uploaded, the dataset can be accessed from any
+    machine.
+
+    The typical lifecycle of a dataset is:
+    ``Dataset.create()`` -> ``add_files()`` -> ``add_external_files()`` -> ``upload()`` -> ``finalize()``
+    """
     __private_magic = 42 * 1337
     __state_entry_name = "state"
     __default_data_entry_name = "data"
@@ -163,7 +176,10 @@ class Dataset:
         description: Optional[str] = None,
     ):
         """
-        Do not use directly! Use Dataset.create(...) or Dataset.get(...) instead.
+
+        .. warning::
+            Do not use directly! Use ```Dataset.create(...)``` or ```Dataset.get(...)``` instead.
+
         """
         assert _private == self.__private_magic
         # key for the dataset file entries are the relative path within the data
@@ -357,7 +373,8 @@ class Dataset:
     def file_entries_dict(self) -> Mapping[str, FileEntry]:
         """
         Notice this call returns an internal representation, do not modify!
-        :return: dict with relative file path as key, and FileEntry as value
+
+        :return: dict with relative file path as key, and ``FileEntry`` as value.
         """
         return self._dataset_file_entries
 
@@ -366,7 +383,7 @@ class Dataset:
         """
         Notice this call returns an internal representation, do not modify!
 
-        :return: dict with relative file path as key, and LinkEntry as value
+        :return: dict with relative file path as key, and ``LinkEntry`` as value.
         """
         return self._dataset_link_entries
 
@@ -404,10 +421,9 @@ class Dataset:
 
     def add_tags(self, tags: Union[Sequence[str], str]) -> None:
         """
-        Add Tags to this dataset. Old tags are not deleted. When executing a Task (experiment) remotely,
-        this method has no effect.
+        Add tags to this dataset. Existing tags are preserved. Has no effect when the task is executed remotely.
 
-        :param tags: A list of tags which describe the Task to add.
+        :param tags: A tag string or list of tag strings to add.
         """
         self._task.add_tags(tags)
 
@@ -422,18 +438,18 @@ class Dataset:
         max_workers: Optional[int] = None,
     ) -> int:
         """
-        Add a folder into the current dataset. calculate file hash,
-        and compare against parent, mark files to be uploaded
+        Add a folder or files into the current dataset. Calculates the file hash and compares against parent, and marks
+        files for upload.
 
-        :param path: Add a folder/file to the dataset
-        :param wildcard: add only specific set of files.
-            Wildcard matching, can be a single string or a list of wildcards.
-        :param local_base_folder: files will be located based on their relative path from local_base_folder
-        :param dataset_path: where in the dataset the folder/files should be located
-        :param recursive: If True, match all wildcard files recursively
-        :param verbose: If True, print to console files added/modified
-        :param max_workers: The number of threads to add the files with. Defaults to the number of logical cores
-        :return: number of files added
+        :param path: Path to the local folder or file to add to the dataset.
+        :param wildcard: Only add files matching this wildcard pattern. Can be a single string or a list of patterns.
+        :param local_base_folder: Files are placed in the dataset relative to this folder. If not provided, defaults to
+            ``path``.
+        :param dataset_path: Target location inside the dataset where the folder/files will be placed.
+        :param recursive: If ``True`` (default), match all wildcard files recursively.
+        :param verbose: If ``True``, print to console files added/modified. Defaults to ``False``.
+        :param max_workers: The number of threads to add the files with. Defaults to the number of logical cores.
+        :return: Number of files added.
         """
         max_workers = max_workers or psutil.cpu_count()
         self._dirty = True
@@ -487,41 +503,40 @@ class Dataset:
         read_hash: bool = False,
     ) -> int:
         """
-        Adds external files or folders to the current dataset.
-        External file links can be from cloud storage (s3://, gs://, azure://), local / network storage (file://)
-        or http(s)// files.
-        Calculates file size for each file and compares against parent.
+        Add external files or folders to the current dataset.
+        External file links can be from cloud storage (``s3://``, ``gs://``, ``azure://``), local/network storage
+        (``file://``) or ``http(s)//`` files.
+        Calculates file size for each file and compares against the parent dataset to detect changes.
 
-        A few examples:
-        - Add file.jpg to the dataset. When retrieving a copy of the entire dataset (see dataset.get_local_copy()).
-        This file will be located in "./my_dataset/new_folder/file.jpg".
-        add_external_files(source_url="s3://my_bucket/stuff/file.jpg", dataset_path="/my_dataset/new_folder/")
-        - Add all jpg files located in s3 bucket called "my_bucket" to the dataset.
-        add_external_files(source_url="s3://my/bucket/", wildcard = "*.jpg", dataset_path="/my_dataset/new_folder/")
-        - Add the entire content of "remote_folder" to the dataset.
-        add_external_files(source_url="s3://bucket/remote_folder/", dataset_path="/my_dataset/new_folder/")
-        - Add the local file "/folder/local_file.jpg" to the dataset.
-        add_external_files(source_url="file:///folder/local_file.jpg", dataset_path="/my_dataset/new_folder/")
+        Examples:
+        - Add ``file.jpg`` to the dataset. When retrieving a copy of the entire dataset (see ``dataset.get_local_copy()``).
+        This file will be located in ``"./my_dataset/new_folder/file.jpg"``:
+        ``dataset.add_external_files(source_url="s3://my_bucket/stuff/file.jpg", dataset_path="/my_dataset/new_folder/")``
+        - Add all ``jpg`` files located in an S3 bucket called ``"my_bucket"`` to the dataset.
+        ``dataset.add_external_files(source_url="s3://my/bucket/", wildcard = "*.jpg", dataset_path="/my_dataset/new_folder/")``
+        - Add the entire content of ``"remote_folder"`` to the dataset.
+        ``dataset.add_external_files(source_url="s3://bucket/remote_folder/", dataset_path="/my_dataset/new_folder/")``
+        - Add the local file ``"/folder/local_file.jpg"`` to the dataset.
+        ``dataset.add_external_files(source_url="file:///folder/local_file.jpg", dataset_path="/my_dataset/new_folder/")``
 
-        :param source_url: Source url link (e.g. s3://bucket/folder/path) or list/tuple of links to add to
-            the dataset (e.g. [s3://bucket/folder/file.csv, http://web.com/file.txt])
-        :param wildcard: add only specific set of files.
-            Wildcard matching, can be a single string or a list of wildcards.
-        :param dataset_path: The location in the dataset where the file will be downloaded into, or list/touple of
-            locations (if list/touple, it must be the same length as ``source_url``).
-            e.g: for source_url='s3://bucket/remote_folder/image.jpg' and dataset_path='s3_files',
-            'image.jpg' will be downloaded to 's3_files/image.jpg' (relative path to the dataset).
-            For source_url=['s3://bucket/remote_folder/image.jpg', 's3://bucket/remote_folder/image2.jpg'] and
-            dataset_path=['s3_files', 's3_files_2'], 'image.jpg' will be downloaded to 's3_files/image.jpg' and
-            'image2.jpg' will be downloaded to 's3_files_2/image2.jpg' (relative path to the dataset).
-        :param recursive: If True, match all wildcard files recursively
-        :param verbose: If True, print to console files added/modified
-        :param max_workers: The number of threads to add the external files with. Useful when `source_url` is
+        :param source_url: URL or list of URLs to add to the dataset. Examples: ``s3://bucket/folder/path``,
+            ``[s3://bucket/folder/file.csv, http://web.com/file.txt]``.
+        :param wildcard: Only add files matching this wildcard pattern. Can be a single string or a list of patterns.
+        :param dataset_path: The location in the dataset where the file(s) will be downloaded into, or list/tuple of
+            locations (if list/tuple, it must be the same length as ``source_url``).
+            For example: for ``source_url='s3://bucket/remote_folder/image.jpg'`` and ``dataset_path='s3_files'``,
+            ``'image.jpg'`` will be downloaded to ``'s3_files/image.jpg'`` (relative path to the dataset).
+            For ``source_url=['s3://bucket/remote_folder/image.jpg', 's3://bucket/remote_folder/image2.jpg']`` and
+            ``dataset_path=['s3_files', 's3_files_2']``, ``'image.jpg'`` will be downloaded to ``'s3_files/image.jpg'``
+            and ``'image2.jpg'`` will be downloaded to ``'s3_files_2/image2.jpg'`` (relative path to the dataset).
+        :param recursive: If ``True``, match all wildcard files recursively
+        :param verbose: If ``True``, print to console files added/modified
+        :param max_workers: The number of threads to add the external files with. Useful when ``source_url`` is
             a sequence. Defaults to the number of logical cores
-        :param read_hash: If True, read the SHA-256 hash from each object's custom cloud metadata and store it
-            on the resulting LinkEntry. When available, hash comparison is used for change detection instead of
-            file size. Only effective for objects uploaded with ``upload_hash`` set in the StorageHelper extra dict.
-            Defaults to False.
+        :param read_hash: If ``True``, read the SHA-256 hash from each object's custom cloud metadata and store it
+            on the resulting ``LinkEntry``. When available, hash comparison is used for change detection instead of
+            file size. Only effective for objects uploaded with ``upload_hash`` set in the ``StorageHelper`` extra dict.
+            Defaults to ``False``.
 
         :return: Number of file links added
         """
@@ -577,13 +592,13 @@ class Dataset:
         verbose: bool = False,
     ) -> int:
         """
-        Remove files from the current dataset
+        Remove files from the current dataset.
 
         :param dataset_path: Remove files from the dataset.
-            The path is always relative to the dataset (e.g 'folder/file.bin').
-            External files can also be removed by their links (e.g. 's3://bucket/file')
-        :param recursive: If True, match all wildcard files recursively
-        :param verbose: If True, print to console files removed
+            The path is always relative to the dataset (e.g ``'folder/file.bin'``).
+            External files can also be removed by their links (e.g. ``'s3://bucket/file'``)
+        :param recursive: If ``True``, match all wildcard files recursively
+        :param verbose: If ``True``, print to console files removed
         :return: Number of files removed
         """
         self._task.get_logger().report_text(
@@ -632,16 +647,16 @@ class Dataset:
     ) -> (int, int, int):
         """
         Synchronize the dataset with a local folder. The dataset is synchronized from the
-        relative_base_folder (default: dataset root)  and deeper with the specified local path.
+        ``relative_base_folder`` (default: dataset root) and deeper with the specified local path.
         Note that if a remote file is identified as being modified when syncing, it will
-        be added as a FileEntry, ready to be uploaded to the ClearML server. This version of the
+        be added as a ``FileEntry``, ready to be uploaded to the ClearML server. This version of the
         file is considered "newer" and it will be downloaded instead of the one stored at its
-        remote address when calling Dataset.get_local_copy().
+        remote address when calling ``Dataset.get_local_copy()``.
 
-        :param local_path: Local folder to sync (assumes all files and recursive)
-        :param dataset_path: Target dataset path to sync with (default the root of the dataset)
-        :param verbose: If True, print to console files added/modified/removed
-        :return: number of files removed, number of files modified/added
+        :param local_path: Local folder to sync (assumes all files and recursive).
+        :param dataset_path: Target dataset path to sync with (default the root of the dataset).
+        :param verbose: If ``True``, print to console files added/modified/removed.
+        :return: Number of files removed, number of files modified/added.
         """
 
         def filter_f(f: FileEntry) -> bool:
@@ -717,27 +732,26 @@ class Dataset:
         """
         Start file uploading, the function returns when all files are uploaded.
 
-        :param show_progress: If True, show upload progress bar
-        :param verbose: If True, print verbose progress report
-        :param output_url: Target storage for the compressed dataset (default: file server)
-            Examples: `s3://bucket/data`, `gs://bucket/data` , `azure://bucket/data` , `/mnt/share/data`
-        :param compression: Compression algorithm for the Zipped dataset file (default: ZIP_DEFLATED)
-        :param chunk_size: Artifact chunk size (MB) for the compressed dataset,
-            if not provided (None) use the default chunk size (512mb).
-            If -1 is provided, use a single zip artifact for the entire dataset change-set (old behaviour)
+        :param show_progress: If ``True``, show upload progress bar
+        :param verbose: If ``True``, print verbose progress report
+        :param output_url: Target storage location for the compressed dataset. Defaults to the file server.
+            Examples: ``s3://bucket/data``, ``gs://bucket/data`` , ``azure://bucket/data`` , ``/mnt/share/data``
+        :param compression: Compression algorithm for the Zipped dataset file (default: ``ZIP_DEFLATED``)
+        :param chunk_size: Artifact chunk size (MB) for the compressed dataset.
+            If ``None`` (default), uses 512 MB. Pass ``-1`` to store the entire dataset changeset in a single zip.
         :param max_workers: Numbers of threads to be spawned when zipping and uploading the files.
-            If None (default) it will be set to:
+            If ``None`` (default) it will be set to:
 
-          - 1: if the upload destination is a cloud provider ('s3', 'gs', 'azure')
-          - number of logical cores: otherwise
+          - ``1``: if the upload destination is a cloud provider (``s3``, ``gs``, ``azure``)
+          - Number of logical cores: otherwise
         :param int retries: Number of retries before failing to upload each zip. If 0, the upload is not retried.
-        :param preview: If True (defaul) the dataset preview is uploaded and shown in the UI.
-        :param upload_as_external_links: If True, upload each local file entry directly to storage
+        :param preview: If ``True`` (default) the dataset preview is uploaded and shown in the UI.
+        :param upload_as_external_links: If ``True``, upload each local file entry directly to storage
             as an individual object (instead of bundling into a zip artifact) and register it as an
             external link entry. The destination path is ``<output_url>/external_links/<dataset_id>/``.
             Requires ``output_url`` to be set (either as argument or as the task's output URI).
 
-        :raise: If the upload failed (i.e. at least one zip failed to upload), raise a `ValueError`
+        :raise: If the upload failed (i.e. at least one zip failed to upload), raises a ``ValueError``.
         """
         if preview:
             self._report_dataset_preview()
@@ -945,12 +959,17 @@ class Dataset:
         auto_upload: bool = False,
     ) -> bool:
         """
-        Finalize the dataset publish dataset Task. Upload must first be called to verify that there are no pending uploads.
-        If files do need to be uploaded, it throws an exception (or return False)
+        Finalize the dataset, preventing further modification.
 
-        :param verbose: If True, print verbose progress report
-        :param raise_on_error: If True, raise exception if dataset finalizing failed
-        :param auto_upload: Automatically upload dataset if not called yet, will upload to default location.
+        Finalization requires that all pending file uploads have been completed. If ``upload()`` has not been called
+        and ``auto_upload=False``, this method raises a ``ValueError`` (or returns ``False`` when
+        ``raise_on_error=False``).
+
+        :param verbose: If ``True``, print verbose progress report. Defaults to ``False``.
+        :param raise_on_error: If ``True`` (default), raise exception if finalization fails.
+        :param auto_upload: If ``True``, automatically upload any pending files  to the default storage location
+            before finalizing.
+        :return: ``True`` if finalization succeeded.
         """
         if Dataset.is_offline():
             LoggerRoot.get_base_logger().warning("Cannot finalize dataset in offline mode.")
@@ -1000,8 +1019,8 @@ class Dataset:
     ) -> None:
         # noqa: F821
         """
-        Attach a user-defined metadata to the dataset. Check `Task.upload_artifact` for supported types.
-        If type is Pandas Dataframes, optionally make it visible as a table in the UI.
+        Attach user-defined metadata to the dataset. See ``Task.upload_artifact`` for supported types.
+        If type is Pandas DataFrames, optionally make it visible as a table in the UI.
         """
         if metadata_name.startswith(self.__data_entry_name_prefix):
             raise ValueError("metadata_name can not start with '{}'".format(self.__data_entry_name_prefix))
@@ -1024,7 +1043,7 @@ class Dataset:
     ) -> Optional[Union[numpy.array, "pd.DataFrame", dict, str, bool]]:
         # noqa: F821
         """
-        Get attached metadata back in its original format. Will return None if none was found.
+        Get attached metadata in its original format. Returns ``None`` if no metadata is found .
         """
         metadata = self._task.artifacts.get(metadata_name)
         if metadata is None:
@@ -1037,18 +1056,17 @@ class Dataset:
 
     def set_description(self, description: str) -> None:
         """
-        Set description of the dataset
+        Set description of the dataset.
 
-        :param description: Description to be set
+        :param description: Description to be set.
         """
         self._task.comment = description
 
     def publish(self, raise_on_error: bool = True) -> bool:
         """
-        Publish the dataset
-        If dataset is not finalize, throw exception
+        Publish the dataset. If dataset is not finalized, raises an exception.
 
-        :param raise_on_error: If True, raise exception if dataset publishing failed
+        :param raise_on_error: If ``True``, raise exception if dataset publishing failed.
         """
         # check we can publish this dataset
         if not self.is_final():
@@ -1059,9 +1077,9 @@ class Dataset:
 
     def is_final(self) -> bool:
         """
-        Return True if the dataset was finalized and cannot be changed any more.
+        Return ``True`` if the dataset was finalized and cannot be changed anymore.
 
-        :return: True if dataset if final
+        :return: ``True`` if dataset is finalized.
         """
         return self._task.get_status() not in (
             Task.TaskStatusEnum.in_progress,
@@ -1079,29 +1097,27 @@ class Dataset:
         files: Optional[List[str]] = None,
     ) -> str:
         """
-        Return a base folder with a read-only (immutable) local copy of the entire dataset
-        download and copy / soft-link, files from all the parent dataset versions. The dataset needs to be finalized
+        Download and return a read-only local copy of the entire dataset by merging files from all parent versions.
+        The dataset must be finalized before calling this method.
 
-        :param use_soft_links: If True, use soft links, default False on windows True on Posix systems
-        :param part: Optional, if provided only download the selected part (index) of the Dataset.
-            First part number is `0` and last part is `num_parts-1`
-            Notice, if `num_parts` is not provided, number of parts will be equal to the total number of chunks
+        :param use_soft_links: If ``True``, use soft links. Defaults to ``False`` on windows, ``True`` on Posix systems.
+        :param part: If provided, download only the selected part (index) of the Dataset.
+            First part number is ``0`` and last part is ``num_parts-1``.
+            Notice, if ``num_parts`` is not provided, the number of parts equals the total number of chunks
             (i.e. sum over all chunks from the specified Dataset including all parent Datasets).
-            This argument is passed to parent datasets, as well as the implicit `num_parts`,
+            This argument is passed to parent datasets, as well as the implicit ``num_parts``,
             allowing users to get a partial copy of the entire dataset, for multi node/step processing.
-        :param num_parts: Optional, if specified, normalize the number of chunks stored to the
+        :param num_parts: If specified, normalize the number of chunks stored to the
             requested number of parts. Notice that the actual chunks used per part are rounded down.
             Example: Assuming total 8 chunks for this dataset (including parent datasets),
-            and `num_parts=5`, the chunk index used per parts would be:
-            part=0 -> chunks[0,5], part=1 -> chunks[1,6], part=2 -> chunks[2,7], part=3 -> chunks[3, ]
-        :param raise_on_error: If True, raise exception if dataset merging failed on any file
-        :param max_workers: Number of threads to be spawned when getting the dataset copy. Defaults
+            and ``num_parts=5``, the chunk index used per parts would be: ``part=0`` -> ``chunks[0,5]``,
+            ``part=1`` -> ``chunks[1,6]``, ``part=2`` -> ``chunks[2,7]``, ``part=3`` -> ``chunks[3, ]``
+        :param raise_on_error: If ``True`` (default), raise exception if any file fails to merge.
+        :param max_workers: Number of threads for downloading the dataset copy. Defaults
             to the number of logical cores.
-        :param files: Optional list of relative file paths to pull. When provided, only those files
-            (and the chunks that contain them) are downloaded. The local cache folder is suffixed
-            with a short hash of the file list so it is stored independently from the full dataset
-            copy. When None (default), the full dataset is downloaded.
-
+        :param files: List of relative file paths to download. When provided, only the chunks containing those files are
+            fetched, and the result is cached separately from the full dataset copy. If ``None`` (default), the full
+            dataset is downloaded.
         :return: A base folder for the entire dataset
         """
         self._fix_dataset_files_parents()
@@ -1137,27 +1153,27 @@ class Dataset:
         max_workers: Optional[int] = None,
     ) -> Optional[str]:
         """
-        Return a base folder with a writable (mutable) local copy of the entire dataset.
+        Returns a base folder with a writable (mutable) local copy of the entire dataset.
         Download and copy / soft-link, files from all the parent dataset versions. Note that the method initially
-        downloads the local copy into a cache directory before moving it to the `target_folder`. Make sure the default
+        downloads the local copy into a cache directory before moving it to the ``target_folder``. Make sure the default
         cache directory has sufficient disk space.
 
         :param target_folder: Target folder for the writable copy
-        :param overwrite: If True, recursively delete the target folder before creating a copy.
-            If False (default) and target folder contains files, raise exception or return None
-        :param part: Optional, if provided only download the selected part (index) of the Dataset.
-            First part number is `0` and last part is `num_parts-1`
-            Notice, if `num_parts` is not provided, number of parts will be equal to the total number of chunks
+        :param overwrite: If ``True``, recursively delete the target folder before creating a copy.
+            If ``False`` (default) and target folder contains files, raise exception or return ``None``.
+        :param part: If provided only download the selected part (index) of the Dataset.
+            First part number is ``0`` and last part is ``num_parts-1``.
+            Notice, if ``num_parts`` is not provided, number of parts will be equal to the total number of chunks
             (i.e. sum over all chunks from the specified Dataset including all parent Datasets).
-            This argument is passed to parent datasets, as well as the implicit `num_parts`,
+            This argument is passed to parent datasets, as well as the implicit ``num_parts``,
             allowing users to get a partial copy of the entire dataset, for multi node/step processing.
-        :param num_parts: Optional, if specified, normalize the number of chunks stored to the
+        :param num_parts: If specified, normalize the number of chunks stored to the
             requested number of parts. Notice that the actual chunks used per part are rounded down.
             Example: Assuming total 8 chunks for this dataset (including parent datasets),
-            and `num_parts=5`, the chunk index used per parts would be:
-            part=0 -> chunks[0,5], part=1 -> chunks[1,6], part=2 -> chunks[2,7], part=3 -> chunks[3, ]
-        :param raise_on_error: If True, raise exception if dataset merging failed on any file
-        :param max_workers: Number of threads to be spawned when getting the dataset copy. Defaults
+            and ``num_parts=5``, the chunk index used per parts would be: ``part=0`` -> ``chunks[0,5]``,
+            ``part=1`` -> ``chunks[1,6]``, ``part=2`` -> ``chunks[2,7]``, ``part=3`` -> ``chunks[3, ]``
+        :param raise_on_error: If ``True``, raise exception if dataset merging failed on any file
+        :param max_workers: Number of threads for downloading. Defaults
             to the number of logical cores.
 
         :return: The target folder containing the entire dataset
@@ -1195,17 +1211,15 @@ class Dataset:
         dataset_id: Optional[str] = None,
     ) -> List[str]:
         """
-        returns a list of files in the current dataset
-        If dataset_id is provided, return a list of files that remained unchanged since the specified dataset_id
+        Return a list of files in the current dataset.
 
-        :param dataset_path: Only match files matching the dataset_path (including wildcards).
-            Example: 'folder/sub/*.json'
-        :param recursive: If True (default), matching dataset_path recursively
-        :param dataset_id: Filter list based on the dataset ID containing the latest version of the file.
-            Default: None, do not filter files based on parent dataset.
-
+        :param dataset_path: Only match files matching the ``dataset_path`` (including wildcards).
+            Example: ``'folder/sub/*.json'``
+        :param recursive: If ``True`` (default), match ``dataset_path`` recursively
+        :param dataset_id: If provided, return a list of files that remained unchanged since the specified
+            ``dataset_id``. Defaults to ``None``.
         :return: List of files with relative path
-            (files might not be available locally until get_local_copy() is called)
+            (files might not be available locally until ``get_local_copy()`` is called)
         """
         files = (
             list(self._dataset_file_entries.keys())
@@ -1229,11 +1243,11 @@ class Dataset:
 
     def list_removed_files(self, dataset_id: str = None) -> List[str]:
         """
-        return a list of files removed when comparing to a specific dataset_id
+        Return a list of files removed when comparing to a specific ``dataset_id``.
 
-        :param dataset_id: dataset ID (str) to compare against, if None is given compare against the parents datasets
-        :return: List of files with relative path
-            (files might not be available locally until get_local_copy() is called)
+        :param dataset_id: Dataset ID to compare against, if ``None`` is given compare against the parent datasets.
+        :return: List of files with relative path (files might not be available locally until ``get_local_copy()`` is
+            called)
         """
         datasets = self._dependency_graph[self._id] if not dataset_id or dataset_id == self._id else [dataset_id]
         unified_list = set()
@@ -1249,11 +1263,12 @@ class Dataset:
 
     def list_modified_files(self, dataset_id: str = None) -> List[str]:
         """
-        return a list of files modified when comparing to a specific dataset_id
+        Return a list of files modified when comparing to a specific ``dataset_id``.
 
-        :param dataset_id: dataset ID (str) to compare against, if None is given compare against the parents datasets
-        :return: List of files with relative path
-            (files might not be available locally until get_local_copy() is called)
+        :param dataset_id: Dataset ID (``str``) to compare against, if ``None`` is given compare against the parent
+            datasets
+        :return: List of files with relative path (files might not be available locally until ``get_local_copy()`` is
+            called)
         """
         datasets = self._dependency_graph[self._id] if not dataset_id or dataset_id == self._id else [dataset_id]
         unified_list = dict()
@@ -1282,11 +1297,11 @@ class Dataset:
 
     def list_added_files(self, dataset_id: str = None) -> List[str]:
         """
-        return a list of files added when comparing to a specific dataset_id
+        Return a list of files that were added in this dataset version relative to the specified ``dataset_id``.
 
-        :param dataset_id: dataset ID (str) to compare against, if None is given compare against the parents datasets
-        :return: List of files with relative path
-            (files might not be available locally until get_local_copy() is called)
+        :param dataset_id: Dataset ID to compare against. If ``None`` (default), compare against the parent datasets.
+        :return: Sorted list of relative file paths (files might not be available locally until ``get_local_copy()`` is
+            called)
         """
         datasets = self._dependency_graph[self._id] if not dataset_id or dataset_id == self._id else [dataset_id]
         unified_list = set()
@@ -1303,7 +1318,7 @@ class Dataset:
 
     def get_dependency_graph(self) -> Dict[str, List[str]]:
         """
-        return the DAG of the dataset dependencies (all previous dataset version and their parents)
+        Return the DAG of the dataset dependencies (all previous dataset version and their parents).
 
         Example:
 
@@ -1315,7 +1330,7 @@ class Dataset:
                 'parent_1_id': [],
             }
 
-        :return: dict representing the genealogy dag graph of the current dataset
+        :return: dict representing the genealogy dag graph of the current dataset.
         """
         return deepcopy(self._dependency_graph)
 
@@ -1326,13 +1341,13 @@ class Dataset:
         verbose: bool = False,
     ) -> List[str]:
         """
-        Verify the current copy of the dataset against the stored hash
+        Verify the current copy of the dataset against the stored hash.
 
-        :param local_copy_path: Specify local path containing a copy of the dataset,
-            If not provide use the cached folder
-        :param skip_hash: If True, skip hash checks and verify file size only
-        :param verbose: If True, print errors while testing dataset files hash
-        :return: List of files with unmatched hashes
+        :param local_copy_path: Specify local path containing a copy of the dataset.
+            If not provided use the cached folder.
+        :param skip_hash: If ``True``, verify file size only instead of computing the SHA-256 hash.
+        :param verbose: If ``True``, print errors while testing dataset files hash.
+        :return: List of files with unmatched hashes.
         """
         local_path = local_copy_path or self.get_local_copy()
 
@@ -1375,9 +1390,9 @@ class Dataset:
 
     def get_default_storage(self) -> Optional[str]:
         """
-        Return the default storage location of the dataset
+        Return the default storage location of the dataset.
 
-        :return: URL for the default storage location
+        :return: URL for the default storage location.
         """
         if not self._task:
             return None
@@ -1398,29 +1413,30 @@ class Dataset:
         """
         Create a new dataset. Multiple dataset parents are supported.
         Merging of parent datasets is done based on the order,
-        where each one can override overlapping files in the previous parent
+        where each one can override overlapping files in the previous parent.
 
-        :param dataset_name: Naming the new dataset
+        :param dataset_name: Name of the new dataset.
         :param dataset_project: Project containing the dataset.
-            If not specified, infer project name form parent datasets
-        :param dataset_tags: Optional, list of tags (strings) to attach to the newly created Dataset
-        :param parent_datasets: Expand a parent dataset by adding/removing files
-        :param use_current_task: False (default), a new Dataset task is created.
-            If True, the dataset is created on the current Task.
+            If not specified, infer project name from parent datasets.
+        :param dataset_tags: List of tags to attach to the new dataset.
+        :param parent_datasets: List of parent datasets to inherit files from. Accepts a sequence of dataset IDs
+           (strings) and/or Dataset objects. Files are merged in order, with later parents overriding earlier ones.
+        :param use_current_task: If ``False`` (default), create a new task for the dataset.
+            If ``True``, the dataset is attached to the current Task.
         :param dataset_version: Version of the new dataset. If not set, try to find the latest version
-            of the dataset with given `dataset_name` and `dataset_project` and auto-increment it.
-        :param output_uri: Location to upload the datasets file to, including preview samples.
+            of the dataset with given ``dataset_name`` and ``dataset_project`` and auto-increment it.
+        :param output_uri: Storage location for uploaded dataset files and preview samples.
             The following are examples of ``output_uri`` values for the supported locations:
 
           - A shared folder: ``/mnt/share/folder``
           - S3: ``s3://bucket/folder``
           - Google Cloud Storage: ``gs://bucket-name/folder``
           - Azure Storage: ``azure://company.blob.core.windows.net/folder/``
-          - Default file server: None
+          - Default file server: ``None``
 
-        :param description: Description of the dataset
+        :param description: Description of the dataset.
 
-        :return: Newly created Dataset object
+        :return: Newly created Dataset object.
         """
         if not Dataset.is_offline() and not Session.check_min_api_server_version("2.13", raise_error=True):
             raise NotImplementedError(
@@ -1540,7 +1556,7 @@ class Dataset:
 
     def _get_total_size_compressed_parents(self) -> int:
         """
-        :return: the compressed size of the files contained in the parent datasets
+        :return: The compressed size of the files contained in the parent datasets.
         """
         parents = self._get_parents()
         if not parents:
@@ -1562,9 +1578,9 @@ class Dataset:
     @classmethod
     def _raise_on_dataset_used(cls, dataset_id: str) -> None:
         """
-        Raise an exception if the given dataset is being used
+        Raise an exception if the given dataset is being used.
 
-        :param dataset_id: ID of the dataset potentially being used
+        :param dataset_id: ID of the dataset potentially being used.
         """
         # noinspection PyProtectedMember
         dependencies = Task._query_tasks(
@@ -1593,19 +1609,19 @@ class Dataset:
         shallow_search: bool = False,  # bool
     ) -> List[str]:
         """
-        Get datasets IDs based on certain criteria, like the dataset_project, dataset_name etc.
+        Get datasets IDs based on certain criteria, like the ``dataset_project``, ``dataset_name`` etc.
 
         :param dataset_id: If set, only this ID is returned
         :param dataset_project: Corresponding dataset project
         :param dataset_name: Corresponding dataset name
-        :param force: If True, get the dataset(s) even when being used. Also required to be set to
-            True when `entire_dataset` is set.
-        :param dataset_version: The version of the corresponding dataset. If set to `None` (default),
+        :param force: If ``True``, get the dataset(s) even when being used. Also required to be set to
+            ``True`` when ``entire_dataset`` is set.
+        :param dataset_version: The version of the corresponding dataset. If set to ``None`` (default),
             then get the dataset with the latest version
-        :param entire_dataset: If True, get all datasets that match the given `dataset_project`,
-            `dataset_name`, `dataset_version`. Note that `force` has to be True if this parameter is True
+        :param entire_dataset: If ``True``, get all datasets that match the given ``dataset_project``,
+            ``dataset_name``, ``dataset_version``. Note that ``force`` has to be ``True`` if this parameter is ``True``
         :param action: Corresponding action, used for logging/building error texts
-        :param shallow_search: If True, search only the first 500 results (first page)
+        :param shallow_search: If ``True``, search only the first 500 results (first page)
 
         :return: A list of datasets that matched the parameters
         """
@@ -1659,21 +1675,21 @@ class Dataset:
         delete_external_files: bool = False,  # bool
     ) -> None:
         """
-        Delete the dataset(s). If multiple datasets match the parameters,
-        raise an Exception or move the entire dataset if `entire_dataset` is True and `force` is True
+        Delete one or more datasets. If multiple datasets match the given parameters and ``entire_dataset=False``,
+        an exception is raised.
 
-        :param dataset_id: The ID of the dataset(s) to be deleted
-        :param dataset_project: The project the dataset(s) to be deleted belong(s) to
-        :param dataset_name: The name of the dataset(s) to be deleted
-        :param force: If True, deleted the dataset(s) even when being used. Also required to be set to
-            True when `entire_dataset` is set.
-        :param dataset_version: The version of the dataset(s) to be deleted
-        :param entire_dataset: If True, delete all datasets that match the given `dataset_project`,
-            `dataset_name`, `dataset_version`. Note that `force` has to be True if this parameter is True
-        :param shallow_search: If True, search only the first 500 results (first page)
-        :param delete_files: Delete all local files in the dataset (from the ClearML file server), as well as
+        :param dataset_id: The ID of the dataset(s) to be deleted.
+        :param dataset_project: The project the dataset(s) to be deleted belong(s) to.
+        :param dataset_name: The name of the dataset(s) to delete.
+        :param force: If ``True``, delete the dataset(s) even if it is used. Required when ``entire_dataset=True``.
+        :param dataset_version: The version of the dataset(s) to delete.
+        :param entire_dataset: If ``True``, delete all versions matching ``dataset_project``, ``dataset_name``,
+            ``dataset_version``. Requires ``force=True``.
+        :param shallow_search: If ``True``, search only the first 500 results (first page).
+        :param delete_files: If ``True``, delete all files in the dataset (from the ClearML file server), as well as
             all artifacts related to the dataset.
-        :param delete_external_files: Delete all external files in the dataset (from their external storage)
+        :param delete_external_files: If ``True``, delete all external files in the dataset from their external storage
+            locations.
         """
         if not any([dataset_id, dataset_project, dataset_name]):
             raise ValueError("Dataset deletion criteria not met. Didn't provide id/name/project correctly.")
@@ -1723,11 +1739,11 @@ class Dataset:
         dataset_name: str,  # str
     ) -> None:
         """
-        Rename the dataset.
+        Rename a dataset.
 
-        :param new_dataset_name: The new name of the datasets to be renamed
-        :param dataset_project: The project the datasets to be renamed belongs to
-        :param dataset_name: The name of the datasets (before renaming)
+        :param new_dataset_name: New name to assign to the dataset.
+        :param dataset_project: Project containing the dataset.
+        :param dataset_name: Current name of the dataset (before renaming).
         """
         if Dataset.is_offline():
             raise ValueError("Cannot rename dataset in offline mode")
@@ -1755,7 +1771,7 @@ class Dataset:
         :param new_project: New project to move the dataset to
         :param dataset_name: Name of the dataset
 
-        :return: True if the dataset was moved and False otherwise
+        :return: ``True`` if the dataset was moved and ``False`` otherwise
         """
         hidden_dataset_project_, parent_project = cls._build_hidden_project_name(new_project, dataset_name)
         get_or_create_project(task.session, project_name=parent_project, system_tags=[cls.__hidden_tag])
@@ -1774,12 +1790,12 @@ class Dataset:
         """
         Move the dataset to another project.
 
-        :param new_dataset_project: New project to move the dataset(s) to
-        :param dataset_project: Project of the dataset(s) to move to new project
-        :param dataset_name: Name of the dataset(s) to move to new project
+        :param new_dataset_project: New project to move the dataset to
+        :param dataset_project: Project of the dataset to move to new project
+        :param dataset_name: Name of the dataset to move to new project
         """
         if cls.is_offline():
-            raise ValueError("Cannot move dataset project in offlime mode")
+            raise ValueError("Cannot move dataset project in offline mode")
         if not bool(Session.check_min_api_server_version(cls.__min_api_version, raise_error=True)):
             LoggerRoot.get_base_logger().warning(
                 "Could not move dataset to another project because API version < {}".format(cls.__min_api_version)
@@ -1832,25 +1848,26 @@ class Dataset:
         Get a specific Dataset. If multiple datasets are found, the dataset with the
         highest semantic version is returned. If no semantic version is found, the most recently
         updated dataset is returned. This function raises an Exception in case no dataset
-        can be found and the ``auto_create=True`` flag is not set
+        can be found and the ``auto_create=True`` flag is not set.
 
-        :param dataset_id: Requested dataset ID
-        :param dataset_project: Requested dataset project name
-        :param dataset_name: Requested dataset name
-        :param dataset_tags: Requested dataset tags (list of tag strings)
-        :param only_completed: Return only if the requested dataset is completed or published
-        :param only_published: Return only if the requested dataset is published
-        :param include_archived: Include archived tasks and datasets also
-        :param auto_create: Create a new dataset if it does not exist yet
+        :param dataset_id: Requested dataset ID.
+        :param dataset_project: Requested dataset project name.
+        :param dataset_name: Requested dataset name.
+        :param dataset_tags: Requested dataset tags (list of tag strings).
+        :param only_completed: Return only if the requested dataset is completed or published.
+        :param only_published: Return only if the requested dataset is published.
+        :param include_archived: Include archived tasks and datasets also.
+        :param auto_create: Create a new dataset if it does not exist yet.
         :param writable_copy: Get a newly created mutable dataset with the current one as its parent,
             so new files can be added to the instance.
-        :param dataset_version: Requested version of the Dataset
-        :param alias: Alias of the dataset. If set, the 'alias : dataset ID' key-value pair
-            will be set under the hyperparameters section 'Datasets'
-        :param overridable: If True, allow overriding the dataset ID with a given alias in the
+        :param dataset_version: Requested version of the dataset.
+        :param alias: Alias of the dataset. If set, the alias-to-dataset-ID mapping will be set under the ``Datasets``
+            hyperparameters section.
+        :param overridable: If ``True``, allow overriding the dataset ID with a given alias in the
             hyperparameters section. Useful when one wants to change the dataset used when running
-            a task remotely. If the alias parameter is not set, this parameter has no effect
-        :param shallow_search: If True, search only the first 500 results (first page)
+            a task remotely. If the alias parameter is not set, this parameter has no effect.
+        :param shallow_search: If ``True``, search only the first 500 results (first page).
+        :param silence_alias_warnings: If ``True``, suppress the warning logged when no ``alias`` is provided.
 
         :return: Dataset object
         """
@@ -2011,23 +2028,22 @@ class Dataset:
 
     def get_logger(self) -> Logger:
         """
-        Return a Logger object for the Dataset, allowing users to report statistics metrics
-        and debug samples on the Dataset itself
+        Return a ``Logger`` object for the Dataset, allowing users to report metrics
+        and debug samples on the Dataset itself.
 
-        :return: Logger object
+        :return: ``Logger`` object
         """
         return self._task.get_logger()
 
     def get_num_chunks(self, include_parents: bool = True) -> int:
         """
-        Return the number of chunks stored on this dataset
-        (it does not imply on the number of chunks parent versions store)
+        Return the number of chunks stored on this dataset.
 
-        :param include_parents: If True (default),
+        :param include_parents: If ``True`` (default),
             return the total number of chunks from this version and all parent versions.
-            If False, only return the number of chunks we stored on this specific version.
+            If ``False``, only return the number of chunks stored on this specific version.
 
-        :return: Number of chunks stored on the dataset.
+        :return: Number of stored chunks.
         """
         if not include_parents:
             return len(self._get_data_artifact_names())
@@ -2046,16 +2062,16 @@ class Dataset:
         """
         Generate a new dataset from the squashed set of dataset versions.
         If a single version is given it will squash to the root (i.e. create single standalone version)
-        If a set of versions are given it will squash the versions diff into a single version
+        If a set of versions are given it will squash the versions diff into a single version.
 
-        :param dataset_name: Target name for the newly generated squashed dataset
-        :param dataset_ids: List of dataset IDs (or objects) to squash. Notice order does matter.
+        :param dataset_name: Name for the new squashed dataset.
+        :param dataset_ids: List of dataset IDs or ``Dataset`` objects to squash. Notice order does matter.
             The versions are merged from first to last.
-        :param dataset_project_name_pairs: List of pairs (project_name, dataset_name) to squash.
+        :param dataset_project_name_pairs: List of pairs (``project_name``, ``dataset_name``) to squash.
             Notice order does matter. The versions are merged from first to last.
-        :param output_url: Target storage for the compressed dataset (default: file server)
-            Examples: `s3://bucket/data`, `gs://bucket/data` , `azure://bucket/data` , `/mnt/share/data`
-        :param close_squashed_dataset: Whether the newly created dataset should be uploaded to `output_url` and finalized.
+        :param output_url: Target storage for the compressed dataset (default: file server).
+            Examples: ``s3://bucket/data``, ``gs://bucket/data`` , ``azure://bucket/data`` , ``/mnt/share/data``
+        :param close_squashed_dataset: If ``True``, upload and finalize the newly created dataset.
         :return: Newly created dataset object.
         """
         if Dataset.is_offline():
@@ -2125,19 +2141,20 @@ class Dataset:
         include_archived: bool = True,
     ) -> List[dict]:
         """
-        Query list of dataset in the system
+        Query list of dataset in the system.
 
-        :param dataset_project: Specify dataset project name
-        :param partial_name: Specify partial match to a dataset name. This method supports regular expressions for name
-            matching (if you wish to match special characters and avoid any regex behaviour, use re.escape())
-        :param tags: Specify user tags
-        :param ids: List specific dataset based on IDs list
-        :param only_completed: If False, return datasets that are still in progress (uploading/edited etc.)
-        :param recursive_project_search: If True and the `dataset_project` argument is set,
+        :param dataset_project: Specify dataset project name.
+        :param partial_name: Filter datasets by partial name match. Supports regular expressions. To match special
+            characters literally, wrap the name with ``re.escape()``.
+        :param tags: Specify user tags.
+        :param ids: List specific dataset based on IDs list.
+        :param only_completed: If ``False``, return datasets that are still in progress (uploading/edited etc.).
+            Defaults to ``True``.
+        :param recursive_project_search: If ``True`` (default) and the ``dataset_project`` argument is set,
             search inside subprojects as well.
-            If False, don't search inside subprojects (except for the special `.datasets` subproject)
-        :param include_archived: If True, include archived datasets as well.
-        :return: List of dictionaries with dataset information
+            If ``False``, don't search inside subprojects (except for the special ``.datasets`` subproject)
+        :param include_archived: If ``True``, include archived datasets as well.
+        :return: List of dictionaries with dataset information.
             Example: ``[{'name': name, 'project': project name, 'id': dataset_id, 'created': date_created},]``
         """
         # if include_archived is False, we need to add the system tag __$not:archived to filter out archived datasets
@@ -2211,15 +2228,15 @@ class Dataset:
         and compare against parent, mark files to be uploaded
 
         :param path: Add a folder/file to the dataset
-        :param wildcard: add only specific set of files.
-            Wildcard matching, can be a single string or a list of wildcards)
-        :param local_base_folder: files will be located based on their relative path from local_base_folder
-        :param dataset_path: where in the dataset the folder/files should be located
-        :param recursive: If True, match all wildcard files recursively
-        :param verbose: If True, print to console added files
+        :param wildcard: Only add files matching this wildcard pattern. Can be a single string or a list of patterns.
+        :param local_base_folder: Files are placed in the dataset relative to this folder. If not provided, defaults to
+            ``path``.
+        :param dataset_path: Target location inside the dataset where the folder/files will be placed
+        :param recursive: If ``True``, match all wildcard files recursively
+        :param verbose: If ``True``, print to console added files
         :param max_workers: The number of threads to add the files with. Defaults to the number of logical cores
-        :param previous_version_file_entries: Optional mapping of previous file entries used for hash-based de-dup.
-            Example use existing self._dataset_link_entries for dedup feature, None-> no de-dup
+        :param previous_version_file_entries: Mapping of previous file entries used for hash-based de-dup.
+            Example use existing ``self._dataset_link_entries`` for dedup feature, ``None``-> no de-dup
         """
         max_workers = max_workers or psutil.cpu_count()
         if dataset_path:
@@ -2404,7 +2421,7 @@ class Dataset:
         """
         store current state of the Dataset for later use
 
-        :param update_dependency_chunk_lookup: If True, update the parent versions number of chunks
+        :param update_dependency_chunk_lookup: If ``True``, update the parent versions number of chunks
 
         :return: object to be used for later deserialization
         """
@@ -2555,18 +2572,18 @@ class Dataset:
         it won't be downloaded from the remote storage unless it is added again using
         Dataset.add_external_files().
 
-        :param force: If True, extract dataset content even if target folder exists and is not empty
+        :param force: If ``True``, extract dataset content even if target folder exists and is not empty
         :param selected_chunks: Optional, if provided only download the selected chunks (index) of the Dataset.
             Example: Assuming 8 chunks on this version
             selected_chunks=[0,1,2]
-        :param lock_target_folder: If True, local the target folder so the next cleanup will not delete
+        :param lock_target_folder: If ``True``, local the target folder so the next cleanup will not delete
             Notice you should unlock it manually, or wait for the process to finish for auto unlocking.
-        :param cleanup_target_folder: If True, remove target folder recursively
+        :param cleanup_target_folder: If ``True``, remove target folder recursively
         :param target_folder: If provided use the specified target folder, default, auto generate from Dataset ID.
         :param max_workers: Number of threads to be spawned when getting dataset files. Defaults
             to the number of virtual cores.
         :param link_entries_of_interest: Download only the external files in this dictionary.
-        Useful when one doesn't want to download all the files in a parent dataset, as some files might be removed
+            Useful when one doesn't want to download all the files in a parent dataset, as some files might be removed.
 
         :return: Path to the local storage where the data was downloaded
         """
@@ -2602,11 +2619,11 @@ class Dataset:
         was already downloaded from the ClearML server, it will not be overwritten.
 
         :param target_folder: If provided use the specified target folder, default, auto generate from Dataset ID.
-        :param lock_target_folder: If True, local the target folder so the next cleanup will not delete
+        :param lock_target_folder: If ``True``, local the target folder so the next cleanup will not delete
             Notice you should unlock it manually, or wait for the process to finish for auto unlocking.
         :param max_workers: Number of threads to be spawned when getting dataset files. Defaults to no multi-threading.
         :param link_entries_of_interest: Download only the external files in this dictionary.
-        Useful when one doesn't want to download all the files in a parent dataset, as some files might be removed
+            Useful when one doesn't want to download all the files in a parent dataset, as some files might be removed
         """
 
         def _download_link(link: LinkEntry, target_path: str) -> None:
@@ -2685,15 +2702,15 @@ class Dataset:
         Download the dataset archive, and extract the zip content to a cached folder.
         Notice no merging is done.
 
-        :param force: If True, extract dataset content even if target folder exists and is not empty
+        :param force: If ``True``, extract dataset content even if target folder exists and is not empty
         :param selected_chunks: Optional, if provided only download the selected chunks (index) of the Dataset.
             Example: Assuming 8 chunks on this version
             selected_chunks=[0,1,2]
-        :param lock_target_folder: If True, local the target folder so the next cleanup will not delete
+        :param lock_target_folder: If ``True``, local the target folder so the next cleanup will not delete.
             Notice you should unlock it manually, or wait for the process to finish for auto unlocking.
-        :param cleanup_target_folder: If True remove target folder recursively
+        :param cleanup_target_folder: If ``True``, remove target folder recursively.
         :param target_folder: If provided use the specified target folder, default, auto generate from Dataset ID.
-        :param max_workers: Number of threads to be spawned when downloading and extracting the archives
+        :param max_workers: Number of threads to be spawned when downloading and extracting the archives.
 
         :return: Path to a local storage extracted archive
         """
@@ -2822,19 +2839,19 @@ class Dataset:
     ) -> str:
         """
         download and copy / soft-link, files from all the parent dataset versions
-        :param use_soft_links: If True use soft links, default False on windows True on Posix systems
-        :param raise_on_error: If True raise exception if dataset merging failed on any file
+        :param use_soft_links: If ``True`` use soft links, default ``False`` on windows ``True`` on Posix systems
+        :param raise_on_error: If ``True`` raise exception if dataset merging failed on any file
         :param part: Optional, if provided only download the selected part (index) of the Dataset.
-            Notice, if `num_parts` is not provided, number of parts will be equal to the number of chunks.
-            This argument is passed to parent versions, as well as the implicit `num_parts`,
+            Notice, if ``num_parts`` is not provided, number of parts will be equal to the number of chunks.
+            This argument is passed to parent versions, as well as the implicit ``num_parts``,
             allowing users to get a partial copy of the entire dataset, for multi node/step processing.
         :param num_parts: Optional, if specified, normalize the number of chunks stored to the
             requested number of parts. Notice that the actual chunks used per part are rounded down.
-            Example: Assuming 8 chunks on this version, and `num_parts=5`, the chunk index used per parts would be:
-            part=0 -> chunks[0,5], part=1 -> chunks[1,6], part=2 -> chunks[2,7], part=3 -> chunks[3, ]
+            Example: Assuming 8 chunks on this version, and ``num_parts=5``, the chunk index used per parts would be:
+           ``part=0`` -> ``chunks[0,5]``, ``part=1`` -> ``chunks[1,6]``, ``part=2`` -> ``chunks[2,7]``, ``part=3`` -> ``chunks[3, ]``
         :param max_workers: Number of threads to be spawned when merging datasets. Defaults to the number
             of logical cores.
-        :param files_of_interest: Optional set of relative file paths. When provided, only those files
+        :param files_of_interest: St of relative file paths. When provided, only those files
             (and the chunks that contain them) are downloaded. The cache folder is suffixed with a short
             hash derived from this set.
 
@@ -2957,9 +2974,9 @@ class Dataset:
     def _get_dependencies_by_order(self, include_unused: bool = False, include_current: bool = True) -> List[str]:
         """
         Return the dataset dependencies by order of application (from the last to the current)
-        :param include_unused: If True include unused datasets in the dependencies
-        :param include_current: If True include the current dataset ID as the last ID in the list
-        :return: list of str representing the datasets id
+        :param include_unused: If ``True`` include unused datasets in the dependencies
+        :param include_current: If ``True`` include the current dataset ID as the last ID in the list
+        :return: List of strings representing the datasets ID
         """
         self._update_dependency_graph()
         roots = [self._id]
@@ -3020,8 +3037,8 @@ class Dataset:
 
     def _get_parents(self) -> Sequence[str]:
         """
-        Return a list of direct parent datasets (str)
-        :return: list of dataset ids
+        Return a list of direct parent datasets (``str``)
+        :return: list of dataset IDs
         """
         return self._dependency_graph[self.id]
 
@@ -3052,7 +3069,7 @@ class Dataset:
         if stored_state.get("dependency_chunk_lookup") is not None:
             instance._dependency_chunk_lookup = stored_state.get("dependency_chunk_lookup")
 
-        # update the last used artifact (remove the one we never serialized, they rae considered broken)
+        # update the last used artifact (remove the one we never serialized, they are considered broken)
         if task.status in ("in_progress", "created", "stopped"):
             artifact_names = set(
                 [
@@ -3079,7 +3096,7 @@ class Dataset:
     @classmethod
     def _get_dataset_id_hash(cls, dataset_id: str) -> str:
         """
-        Return hash used to search for the dataset id in text fields.
+        Return hash used to search for the dataset ID in text fields.
         This is not a strong hash and used for defining dependencies.
         :param dataset_id:
         :return:
@@ -3098,9 +3115,9 @@ class Dataset:
     @classmethod
     def set_offline(cls, offline_mode: bool = False) -> None:
         """
-        Set offline mode, where all data and logs are stored into local folder, for later transmission
+        Set offline mode, where all data and logs are stored into local folder, for later transmission.
 
-        :param offline_mode: If True, offline-mode is turned on, and no communication to the backend is enabled.
+        :param offline_mode: If ``True``, offline-mode is turned on, and no communication to the backend is enabled.
         """
         Task.set_offline(offline_mode=offline_mode)
 
@@ -3124,10 +3141,10 @@ class Dataset:
         Includes repository details, installed packages, artifacts, logs, metric and debug samples.
 
         :param session_folder_zip: Path to a folder containing the session, or zip-file of the session folder.
-        :param upload: If True, upload the dataset's data
-        :param finalize: If True, finalize the dataset
+        :param upload: If ``True``, upload the dataset's data.
+        :param finalize: If ``True``, finalize the dataset.
 
-        :return: The ID of the imported dataset
+        :return: The ID of the imported dataset.
         """
         id = Task.import_offline_session(session_folder_zip)
         dataset = Dataset.get(dataset_id=id)
@@ -3638,9 +3655,9 @@ class Dataset:
 
     def is_dirty(self) -> bool:
         """
-        Return True if the dataset has pending uploads (i.e. we cannot finalize it)
+        Return ``True`` if the dataset has pending uploads that would prevent finalization.
 
-        :return: Return True means dataset has pending uploads, call 'upload' to start an upload process.
+        :return: ``True`` if the dataset has pending uploads. Call ``upload()`` before finalizing.
         """
         return self._dirty
 
@@ -3842,20 +3859,20 @@ class Dataset:
         read_hash: bool = False,
     ) -> Tuple[int, int]:
         """
-        Auxiliary function for `add_external_files`
+        Auxiliary function for ``add_external_files``.
         Adds an external file or a folder to the current dataset.
-        External file links can be from cloud storage (s3://, gs://, azure://) or local / network storage (file://).
+        External file links can be from cloud storage (``s3://``, ``gs://``, ``azure://``) or local / network storage (``file://``).
         Calculates file size for each file and compares against parent.
 
-        :param source_url: Source url link (e.g. s3://bucket/folder/path)
+        :param source_url: Source url link (e.g. ``s3://bucket/folder/path``)
         :param wildcard: add only specific set of files.
             Wildcard matching, can be a single string or a list of wildcards.
         :param dataset_path: The location in the dataset where the file will be downloaded into.
-            e.g: for source_url='s3://bucket/remote_folder/image.jpg' and dataset_path='s3_files',
-            'image.jpg' will be downloaded to 's3_files/image.jpg' (relative path to the dataset)
-        :param recursive: If True match all wildcard files recursively
-        :param verbose: If True print to console files added/modified
-        :param read_hash: If True, read SHA-256 from object metadata for hash-based change detection
+            For example: for ``source_url='s3://bucket/remote_folder/image.jpg'`` and ``'dataset_path='s3_files'``,
+            ``'image.jpg'`` will be downloaded to ``'s3_files/image.jpg'`` (relative path to the dataset)
+        :param recursive: If ``True``, match all wildcard files recursively.
+        :param verbose: If ``True``, print to console files added/modified.
+        :param read_hash: If ``True``, read SHA-256 from object metadata for hash-based change detection.
         :return: Number of file links added and modified
         """
         if dataset_path:
@@ -4004,13 +4021,13 @@ class Dataset:
 
         :param dataset_project: Corresponding dataset project
         :param dataset_name: Corresponding dataset name
-        :param dataset_version: The version of the corresponding dataset. If set to `None` (default),
+        :param dataset_version: The version of the corresponding dataset. If set to ``None`` (default),
             then get the dataset with the latest version
         :param dataset_filter: Filter the found datasets based on the criteria present in this dict.
-            Has the same behaviour as `task_filter` parameter in Task.get_tasks. If None,
+            Has the same behaviour as ``task_filter`` parameter in Task.get_tasks. If ``None``,
             the filter will have parameters set specific to datasets
-        :param raise_on_multiple: If True and more than 1 dataset is found raise an Exception
-        :param shallow_search: If True, search only the first 500 results (first page)
+        :param raise_on_multiple: If ``True`` and more than 1 dataset is found raise an Exception
+        :param shallow_search: If ``True``, search only the first 500 results (first page)
 
         :return: A tuple containing 2 strings: the dataset ID and the version of that dataset
         """
@@ -4094,8 +4111,8 @@ class Dataset:
     @classmethod
     def _build_hidden_project_name(cls, dataset_project: str, dataset_name: str) -> Tuple[Optional[str], Optional[str]]:
         """
-        Build the corresponding hidden name of a dataset, given its `dataset_project`
-        and `dataset_name`
+        Build the corresponding hidden name of a dataset, given its ``dataset_project``
+        and ``dataset_name``
 
         :param dataset_project: Dataset's project
         :param dataset_name: Dataset name passed by the user
