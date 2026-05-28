@@ -1,6 +1,6 @@
 import os
 from concurrent.futures import ThreadPoolExecutor
-from typing import Optional, List, Any, Sequence, Dict
+from typing import Optional, List, Any, Sequence, Dict, Union
 
 import psutil
 from requests.compat import json as requests_json
@@ -18,6 +18,8 @@ from ..backend_interface.datasets.save_frames_request_no_validate_wrapped import
 
 
 COMMIT_ERROR_KEY = "__commit_version_error__"
+
+TagsInputValue = Union[Sequence[str], str]
 
 
 class HyperDataset(HyperDatasetManagement):
@@ -70,8 +72,11 @@ class HyperDataset(HyperDatasetManagement):
             field_mappings=field_mappings,
         )
         self._version_id = HyperDatasetManagementBackend.create_version(
-            name=version_name, dataset_id=self._dataset_id, parent_ids=parent_ids
+            name=version_name,
+            dataset_id=self._dataset_id,
+            parent_ids=parent_ids,
         )
+        self._tags = None  # Create uninitialized _tags cache
 
     def add_data_entries(
         self,
@@ -150,7 +155,11 @@ class HyperDataset(HyperDatasetManagement):
             )
         helper.check_write_permissions(upload_destination)
 
-    def _register_data_entries_batched_request_size(self, data_entries, max_request_size_mb: int = None):
+    def _register_data_entries_batched_request_size(
+        self,
+        data_entries,
+        max_request_size_mb: int = None,
+    ):
         """
         Register data entries while splitting requests to respect the maximum payload size.
 
@@ -186,7 +195,10 @@ class HyperDataset(HyperDatasetManagement):
         errors.update(self._register_data_entries(current_batch))
         return errors
 
-    def _register_data_entries(self, data_entries):
+    def _register_data_entries(
+        self,
+        data_entries,
+    ):
         """
         Register a batch of data entries against the current dataset version.
 
@@ -273,7 +285,12 @@ class HyperDataset(HyperDatasetManagement):
             future.result()
         return upload_errors
 
-    def _upload_sources(self, data_entry: Any, upload_errors: dict, upload_destination: Optional[str] = None):
+    def _upload_sources(
+        self,
+        data_entry: Any,
+        upload_errors: dict,
+        upload_destination: Optional[str] = None,
+    ):
         """
         Upload sources for a single data entry to the target storage destination.
 
@@ -302,7 +319,11 @@ class HyperDataset(HyperDatasetManagement):
                 except Exception as e:
                     upload_errors[data_entry.id] = str(e)
 
-    def _build_source_upload_uri(self, source, upload_destination):
+    def _build_source_upload_uri(
+        self,
+        source,
+        upload_destination,
+    ):
         """
         Construct the destination URI for a source file within the dataset hierarchy.
 
@@ -314,7 +335,10 @@ class HyperDataset(HyperDatasetManagement):
         base = upload_destination.rstrip("/")
         return base + "/" + (self._dataset_id or "") + "/" + (self._version_id or "") + "/" + os.path.basename(source)
 
-    def _set_already_uploaded_files(self, data_entries):
+    def _set_already_uploaded_files(
+        self,
+        data_entries,
+    ):
         """
         Reuse existing remote sources by matching hashes of already-uploaded files.
 
@@ -544,3 +568,108 @@ class HyperDataset(HyperDatasetManagement):
         :return: HyperDataset version ID.
         """
         return self._version_id
+
+    @property
+    def tags(self) -> List[str]:
+        """
+        Pythonic alternative to ``dataset.get_tags()``.
+
+        :return: The list of tags attached to this dataset.
+        """
+        return self.get_tags()
+
+    @tags.setter
+    def tags(self, tags: Optional[TagsInputValue]) -> None:
+        """
+        Pythonic alternative to ``dataset.set_tags(tags=[...])``.
+
+        :param tags: The list of tags to set on the dataset (before normalization; see _normalize_tags method).
+        """
+        self.set_tags(tags=(tags or []))
+
+    def get_tags(self, reload: bool = False) -> List[str]:
+        """
+        Returns tags attached to the dataset. Allows invalidating tags cache via ``dataset.get_tags(reload=True)``.
+
+        :param reload: If set to ``True``, tags will be fetched from the backend
+            and the local runtime cache will be updated.
+
+        :return: The list of tags attached to this dataset.
+        """
+        if (
+            reload  # Invalidate the _tags cache and refetch tags from backend
+            or self._tags is None  # If _tags cache is not initialized, initialize it by fetching tags
+        ):
+            dataset = HyperDatasetManagementBackend.get_dataset_by_id(dataset_id=self.dataset_id)
+            self._tags = (
+                list(getattr(dataset, "tags", []) or [])
+                if dataset
+                else []
+            )
+
+        return self._tags
+
+    def add_tags(self, tags: TagsInputValue) -> None:
+        """
+        Adds the provided tags to the list of tags attached to the dataset.
+
+        :param tags: The list of tags to add to the dataset (before normalization; see _normalize_tags method).
+        """
+        tags_to_add = self._normalize_tags(tags=tags)
+        new_tags = list(set((
+            *self.tags,
+            *(tags_to_add or []),
+        )))
+        HyperDatasetManagementBackend.update_dataset_tags(
+            dataset_id=self.dataset_id,
+            tags=new_tags,
+        )
+        self._tags = new_tags
+
+    def remove_tags(self, tags: TagsInputValue) -> None:
+        """
+        Removes the provided tags from the list of tags attached to the dataset.
+
+        :param tags: The list of tags to remove from the dataset (before normalization; see _normalize_tags method).
+        """
+        tags_to_remove = self._normalize_tags(tags=tags)
+        new_tags = [
+            tag
+            for tag in (self.tags or [])
+            if tag not in tags_to_remove
+        ]
+        HyperDatasetManagementBackend.update_dataset_tags(
+            dataset_id=self.dataset_id,
+            tags=new_tags,
+        )
+        self._tags = new_tags
+
+    def set_tags(self, tags: TagsInputValue) -> None:
+        """
+        Overrides the existing tags on the dataset with the provided list of tags.
+
+        :param tags: The list of tags that will be on the dataset (before normalization; see _normalize_tags method).
+        """
+        new_tags = self._normalize_tags(tags=tags)
+        HyperDatasetManagementBackend.update_dataset_tags(
+            dataset_id=self.dataset_id,
+            tags=new_tags,
+        )
+        self._tags = new_tags
+
+    def _normalize_tags(self, tags: TagsInputValue) -> List[str]:
+        """
+        Converts a user-provided sequence of tags into a backend-admissible list of tags.
+
+        Accepted input formats: space-separated list of tags, any Sequence[str] type.
+        Output type: List[str]
+
+        :param tags: The list of tags that will be normalized.
+
+        :return: A list of strings, each representing a tag.
+        """
+        return (
+            tags.split(" ")
+            if isinstance(tags, str)
+            else list(tags)
+        )

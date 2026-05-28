@@ -72,7 +72,11 @@ class HyperDatasetManagementBackend(IdObjectBase):
 
     @classmethod
     def create_version(
-        cls, name: str, dataset_id: str, comment: Optional[str] = None, parent_ids: Optional[List[str]] = None
+        cls,
+        name: str,
+        dataset_id: str,
+        comment: Optional[str] = None,
+        parent_ids: Optional[List[str]] = None,
     ):
         """
         Create a new dataset version or return the existing version with the same name.
@@ -112,7 +116,11 @@ class HyperDatasetManagementBackend(IdObjectBase):
             raise
 
     @classmethod
-    def save_data_entries(cls, dataset_id: str, data_entries):
+    def save_data_entries(
+        cls,
+        dataset_id: str,
+        data_entries,
+    ):
         """
         Upload and register data entries into the specified dataset version.
 
@@ -228,7 +236,10 @@ class HyperDatasetManagementBackend(IdObjectBase):
         return getattr(versions[0], "id", None) if versions else None
 
     @classmethod
-    def get_dataset_by_id(cls, dataset_id: str):
+    def get_dataset_by_id(
+        cls,
+        dataset_id: str,
+    ):
         """
         Retrieve a dataset collection object using its identifier.
 
@@ -359,7 +370,12 @@ class HyperDatasetManagementBackend(IdObjectBase):
         return project_name
 
     @classmethod
-    def _project_matches(cls, filter_project: str, project_name: Optional[str], recursive: bool) -> bool:
+    def _project_matches(
+        cls,
+        filter_project: str,
+        project_name: Optional[str],
+        recursive: bool,
+    ) -> bool:
         filter_norm = filter_project.rstrip("/")
         if not filter_norm:
             return True
@@ -387,7 +403,11 @@ class HyperDatasetManagementBackend(IdObjectBase):
         return False
 
     @classmethod
-    def version_exists(cls, dataset_id: str, version_id: str) -> bool:
+    def version_exists(
+        cls,
+        dataset_id: str,
+        version_id: str,
+    ) -> bool:
         """
         Check whether a dataset version exists under the specified dataset collection.
 
@@ -417,7 +437,42 @@ class HyperDatasetManagementBackend(IdObjectBase):
             return False
 
     @classmethod
-    def delete_dataset_version(cls, version_id: str, force: bool = False) -> bool:
+    def update_dataset_tags(
+        cls,
+        dataset_id: str,
+        tags: List[str],
+    ) -> bool:
+        """
+        Overwrites the hyperdataset-level tags.
+
+        :param dataset_id: Identifier of the dataset collection on which the tags will be updated.
+        :param tags: The list of tags to over-write tags with.
+
+        :return: True if the dataset tags were updated successfully, otherwise False.
+        """
+        response = cls._send(
+            session=cls._get_default_session(),
+            req=datasets.UpdateRequest(
+                dataset=dataset_id,
+                tags=tags,
+            ),
+            raise_on_errors=False,
+        )
+
+        return bool(
+            getattr(
+                getattr(response, "response", None),
+                "updated",
+                None,
+            )
+        )
+
+    @classmethod
+    def delete_dataset_version(
+        cls,
+        version_id: str,
+        force: bool = False,
+    ) -> bool:
         """
         Delete a dataset version from the backend service.
 
@@ -431,7 +486,12 @@ class HyperDatasetManagementBackend(IdObjectBase):
         return bool(getattr(getattr(res, "response", None), "deleted", False))
 
     @classmethod
-    def delete_dataset(cls, dataset_id: str, delete_all_versions: bool = True, force: bool = False) -> bool:
+    def delete_dataset(
+        cls,
+        dataset_id: str,
+        delete_all_versions: bool = True,
+        force: bool = False,
+    ) -> bool:
         """
         Remove an entire dataset collection, optionally deleting all contained versions.
 
