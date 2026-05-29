@@ -510,7 +510,11 @@ class StorageManager:
         """
         helper = cls.storage_helper.get(remote_url)
         try:
-            helper_list_result = helper.list(prefix=remote_url, with_metadata=with_metadata)
+            helper_list_result = helper.list(
+                prefix=remote_url,
+                with_metadata=with_metadata,
+                read_hash=read_hash,
+            )
         except Exception as ex:
             LoggerRoot.get_base_logger().warning(f"Can not list files for '{remote_url}' - {ex}")
             return None
