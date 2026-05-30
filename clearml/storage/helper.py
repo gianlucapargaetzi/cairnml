@@ -52,7 +52,7 @@ from requests import codes as requests_codes
 from requests.exceptions import ConnectionError
 from io import StringIO, BytesIO, FileIO
 from queue import Queue, Empty
-from urllib.parse import urlparse, quote
+from urllib.parse import urlparse, urlunparse, quote
 from os.path import expandvars, expanduser
 from heapq import heapify, heappush, heappop
 from psutil import disk_usage
@@ -1279,7 +1279,7 @@ class _AzureBlobServiceStorageDriver(_Driver):
         def __init__(
             self,
             name: str,
-            config: AzureContainerConfigurations,
+            config: AzureContainerConfig,
             account_url: str,
         ) -> None:
             self.MAX_SINGLE_PUT_SIZE = 4 * 1024 * 1024
@@ -1306,6 +1306,11 @@ class _AzureBlobServiceStorageDriver(_Driver):
                     )
 
             if self.__legacy:
+                if self.config.use_default_credential:
+                    raise UsageError(
+                        "DefaultAzureCredential is not supported by the legacy azure.storage.blob driver. "
+                        "Please upgrade with: pip install '\"azure.storage.blob>=12.0.0\"'"
+                    )
                 self.__blob_service = BlockBlobService(
                     account_name=self.config.account_name,
                     account_key=self.config.account_key,
@@ -1313,13 +1318,25 @@ class _AzureBlobServiceStorageDriver(_Driver):
                 self.__blob_service.MAX_SINGLE_PUT_SIZE = self.MAX_SINGLE_PUT_SIZE
                 self.__blob_service.socket_timeout = self.SOCKET_TIMEOUT
             else:
-                credential = {
-                    "account_name": self.config.account_name,
-                    "account_key": self.config.account_key,
-                }
+                if self.config.use_default_credential:
+                    try:
+                        from azure.identity import DefaultAzureCredential  # noqa
+                    except ImportError:
+                        raise UsageError(
+                            "azure-identity package is required to use DefaultAzureCredential. "
+                            "Please install it using: 'pip install azure-identity'"
+                        )
+
                 self.__blob_service = BlobServiceClient(
                     account_url=account_url,
-                    credential=credential,
+                    credential=(
+                        DefaultAzureCredential()
+                        if self.config.use_default_credential
+                        else {
+                            "account_name": self.config.account_name,
+                            "account_key": self.config.account_key,
+                        }
+                    ),
                     max_single_put_size=self.MAX_SINGLE_PUT_SIZE,
                 )
 
@@ -2571,11 +2588,19 @@ class _StorageHelper:
             if self._conf is None:
                 raise StorageError(f"Missing Azure Blob Storage configuration for {url}")
 
-            if not self._conf.account_name or not self._conf.account_key:
-                raise StorageError(f"Missing account name or key for Azure Blob Storage access for {base_url}")
+            if not self._conf.account_name:
+                raise StorageError(f"Missing account name for Azure Blob Storage access for {base_url}")
+            if not self._conf.account_key and not self._conf.use_default_credential:
+                raise StorageError(
+                    f"Missing account key for Azure Blob Storage access for {base_url} "
+                    "(set 'account_key' or enable 'use_default_credential')"
+                )
 
             self._driver = _AzureBlobServiceStorageDriver()
-            self._container = self._driver.get_container(config=self._conf, account_url=parsed.netloc)
+            self._container = self._driver.get_container(
+                config=self._conf,
+                account_url=urlunparse(("https", parsed.netloc, "", "", "", "")),
+            )
 
         elif self._scheme == _Boto3Driver.scheme:
             self._conf = copy(self._s3_configurations.get_config_by_uri(url))
