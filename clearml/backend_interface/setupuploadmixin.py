@@ -141,20 +141,30 @@ class SetupUploadMixin:
     def setup_azure_upload(
         self,
         account_name: str,
-        account_key: str,
+        account_key: Optional[str] = None,
         container_name: Optional[str] = None,
+        use_default_credential: bool = False,
     ) -> None:
         """
         Setup Azure upload options.
 
         :param account_name: Name of the account
-        :param account_key: Secret key used to authenticate the account
+        :param account_key: Secret key used to authenticate the account. Not required when
+            ``use_default_credential`` is True.
         :param container_name: The name of the blob container to upload to
+        :param use_default_credential: If True, authenticate using
+            ``azure.identity.DefaultAzureCredential`` (e.g. managed identity, environment, CLI,
+            etc.) instead of an account key. Requires the ``azure-identity`` package.
         """
+        if not account_key and not use_default_credential:
+            raise ValueError(
+                "setup_azure_upload requires either 'account_key' or 'use_default_credential=True'"
+            )
         self._bucket_config = AzureContainerConfig(  # noqa
             account_name=account_name,
             account_key=account_key,
             container_name=container_name,
+            use_default_credential=use_default_credential,
         )
         StorageHelper.add_azure_configuration(self._bucket_config, log=self.log)
         self.storage_uri = StorageHelper.get_azure_storage_uri_from_config(self._bucket_config)
