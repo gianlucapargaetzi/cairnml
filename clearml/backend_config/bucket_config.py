@@ -9,6 +9,8 @@ from typing import Tuple, Dict, List, Union, Optional, Any
 import furl
 from attr import attrib, attrs
 
+from .converters import strtobool
+
 
 def _none_to_empty_string(maybe_string: str) -> str:
     """Returns an empty string for any falsy value"""
@@ -379,8 +381,9 @@ class GSBucketConfigurations(BaseBucketConfigurations):
 @attrs
 class AzureContainerConfig:
     account_name = attrib(type=str)
-    account_key = attrib(type=str)
+    account_key = attrib(type=str, default=None)
     container_name = attrib(type=str, default=None)
+    use_default_credential = attrib(type=bool, default=False)
 
     def update(self, **kwargs: Any) -> None:
         for item in kwargs:
@@ -399,21 +402,33 @@ class AzureContainerConfigurations:
         container_configs: List[AzureContainerConfig] = None,
         default_account: str = None,
         default_key: str = None,
+        default_use_default_credential: bool = False,
     ) -> None:
         super(AzureContainerConfigurations, self).__init__()
         self._container_configs = container_configs or []
         self._default_account = default_account
         self._default_key = default_key
+        self._default_use_default_credential = default_use_default_credential
 
     @classmethod
     def from_config(cls, configuration: dict) -> "AzureContainerConfigurations":
         default_account = getenv("AZURE_STORAGE_ACCOUNT")
         default_key = getenv("AZURE_STORAGE_KEY")
+        try:
+            default_use_default_credential = bool(
+                strtobool(getenv("CLEARML_AZURE_STORAGE_USE_DEFAULT_CREDENTIAL", "").strip())
+            )
+        except ValueError:
+            default_use_default_credential = False
 
         default_container_configs = []
-        if default_account and default_key:
+        if default_account and (default_key or default_use_default_credential):
             default_container_configs.append(
-                AzureContainerConfig(account_name=default_account, account_key=default_key)
+                AzureContainerConfig(
+                    account_name=default_account,
+                    account_key=default_key,
+                    use_default_credential=default_use_default_credential,
+                )
             )
 
         if configuration is None:
@@ -421,12 +436,18 @@ class AzureContainerConfigurations:
                 default_container_configs,
                 default_account=default_account,
                 default_key=default_key,
+                default_use_default_credential=default_use_default_credential,
             )
 
         containers = configuration.get("containers", list())
         container_configs = [AzureContainerConfig(**entry) for entry in containers] + default_container_configs
 
-        return cls(container_configs, default_account=default_account, default_key=default_key)
+        return cls(
+            container_configs,
+            default_account=default_account,
+            default_key=default_key,
+            default_use_default_credential=default_use_default_credential,
+        )
 
     def get_config_by_uri(self, uri: str) -> AzureContainerConfig:
         """
@@ -467,6 +488,7 @@ class AzureContainerConfigurations:
         bucket_config.update(
             account_name=bucket_config.account_name or self._default_account,
             account_key=bucket_config.account_key or self._default_key,
+            use_default_credential=bucket_config.use_default_credential or self._default_use_default_credential,
         )
 
     def add_config(self, bucket_config: AzureContainerConfig) -> None:
