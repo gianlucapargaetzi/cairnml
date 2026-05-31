@@ -1,5 +1,7 @@
+from typing import Any, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
+
 from ..base import IdObjectBase
-from ..util import make_message
+from ..util import get_or_create_project, make_message
 from ...backend_api.services import dataviews, frames
 
 
@@ -10,15 +12,16 @@ class DataViewManagementBackend(IdObjectBase):
     @classmethod
     def create(
         cls,
-        name=None,
-        description=None,
-        tags=None,
-        infinite=False,
-        order="sequential",
-        random_seed=None,
-        limit=None,
-        versions=None,
-    ):
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        tags: Optional[Sequence[str]] = None,
+        infinite: bool = False,
+        order: str = "sequential",
+        random_seed: Optional[int] = None,
+        limit: Optional[int] = None,
+        versions: Optional[Iterable[Union[Mapping[str, str], Sequence[str]]]] = None,
+        project_name: Optional[str] = None,
+    ) -> str:
         """
         Create a DataView on the backend using the structured create request.
 
@@ -30,6 +33,9 @@ class DataViewManagementBackend(IdObjectBase):
         :param random_seed: Optional seed influencing randomized iteration
         :param limit: Optional upper bound on the number of entries returned
         :param versions: Optional iterable mapping dataset IDs to version IDs
+        :param project_name: Optional project name. When set, the project is resolved
+            (created on demand) and the DataView is attached to it. Required on servers
+            with project-scoped RBAC.
 
         :return: Identifier of the created DataView
         """
@@ -46,6 +52,8 @@ class DataViewManagementBackend(IdObjectBase):
                     continue
                 if ds and ver and ds != "*" and ver != "*":
                     dv_entries.append(dataviews.DataviewEntry(dataset=ds, version=ver))
+        session = cls._get_default_session()
+        project_id = get_or_create_project(session, project_name) if project_name else None
         req = dataviews.CreateRequest(
             name=name or make_message('Anonymous dataview (%(user)s@%(host)s %(time)s)'),
             description=description or make_message('Auto-generated on %(time)s by %(user)s@%(host)s'),
@@ -58,9 +66,10 @@ class DataViewManagementBackend(IdObjectBase):
                 random_seed=random_seed,
                 limit=limit,
             ),
+            project=project_id,
         )
         # TODO: check if we need a creation lock
-        res = cls._send(cls._get_default_session(), req)
+        res = cls._send(session, req)
         return res.response.id
 
     @classmethod
@@ -131,24 +140,56 @@ class DataViewManagementBackend(IdObjectBase):
         )
 
     @classmethod
+    def build_inline_dataview(
+        cls,
+        versions: Optional[Iterable[Any]] = None,
+        filters: Optional[Iterable[Any]] = None,
+        iteration: Optional[Any] = None,
+        output_rois: Optional[str] = None,
+    ) -> Any:
+        """
+        Build a `frames.Dataview` payload usable with the inline count / next-frame endpoints.
+
+        Accepts SDK-side `dataviews.*` objects (`DataviewEntry`, `FilterRule`, `Iteration`) or
+        raw dicts; round-trips them through `frames.Dataview.from_dict()`.
+        """
+        payload = {}
+        if versions:
+            payload["versions"] = [
+                v.to_dict() if hasattr(v, "to_dict") else dict(v) for v in versions
+            ]
+        if filters:
+            payload["filters"] = [
+                f.to_dict() if hasattr(f, "to_dict") else dict(f) for f in filters
+            ]
+        if iteration is not None:
+            payload["iteration"] = (
+                iteration.to_dict() if hasattr(iteration, "to_dict") else dict(iteration)
+            )
+        if output_rois is not None:
+            payload["output_rois"] = output_rois
+        return frames.Dataview.from_dict(payload)
+
+    @classmethod
     def get_next_data_entries(
         cls,
-        dataview,
-        scroll_id=None,
-        batch_size=500,
-        reset_scroll=None,
-        force_scroll_id=None,
-        flow_control=None,
-        random_seed=None,
-        node=None,
-        projection=None,
-        remove_none_values=False,
-        clean_subfields=False,
-    ):
+        dataview: Any,
+        scroll_id: Optional[str] = None,
+        batch_size: int = 500,
+        reset_scroll: Optional[bool] = None,
+        force_scroll_id: Optional[bool] = None,
+        flow_control: Optional[Any] = None,
+        random_seed: Optional[int] = None,
+        node: Optional[int] = None,
+        projection: Optional[Sequence[str]] = None,
+        remove_none_values: bool = False,
+        clean_subfields: bool = False,
+    ) -> Optional[Any]:
         """
-        Fetch the next batch of entries from a DataView iterator.
+        Fetch the next batch of entries via the inline `frames.get_next_for_dataview` endpoint.
 
-        :param dataview: DataView identifier to iterate
+        :param dataview: Inline `frames.Dataview` payload (build with `build_inline_dataview`).
+            Does NOT require a stored DataView id — works for users without project write permission.
         :param scroll_id: Optional server scroll identifier for continuation
         :param batch_size: Maximum number of entries to request per call
         :param reset_scroll: Whether to reset server-side scroll state
@@ -162,8 +203,7 @@ class DataViewManagementBackend(IdObjectBase):
 
         :return: Backend response object containing frames and continuation metadata
         """
-        # Use frames.get_next_for_dataview_id which takes a dataview id and returns frames
-        req = frames.GetNextForDataviewIdRequest(
+        req = frames.GetNextForDataviewRequest(
             dataview=dataview,
             scroll_id=scroll_id,
             batch_size=batch_size,
@@ -180,28 +220,26 @@ class DataViewManagementBackend(IdObjectBase):
         return getattr(res, "response", None)
 
     @classmethod
-    def get_count_total_for_id(cls, dataview_id: str) -> int:
+    def get_count_total(cls, dataview: Any) -> int:
         """
-        Return the total number of frames matching a DataView identifier.
+        Return the total number of frames matching an inline DataView spec.
 
-        :param dataview_id: DataView identifier to query
-
+        :param dataview: Inline `frames.Dataview` payload (build with `build_inline_dataview`).
         :return: Total frame count reported by the backend
         """
-        total, _ = cls.get_count_details_for_id(dataview_id)
+        total, _ = cls.get_count_details(dataview)
         return total
 
     @classmethod
-    def get_count_details_for_id(cls, dataview_id: str):
+    def get_count_details(cls, dataview: Any) -> Tuple[int, List[int]]:
         """
-        Retrieve overall and per-rule counts for a DataView.
+        Retrieve overall and per-rule counts for an inline DataView spec.
 
-        :param dataview_id: DataView identifier to query
-
-        :return: Tuple of total frame count and list of per-rule counts
+        :param dataview: Inline `frames.Dataview` payload (build with `build_inline_dataview`).
+        :return: Tuple of total frame count and list of per-rule counts. Falls back to (0, []) on error.
         """
         try:
-            req = frames.GetCountForDataviewIdRequest(dataview=dataview_id)
+            req = frames.GetCountForDataviewRequest(dataview=dataview)
             res = cls._send(cls._get_default_session(), req, raise_on_errors=False)
             response = getattr(res, "response", None)
             total = int(getattr(response, "total", 0) or 0)
