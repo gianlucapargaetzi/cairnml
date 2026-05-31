@@ -6,8 +6,9 @@ from queue import Queue
 from typing import Any, Iterable, List, Optional, Sequence
 
 from clearml.backend_api import Session
+from clearml.backend_api.services import dataviews as _dataviews
 from clearml.backend_interface.datasets.hyper_dataset_data_view import DataViewManagementBackend
-from clearml.config import running_remotely, get_remote_task_id, get_node_id, get_node_count
+from clearml.config import deferred_config, running_remotely, get_remote_task_id, get_node_id, get_node_count
 from clearml.storage.manager import StorageManagerDiskSpaceFileSizeStrategy
 from clearml.task import Task
 from .data_entry import DataEntry, ENTRY_CLASS_KEY, _resolve_class
@@ -194,18 +195,20 @@ class HyperDatasetQuery:
 class DataView:
     _MAX_BATCH_SIZE = 10000
     _DEFAULT_LOCAL_BATCH_SIZE = 500
+    _store_dataviews_on_creation = deferred_config("development.store_dataviews_on_creation", True)
 
     def __init__(
         self,
-        name=None,
-        description=None,
-        tags=None,
-        iteration_order="sequential",
-        iteration_infinite=False,
-        iteration_random_seed=None,
-        iteration_limit=None,
-        auto_connect_with_task=True,
-    ):
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        tags: Optional[Sequence[str]] = None,
+        iteration_order: str = "sequential",
+        iteration_infinite: bool = False,
+        iteration_random_seed: Optional[int] = None,
+        iteration_limit: Optional[int] = None,
+        auto_connect_with_task: bool = True,
+        project_name: Optional[str] = None,
+    ) -> None:
         """
         Instantiate a `DataView` wrapper around backend dataview resources.
 
@@ -220,6 +223,9 @@ class DataView:
         :param iteration_random_seed: Seed used for random iteration
         :param iteration_limit: Explicit maximum number of frames to iterate (None means unlimited)
         :param auto_connect_with_task: Auto-attach to the current ClearML task when True
+        :param project_name: Optional project name under which the DataView will be persisted
+            when stored. If omitted, falls back to the current Task's project. Required on
+            servers with project-scoped RBAC for the auto-store to succeed.
         """
         self._iteration_order = iteration_order
         self._iteration_infinite = iteration_infinite
@@ -230,6 +236,7 @@ class DataView:
         self._name = name
         self._description = description
         self._tags = tags
+        self._project_name = project_name
         self._id = None
         self._filter_rules: List[Any] = []
         self._queries: List[HyperDatasetQuery] = []
@@ -458,13 +465,81 @@ class DataView:
                 raise ValueError("DataView.add_queries expects a query or an iterable of queries") from exc
         self._append_queries(normalized)
 
-    def _ensure_created(self):
-        """
-        Ensure a matching backend dataview resource exists.
+    def _resolve_project_name(self) -> Optional[str]:
+        """Explicit `project_name` wins; otherwise fall back to the current Task's project."""
+        if self._project_name:
+            return self._project_name
+        try:
+            task = Task.current_task()
+            if task is None:
+                tid = get_remote_task_id()
+                if tid:
+                    task = Task.get_task(task_id=tid)
+            if task:
+                proj = task.get_project_name()
+                if proj:
+                    return proj
+        except Exception:
+            pass
+        return None
 
-        The method lazily creates the dataview when first required, reusing the existing resource when it
-        already exists. Raises a `ValueError` if no concrete dataset/version pairs can be derived from the
-        configured queries.
+    def _build_inline_payload(self) -> Any:
+        """
+        Build a `frames.Dataview` payload from this DataView's current local state.
+
+        Used by read paths (count, iteration) so they hit the inline `frames.*ForDataview`
+        endpoints — no stored DataView id required, no project write permission required.
+        """
+        versions = []
+        for q in self._queries:
+            ds = getattr(q, "dataset_id", None)
+            ver = getattr(q, "version_id", None)
+            if ds and ver and ds != "*" and ver != "*":
+                versions.append(_dataviews.DataviewEntry(dataset=ds, version=ver))
+        if not versions:
+            raise ValueError(
+                "Cannot fetch DataView contents: no concrete (dataset, version) provided in queries"
+            )
+        iteration = _dataviews.Iteration(
+            order=self._iteration_order,
+            infinite=self._iteration_infinite,
+            random_seed=self._iteration_random_seed,
+            limit=self._iteration_limit,
+        )
+        return DataViewManagementBackend.build_inline_dataview(
+            versions=versions,
+            filters=self._filter_rules or None,
+            iteration=iteration,
+        )
+
+    def store(self, project_name: Optional[str] = None) -> str:
+        """
+        Persist this DataView on the server and return its id.
+
+        DataViews are stored automatically the first time they are iterated, unless
+        ``sdk.development.store_dataviews_on_creation`` is set to false in clearml.conf —
+        in which case this method is the explicit way to persist one.
+
+        :param project_name: Optional project name to attach the DataView to. Overrides
+            the value passed at construction. If omitted, the constructor's value
+            (or the current Task's project as a fallback) is used.
+        :return: The DataView id assigned by the server.
+        :raises: The underlying SendError when the server rejects the create call (for
+            example, when the user lacks write permission to the resolved project).
+        """
+        if project_name is not None:
+            self._project_name = project_name
+        if not self._id:
+            self._create_on_server()
+        return self._id
+
+    def _ensure_created(self) -> None:
+        """
+        Auto-store hook called from read paths that need an id (e.g. iteration).
+
+        Honors ``sdk.development.store_dataviews_on_creation``: when disabled, returns
+        without contacting the server. Errors during the auto-store are caught and
+        logged as a warning so reads can still proceed via the inline frames endpoints.
 
         :return: None
         """
@@ -477,10 +552,22 @@ class DataView:
                         return
             except Exception:
                 pass
-            # If not remote or fetch failed, assume id is valid and return
             if not running_remotely():
                 return
-        # Build versions from queries; require at least one concrete (dataset, version)
+        if not bool(self._store_dataviews_on_creation):
+            return
+        try:
+            self._create_on_server()
+        except Exception as e:
+            # Persisting the DataView is best-effort here — read paths use the inline
+            # frames endpoints and don't need an id. Warn and continue.
+            logging.getLogger("DataView").warning(
+                "Failed to persist DataView on the server (continuing without an id): %s", e
+            )
+            self._id = None
+
+    def _create_on_server(self) -> None:
+        """Build the create payload from local state and persist it. Raises on failure."""
         versions = []
         for q in self._queries:
             ds = getattr(q, "dataset_id", None)
@@ -498,6 +585,7 @@ class DataView:
             random_seed=self._iteration_random_seed,
             limit=self._iteration_limit,
             versions=versions,
+            project_name=self._resolve_project_name(),
         )
         if self._filter_rules:
             DataViewManagementBackend.update_filter_rules(
@@ -551,8 +639,6 @@ class DataView:
         """
         Compute the synthetic epoch size when allow_repetition is enabled.
         """
-        if not self._id:
-            return None
         queries = self.get_queries()
         if len(queries) <= 1:
             return None
@@ -561,7 +647,11 @@ class DataView:
         if all(q.weight is None for q in queries) and not self._iteration_infinite:
             return None
 
-        total, rule_counts = DataViewManagementBackend.get_count_details_for_id(self._id)
+        try:
+            payload = self._build_inline_payload()
+        except ValueError:
+            return None
+        total, rule_counts = DataViewManagementBackend.get_count_details(payload)
         if total and not self._count_cache:
             self._count_cache = int(total)
         if not rule_counts:
@@ -726,12 +816,11 @@ class DataView:
         """
         Fetch total frames count from backend and cache it.
 
-        Requires the dataview to be created. If backend is unavailable, returns 0.
+        Sends an inline DataView spec — no stored id required.
         """
-        self._ensure_created()
         if self._count_cache is not None:
             return self._count_cache
-        total = DataViewManagementBackend.get_count_total_for_id(self._id)
+        total = DataViewManagementBackend.get_count_total(self._build_inline_payload())
         self._count_cache = int(total or 0)
         return self._count_cache
 
@@ -830,6 +919,7 @@ class DataView:
                 except Exception:
                     self._projection = None
             self._query_cache_size = int(query_cache_size or DataView._DEFAULT_LOCAL_BATCH_SIZE)
+            self._inline_payload = None
             self._query_queue_depth = int(query_queue_depth or 5)
             capacity = max(1, self._query_queue_depth)
             self._data_entries_queue: Queue = Queue(maxsize=capacity)
@@ -1075,8 +1165,10 @@ class DataView:
                         else:
                             self._eof_reached = True
                             break
+                    if self._inline_payload is None:
+                        self._inline_payload = self._dataview._build_inline_payload()
                     resp = DataViewManagementBackend.get_next_data_entries(
-                        dataview=self._dataview.id,
+                        dataview=self._inline_payload,
                         scroll_id=scroll_id,
                         batch_size=self._query_cache_size,
                         reset_scroll=reset_scroll or None,
