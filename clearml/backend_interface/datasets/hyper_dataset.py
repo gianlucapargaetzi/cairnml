@@ -173,6 +173,31 @@ class HyperDatasetManagementBackend(IdObjectBase):
         return getattr(res, "response", None)
 
     @classmethod
+    def publish_version(
+        cls,
+        version_id: str,
+        force: bool = False,
+        publishing_task: Optional[str] = None,
+    ):
+        """
+        Publish a dataset version and refresh its statistics.
+
+        :param version_id: Draft version identifier
+        :param force: Force publish even with active annotation tasks
+        :param publishing_task: Annotation task identifier issuing the commit
+        :return: Backend response payload
+        """
+        return cls._send(
+            session=cls._get_default_session(),
+            req=datasets.PublishVersionRequest(
+                version=version_id,
+                force=force or None,
+                publishing_task=publishing_task,
+            ),
+            raise_on_errors=False,
+        )
+
+    @classmethod
     def get_dataset(
         cls,
         name: str,
