@@ -330,15 +330,17 @@ def get_dataviews(task: "Task") -> Dict[str, Any]:
         if not isinstance(private_map, dict):
             private_map = {}
         mapping = task._get_task_property("input.dataviews", raise_on_error=False, log_on_error=False, default={}) or {}
+        if not isinstance(mapping, dict):
+            mapping = {}
         exec_dvs = task._get_task_property("execution.dataviews", raise_on_error=False, log_on_error=False, default=[]) or []
-        exec_by_name = {}
+        # Iterate `execution.dataviews` directly — it carries the full per-name spec regardless
+        # of whether the dataview was persisted server-side. `input.dataviews` only contributes
+        # the stored id when one exists (which may not be the case when auto-store is disabled).
         for item in exec_dvs:
-            nm = item.get("name") if isinstance(item, dict) else getattr(item, "name", None)
-            if nm:
-                exec_by_name[nm] = item
-        for name, dv_id in (mapping.items() if isinstance(mapping, dict) else []):
-            item = exec_by_name.get(name) or {}
-            # build dv from item fields
+            name = item.get("name") if isinstance(item, dict) else getattr(item, "name", None)
+            if not name:
+                continue
+            dv_id = mapping.get(name) if isinstance(mapping, dict) else None
             dv = DataView(
                 iteration_order="sequential", iteration_infinite=False, auto_connect_with_task=False
             )
