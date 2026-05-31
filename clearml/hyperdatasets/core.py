@@ -351,7 +351,9 @@ class HyperDataset(HyperDatasetManagement):
         # Import locally to avoid circular dependencies
         from .data_view import DataView
         data_view = DataView(
-            iteration_order="sequential", iteration_infinite=False, auto_connect_with_task=False
+            iteration_order="sequential",
+            iteration_infinite=False,
+            auto_connect_with_task=False,
         )
 
         have_hashes = False

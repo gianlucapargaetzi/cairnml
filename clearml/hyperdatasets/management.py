@@ -63,9 +63,12 @@ class HyperDatasetManagement:
                 dataset_id=dataset_id, version_name=version_name
             )
             if not resolved_version_id:
-                raise ValueError(
-                    f"{'Version not found: ' + version_name if version_name else 'No versions found'} (dataset={dataset_name or dataset_id})"  # noqa
+                error_message = (
+                    f"Version not found: {version_name}"
+                    if version_name
+                    else "No versions found"
                 )
+                raise ValueError(f"{error_message} (dataset={dataset_name or dataset_id})")
 
         target_cls = cls._result_class()
         obj = target_cls.__new__(target_cls)  # type: ignore[misc]
@@ -220,11 +223,36 @@ class HyperDatasetManagement:
         """
         if not getattr(self, "_version_id", None):
             raise ValueError("HyperDataset instance is not bound to a dataset version")
+
         return HyperDatasetManagementBackend.commit_version(
             version_id=self._version_id,
             publish=publish,
             force=force,
             calculate_stats=calculate_stats,
             override_stats=override_stats,
+            publishing_task=publishing_task,
+        )
+
+    def publish_version(
+        self,
+        *,
+        force: bool = False,
+        publishing_task: Optional[str] = None,
+    ):
+        """
+        Publish the bound HyperDataset version.
+
+        :param publish: Publish the version after committing (optional)
+        :param force: Force publish even with active annotation tasks
+        :param publishing_task: Annotation task identifier issuing the commit
+
+        :return: Backend response payload
+        """
+        if not getattr(self, "_version_id", None):
+            raise ValueError("HyperDataset instance is not bound to a dataset version")
+
+        return HyperDatasetManagementBackend.publish_version(
+            version_id=self._version_id,
+            force=force,
             publishing_task=publishing_task,
         )
