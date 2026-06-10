@@ -13,6 +13,8 @@ class HyperDatasetManagementBackend(IdObjectBase):
     """
     Provide backend-facing helpers for managing HyperDataset collections, versions, and entries.
     """
+    GET_VERSIONS_REQUEST_PAGE_SIZE = 100
+
     @classmethod
     def create_dataset(
         cls,
@@ -195,6 +197,48 @@ class HyperDatasetManagementBackend(IdObjectBase):
                 publishing_task=publishing_task,
             ),
             raise_on_errors=False,
+        )
+
+    @classmethod
+    def publish_and_create_child_version(
+        cls,
+        dataset_id: str,
+        version_id: str,
+        child_name: Optional[str] = None,
+        publish_name: Optional[str] = None,
+        publish_comment: Optional[str] = None,
+        child_comment: Optional[str] = None,
+    ) -> Optional[str]:
+        """
+        Publish and create a child version of a hyperdataset.
+
+        :param dataset_id: Identifier of the dataset collection owning the version
+        :param version_id: Draft/committed version identifier to publish
+        :param child_name: Name for the new child version. When omitted,
+            the backend reuses the parent version name
+        :param publish_name: New name for the published version. When omitted the
+            published version keeps the backend default
+        :param publish_comment: Optional comment for the published version
+        :param child_comment: Optional comment for the new child version
+
+        :return: Identifier of the newly created draft child version, or None
+        """
+        response = cls._send(
+            session=cls._get_default_session(),
+            req=datasets.PublishAndCreateChildVersionRequest(
+                dataset=dataset_id,
+                version=version_id,
+                child_name=child_name,
+                child_comment=child_comment,
+                publish_name=publish_name,
+                publish_comment=publish_comment,
+            ),
+        )
+
+        return getattr(
+            getattr(response, "response", None),
+            "id",
+            None,
         )
 
     @classmethod
@@ -428,6 +472,35 @@ class HyperDatasetManagementBackend(IdObjectBase):
         return False
 
     @classmethod
+    def get_version_by_id(
+        cls,
+        dataset_id: str,
+        version_id: str,
+        only_fields: Optional[List[str]] = None,
+    ) -> Optional[Dict]:
+        response = cls._send(
+            session=cls._get_default_session(),
+            req=datasets.GetVersionsRequest(
+                dataset=dataset_id,
+                versions=[version_id],
+                **({"only_fields": only_fields} if only_fields is not None else {}),
+            ),
+            raise_on_errors=False,
+        )
+        versions = getattr(
+            getattr(response, "response", None),
+            "versions",
+            None,
+        ) or []
+
+        if not isinstance(versions, list) or len(versions) == 0:
+            return None
+        elif len(versions) > 1:
+            raise ValueError(f"More than one HyperDataset version found: {versions}")
+        else:
+            return versions[0]
+
+    @classmethod
     def version_exists(
         cls,
         dataset_id: str,
@@ -449,13 +522,13 @@ class HyperDatasetManagementBackend(IdObjectBase):
                     only_fields=["id"],
                     only_published=False,
                     page=page,
-                    page_size=100,
+                    page_size=cls.GET_VERSIONS_REQUEST_PAGE_SIZE,
                 )
                 res = cls._send(cls._get_default_session(), req, raise_on_errors=False)
                 versions = getattr(getattr(res, "response", None), "versions", None) or []
                 if any(getattr(v, "id", None) == version_id for v in versions):
                     return True
-                if not versions or len(versions) < 100:
+                if not versions or len(versions) < cls.GET_VERSIONS_REQUEST_PAGE_SIZE:
                     return False
                 page += 1
         except Exception:

@@ -1,4 +1,12 @@
-from typing import Optional, Sequence, List, Dict, Any, Type, TypeVar
+from typing import (
+    Optional,
+    Sequence,
+    List,
+    Dict,
+    Any,
+    Type,
+    TypeVar,
+)
 
 from clearml.backend_api import Session
 from clearml.backend_interface.util import get_existing_project
@@ -242,7 +250,6 @@ class HyperDatasetManagement:
         """
         Publish the bound HyperDataset version.
 
-        :param publish: Publish the version after committing (optional)
         :param force: Force publish even with active annotation tasks
         :param publishing_task: Annotation task identifier issuing the commit
 
