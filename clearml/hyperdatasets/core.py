@@ -1,4 +1,5 @@
 import os
+import re
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional, List, Any, Sequence, Dict, Union
 
@@ -25,6 +26,7 @@ TagsInputValue = Union[Sequence[str], str]
 class HyperDataset(HyperDatasetManagement):
     MAX_HASH_FETCH_BATCH_SIZE = 100
     SOURCE_FIELDS = ["source", "preview_source", "mask_source"]
+    SNAPSHOT_VERSION_NAME_REGEX = re.compile(r"snapshot\s+(?P<number>\d+)\s+\((?P<name>.+?)\)")
 
     def __init__(
         self,
@@ -61,6 +63,13 @@ class HyperDataset(HyperDatasetManagement):
         :param raise_if_exists: Reserved flag for compatibility (currently unused)
         """
         Session.verify_feature_set("advanced")
+        self.project_name = project_name
+        self.dataset_name = dataset_name
+        self.version_name = version_name
+        self.description = description
+        self.parent_ids = parent_ids
+        self.field_mappings = field_mappings
+
         try:
             self._project_id = get_or_create_project(Session(), project_name)
         except Exception:
@@ -675,3 +684,46 @@ class HyperDataset(HyperDatasetManagement):
             if isinstance(tags, str)
             else list(tags)
         )
+
+    def create_snapshot(self) -> "HyperDataset":
+        """
+        Publish a snapshot hyperdataset with parent equal to this hyperdataset.
+        Leaves this hyperdataset unchanged.
+
+        :return: A new HyperDataset bound to the newly created (current) child version
+        """
+        new_version_id = HyperDatasetManagementBackend.publish_and_create_child_version(
+            dataset_id=self.dataset_id,
+            version_id=self.version_id,
+        )
+
+        # Update the swapped versions' IDs
+        # This hyperdataset's version ID has been swapped with the new snapshot's ID in the backend,
+        # but not in the SDK, so we do the swap here as well
+        self._version_id, snapshot_version_id = new_version_id, self._version_id
+
+        # Now that we updated the version IDs, we can query the backend
+        # and update the instances as well
+        modified_self_response = HyperDatasetManagementBackend.get_version_by_id(
+            dataset_id=self.dataset_id,
+            version_id=self.version_id,
+        )
+        self.version_name = (
+            getattr(modified_self_response, "name", None)
+            or self.version_name
+        )
+
+        # Instantiate the new hyperdataset
+        snapshot_response = HyperDatasetManagementBackend.get_version_by_id(
+            dataset_id=self.dataset_id,
+            version_id=snapshot_version_id,
+        )
+
+        snapshot_hyperdataset = HyperDataset(
+            project_name=self.project_name,
+            dataset_name=self.dataset_name,
+            version_name=getattr(snapshot_response, "name", None),
+            parent_ids=self._version_id,
+        )
+
+        return snapshot_hyperdataset
