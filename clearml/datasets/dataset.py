@@ -56,7 +56,7 @@ try:
 except ImportError:
     pd = None
 except Exception as e:
-    logging.warning("ClearML Dataset failed importing pandas: {}".format(e))
+    logging.warning(f"ClearML Dataset failed importing pandas: {e}")
     pd = None
 
 try:
@@ -64,7 +64,7 @@ try:
 except ImportError:
     pyarrow = None
 except Exception as e:
-    logging.warning("ClearML Dataset failed importing pyarrow: {}".format(e))
+    logging.warning(f"ClearML Dataset failed importing pyarrow: {e}")
     pyarrow = None
 
 try:
@@ -72,7 +72,7 @@ try:
 except ImportError:
     fastparquet = None
 except Exception as e:
-    logging.warning("ClearML Dataset failed importing fastparquet: {}".format(e))
+    logging.warning(f"ClearML Dataset failed importing fastparquet: {e}")
     fastparquet = None
 
 if TYPE_CHECKING:
@@ -192,7 +192,7 @@ class Dataset:
             self._dataset_version = str(dataset_version).strip()
             if not Version.is_valid_version_string(self._dataset_version):
                 LoggerRoot.get_base_logger().warning(
-                    "Setting non-semantic dataset version '{}'".format(self._dataset_version)
+                    f"Setting non-semantic dataset version '{self._dataset_version}'"
                 )
         if dataset_name == "":
             raise ValueError("`dataset_name` cannot be an empty string")
@@ -291,19 +291,18 @@ class Dataset:
                 # generate the script section
                 script = (
                     "from clearml import Dataset\n\n"
-                    "ds = Dataset.create(dataset_project='{dataset_project}', dataset_name='{dataset_name}', "
-                    "dataset_version='{dataset_version}')\n".format(
-                        dataset_project=dataset_project,
-                        dataset_name=dataset_name,
-                        dataset_version=dataset_version,
-                    )
+                    "ds = Dataset.create("
+                    f"dataset_project='{dataset_project}', "
+                    f"dataset_name='{dataset_name}', "
+                    f"dataset_version='{dataset_version}'"
+                    ")\n"
                 )
                 task.data.script.diff = script
                 task.data.script.working_dir = "."
                 task.data.script.entry_point = "register_dataset.py"
                 from clearml import __version__
 
-                task.data.script.requirements = {"pip": "clearml == {}\n".format(__version__)}
+                task.data.script.requirements = {"pip": f"clearml == {__version__}\n"}
                 # noinspection PyProtectedMember
                 task._edit(script=task.data.script)
                 # if the task is running make sure we ping to the server so it will not be aborted by a watchdog
@@ -332,9 +331,7 @@ class Dataset:
                     self._dataset_version = str(Version(latest_version).get_next_version())
                 except Exception:
                     LoggerRoot.get_base_logger().warning(
-                        "Could not auto-increment version {} of dataset with ID {}".format(
-                            latest_version, self._task.id
-                        )
+                        f"Could not auto-increment version {latest_version} of dataset with ID {self._task.id}"
                     )
         # store current dataset id
         self._id = task.id
@@ -406,7 +403,7 @@ class Dataset:
         version = str(version).strip()
         self._dataset_version = version
         if not Version.is_valid_version_string(version):
-            LoggerRoot.get_base_logger().warning("Setting non-semantic dataset version '{}'".format(version))
+            LoggerRoot.get_base_logger().warning(f"Setting non-semantic dataset version '{version}'")
         # noinspection PyProtectedMember
         self._task._set_runtime_properties({"version": version})
         self._task.set_user_properties(version=version)
@@ -453,17 +450,16 @@ class Dataset:
         """
         max_workers = max_workers or psutil.cpu_count()
         self._dirty = True
+        log_payload = {
+            "path": path,
+            "wildcard": wildcard,
+            "local_base_folder": local_base_folder,
+            "dataset_path": dataset_path,
+            "recursive": recursive,
+            "verbose": verbose,
+        }
         self._task.get_logger().report_text(
-            "Adding files to dataset: {}".format(
-                dict(
-                    path=path,
-                    wildcard=wildcard,
-                    local_base_folder=local_base_folder,
-                    dataset_path=dataset_path,
-                    recursive=recursive,
-                    verbose=verbose,
-                )
-            ),
+            f"Adding files to dataset: {log_payload}",
             print_console=False,
         )
 
@@ -552,7 +548,7 @@ class Dataset:
             if len(dataset_path) != len(source_url):
                 raise ValueError(
                     "dataset_path must be a string or a list of strings with the same length as source_url"
-                    " (received {} paths for {} source urls))".format(len(dataset_path), len(source_url))
+                    f" (received {len(dataset_path)} paths for {len(source_url)} source urls))"
                 )
             dataset_paths = dataset_path
         with ThreadPoolExecutor(max_workers=max_workers) as tp:
@@ -601,10 +597,13 @@ class Dataset:
         :param verbose: If ``True``, print to console files removed
         :return: Number of files removed
         """
+        log_payload = {
+            "dataset_path": dataset_path,
+            "recursive": recursive,
+            "verbose": verbose,
+        }
         self._task.get_logger().report_text(
-            "Removing files from dataset: {}".format(
-                dict(dataset_path=dataset_path, recursive=recursive, verbose=verbose)
-            ),
+            f"Removing files from dataset: {log_payload}",
             print_console=False,
         )
 
@@ -629,7 +628,7 @@ class Dataset:
         for f in org_files:
             if f not in self._dataset_file_entries and f not in self._dataset_link_entries:
                 if verbose:
-                    self._task.get_logger().report_text("Remove {}".format(f))
+                    self._task.get_logger().report_text(f"Remove {f}")
                 removed += 1
 
         # update the task script
@@ -665,13 +664,16 @@ class Dataset:
                 or (local_path / f.relative_path[len(relative_prefix) :]).is_file()
             )
             if not keep and verbose:
-                self._task.get_logger().report_text("Remove {}".format(f.relative_path))
+                self._task.get_logger().report_text(f"Remove {f.relative_path}")
             return keep
 
+        log_payload = {
+            "local_path": local_path,
+            "dataset_path": dataset_path,
+            "verbose": verbose,
+        }
         self._task.get_logger().report_text(
-            "Syncing local copy with dataset: {}".format(
-                dict(local_path=local_path, dataset_path=dataset_path, verbose=verbose)
-            ),
+            f"Syncing local copy with dataset: {log_payload}",
             print_console=False,
         )
 
@@ -707,13 +709,17 @@ class Dataset:
 
         if verbose:
             self._task.get_logger().report_text(
-                "Syncing folder {} : {} files removed, {} added / modified".format(
-                    local_path.as_posix(), num_removed, num_added + num_modified
-                )
+                f"Syncing folder {local_path.as_posix()} : "
+                f"{num_removed} files removed, "
+                f"{num_added + num_modified} added / modified"
             )
 
         # update the task script
-        self._add_script_call("sync_folder", local_path=local_path, dataset_path=dataset_path)
+        self._add_script_call(
+            "sync_folder",
+            local_path=local_path,
+            dataset_path=dataset_path,
+        )
 
         return num_removed, num_added, num_modified
 
@@ -773,23 +779,22 @@ class Dataset:
             )
 
         if upload_as_external_links:
+            log_payload = {
+                "show_progress": show_progress,
+                "verbose": verbose,
+                "output_url": output_url,
+                "compression": compression,
+            }
             self._task.get_logger().report_text(
-                "Uploading dataset files as external links: {}".format(
-                    dict(
-                        show_progress=show_progress,
-                        verbose=verbose,
-                        output_url=output_url,
-                        compression=compression,
-                    )
-                ),
+                f"Uploading dataset files as external links: {log_payload}",
                 print_console=False,
             )
             dest_url = self.get_default_storage()
             if not dest_url:
                 raise ValueError("output_url must be set when upload_as_external_links=True")
-            dest_bucket_dir = "{}/external_links/{}".format(dest_url.rstrip("/"), self._id)
+            dest_bucket_dir = f"{dest_url.rstrip('/')}/external_links/{self._id}"
             files_to_upload = [
-                (f.local_path, "{}/{}".format(dest_bucket_dir, f.relative_path), f.hash)
+                (f.local_path, f"{dest_bucket_dir}/{f.relative_path}", f.hash)
                 for f in self._dataset_file_entries.values()
                 if f.local_path
             ]
@@ -802,7 +807,7 @@ class Dataset:
                     local_path, remote_path, file_hash = args
                     helper = StorageHelper.get(remote_path)
                     if helper is None:
-                        raise ValueError("No storage helper available for: {}".format(remote_path))
+                        raise ValueError(f"No storage helper available for: {remote_path}")
                     helper.upload(
                         src_path=local_path,
                         dest_path=remote_path,
@@ -814,15 +819,14 @@ class Dataset:
             self._dataset_file_entries = {}
             self.add_external_files(dest_bucket_dir, read_hash=True)
 
+        log_payload = {
+            "show_progress": show_progress,
+            "verbose": verbose,
+            "output_url": output_url,
+            "compression": compression,
+        }
         self._task.get_logger().report_text(
-            "Uploading dataset files: {}".format(
-                dict(
-                    show_progress=show_progress,
-                    verbose=verbose,
-                    output_url=output_url,
-                    compression=compression,
-                )
-            ),
+            f"Uploading dataset files: {log_payload}",
             print_console=False,
         )
 
@@ -830,7 +834,11 @@ class Dataset:
         chunks_count = 0
         total_preview_size = 0
         keep_as_file_entry = set()
-        chunk_size = int(self._dataset_chunk_size_mb if not chunk_size else chunk_size)
+        chunk_size = int(
+            chunk_size
+            if chunk_size
+            else self._dataset_chunk_size_mb
+        )
         upload_futures = []
 
         self._fix_dataset_files_parents()
@@ -840,8 +848,12 @@ class Dataset:
                 chunk_size,
                 max_workers,
                 allow_zip_64=True,
-                compression=ZIP_DEFLATED if compression is None else compression,
-                zip_prefix="dataset.{}.".format(self._id),
+                compression=(
+                    compression
+                    if compression is not None
+                    else ZIP_DEFLATED
+                ),
+                zip_prefix=f"dataset.{self._id}.",
                 zip_suffix=".zip",
                 verbose=verbose,
                 task=self._task,
@@ -862,7 +874,7 @@ class Dataset:
                         running_futures.append(upload_future)
                     else:
                         if not upload_future.result():
-                            raise ValueError("Failed uploading dataset with ID {}".format(self._id))
+                            raise ValueError(f"Failed uploading dataset with ID {self._id}")
                 upload_futures = running_futures
 
                 zip_path = Path(zip_.zip_path)
@@ -936,7 +948,9 @@ class Dataset:
 
         # remove files that could not be zipped
         self._dataset_file_entries = {
-            k: v for k, v in self._dataset_file_entries.items() if v.relative_path in keep_as_file_entry
+            k: v
+            for k, v in self._dataset_file_entries.items()
+            if v.relative_path in keep_as_file_entry
         }
 
         # report upload completed
@@ -978,7 +992,7 @@ class Dataset:
         if self._dirty:
             if auto_upload:
                 self._task.get_logger().report_text(
-                    "Pending uploads, starting dataset upload to {}".format(self.get_default_storage())
+                    f"Pending uploads, starting dataset upload to {self.get_default_storage()}"
                 )
                 self.upload()
             elif raise_on_error:
@@ -988,7 +1002,7 @@ class Dataset:
 
         status = self._task.get_status()
         if status not in ("in_progress", "created"):
-            raise ValueError("Cannot finalize dataset, status '{}' is not valid".format(status))
+            raise ValueError(f"Cannot finalize dataset, status '{status}' is not valid")
 
         self._task.get_logger().report_text("Finalizing dataset", print_console=False)
 
@@ -1023,7 +1037,7 @@ class Dataset:
         If type is Pandas DataFrames, optionally make it visible as a table in the UI.
         """
         if metadata_name.startswith(self.__data_entry_name_prefix):
-            raise ValueError("metadata_name can not start with '{}'".format(self.__data_entry_name_prefix))
+            raise ValueError(f"metadata_name can not start with '{self.__data_entry_name_prefix}'")
         self._task.upload_artifact(name=metadata_name, artifact_object=metadata)
         if ui_visible:
             if pd and isinstance(metadata, pd.DataFrame):
@@ -1039,7 +1053,8 @@ class Dataset:
                 )
 
     def get_metadata(
-        self, metadata_name: str = "metadata"
+        self,
+        metadata_name: str = "metadata",
     ) -> Optional[Union[numpy.array, "pd.DataFrame", dict, str, bool]]:
         # noqa: F821
         """
@@ -1070,7 +1085,7 @@ class Dataset:
         """
         # check we can publish this dataset
         if not self.is_final():
-            raise ValueError("Cannot publish dataset, dataset in status {}.".format(self._task.get_status()))
+            raise ValueError(f"Cannot publish dataset, dataset in status {self._task.get_status()}.")
 
         self._task.publish(ignore_errors=raise_on_error)
         return True
@@ -1190,7 +1205,7 @@ class Dataset:
         except Exception:
             if not overwrite:
                 if raise_on_error:
-                    raise ValueError("Target folder {} already contains files".format(target_folder.as_posix()))
+                    raise ValueError(f"Target folder {target_folder.as_posix()} already contains files")
                 else:
                     return None
             shutil.rmtree(target_folder.as_posix())
@@ -1359,11 +1374,9 @@ class Dataset:
                 if file_entry_copy.size != file_entry.size:
                     if verbose:
                         print(
-                            "Error: file size mismatch {} expected size {} current {}".format(
-                                file_entry.relative_path,
-                                file_entry.size,
-                                file_entry_copy.size,
-                            )
+                            f"Error: file size mismatch {file_entry.relative_path} "
+                            f"expected size {file_entry.size} "
+                            f"current {file_entry_copy.size}"
                         )
                     return file_entry
             else:
@@ -1371,13 +1384,9 @@ class Dataset:
                 if file_entry_copy.hash != file_entry.hash:
                     if verbose:
                         print(
-                            "Error: hash mismatch {} expected size/hash {}/{} recalculated {}/{}".format(
-                                file_entry.relative_path,
-                                file_entry.size,
-                                file_entry.hash,
-                                file_entry_copy.size,
-                                file_entry_copy.hash,
-                            )
+                            f"Error: hash mismatch {file_entry.relative_path} "
+                            f"expected size/hash {file_entry.size}/{file_entry.hash} "
+                            f"recalculated {file_entry_copy.size}/{file_entry_copy.hash}"
                         )
                     return file_entry
 
@@ -1524,7 +1533,7 @@ class Dataset:
         if not Dataset.is_offline():
             # noinspection PyProtectedMember
             instance._task.get_logger().report_text(
-                "ClearML results page: {}".format(instance._task.get_output_log_web_page())
+                f"ClearML results page: {instance._task.get_output_log_web_page()}"
             )
             # noinspection PyProtectedMember
             instance._log_dataset_page()
@@ -1587,14 +1596,14 @@ class Dataset:
             system_tags=[cls.__tag],
             type=[str(Task.TaskTypes.data_processing)],
             only_fields=["created", "id", "name"],
-            search_text="{}".format(cls._get_dataset_id_hash(dataset_id)),
+            search_text=f"{cls._get_dataset_id_hash(dataset_id)}",
             search_hidden=True,
             _allow_extra_fields_=True,
         )
         if dependencies:
             dependencies = [d for d in dependencies if d.id != dataset_id]
         if dependencies:
-            raise ValueError("Dataset id={} is used by datasets: {}".format(dataset_id, [d.id for d in dependencies]))
+            raise ValueError(f"Dataset id={dataset_id} is used by datasets: {[d.id for d in dependencies]}")
 
     @classmethod
     def _get_dataset_ids_respecting_params(
@@ -1630,7 +1639,7 @@ class Dataset:
         if entire_dataset:
             if not force:
                 if action:
-                    raise ValueError("Can only {} entire dataset if force is True".format(action))
+                    raise ValueError(f"Can only {action} entire dataset if force is True")
                 raise ValueError("Could not fetch ids for requested datasets")
             hidden_dataset_project, _ = cls._build_hidden_project_name(dataset_project, dataset_name)
             # noinspection PyProtectedMember
@@ -1652,9 +1661,10 @@ class Dataset:
         )
         if not dataset_id:
             raise ValueError(
-                "Could not find dataset to move to another project with project={} name={} version={}".format(
-                    dataset_project, dataset_name, dataset_version
-                )
+                "Could not find dataset to move to another project with "
+                f"project={dataset_project} "
+                f"name={dataset_name} "
+                f"version={dataset_version}"
             )
         # check if someone is using the datasets
         if not force:
@@ -1710,13 +1720,13 @@ class Dataset:
                 action="delete",
             )
         except Exception as e:
-            LoggerRoot.get_base_logger().warning("Failed deleting dataset: {}".format(str(e)))
+            LoggerRoot.get_base_logger().warning(f"Failed deleting dataset: {e}")
             return
         for dataset_id in dataset_ids:
             try:
                 dataset = Dataset.get(dataset_id=dataset_id)
             except Exception as e:
-                LoggerRoot.get_base_logger().warning("Could not get dataset with ID {}: {}".format(dataset_id, str(e)))
+                LoggerRoot.get_base_logger().warning(f"Could not get dataset with ID {dataset_id}: {e}")
                 continue
             # noinspection PyProtectedMember
             dataset._task.delete(delete_artifacts_and_models=delete_files)
@@ -1728,7 +1738,7 @@ class Dataset:
                             helper.delete(external_file.link)
                         except Exception as ex:
                             LoggerRoot.get_base_logger().warning(
-                                "Failed deleting remote file '{}': {}".format(external_file.link, ex)
+                                f"Failed deleting remote file '{external_file.link}': {ex}"
                             )
 
     @classmethod
@@ -1749,7 +1759,7 @@ class Dataset:
             raise ValueError("Cannot rename dataset in offline mode")
         if not bool(Session.check_min_api_server_version(cls.__min_api_version, raise_error=True)):
             LoggerRoot.get_base_logger().warning(
-                "Could not rename dataset because API version < {}".format(cls.__min_api_version)
+                f"Could not rename dataset because API version < {cls.__min_api_version}"
             )
             return
         project, _ = cls._build_hidden_project_name(dataset_project, dataset_name)
@@ -1758,11 +1768,18 @@ class Dataset:
         result = rename_project(Task._get_default_session(), project, new_project)
         if not result:
             LoggerRoot.get_base_logger().warning(
-                "Could not rename dataset with dataset_project={} dataset_name={}".format(dataset_project, dataset_name)
+                "Could not rename dataset with "
+                f"dataset_project={dataset_project} "
+                f"dataset_name={dataset_name}"
             )
 
     @classmethod
-    def _move_to_project_aux(cls, task: Task, new_project: str, dataset_name: str) -> bool:
+    def _move_to_project_aux(
+        cls,
+        task: Task,
+        new_project: str,
+        dataset_name: str,
+    ) -> bool:
         """
         Move a task to another project. Helper function, useful when the task and name of
         the corresponding dataset are known.
@@ -1783,9 +1800,9 @@ class Dataset:
     @classmethod
     def move_to_project(
         cls,
-        new_dataset_project: str,  # str
-        dataset_project: str,  # str
-        dataset_name: str,  # str
+        new_dataset_project: str,
+        dataset_project: str,
+        dataset_name: str,
     ) -> None:
         """
         Move the dataset to another project.
@@ -1798,7 +1815,7 @@ class Dataset:
             raise ValueError("Cannot move dataset project in offline mode")
         if not bool(Session.check_min_api_server_version(cls.__min_api_version, raise_error=True)):
             LoggerRoot.get_base_logger().warning(
-                "Could not move dataset to another project because API version < {}".format(cls.__min_api_version)
+                f"Could not move dataset to another project because API version < {cls.__min_api_version}"
             )
             return
         # noinspection PyBroadException
@@ -1812,7 +1829,7 @@ class Dataset:
                 action="move",
             )
         except Exception as e:
-            LoggerRoot.get_base_logger().warning("Error: {}".format(str(e)))
+            LoggerRoot.get_base_logger().warning(f"Error: {e}")
             return
         for dataset_id in dataset_ids:
             # noinspection PyBroadException
@@ -1899,17 +1916,17 @@ class Dataset:
 
         invalid_kwargs = [kwarg for kwarg in kwargs.keys() if not kwarg.startswith("_")]
         if invalid_kwargs:
-            raise ValueError("Invalid 'Dataset.get' arguments: {}".format(invalid_kwargs))
+            raise ValueError(f"Invalid 'Dataset.get' arguments: {invalid_kwargs}")
 
         def get_instance(dataset_id_: str) -> Dataset:
             task = Task.get_task(task_id=dataset_id_)
 
             if cls.__tag not in task.get_system_tags():
-                raise ValueError("Provided id={} is not a Dataset ID".format(task.id))
+                raise ValueError(f"Provided id={task.id} is not a Dataset ID")
 
             if task.status == "created":
-                raise ValueError("Dataset id={} is in draft mode, delete and recreate it".format(task.id))
-            force_download = False if task.status in ("stopped", "published", "closed", "completed") else True
+                raise ValueError(f"Dataset id={task.id} is in draft mode, delete and recreate it")
+            force_download = task.status not in ("stopped", "published", "closed", "completed")
             if cls.__state_entry_name in task.artifacts:
                 local_state_file = StorageManager.get_local_copy(
                     remote_url=task.artifacts[cls.__state_entry_name].url,
@@ -1919,7 +1936,7 @@ class Dataset:
                     force_download=force_download,
                 )
                 if not local_state_file:
-                    raise ValueError("Could not load Dataset id={} state".format(task.id))
+                    raise ValueError(f"Could not load Dataset id={task.id} state")
             else:
                 # we could not find the serialized state, start empty
                 local_state_file = {}
@@ -1929,7 +1946,10 @@ class Dataset:
                 os.unlink(local_state_file)
             return instance_
 
-        def finish_dataset_get(dataset: Dataset, orig_dataset_id: str) -> Dataset:
+        def finish_dataset_get(
+            dataset: Dataset,
+            orig_dataset_id: str,
+        ) -> Dataset:
             # noinspection PyProtectedMember
             dataset_id_ = dataset._id
             if not current_task or kwargs.get("_dont_populate_runtime_props"):
@@ -1937,35 +1957,32 @@ class Dataset:
             if alias:
                 # noinspection PyProtectedMember
                 current_task._set_parameters(
-                    {"{}/{}".format(cls.__hyperparams_section, alias): dataset_id_},
+                    {f"{cls.__hyperparams_section}/{alias}": dataset_id_},
                     __update=True,
                 )
             # noinspection PyProtectedMember
             runtime_props = current_task._get_runtime_properties()
             used_datasets = list(runtime_props.get(cls.__datasets_runtime_prop, []))
+
             runtime_props_to_set = {}
+
             if dataset_id_ not in used_datasets:
                 used_datasets.append(dataset_id_)
                 runtime_props_to_set.update({cls.__datasets_runtime_prop: used_datasets})
+
             orig_dataset = get_instance(orig_dataset_id)
             # noinspection PyProtectedMember
-            if orig_dataset._dataset_version:
-                runtime_props_to_set.update(
-                    {
-                        "{}.{}/{}".format(
-                            cls.__orig_datasets_runtime_prop_prefix,
-                            orig_dataset.name,
-                            orig_dataset._dataset_version,
-                        ): orig_dataset_id
-                    }
-                )
-            else:
-                runtime_props_to_set.update(
-                    {"{}.{}".format(cls.__orig_datasets_runtime_prop_prefix, orig_dataset.name): orig_dataset_id}
-                )
+            runtime_prop_key = (
+                f"{cls.__orig_datasets_runtime_prop_prefix}.{orig_dataset.name}/{orig_dataset._dataset_version}"
+                if orig_dataset._dataset_version
+                else f"{cls.__orig_datasets_runtime_prop_prefix}.{orig_dataset.name}"
+            )
+            runtime_props_to_set.update({runtime_prop_key: orig_dataset_id})
+
             if runtime_props_to_set:
                 # noinspection PyProtectedMember
                 current_task._set_runtime_properties(runtime_props_to_set)
+
             return dataset
 
         if not dataset_id:
@@ -1986,25 +2003,25 @@ class Dataset:
                 shallow_search=shallow_search,
             )
             if not dataset_id and not auto_create:
+                dataset_attributes = (dataset_project, dataset_name, dataset_version)
                 raise ValueError(
-                    "Could not find Dataset {} {}".format(
-                        "id" if dataset_id else "project/name/version",
-                        dataset_id if dataset_id else (dataset_project, dataset_name, dataset_version),
-                    )
+                    f"Could not find Dataset id {dataset_id}"
+                    if dataset_id
+                    else f"Could not find Dataset project/name/version {dataset_attributes}"
                 )
         orig_dataset_id_ = dataset_id
 
         if alias and overridable and running_remotely():
             remote_task = Task.get_task(task_id=get_remote_task_id())
-            dataset_id = remote_task.get_parameter("{}/{}".format(cls.__hyperparams_section, alias))
+            dataset_id = remote_task.get_parameter(f"{cls.__hyperparams_section}/{alias}")
 
         if not dataset_id:
             if not auto_create:
+                dataset_attributes = (dataset_project, dataset_name, dataset_version)
                 raise ValueError(
-                    "Could not find Dataset {} {}".format(
-                        "id" if dataset_id else "project/name/version",
-                        dataset_id if dataset_id else (dataset_project, dataset_name, dataset_version),
-                    )
+                    f"Could not find Dataset id {dataset_id}"
+                    if dataset_id
+                    else f"Could not find Dataset project/name/version {dataset_attributes}"
                 )
             instance = Dataset.create(
                 dataset_name=dataset_name,
@@ -2167,12 +2184,12 @@ class Dataset:
             if not recursive_project_search:
                 dataset_projects = [
                     exact_match_regex(dataset_project),
-                    "^{}/\\.datasets/.*".format(re.escape(dataset_project)),
+                    f"^{re.escape(dataset_project)}/\\.datasets/.*",
                 ]
             else:
                 dataset_projects = [
                     exact_match_regex(dataset_project),
-                    "^{}/.*".format(re.escape(dataset_project)),
+                    f"^{re.escape(dataset_project)}/.*",
                 ]
         else:
             dataset_projects = None
@@ -2277,7 +2294,7 @@ class Dataset:
                 )
                 for f in file_entries
             ]
-            self._task.get_logger().report_text("Generating SHA2 hash for {} files".format(len(file_entries)))
+            self._task.get_logger().report_text(f"Generating SHA2 hash for {len(file_entries)} files")
             pool = ThreadPool(max_workers)
             try:
                 import tqdm  # noqa
@@ -2340,16 +2357,16 @@ class Dataset:
                 self._dataset_file_entries[f.relative_path] = f
                 if f.relative_path not in self._dataset_link_entries:
                     if verbose:
-                        self._task.get_logger().report_text("Add {}".format(f.relative_path))
+                        self._task.get_logger().report_text(f"Add {f.relative_path}")
                 else:
                     modified_count += 1
                     if verbose:
-                        self._task.get_logger().report_text("Modified {}".format(f.relative_path))
+                        self._task.get_logger().report_text(f"Modified {f.relative_path}")
                 count += 1
 
             elif ds_cur_f.hash != f.hash:
                 if verbose:
-                    self._task.get_logger().report_text("Modified {}".format(f.relative_path))
+                    self._task.get_logger().report_text(f"Modified {f.relative_path}")
                 self._dataset_file_entries[f.relative_path] = f
                 count += 1
             elif f.parent_dataset_id == self._id and ds_cur_f.parent_dataset_id == self._id:
@@ -2357,16 +2374,16 @@ class Dataset:
                 if ds_cur_f.local_path is None:
                     # skipping, already uploaded.
                     if verbose:
-                        self._task.get_logger().report_text("Skipping {}".format(f.relative_path))
+                        self._task.get_logger().report_text(f"Skipping {f.relative_path}")
                 else:
                     # if we never uploaded it, mark for upload
                     if verbose:
-                        self._task.get_logger().report_text("Re-Added {}".format(f.relative_path))
+                        self._task.get_logger().report_text(f"Re-Added {f.relative_path}")
                     self._dataset_file_entries[f.relative_path] = f
                     count += 1
             else:
                 if verbose:
-                    self._task.get_logger().report_text("Unchanged {}".format(f.relative_path))
+                    self._task.get_logger().report_text(f"Unchanged {f.relative_path}")
 
         # We don't count the modified files as added files
         self.update_changed_files(num_files_added=count - modified_count, num_files_modified=modified_count)
@@ -2384,7 +2401,7 @@ class Dataset:
                 new_dependency_graph[dataset["job_id"]] = [dataset_struct[p]["job_id"] for p in dataset["parents"]]
             self._dependency_graph = new_dependency_graph
         except Exception as e:
-            LoggerRoot.get_base_logger().warning("Could not repair dependency graph. Error is: {}".format(e))
+            LoggerRoot.get_base_logger().warning(f"Could not repair dependency graph. Error is: {e}")
 
     def _update_dependency_graph(self) -> None:
         """
@@ -2435,7 +2452,10 @@ class Dataset:
         removed_files_count = 0
         removed_files_size = 0
 
-        def update_changes(entries: Dict[str, FileEntry], parent_entries: Dict[str, FileEntry]) -> None:
+        def update_changes(
+            entries: Dict[str, FileEntry],
+            parent_entries: Dict[str, FileEntry],
+        ) -> None:
             nonlocal total_size
             nonlocal modified_files_count
             nonlocal modified_files_size
@@ -2626,7 +2646,10 @@ class Dataset:
             Useful when one doesn't want to download all the files in a parent dataset, as some files might be removed
         """
 
-        def _download_link(link: LinkEntry, target_path: str) -> None:
+        def _download_link(
+            link: LinkEntry,
+            target_path: str,
+        ) -> None:
             if os.path.exists(target_path):
                 return
             ok = False
@@ -2644,19 +2667,22 @@ class Dataset:
             except Exception as e:
                 error = e
             if not ok:
-                log_string = "Failed downloading {}".format(link.link)
+                log_string = f"Failed downloading {link.link}"
                 if error:
-                    log_string += " Error is '{}'".format(error)
+                    log_string += f" Error is '{error}'"
                 LoggerRoot.get_base_logger().info(log_string)
             else:
                 link.size = Path(target_path).stat().st_size
 
-        def _get_target_path(relative_path: str, target_folder: Union[str, Path]) -> str:
+        def _get_target_path(
+            relative_path: str,
+            target_folder: Union[str, Path],
+        ) -> str:
             if not is_path_traversal(target_folder, relative_path):
                 return os.path.join(target_folder, relative_path)
             else:
                 LoggerRoot.get_base_logger().warning(
-                    "Ignoring relative path `{}`: it must not traverse directories".format(relative_path)
+                    f"Ignoring relative path `{relative_path}`: it must not traverse directories"
                 )
                 return os.path.join(target_folder, os.path.basename(relative_path))
 
@@ -2759,10 +2785,13 @@ class Dataset:
                 name=self._id,
             )
             if not local_zip:
-                raise ValueError("Could not download dataset id={} entry={}".format(self._id, data_artifact_name))
+                raise ValueError(f"Could not download dataset id={self._id} entry={data_artifact_name}")
             return local_zip
 
-        def _extract_part(local_zip: str, data_artifact_name: str) -> None:
+        def _extract_part(
+            local_zip: str,
+            data_artifact_name: str,
+        ) -> None:
             # noinspection PyProtectedMember
             StorageManager._extract_to_cache(
                 cached_file=local_zip,
@@ -2825,8 +2854,18 @@ class Dataset:
             data_artifact_entries = [last_artifact_name]
         prefix = self.__data_entry_name_prefix
         prefix_len = len(prefix)
-        numbers = sorted([int(a[prefix_len:]) for a in data_artifact_entries if a.startswith(prefix)])
-        return "{}{:03d}".format(prefix, numbers[-1] + 1 if numbers else 1)
+        numbers = sorted([
+            int(a[prefix_len:])
+            for a in data_artifact_entries
+            if a.startswith(prefix)
+        ])
+        max_number = (
+            numbers[-1] + 1
+            if numbers
+            else 1
+        )
+
+        return f"{prefix}{max_number:03d}"
 
     def _merge_datasets(
         self,
@@ -2971,7 +3010,11 @@ class Dataset:
         self._release_lock_ds_target_folder(target_base_folder)
         return target_base_folder.absolute().as_posix()
 
-    def _get_dependencies_by_order(self, include_unused: bool = False, include_current: bool = True) -> List[str]:
+    def _get_dependencies_by_order(
+        self,
+        include_unused: bool = False,
+        include_current: bool = True,
+    ) -> List[str]:
         """
         Return the dataset dependencies by order of application (from the last to the current)
         :param include_unused: If ``True`` include unused datasets in the dependencies
@@ -3043,7 +3086,11 @@ class Dataset:
         return self._dependency_graph[self.id]
 
     @classmethod
-    def _deserialize(cls, stored_state: Union[dict, str, Path, _Path], task: Task) -> "Dataset":
+    def _deserialize(
+        cls,
+        stored_state: Union[dict, str, Path, _Path],
+        task: Task,
+    ) -> "Dataset":
         """
         reload a dataset state from the stored_state object
         :param task: Task object associated with the dataset
@@ -3185,14 +3232,15 @@ class Dataset:
 
     def _log_dataset_page(self) -> None:
         if bool(Session.check_min_api_server_version(self.__min_api_version)):
+            app_server_url = self._task._get_app_server()
+            project_query = (
+                self._task.project
+                if self._task.project is not None
+                else "*"
+            )
+            dataset_page_url = f"{app_server_url}/datasets/simple/{project_query}/experiments/{self._task.id}"
             self._task.get_logger().report_text(
-                "ClearML dataset page: {}".format(
-                    "{}/datasets/simple/{}/experiments/{}".format(
-                        self._task._get_app_server(),
-                        self._task.project if self._task.project is not None else "*",
-                        self._task.id,
-                    )
-                )
+                f"ClearML dataset page: {dataset_page_url}"
             )
 
     def _build_dependency_chunk_lookup(self) -> Dict[str, int]:
@@ -3241,24 +3289,40 @@ class Dataset:
         num_parts: Optional[int] = None,
         subset_hash: Optional[str] = None,
     ) -> str:
-        if subset_hash:
-            return "{}{}_{}".format(self.__cache_folder_prefix, self._id, subset_hash)
-        if part is None:
-            return "{}{}".format(self.__cache_folder_prefix, self._id)
-        return "{}{}_{}_{}".format(self.__cache_folder_prefix, self._id, part, num_parts)
+        return (
+            f"{self.__cache_folder_prefix}{self._id}_{subset_hash}"
+            if subset_hash
+            else f"{self.__cache_folder_prefix}{self._id}"
+            if part is None
+            else f"{self.__cache_folder_prefix}{self._id}_{part}_{num_parts}"
+        )
 
-    def _add_script_call(self, func_name: str, **kwargs: Any) -> None:
+    def _add_script_call(
+        self,
+        func_name: str,
+        **kwargs: Any,
+    ) -> None:
         # if we never created the Task, we should not add the script calls
         if not self._created_task:
             return
 
-        args = ", ".join(
-            "\n    {}={}".format(k, "'" + str(v) + "'" if isinstance(v, (str, Path, _Path)) else v)
-            for k, v in kwargs.items()
+        def process_value(value):
+            return (
+                f"'{value}'"
+                if isinstance(value, (str, Path, _Path))
+                else value
+            )
+
+        args = (
+            ", ".join(
+                f"\n    {key}={process_value(value)}"
+                for key, value in kwargs.items()
+            ) + "\n"
+            if kwargs
+            else ""
         )
-        if args:
-            args += "\n"
-        line = "ds.{}({})\n".format(func_name, args)
+
+        line = f"ds.{func_name}({args})\n"
         self._task.data.script.diff += line
         # noinspection PyProtectedMember
         self._task._edit(script=self._task.data.script)
@@ -3347,20 +3411,30 @@ class Dataset:
         # add nodes
         for idx, node in enumerate(nodes):
             visited.append(node)
-            sankey_node["color"].append("mediumpurple" if node == self.id else "lightblue")
-            sankey_node["label"].append("{}".format(node))
+            sankey_node["color"].append(
+                "mediumpurple"
+                if node == self.id
+                else "lightblue"
+            )
+            sankey_node["label"].append(f"{node}")
             sankey_node["customdata"].append(
                 "name {}<br />removed {}<br />modified {}<br />added {}<br />size {}".format(
-                    node_names.get(node, ""), *node_details[node]
+                    node_names.get(node, ""),
+                    *node_details[node],
                 )
             )
 
         # add edges
         for idx, node in enumerate(nodes):
-            if node in self._dependency_graph:
-                parents = [visited.index(p) for p in self._dependency_graph[node] or [] if p in visited]
-            else:
-                parents = [visited.index(p) for p in self.get(dataset_id=node)._get_parents() or [] if p in visited]
+            parents = [
+                visited.index(p)
+                for p in (
+                    self._dependency_graph[node]
+                    if node in self._dependency_graph
+                    else self.get(dataset_id=node)._get_parents()
+                ) or []
+                if p in visited
+            ]
 
             for p in parents:
                 sankey_link["source"].append(p)
@@ -3410,7 +3484,12 @@ class Dataset:
 
         # report genealogy
         if fig:
-            self._task.get_logger().report_plotly(title="__Dataset Genealogy", series="", iteration=0, figure=fig)
+            self._task.get_logger().report_plotly(
+                title="__Dataset Genealogy",
+                series="",
+                iteration=0,
+                figure=fig,
+            )
 
         # report detailed table
         self._task.get_logger().report_table(
@@ -3425,21 +3504,24 @@ class Dataset:
         # this allows for easy version comparison in the UI
         dataset_details = ""
         preview_index = 0
-        file_entries = sorted(list(self._dataset_file_entries.values())) + sorted(
-            list(self._dataset_link_entries.values()), key=lambda x: x.link
-        )
-        while preview_index < self.__preview_max_file_entries and preview_index < len(file_entries):
+        file_entries = [
+            *sorted(list(self._dataset_file_entries.values())),
+            *sorted(
+                list(self._dataset_link_entries.values()),
+                key=lambda x: x.link,
+            )
+        ]
+        while preview_index < min(self.__preview_max_file_entries, len(file_entries)):
             file = file_entries[preview_index]
             if dataset_details:
                 dataset_details += "\n"
             file_name = file.relative_path
             if hasattr(file, "link"):
                 file_name = file.link
-            dataset_details += "{}, {}, {}".format(
-                file_name,
-                file.size if file.size is not None else "",
-                file.hash if file.hash else "",
-            )
+
+            file_size_desc = file.size if file.size is not None else ""
+            file_hash_desc = file.hash if file.hash else ""
+            dataset_details += f"{file_name}, {file_size_desc}, {file_hash_desc}"
             preview_index += 1
         if not self._ds_total_size:
             self._report_dataset_struct()
@@ -3542,7 +3624,9 @@ class Dataset:
         self.__preview_tabular_row_count = int(self.__preview_tabular_row_count)
 
         def convert_to_tabular_artifact(
-            file_path_: str, file_extension_: str, compression_: Optional[str] = None
+            file_path_: str,
+            file_extension_: str,
+            compression_: Optional[str] = None,
         ) -> Optional["pandas.DataFrame"]:
             # noinspection PyBroadException
             try:
@@ -3891,7 +3975,7 @@ class Dataset:
         except Exception:
             pass
         if not remote_objects:
-            self._task.get_logger().report_text("Could not list/find remote file(s) when adding {}".format(source_url))
+            self._task.get_logger().report_text(f"Could not list/find remote file(s) when adding {source_url}")
             return 0, 0
         num_added = 0
         num_modified = 0
@@ -3911,7 +3995,7 @@ class Dataset:
                 if existing_link is None:
                     if verbose:
                         self._task.get_logger().report_text(
-                            "External file {} added".format(link),
+                            f"External file {link} added",
                             print_console=False,
                         )
                     self._dataset_link_entries[relative_path] = LinkEntry(
@@ -3927,7 +4011,7 @@ class Dataset:
                 ):
                     if verbose:
                         self._task.get_logger().report_text(
-                            "External file {} modified".format(link),
+                            f"External file {link} modified",
                             print_console=False,
                         )
                     del self._dataset_file_entries[relative_path]
@@ -3944,7 +4028,7 @@ class Dataset:
                 ):
                     if verbose:
                         self._task.get_logger().report_text(
-                            "External file {} modified".format(link),
+                            f"External file {link} modified",
                             print_console=False,
                         )
                     self._dataset_link_entries[relative_path] = LinkEntry(
@@ -3958,18 +4042,22 @@ class Dataset:
                 else:
                     if verbose:
                         self._task.get_logger().report_text(
-                            "External file {} skipped as it was not modified".format(link),
+                            f"External file {link} skipped as it was not modified",
                             print_console=False,
                         )
             except Exception as e:
                 if verbose:
                     self._task.get_logger().report_text(
-                        "Error '{}' encountered trying to add external file {}".format(e, link),
+                        f"Error '{e}' encountered trying to add external file {link}",
                         print_console=False,
                     )
         return num_added, num_modified
 
-    def _build_chunk_selection(self, part: int, num_parts: int) -> Dict[str, int]:
+    def _build_chunk_selection(
+        self,
+        part: int,
+        num_parts: int,
+    ) -> Dict[str, int]:
         """
         Build the selected chunks from each parent version, based on the current selection.
         Notice that for a specific part, one can only get the chunks from parent versions (not including this one)
@@ -4063,9 +4151,10 @@ class Dataset:
             datasets = []
         if raise_on_multiple and len(datasets) > 1:
             raise ValueError(
-                "Multiple datasets found with dataset_project={}, dataset_name={}, dataset_version={}".format(
-                    dataset_project, dataset_name, dataset_version
-                )
+                "Multiple datasets found with "
+                f"dataset_project={dataset_project}, "
+                f"dataset_name={dataset_name}, "
+                f"dataset_version={dataset_version}"
             )
         result_dataset = None
         for dataset in datasets:
@@ -4097,9 +4186,10 @@ class Dataset:
             elif dataset_version == candidate_dataset_version:
                 if result_dataset and raise_on_multiple:
                     raise ValueError(
-                        "Multiple datasets found with dataset_project={}, dataset_name={}, dataset_version={}".format(
-                            dataset_project, dataset_name, dataset_version
-                        )
+                        "Multiple datasets found with "
+                        f"dataset_project={dataset_project}, "
+                        f"dataset_name={dataset_name}, "
+                        f"dataset_version={dataset_version}"
                     )
                 result_dataset = dataset
                 if not raise_on_multiple:
@@ -4109,7 +4199,11 @@ class Dataset:
         return result_dataset.id, result_dataset.runtime.get("version")
 
     @classmethod
-    def _build_hidden_project_name(cls, dataset_project: str, dataset_name: str) -> Tuple[Optional[str], Optional[str]]:
+    def _build_hidden_project_name(
+        cls,
+        dataset_project: str,
+        dataset_name: str,
+    ) -> Tuple[Optional[str], Optional[str]]:
         """
         Build the corresponding hidden name of a dataset, given its ``dataset_project``
         and ``dataset_name``
@@ -4124,9 +4218,13 @@ class Dataset:
             return None, None
         project_name = cls._remove_hidden_part_from_dataset_project(dataset_project)
         if Dataset.is_offline() or bool(Session.check_min_api_server_version(cls.__min_api_version)):
-            parent_project = "{}.datasets".format(dataset_project + "/" if dataset_project else "")
+            parent_project = (
+                f"{dataset_project}/.datasets"
+                if dataset_project
+                else ".datasets"
+            )
             if dataset_name:
-                project_name = "{}/{}".format(parent_project, dataset_name)
+                project_name = f"{parent_project}/{dataset_name}"
         else:
             parent_project = None
             project_name = dataset_project or "Datasets"
