@@ -44,7 +44,8 @@ from urllib.request import url2pathname
 from attr import attrs, attrib, asdict
 
 if TYPE_CHECKING:
-    from azure.storage.blob import ContentSettings
+    from azure.storage.blob import ContentSettings, BlobServiceClient
+    from azure.identity import DefaultAzureCredential
 
 from furl import furl
 from pathlib2 import Path
@@ -83,6 +84,18 @@ from ..storage.util import get_config_object_matcher
 from ..storage.hashing import sha256sum
 from ..utilities.config import get_percentage, get_human_size_default
 from ..backend_config.environment import EnvEntry
+
+try:
+    from azure.storage.blob import BlobServiceClient  # noqa: F811
+    is_blob_service_client_installed = True
+except ImportError:
+    is_blob_service_client_installed = False
+
+try:
+    from azure.identity import DefaultAzureCredential  # noqa: F811
+    is_default_azure_credential_installed = True
+except ImportError:
+    is_default_azure_credential_installed = False
 
 
 class StorageError(Exception):
@@ -1287,58 +1300,67 @@ class _AzureBlobServiceStorageDriver(_Driver):
             self.name = name
             self.config = config
             self.account_url = account_url
-            try:
-                from azure.storage.blob import BlobServiceClient  # noqa
+            self.blob_service = self.init_blob_service(
+                account_url=account_url,
+                config=config,
+                max_single_put_size=self.MAX_SINGLE_PUT_SIZE,
+            )
 
-                self.__legacy = False
-            except ImportError:
-                try:
-                    # TODO: 'BlockBlobService' not available in Python 3.6+, marked as dead code.
-                    from azure.storage.blob import BlockBlobService  # noqa
-                    from azure.common import AzureHttpError  # noqa
+        def init_blob_service(
+            self,
+            account_url: str,
+            config: AzureContainerConfig,
+            max_single_put_size: int,
+        ) -> "BlobServiceClient":
+            """
+            Initializes Azure's BlobServiceClient class.
 
-                    self.__legacy = True
-                except ImportError:
-                    raise UsageError(
-                        "Azure blob storage driver not found. "
-                        "Please install driver using: 'pip install clearml[azure]' or "
-                        "pip install '\"azure.storage.blob>=12.0.0\"'"
-                    )
+            Credentials can be provided either
+            - explicitly with account_name and account_key via the AzureContainerConfig object (use clearml.conf)
+            - implicitly via DefaultAzureCredential (set use_default_credential: true in clearml.conf)
 
-            if self.__legacy:
-                if self.config.use_default_credential:
-                    raise UsageError(
-                        "DefaultAzureCredential is not supported by the legacy azure.storage.blob driver. "
-                        "Please upgrade with: pip install '\"azure.storage.blob>=12.0.0\"'"
-                    )
-                self.__blob_service = BlockBlobService(
-                    account_name=self.config.account_name,
-                    account_key=self.config.account_key,
+            :param account_url: The URL of the storage container.
+            :param config: The configuration of this Azure container.
+            :param max_single_put_size: Maximal size of a single chunk to upload files.
+
+            :return: The configured BlobServiceClient.
+            """
+            if not is_blob_service_client_installed:
+                raise UsageError(
+                    "Azure blob storage driver not found. "
+                    "Please install driver using: 'pip install clearml[azure]' or "
+                    "pip install '\"azure.storage.blob>=12.0.0\"'"
                 )
-                self.__blob_service.MAX_SINGLE_PUT_SIZE = self.MAX_SINGLE_PUT_SIZE
-                self.__blob_service.socket_timeout = self.SOCKET_TIMEOUT
-            else:
-                if self.config.use_default_credential:
-                    try:
-                        from azure.identity import DefaultAzureCredential  # noqa
-                    except ImportError:
-                        raise UsageError(
-                            "azure-identity package is required to use DefaultAzureCredential. "
-                            "Please install it using: 'pip install azure-identity'"
-                        )
 
-                self.__blob_service = BlobServiceClient(
-                    account_url=account_url,
-                    credential=(
-                        DefaultAzureCredential()
-                        if self.config.use_default_credential
-                        else {
-                            "account_name": self.config.account_name,
-                            "account_key": self.config.account_key,
-                        }
-                    ),
-                    max_single_put_size=self.MAX_SINGLE_PUT_SIZE,
+            if (
+                config.use_default_credential
+                and not is_default_azure_credential_installed
+            ):
+                raise UsageError(
+                    "azure-identity package is required to use DefaultAzureCredential. "
+                    "Please install it using: 'pip install azure-identity'"
                 )
+
+            return BlobServiceClient(
+                account_url=account_url,
+                credential=(
+                    DefaultAzureCredential()
+                    if config.use_default_credential
+                    else {
+                        "account_name": config.account_name,
+                        "account_key": config.account_key,
+                    }
+                ),
+                max_single_put_size=max_single_put_size,
+            )
+
+        @property
+        def blob_service(self) -> "BlobServiceClient":
+            return self.__blob_service
+
+        @blob_service.setter
+        def blob_service(self, blob_service: "BlobServiceClient") -> None:
+            self.__blob_service = blob_service
 
         @staticmethod
         def _get_max_connections_dict(
@@ -1363,23 +1385,18 @@ class _AzureBlobServiceStorageDriver(_Driver):
             content_settings: Optional["ContentSettings"] = None,
             metadata: Optional[Dict[str, str]] = None,
         ) -> None:
-            if self.__legacy:
-                self.__blob_service.create_blob_from_bytes(
-                    container_name,
-                    object_name,
-                    data,
-                    progress_callback=progress_callback,
-                    **self._get_max_connections_dict(max_connections),
-                )
-            else:
-                client = self.__blob_service.get_blob_client(container_name, blob_name)
-                client.upload_blob(
-                    data,
-                    overwrite=True,
-                    content_settings=content_settings,
-                    **({"metadata": metadata} if metadata else {}),
-                    **self._get_max_connections_dict(max_connections, key="max_concurrency"),
-                )
+            client = self.blob_service.get_blob_client(
+                container=container_name,
+                blob=blob_name,
+            )
+
+            client.upload_blob(
+                data=data,
+                overwrite=True,
+                content_settings=content_settings,
+                **({"metadata": metadata} if metadata else {}),
+                **self._get_max_connections_dict(max_connections, key="max_concurrency"),
+            )
 
         def create_blob_from_path(
             self,
@@ -1391,43 +1408,40 @@ class _AzureBlobServiceStorageDriver(_Driver):
             progress_callback: Optional[Callable[[int, int], None]] = None,
             metadata: Optional[Dict[str, str]] = None,
         ) -> None:
-            if self.__legacy:
-                self.__blob_service.create_blob_from_path(
-                    container_name,
-                    blob_name,
-                    path,
+            with open(path, "rb") as data_file:
+                self.create_blob_from_data(
+                    container_name=container_name,
+                    object_name=None,
+                    blob_name=blob_name,
+                    data=data_file,
                     content_settings=content_settings,
-                    progress_callback=progress_callback,
-                    **self._get_max_connections_dict(max_connections),
+                    max_connections=max_connections,
+                    metadata=metadata,
                 )
-            else:
-                with open(path, "rb") as f:
-                    self.create_blob_from_data(
-                        container_name=container_name,
-                        object_name=None,
-                        blob_name=blob_name,
-                        data=f,
-                        content_settings=content_settings,
-                        max_connections=max_connections,
-                        metadata=metadata,
-                    )
 
-        def delete_blob(self, container_name: str, blob_name: str) -> None:
-            if self.__legacy:
-                self.__blob_service.delete_blob(
-                    container_name,
-                    blob_name,
-                )
-            else:
-                client = self.__blob_service.get_blob_client(container_name, blob_name)
-                client.delete_blob()
+        def delete_blob(
+            self,
+            container_name: str,
+            blob_name: str,
+        ) -> None:
+            client = self.blob_service.get_blob_client(
+                container=container_name,
+                blob=blob_name,
+            )
 
-        def exists(self, container_name: str, blob_name: str) -> bool:
-            if self.__legacy:
-                return not self.__blob_service.exists(container_name, blob_name)
-            else:
-                client = self.__blob_service.get_blob_client(container_name, blob_name)
-                return client.exists()
+            client.delete_blob()
+
+        def exists(
+            self,
+            container_name: str,
+            blob_name: str,
+        ) -> bool:
+            client = self.blob_service.get_blob_client(
+                container=container_name,
+                blob=blob_name,
+            )
+
+            return client.exists()
 
         def list_blobs(
             self,
@@ -1435,24 +1449,24 @@ class _AzureBlobServiceStorageDriver(_Driver):
             prefix: Optional[str] = None,
             include: Optional[List[str]] = None,
         ) -> Any:
-            if self.__legacy:
-                return self.__blob_service.list_blobs(
-                    container_name=container_name,
-                    prefix=prefix,
-                )
-            else:
-                client = self.__blob_service.get_container_client(container_name)
-                return client.list_blobs(
-                    name_starts_with=prefix,
-                    **({"include": include} if include else {}),
-                )
+            client = self.blob_service.get_container_client(container=container_name)
 
-        def get_blob_properties(self, container_name: str, blob_name: str) -> Any:
-            if self.__legacy:
-                return self.__blob_service.get_blob_properties(container_name, blob_name)
-            else:
-                client = self.__blob_service.get_blob_client(container_name, blob_name)
-                return client.get_blob_properties()
+            return client.list_blobs(
+                name_starts_with=prefix,
+                **({"include": include} if include else {}),
+            )
+
+        def get_blob_properties(
+            self,
+            container_name: str,
+            blob_name: str,
+        ) -> Any:
+            client = self.blob_service.get_blob_client(
+                container=container_name,
+                blob=blob_name,
+            )
+
+            return client.get_blob_properties()
 
         def get_blob_to_bytes(
             self,
@@ -1460,15 +1474,12 @@ class _AzureBlobServiceStorageDriver(_Driver):
             blob_name: str,
             progress_callback: Optional[Callable[[int, int], None]] = None,
         ) -> bytes:
-            if self.__legacy:
-                return self.__blob_service.get_blob_to_bytes(
-                    container_name,
-                    blob_name,
-                    progress_callback=progress_callback,
-                )
-            else:
-                client = self.__blob_service.get_blob_client(container_name, blob_name)
-                return client.download_blob().content_as_bytes()
+            client = self.blob_service.get_blob_client(
+                container=container_name,
+                blob=blob_name,
+            )
+
+            return client.download_blob().content_as_bytes()
 
         def get_blob_to_path(
             self,
@@ -1478,27 +1489,25 @@ class _AzureBlobServiceStorageDriver(_Driver):
             max_connections: Optional[int] = None,
             progress_callback: Optional[Callable] = None,
         ) -> None:
-            if self.__legacy:
-                return self.__blob_service.get_blob_to_path(
-                    container_name,
-                    blob_name,
-                    path,
-                    progress_callback=progress_callback,
-                    **self._get_max_connections_dict(max_connections),
-                )
-            else:
-                client = self.__blob_service.get_blob_client(container_name, blob_name)
-                with open(path, "wb") as file:
-                    return client.download_blob(
-                        **self._get_max_connections_dict(max_connections, key="max_concurrency")
-                    ).download_to_stream(file)
+            client = self.blob_service.get_blob_client(
+                container=container_name,
+                blob=blob_name,
+            )
+
+            with open(path, "wb") as file:
+                return client.download_blob(
+                    **self._get_max_connections_dict(max_connections, key="max_concurrency")
+                ).download_to_stream(file)
 
         def is_legacy(self) -> bool:
-            return self.__legacy
+            """
+            Deprecated. Do not use this method, it has no effect.
 
-        @property
-        def blob_service(self) -> Any:
-            return self.__blob_service
+            Previously, this method was a boolean gate for 'azure.storage.blog.BlobServiceClient' to fallback on
+            'azure.storage.blob.BlockBlobService' when not available.
+            In Python 3.6+, BlockBlobService has been deprecated, so this workaround was deprecated as well.
+            """
+            return False
 
     @attrs
     class _Object:
@@ -1644,14 +1653,7 @@ class _AzureBlobServiceStorageDriver(_Driver):
         # blob_name = self._blob_name_from_object_path(object_name, container_name)
         blob = container.get_blob_properties(container.name, object_name)
 
-        if container.is_legacy():
-            return self._Object(
-                container=container,
-                blob_name=blob.name,
-                content_length=blob.properties.content_length,
-            )
-        else:
-            return self._Object(container=container, blob_name=blob.name, content_length=blob.size)
+        return self._Object(container=container, blob_name=blob.name, content_length=blob.size)
 
     def download_object_as_stream(self, obj: Any, verbose: bool, *_: Any, **__: Any) -> bytes:
         container = obj.container
@@ -1669,10 +1671,7 @@ class _AzureBlobServiceStorageDriver(_Driver):
             progress_callback=cb,
         )
         cb.close()
-        if container.is_legacy():
-            return blob.content
-        else:
-            return blob
+        return blob
 
     def download_object(
         self,
@@ -1709,8 +1708,6 @@ class _AzureBlobServiceStorageDriver(_Driver):
             max_connections=max_connections,
             progress_callback=callback_func,
         )
-        if container.is_legacy():
-            download_done.wait()
 
     def test_upload(self, test_path: str, config: Any, **_: Any) -> bool:
         container = self.get_container(config=config)
