@@ -1929,17 +1929,43 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         """
         Get the current Task's project name.
         """
-        if self.project is None:
-            return self._project_name[1] if self._project_name and len(self._project_name) > 1 else None
+        if self.project is not None:
+            if (
+                self._project_name
+                and self._project_name[0] == self.project
+                and self._project_name[1] is not None
+            ):
+                return self._project_name[1]
+            else:
+                res = self.send(
+                    req=projects.GetByIdRequest(
+                        project=self.project,
+                    ),
+                    raise_on_errors=False,
+                )
 
-        if self._project_name and self._project_name[1] is not None and self._project_name[0] == self.project:
-            return self._project_name[1]
+                if (
+                    res
+                    and res.response
+                    and res.response.project
+                ):
+                    self._project_name = (
+                        self.project,
+                        res.response.project.name,
+                    )
 
-        res = self.send(projects.GetByIdRequest(project=self.project), raise_on_errors=False)
-        if not res or not res.response or not res.response.project:
-            return None
-        self._project_name = (self.project, res.response.project.name)
-        return self._project_name[1]
+                    return self._project_name[1]
+                else:
+                    return None
+        else:
+            return (
+                self._project_name[1]
+                if (
+                    self._project_name
+                    and len(self._project_name) >= 2
+                )
+                else None
+            )
 
     def get_project_object(self) -> "projects.Project":
         """Get the current Task's project as a python object."""
