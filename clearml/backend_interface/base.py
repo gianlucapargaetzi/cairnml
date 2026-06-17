@@ -41,7 +41,12 @@ class InterfaceBase(SessionInterface):
     def log(self) -> logging.Logger:
         return self._log
 
-    def __init__(self, session: Session = None, log: logging.Logger = None, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        session: Session = None,
+        log: logging.Logger = None,
+        **_: Any,
+    ) -> None:
         super(InterfaceBase, self).__init__()
         self._session = session or self._get_default_session()
         self._log = log or self._create_log()
