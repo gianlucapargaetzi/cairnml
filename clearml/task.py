@@ -56,6 +56,7 @@ from .backend_api.session.defs import (
 from .backend_interface.metrics import Metrics
 from .backend_interface.model import Model as BackendModel
 from .backend_interface.base import InterfaceBase
+from .backend_interface.routers import RouterService
 from .backend_interface.task import Task as _Task
 from .backend_interface.task.log import TaskHandler
 from .backend_interface.task.development.worker import DevWorker
@@ -1014,8 +1015,10 @@ class Task(_Task):
         Session.verify_feature_set("advanced")
         if protocol not in self._external_endpoint_port_map.keys():
             raise ValueError(f"Invalid protocol: {protocol}")
+
+        router_service = RouterService()
         if static_route:
-            self._validate_static_route(static_route)
+            router_service.validate_static_route(static_route)
 
         self.reload()
         runtime_props = self._get_runtime_properties()
@@ -1076,9 +1079,10 @@ class Task(_Task):
             ] = port
 
         if static_route:
+            route_type = router_service.get_route_type(static_route)
             runtime_properties_to_set.update(
                 {
-                    self._compose_runtime_key("_ROUTER_ENDPOINT_MODE", runtime_key_suffix): "path",
+                    self._compose_runtime_key("_ROUTER_ENDPOINT_MODE", runtime_key_suffix): route_type,
                     self._compose_runtime_key("_ROUTER_ENDPOINT_MODE_PARAM", runtime_key_suffix): static_route,
                 }
             )
