@@ -1,4 +1,13 @@
-from typing import Any, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import (
+    Any,
+    Iterable,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+)
 
 from ..base import IdObjectBase
 from ..util import get_or_create_project, make_message
@@ -39,41 +48,83 @@ class DataViewManagementBackend(IdObjectBase):
 
         :return: Identifier of the created DataView
         """
-        dv_entries = None
-        if versions:
-            dv_entries = []
-            for v in versions:
-                if isinstance(v, dict):
-                    ds = v.get("dataset")
-                    ver = v.get("version")
-                elif isinstance(v, (tuple, list)) and len(v) >= 2:
-                    ds, ver = v[0], v[1]
-                else:
-                    continue
-                if ds and ver and ds != "*" and ver != "*":
-                    dv_entries.append(dataviews.DataviewEntry(dataset=ds, version=ver))
+        def convert_version_to_dataview_entry(
+            version: Union[Mapping[str, str], Sequence[str]],
+        ) -> Optional[Any]:  # Optional[dataviews.DataviewEntry]
+            dataset, dataset_version = (
+                (version.get("dataset"), version.get("version"))
+                if isinstance(version, dict)
+                else (version[0], version[1])
+                if isinstance(version, (tuple, list)) and len(version) >= 2
+                else (None, None)
+            )
+
+            return (
+                dataviews.DataviewEntry(
+                    dataset=dataset,
+                    version=dataset_version,
+                )
+                if (
+                    (dataset and dataset != "*")
+                    and (dataset_version and dataset_version != "*")
+                )
+                else None
+            )
+
         session = cls._get_default_session()
-        project_id = get_or_create_project(session, project_name) if project_name else None
-        req = dataviews.CreateRequest(
-            name=name or make_message('Anonymous dataview (%(user)s@%(host)s %(time)s)'),
-            description=description or make_message('Auto-generated on %(time)s by %(user)s@%(host)s'),
-            tags=tags,
-            filters=[],
-            versions=dv_entries,
-            iteration=dataviews.Iteration(
-                order=order,
-                infinite=infinite,
-                random_seed=random_seed,
-                limit=limit,
-            ),
-            project=project_id,
+        dataview_entries = (
+            [
+                dataview_entry
+                for dataview_entry in (
+                    [
+                        convert_version_to_dataview_entry(version=version)
+                        for version in versions
+                    ]
+                )
+                if dataview_entry is not None
+            ]
+            if versions
+            else None
         )
+        project_id = (
+            get_or_create_project(session, project_name)
+            if project_name
+            else None
+        )
+
         # TODO: check if we need a creation lock
-        res = cls._send(session, req)
-        return res.response.id
+        response = cls._send(
+            session=session,
+            req=dataviews.CreateRequest(
+                name=(
+                    name
+                    or make_message('Anonymous dataview (%(user)s@%(host)s %(time)s)'),
+                ),
+                description=(
+                    description
+                    or make_message('Auto-generated on %(time)s by %(user)s@%(host)s'),
+                ),
+                tags=tags,
+                filters=[],
+                versions=dataview_entries,
+                iteration=dataviews.Iteration(
+                    order=order,
+                    infinite=infinite,
+                    random_seed=random_seed,
+                    limit=limit,
+                ),
+                project=project_id,
+            ),
+        )
+
+        return response.response.id
 
     @classmethod
-    def update_filter_rules(cls, dataview_id, filter_rules):
+    def update_filter_rules(
+        cls,
+        dataview_id: str,
+        filter_rules: Sequence[Any],  # Sequence[dataviews.FilterRule]
+    ):
         """
         Replace filter rules associated with a DataView.
 
@@ -82,15 +133,18 @@ class DataViewManagementBackend(IdObjectBase):
 
         :return: True when the backend confirms a successful update
         """
-        req = dataviews.UpdateRequest(dataview=dataview_id, filters=filter_rules)
-        res = cls._send(cls._get_default_session(), req)
-        updated = res.response.updated
-        if updated >= 1:
-            return True
-        return False
+        response = cls._send(
+            session=cls._get_default_session(),
+            req=dataviews.UpdateRequest(
+                dataview=dataview_id,
+                filters=filter_rules,
+            ),
+        )
+
+        return response.response.updated >= 1
 
     @classmethod
-    def get_by_id(cls, dataview_id):
+    def get_by_id(cls, dataview_id: str):
         """
         Fetch a DataView definition using its identifier.
 
@@ -99,23 +153,26 @@ class DataViewManagementBackend(IdObjectBase):
         :return: DataView object from the backend or None when missing
         """
         try:
-            req = dataviews.GetByIdRequest(dataview=dataview_id)
-            res = cls._send(cls._get_default_session(), req, raise_on_errors=False)
-            return getattr(getattr(res, "response", None), "dataview", None)
+            response = cls._send(
+                session=cls._get_default_session(),
+                req=dataviews.GetByIdRequest(dataview=dataview_id),
+                raise_on_errors=False,
+            )
+            return getattr(getattr(response, "response", None), "dataview", None)
         except Exception:
             return None
 
     @classmethod
     def create_filter_rule(
         cls,
-        dataset,
-        label_rules=None,
-        filter_by_roi=None,
-        frame_query=None,
-        sources_query=None,
-        version=None,
-        weight=None,
-    ):
+        dataset: str,
+        label_rules: Optional[Sequence[Any]] = None,  # Optional[Sequence[dataviews.FilterLabelRule]]
+        filter_by_roi: Optional[Any] = None,  # Optional[FilterByRoiEnum]
+        frame_query: Optional[str] = None,
+        sources_query: Optional[str] = None,
+        version: Optional[str] = None,
+        weight: Optional[float] = None,
+    ) -> Any:  # dataviews.FilterRule
         """
         Build a filter rule structure compatible with DataView update requests.
 
@@ -153,32 +210,51 @@ class DataViewManagementBackend(IdObjectBase):
         Accepts SDK-side `dataviews.*` objects (`DataviewEntry`, `FilterRule`, `Iteration`) or
         raw dicts; round-trips them through `frames.Dataview.from_dict()`.
         """
-        payload = {}
-        if versions:
-            payload["versions"] = [
-                v.to_dict() if hasattr(v, "to_dict") else dict(v) for v in versions
-            ]
-        if filters:
-            payload["filters"] = [
-                f.to_dict() if hasattr(f, "to_dict") else dict(f) for f in filters
-            ]
-        if iteration is not None:
-            payload["iteration"] = (
-                iteration.to_dict() if hasattr(iteration, "to_dict") else dict(iteration)
+        def convert_value_to_dict(value: Any) -> dict:
+            return (
+                value.to_dict()
+                if hasattr(value, "to_dict")
+                else dict(value)
             )
-        if output_rois is not None:
-            payload["output_rois"] = output_rois
-        return frames.Dataview.from_dict(payload)
+
+        return frames.Dataview.from_dict({
+            **(
+                {"versions": [
+                    convert_value_to_dict(version)
+                    for version in versions
+                ]}
+                if versions
+                else {}
+            ),
+            **(
+                {"filters": [
+                    convert_value_to_dict(filter_)
+                    for filter_ in filters
+                ]}
+                if filters
+                else {}
+            ),
+            **(
+                {"iteration": convert_value_to_dict(iteration)}
+                if iteration is not None
+                else {}
+            ),
+            **(
+                {"output_rois": output_rois}
+                if output_rois is not None
+                else {}
+            ),
+        })
 
     @classmethod
     def get_next_data_entries(
         cls,
-        dataview: Any,
+        dataview: Any,  # dataviews.Dataview
         scroll_id: Optional[str] = None,
         batch_size: int = 500,
         reset_scroll: Optional[bool] = None,
         force_scroll_id: Optional[bool] = None,
-        flow_control: Optional[Any] = None,
+        flow_control: Optional[Any] = None,  # Optional[frames.FlowControl]
         random_seed: Optional[int] = None,
         node: Optional[int] = None,
         projection: Optional[Sequence[str]] = None,
@@ -203,24 +279,30 @@ class DataViewManagementBackend(IdObjectBase):
 
         :return: Backend response object containing frames and continuation metadata
         """
-        req = frames.GetNextForDataviewRequest(
-            dataview=dataview,
-            scroll_id=scroll_id,
-            batch_size=batch_size,
-            reset_scroll=reset_scroll,
-            force_scroll_id=force_scroll_id,
-            flow_control=flow_control,
-            random_seed=random_seed,
-            node=node,
-            projection=projection,
-            remove_none_values=remove_none_values,
-            clean_subfields=clean_subfields,
+        response = cls._send(
+            session=cls._get_default_session(),
+            req=frames.GetNextForDataviewRequest(
+                dataview=dataview,
+                scroll_id=scroll_id,
+                batch_size=batch_size,
+                reset_scroll=reset_scroll,
+                force_scroll_id=force_scroll_id,
+                flow_control=flow_control,
+                random_seed=random_seed,
+                node=node,
+                projection=projection,
+                remove_none_values=remove_none_values,
+                clean_subfields=clean_subfields,
+            ),
+            raise_on_errors=False,
         )
-        res = cls._send(cls._get_default_session(), req, raise_on_errors=False)
-        return getattr(res, "response", None)
+        return getattr(response, "response", None)
 
     @classmethod
-    def get_count_total(cls, dataview: Any) -> int:
+    def get_count_total(
+        cls,
+        dataview: Any,  # dataviews.Dataview
+    ) -> int:
         """
         Return the total number of frames matching an inline DataView spec.
 
@@ -231,7 +313,10 @@ class DataViewManagementBackend(IdObjectBase):
         return total
 
     @classmethod
-    def get_count_details(cls, dataview: Any) -> Tuple[int, List[int]]:
+    def get_count_details(
+        cls,
+        dataview: Any,  # dataviews.Dataview
+    ) -> Tuple[int, List[int]]:
         """
         Retrieve overall and per-rule counts for an inline DataView spec.
 
@@ -239,17 +324,29 @@ class DataViewManagementBackend(IdObjectBase):
         :return: Tuple of total frame count and list of per-rule counts. Falls back to (0, []) on error.
         """
         try:
-            req = frames.GetCountForDataviewRequest(dataview=dataview)
-            res = cls._send(cls._get_default_session(), req, raise_on_errors=False)
-            response = getattr(res, "response", None)
-            total = int(getattr(response, "total", 0) or 0)
-            rules = []
-            for rule in getattr(response, "rules", []) or []:
+            response = cls._send(
+                session=cls._get_default_session(),
+                req=frames.GetCountForDataviewRequest(dataview=dataview),
+                raise_on_errors=False,
+            )
+            response_payload = getattr(response, "response", None)
+            total = int(getattr(response_payload, "total", 0) or 0)
+
+            def get_rule_count(rule: Any) -> int:
                 try:
-                    rules.append(int(getattr(rule, "count", 0) or 0))
+                    return int(getattr(rule, "count", 0) or 0)
                 except Exception:
-                    rules.append(0)
-            return total, rules
+                    return 0
+
+            rule_counts = [
+                get_rule_count(rule)
+                for rule in (
+                    getattr(response_payload, "rules", [])
+                    or []
+                )
+            ]
+
+            return total, rule_counts
         except Exception:
             return 0, []
 
@@ -258,10 +355,10 @@ class DataViewManagementBackend(IdObjectBase):
         cls,
         dataview_id: str,
         *,
-        infinite=None,
-        limit=None,
-        order=None,
-        random_seed=None,
+        infinite: Optional[bool] = None,
+        limit: Optional[int] = None,
+        order: Optional[str] = None,  # Optional[dataviews.IterationOrderEnum]
+        random_seed: Optional[int] = None,
     ) -> bool:
         """
         Update iteration configuration parameters for a DataView.
@@ -275,22 +372,29 @@ class DataViewManagementBackend(IdObjectBase):
         :return: True when the backend reports that at least one field was updated
         """
 
-        iteration_kwargs = {}
-        if infinite is not None:
-            iteration_kwargs["infinite"] = bool(infinite)
-        if limit is not None:
-            iteration_kwargs["limit"] = limit
-        if order is not None:
-            iteration_kwargs["order"] = order
-        if random_seed is not None:
-            iteration_kwargs["random_seed"] = random_seed
+        iteration_kwargs = {
+            **({"order": order} if order is not None else {}),
+            **({"infinite": bool(infinite) if infinite is not None else {}}),
+            **({"limit": limit} if limit is not None else {}),
+            **({"random_seed": random_seed} if random_seed is not None else {}),
+        }
 
         if not iteration_kwargs:
             return True
 
-        req = dataviews.UpdateRequest(
-            dataview=dataview_id,
-            iteration=dataviews.Iteration(**iteration_kwargs),
+        response = cls._send(
+            session=cls._get_default_session(),
+            req=dataviews.UpdateRequest(
+                dataview=dataview_id,
+                iteration=dataviews.Iteration(**iteration_kwargs),
+            ),
+            raise_on_errors=False,
         )
-        res = cls._send(cls._get_default_session(), req, raise_on_errors=False)
-        return bool(getattr(getattr(res, "response", None), "updated", 0))
+
+        return bool(
+            getattr(
+                getattr(response, "response", None),
+                "updated",
+                0,
+            )
+        )
