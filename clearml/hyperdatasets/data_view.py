@@ -3,12 +3,26 @@ import queue
 import threading
 from math import ceil
 from queue import Queue
-from typing import Any, Iterable, List, Optional, Sequence
+from typing import (
+    Any,
+    List,
+    Dict,
+    Optional,
+    Union,
+    Sequence,
+    Iterable,
+)
 
 from clearml.backend_api import Session
 from clearml.backend_api.services import dataviews as _dataviews
 from clearml.backend_interface.datasets.hyper_dataset_data_view import DataViewManagementBackend
-from clearml.config import deferred_config, running_remotely, get_remote_task_id, get_node_id, get_node_count
+from clearml.config import (
+    deferred_config,
+    running_remotely,
+    get_remote_task_id,
+    get_node_id,
+    get_node_count,
+)
 from clearml.storage.manager import StorageManagerDiskSpaceFileSizeStrategy
 from clearml.task import Task
 from .data_entry import DataEntry, ENTRY_CLASS_KEY, _resolve_class
@@ -63,14 +77,14 @@ class HyperDatasetQuery:
 
     def __init__(
         self,
-        project_id="*",   # ClearML datasets: collection id
-        dataset_id="*",   # ClearML datasets: version id
-        version_id="*",   # Alias for clarity; kept for symmetry
-        source_query=None,
-        frame_query=None,
-        weight=1.0,
-        filter_by_roi=None,
-        label_rules=None,
+        project_id: str = "*",   # ClearML datasets: collection id
+        dataset_id: str = "*",   # ClearML datasets: version id
+        version_id: str = "*",   # Alias for clarity; kept for symmetry
+        source_query: Optional[str] = None,
+        frame_query: Optional[str] = None,
+        weight: float = 1.0,
+        filter_by_roi: Optional[Any] = None,  # Optional[FilterByRoiEnum]
+        label_rules: Optional[Any] = None,  # Optional[Sequence[dataviews.FilterLabelRule]]
     ):
         """Construct a hyper-dataset query filter.
 
@@ -102,7 +116,7 @@ class HyperDatasetQuery:
         self._label_rules = label_rules
 
     @property
-    def dataset_id(self):
+    def dataset_id(self) -> str:
         """
         Return the dataset identifier targeted by this query.
 
@@ -111,7 +125,7 @@ class HyperDatasetQuery:
         return self._dataset_id
 
     @property
-    def project_id(self):
+    def project_id(self) -> str:
         """
         Return the dataset collection identifier associated with this query.
 
@@ -120,7 +134,7 @@ class HyperDatasetQuery:
         return self._project_id
 
     @property
-    def version_id(self):
+    def version_id(self) -> str:
         """
         Return the dataset version identifier resolved for this query.
 
@@ -129,7 +143,7 @@ class HyperDatasetQuery:
         return self._version_id
 
     @property
-    def source_query(self):
+    def source_query(self) -> Optional[str]:
         """
         Return the Lucene query applied to frame source metadata.
 
@@ -138,7 +152,7 @@ class HyperDatasetQuery:
         return self._source_query
 
     @property
-    def frame_query(self):
+    def frame_query(self) -> Optional[str]:
         """
         Return the Lucene query applied to frame-level metadata.
 
@@ -147,7 +161,7 @@ class HyperDatasetQuery:
         return self._frame_query
 
     @property
-    def weight(self):
+    def weight(self) -> float:
         """
         Return the relative sampling weight assigned to this query.
 
@@ -156,7 +170,7 @@ class HyperDatasetQuery:
         return self._weight
 
     @property
-    def filter_by_roi(self):
+    def filter_by_roi(self) -> Optional[Any]:  # Optional[FilterByRoiEnum]
         """
         Return the ROI filtering strategy configured for this query.
 
@@ -165,11 +179,11 @@ class HyperDatasetQuery:
         return self._filter_by_roi
 
     @property
-    def label_rules(self):
+    def label_rules(self) -> Optional[Union[Sequence[Any]]]:  # Optional[Sequence[dataviews.FilterLabelRule]]
         """
         Return the label rule definitions used for ROI filtering.
 
-        :return: Sequence or mapping of label rules, or None
+        :return: Sequence of mapping of label rules, or None
         """
         return self._label_rules
 
@@ -178,15 +192,18 @@ class HyperDatasetQuery:
         if self._dataset_id in (None, "*"):
             return
 
-        version_id = self._version_id if self._version_id not in (None, "*") else None
+        version_id = (
+            self._version_id
+            if self._version_id not in (None, "*")
+            else None
+        )
 
-        exists = HyperDatasetManagement.exists(
+        if not HyperDatasetManagement.exists(
             dataset_id=self._dataset_id,
             version_id=version_id,
-        )
-        if not exists:
+        ):
             raise ValueError(
-                f"HyperDataset query references non-existent dataset/version:"
+                "HyperDataset query references non-existent dataset/version:"
                 f" dataset_id={self._dataset_id}"
                 f" version_id={self._version_id}"
             )
@@ -229,7 +246,11 @@ class DataView:
         """
         self._iteration_order = iteration_order
         self._iteration_infinite = iteration_infinite
-        self._iteration_limit = iteration_limit if iteration_limit is None else int(iteration_limit)
+        self._iteration_limit = (
+            int(iteration_limit)
+            if iteration_limit is not None
+            else iteration_limit
+        )
         # TODO: connect with task in remote execution
         self._auto_connect_with_task = auto_connect_with_task
         self._iteration_random_seed = iteration_random_seed
@@ -250,24 +271,26 @@ class DataView:
             if running_remotely() and self._auto_connect_with_task:
                 task = Task.current_task()
                 if not task:
-                    tid = get_remote_task_id()
-                    if tid:
-                        task = Task.get_task(task_id=tid)
+                    task_id = get_remote_task_id()
+                    if task_id:
+                        task = Task.get_task(task_id=task_id)
                 if task:
                     self._connected_task = task
-                    dv_map = task.get_dataviews() or {}
+                    data_view_map = task.get_dataviews() or {}
                     # If a name was provided, prefer a matching dataview by name
-                    picked = None
-                    if isinstance(dv_map, dict):
-                        if self._name:
-                            picked = dv_map.get(self._name)
-                        else:
-                            for _dv in dv_map.values():
-                                picked = _dv
-                                break
-                    if picked:
+                    picked_data_view = (
+                        (
+                            data_view_map.get(self._name)
+                            if self._name
+                            else next(iter(data_view_map.values()), None)
+                        )
+                        if isinstance(data_view_map, dict)
+                        else None
+                    )
+
+                    if picked_data_view:
                         try:
-                            self._copy_from_other_dataview(picked)
+                            self._copy_from_other_dataview(other=picked_data_view)
                             self._force_remote_store = False
                         except Exception:
                             self._force_remote_store = True
@@ -295,7 +318,7 @@ class DataView:
         return self._name
 
     @name.setter
-    def name(self, value):
+    def name(self, value: Optional[str]):
         """
         Update the human-readable name associated with this DataView.
 
@@ -303,7 +326,7 @@ class DataView:
         """
         self._name = value
 
-    def get_queries(self):
+    def get_queries(self) -> List[HyperDatasetQuery]:
         """Return current HyperDatasetQuery objects attached to this dataview."""
         return list(self._queries)
 
@@ -320,7 +343,7 @@ class DataView:
             pass
         return True
 
-    def _build_filter_rule_from_query(self, query: "HyperDatasetQuery") -> Any:
+    def _build_filter_rule_from_query(self, query: HyperDatasetQuery) -> Any:  # dataviews.FilterRule
         return DataViewManagementBackend.create_filter_rule(
             dataset=query.dataset_id,
             label_rules=query.label_rules,
@@ -331,28 +354,35 @@ class DataView:
             weight=query.weight,
         )
 
-    def _append_queries(self, queries: Sequence["HyperDatasetQuery"]) -> None:
+    def _append_queries(self, queries: Sequence[HyperDatasetQuery]) -> None:
         if not queries:
             return
-        filter_rules: List[Any] = []
-        for query in queries:
-            if not isinstance(query, HyperDatasetQuery):
-                raise ValueError("DataView expects HyperDatasetQuery instances")
-            filter_rules.append(self._build_filter_rule_from_query(query))
-        self._filter_rules.extend(filter_rules)
+
+        if any(
+            not isinstance(query, HyperDatasetQuery)
+            for query in queries
+        ):
+            raise ValueError("DataView expects HyperDatasetQuery instances")
+
+        self._filter_rules.extend((
+            self._build_filter_rule_from_query(query)
+            for query in queries
+        ))
         self._queries.extend(queries)
         self._count_cache = None
         self._synthetic_epoch_limit = None
         self._resync_task_attachment()
         if self._id:
             result = DataViewManagementBackend.update_filter_rules(
-                dataview_id=self._id, filter_rules=self._filter_rules
+                dataview_id=self._id,
+                filter_rules=self._filter_rules,
             )
             if not result:
                 raise ValueError(f"Failed updating DataView {self._id}")
+
             self._resync_task_attachment()
 
-    def set_queries(self, queries: Optional[Iterable["HyperDatasetQuery"]]) -> None:
+    def set_queries(self, queries: Optional[Iterable[HyperDatasetQuery]]) -> None:
         """
         Replace all existing queries with the supplied collection.
 
@@ -360,7 +390,12 @@ class DataView:
         """
         if not self._mutation_allowed():
             return
-        normalized = list(queries) if queries is not None else []
+
+        normalized = (
+            list(queries)
+            if queries is not None
+            else []
+        )
         self._filter_rules = []
         self._queries = []
         self._count_cache = None
@@ -368,10 +403,12 @@ class DataView:
         if not normalized:
             if self._id:
                 DataViewManagementBackend.update_filter_rules(
-                    dataview_id=self._id, filter_rules=[]
+                    dataview_id=self._id,
+                    filter_rules=[],
                 )
             self._resync_task_attachment()
             return
+
         self._append_queries(normalized)
 
     def add_query(
@@ -380,12 +417,12 @@ class DataView:
         project_id: str = "*",
         dataset_id: str = "*",
         version_id: str = "*",
-        source_query=None,
-        frame_query=None,
-        weight: Optional[float] = 1.0,
-        filter_by_roi=None,
-        label_rules=None,
-    ) -> "HyperDatasetQuery":
+        source_query: Optional[str] = None,
+        frame_query: Optional[str] = None,
+        weight: float = 1.0,
+        filter_by_roi: Optional[Any] = None,  # Optional[FilterByRoiEnum]
+        label_rules: Optional[Any] = None,  # Optional[Sequence[dataviews.FilterLabelRule]]
+    ) -> HyperDatasetQuery:
         """
         Construct and append a single `HyperDatasetQuery` without instantiating it externally.
 
@@ -410,6 +447,7 @@ class DataView:
             label_rules=label_rules,
         )
         self.add_queries(query)
+
         return query
 
     def get_iteration_parameters(self):
@@ -423,27 +461,33 @@ class DataView:
             "random_seed": self._iteration_random_seed,
         }
 
-    def set_iteration_parameters(self, *, infinite=None, limit=_UNSET):
+    def set_iteration_parameters(
+        self,
+        *,
+        infinite: Optional[bool] = None,
+        limit: Union[Optional[int], object] = _UNSET,  # Union[int, None, _UNSET]
+    ):
         """
         Persist iteration settings both locally and on the backend if possible.
         """
-        updated = False
-        if infinite is not None:
-            self._iteration_infinite = bool(infinite)
-            updated = True
-        if limit is not _UNSET:
-            self._iteration_limit = int(limit) if limit is not None else None
-            updated = True
-        if not updated:
-            return
-        if self._id:
-            DataViewManagementBackend.update_iteration_parameters(
-                self._id,
-                infinite=self._iteration_infinite,
-                limit=self._iteration_limit,
-                order=self._iteration_order,
-                random_seed=self._iteration_random_seed,
-            )
+        if (infinite is not None) or (limit is not _UNSET):
+            if infinite is not None:
+                self._iteration_infinite = bool(infinite)
+            if limit is not _UNSET:
+                self._iteration_limit = (
+                    int(limit)
+                    if limit is not None
+                    else None
+                )
+
+            if self._id:
+                DataViewManagementBackend.update_iteration_parameters(
+                    self._id,
+                    infinite=self._iteration_infinite,
+                    limit=self._iteration_limit,
+                    order=self._iteration_order,
+                    random_seed=self._iteration_random_seed,
+                )
 
     def add_queries(self, queries: HyperDatasetQuery):
         """
@@ -456,6 +500,7 @@ class DataView:
         """
         if not self._mutation_allowed():
             return
+
         if isinstance(queries, HyperDatasetQuery):
             normalized: Sequence[HyperDatasetQuery] = [queries]
         else:
@@ -463,6 +508,7 @@ class DataView:
                 normalized = list(queries)
             except TypeError as exc:
                 raise ValueError("DataView.add_queries expects a query or an iterable of queries") from exc
+
         self._append_queries(normalized)
 
     def _resolve_project_name(self) -> Optional[str]:
@@ -490,26 +536,48 @@ class DataView:
         Used by read paths (count, iteration) so they hit the inline `frames.*ForDataview`
         endpoints — no stored DataView id required, no project write permission required.
         """
-        versions = []
-        for q in self._queries:
-            ds = getattr(q, "dataset_id", None)
-            ver = getattr(q, "version_id", None)
-            if ds and ver and ds != "*" and ver != "*":
-                versions.append(_dataviews.DataviewEntry(dataset=ds, version=ver))
-        if not versions:
+        def convert_query_to_version(query: HyperDatasetQuery) -> Optional[Any]:  # _dataviews.DataviewEntry
+            dataset_id = getattr(query, "dataset_id", None)
+            version_id = getattr(query, "version_id", None)
+
+            return (
+                _dataviews.DataviewEntry(
+                    dataset=dataset_id,
+                    version=version_id,
+                )
+                if (
+                    (dataset_id and dataset_id != "*")
+                    and (version_id and version_id != "*")
+                )
+                else None
+            )
+
+        versions = [
+            version
+            for version in (
+                convert_query_to_version(query=query)
+                for query in self._queries
+            )
+            if version is not None
+        ]
+
+        if len(versions) == 0:
             raise ValueError(
                 "Cannot fetch DataView contents: no concrete (dataset, version) provided in queries"
             )
-        iteration = _dataviews.Iteration(
-            order=self._iteration_order,
-            infinite=self._iteration_infinite,
-            random_seed=self._iteration_random_seed,
-            limit=self._iteration_limit,
-        )
+
         return DataViewManagementBackend.build_inline_dataview(
             versions=versions,
-            filters=self._filter_rules or None,
-            iteration=iteration,
+            filters=(
+                self._filter_rules
+                or None
+            ),
+            iteration=_dataviews.Iteration(
+                order=self._iteration_order,
+                infinite=self._iteration_infinite,
+                random_seed=self._iteration_random_seed,
+                limit=self._iteration_limit,
+            ),
         )
 
     def store(self, project_name: Optional[str] = None) -> str:
@@ -568,14 +636,33 @@ class DataView:
 
     def _create_on_server(self) -> None:
         """Build the create payload from local state and persist it. Raises on failure."""
-        versions = []
-        for q in self._queries:
-            ds = getattr(q, "dataset_id", None)
-            ver = getattr(q, "version_id", None)
-            if ds and ver and ds != "*" and ver != "*":
-                versions.append({"dataset": ds, "version": ver})
-        if not versions:
-            raise ValueError("Cannot create DataView: no concrete (dataset, version) provided in queries")
+        def convert_query_to_version(query: HyperDatasetQuery) -> Optional[Dict[str, Any]]:
+            dataset_id = getattr(query, "dataset_id", None)
+            version_id = getattr(query, "version_id", None)
+
+            return (
+                {"dataset": dataset_id, "version": version_id}
+                if (
+                    (dataset_id and dataset_id != "*")
+                    and (version_id and version_id != "*")
+                )
+                else None
+            )
+
+        versions = [
+            version
+            for version in (
+                convert_query_to_version(query=query)
+                for query in self._queries
+            )
+            if version is not None
+        ]
+
+        if len(versions) == 0:
+            raise ValueError(
+                "Cannot fetch DataView contents: no concrete (dataset, version) provided in queries"
+            )
+
         self._id = DataViewManagementBackend.create(
             name=self._name,
             description=self._description,
@@ -587,10 +674,13 @@ class DataView:
             versions=versions,
             project_name=self._resolve_project_name(),
         )
+
         if self._filter_rules:
             DataViewManagementBackend.update_filter_rules(
-                dataview_id=self._id, filter_rules=self._filter_rules
+                dataview_id=self._id,
+                filter_rules=self._filter_rules,
             )
+
         self._count_cache = None
         self._resync_task_attachment()
 
@@ -606,19 +696,25 @@ class DataView:
                 is_remote = False
             if is_remote and not force_remote:
                 return
+
             task = None
             if force_remote:
                 task = getattr(self, "_connected_task", None)
                 if not task:
-                    tid = get_remote_task_id()
-                    if tid:
-                        task = Task.get_task(task_id=tid)
+                    task_id = get_remote_task_id()
+                    if task_id:
+                        task = Task.get_task(task_id=task_id)
             if not task:
                 task = Task.current_task()
+
             if not task:
                 return
-            payload = self.id if (force_remote and self._id) else self
-            task.set_dataview(payload)
+
+            task.set_dataview(
+                self.id
+                if (force_remote and self._id)
+                else self
+            )
         except Exception:
             return
 
@@ -643,44 +739,76 @@ class DataView:
         if len(queries) <= 1:
             return None
 
-        weights = [float(q.weight) if q.weight is not None else 1.0 for q in queries]
-        if all(q.weight is None for q in queries) and not self._iteration_infinite:
+        weights = [
+            (
+                float(query.weight)
+                if query.weight is not None
+                else 1.0
+            )
+            for query in queries
+        ]
+
+        if (
+            not self._iteration_infinite
+            and all(
+                query.weight is None
+                for query in queries
+            )
+        ):
             return None
 
         try:
             payload = self._build_inline_payload()
         except ValueError:
             return None
+
         total, rule_counts = DataViewManagementBackend.get_count_details(payload)
-        if total and not self._count_cache:
+        if (
+            total
+            and not self._count_cache
+        ):
             self._count_cache = int(total)
-        if not rule_counts:
+        if len(rule_counts) == 0:
             return None
 
         if len(rule_counts) < len(queries):
             rule_counts.extend([0] * (len(queries) - len(rule_counts)))
 
-        positive = [(c, w) for c, w in zip(rule_counts, weights) if c > 0]
-        if not positive:
+        positive_rule_count_weights = [
+            weight
+            for rule_count, weight in zip(rule_counts, weights)
+            if rule_count > 0
+        ]
+        if len(positive_rule_count_weights) == 0:
             return None
 
-        sum_weights = sum(w for _, w in positive)
-        normalized = []
-        for count, weight in zip(rule_counts, weights):
-            if count <= 0:
-                normalized.append(0.0)
-            else:
-                normalized.append(weight / (sum_weights or 1.0))
+        sum_weights = sum(positive_rule_count_weights)
+        normalized_weights = [
+            (
+                weight / (sum_weights or 1.0)
+                if count > 0
+                else 0.0
+            )
+            for count, weight in zip(rule_counts, weights)
+        ]
 
         max_count = max(rule_counts)
-        if max_count <= 0:
-            return None
-        largest_idx = next((i for i, count in enumerate(rule_counts) if count == max_count), 0)
-        weight_fraction = normalized[largest_idx]
-        if weight_fraction <= 0:
-            return None
+        if max_count > 0:
+            idx_with_largest_count = next((
+                index
+                for index, count in enumerate(rule_counts)
+                if count == max_count
+            ), 0)
 
-        return int(ceil(max_count / weight_fraction))
+            weight_fraction = normalized_weights[idx_with_largest_count]
+
+            return (
+                int(ceil(max_count / weight_fraction))
+                if weight_fraction > 0
+                else None
+            )
+        else:
+            return None
 
     def _auto_connect_task(self):
         """
