@@ -234,24 +234,32 @@ class Dataset:
                     "files removed": 0,
                     "files modified": 0,
                 }
-            if "/.datasets/" not in task.get_project_name() or "":
-                dataset_project, parent_project = self._build_hidden_project_name(task.get_project_name(), task.name)
+            if "/.datasets/" not in (task.get_project_name() or ""):
+                dataset_project, parent_project = self._build_hidden_project_name(
+                    dataset_project=(task.get_project_name() or ""),
+                    dataset_name=task.name,
+                )
                 task.move_to_project(new_project_name=dataset_project)
                 if Dataset.is_offline() or bool(Session.check_min_api_server_version(Dataset.__min_api_version)):
+                    # Get-or-create parent project
                     get_or_create_project(
-                        task.session,
+                        session=task.session,
                         project_name=parent_project,
                         system_tags=[self.__hidden_tag],
                     )
+                    # Get-or-create this dataset's project
                     get_or_create_project(
-                        task.session,
+                        session=task.session,
                         project_name=dataset_project,
                         project_id=task.project,
                         system_tags=[self.__hidden_tag, self.__tag],
                     )
         else:
             self._created_task = True
-            dataset_project, parent_project = self._build_hidden_project_name(dataset_project, dataset_name)
+            dataset_project, parent_project = self._build_hidden_project_name(
+                dataset_project=dataset_project or "",
+                dataset_name=dataset_name or "",
+            )
             if not Dataset.is_offline():
                 task = Task.create(
                     project_name=dataset_project,
@@ -270,22 +278,31 @@ class Dataset:
                     auto_connect_streams=False,
                 )
             if Dataset.is_offline() or bool(Session.check_min_api_server_version(Dataset.__min_api_version)):
+                # Get-or-create parent project
                 get_or_create_project(
-                    task.session,
+                    session=task.session,
                     project_name=parent_project,
                     system_tags=[self.__hidden_tag],
                 )
+                # Get-or-create this dataset's project
                 get_or_create_project(
-                    task.session,
+                    session=task.session,
                     project_name=dataset_project,
                     project_id=task.project,
                     system_tags=[self.__hidden_tag, self.__tag],
                 )
             # set default output_uri
             task.output_uri = True
-            task.set_system_tags((task.get_system_tags() or []) + [self.__tag])
+            task.set_system_tags([
+                *(task.get_system_tags() or []),
+                self.__tag,
+            ])
             if dataset_tags:
-                task.set_tags((task.get_tags() or []) + list(dataset_tags))
+                task.set_tags([
+                    *(task.get_tags() or []),
+                    *list(dataset_tags),
+                ])
+
             task.mark_started()
             if not Dataset.is_offline():
                 # generate the script section
@@ -308,6 +325,7 @@ class Dataset:
                 # if the task is running make sure we ping to the server so it will not be aborted by a watchdog
                 self._task_pinger = DevWorker()
                 self._task_pinger.register(task, stop_signal_support=False)
+
             # set the newly created Dataset parent ot the current Task, so we know who created it.
             if Task.current_task() and Task.current_task().id != task.id:
                 task.set_parent(Task.current_task())
@@ -323,6 +341,7 @@ class Dataset:
         if not self._dataset_version:
             # noinspection PyProtectedMember
             self._dataset_version = self._task._get_runtime_properties().get("version")
+
         if not self._dataset_version:
             _, latest_version = self._get_dataset_id(self.project, self.name)
             if latest_version is not None:
@@ -333,6 +352,7 @@ class Dataset:
                     LoggerRoot.get_base_logger().warning(
                         f"Could not auto-increment version {latest_version} of dataset with ID {self._task.id}"
                     )
+
         # store current dataset id
         self._id = task.id
         # store the folder where the dataset was downloaded to
@@ -4214,21 +4234,27 @@ class Dataset:
         :return: Tuple of 2 strings, one is the corresponding hidden dataset project and one
             is the parent project
         """
-        if not dataset_project:
-            return None, None
-        project_name = cls._remove_hidden_part_from_dataset_project(dataset_project)
-        if Dataset.is_offline() or bool(Session.check_min_api_server_version(cls.__min_api_version)):
-            parent_project = (
-                f"{dataset_project}/.datasets"
-                if dataset_project
-                else ".datasets"
-            )
-            if dataset_name:
-                project_name = f"{parent_project}/{dataset_name}"
+        if dataset_project:
+            if (
+                Dataset.is_offline()
+                or Session.check_min_api_server_version(cls.__min_api_version)
+            ):
+                parent_project = (
+                    f"{dataset_project}/.datasets"
+                    if dataset_project
+                    else ".datasets"
+                )
+                project_name = (
+                    f"{parent_project}/{dataset_name}"
+                    if dataset_name
+                    else cls._remove_hidden_part_from_dataset_project(dataset_project)
+                )
+
+                return project_name, parent_project
+            else:
+                return dataset_project or "Datasets", None
         else:
-            parent_project = None
-            project_name = dataset_project or "Datasets"
-        return project_name, parent_project
+            return None, None
 
     @classmethod
     def _remove_hidden_part_from_dataset_project(cls, dataset_project: str) -> str:
