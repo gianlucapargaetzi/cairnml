@@ -63,12 +63,12 @@ class HyperDataset(HyperDatasetManagement):
         :param raise_if_exists: Reserved flag for compatibility (currently unused)
         """
         Session.verify_feature_set("advanced")
-        self.project_name = project_name
-        self.dataset_name = dataset_name
-        self.version_name = version_name
-        self.description = description
-        self.parent_ids = parent_ids
-        self.field_mappings = field_mappings
+        self._project_name = project_name
+        self._dataset_name = dataset_name
+        self._version_name = version_name
+        self._description = description
+        self._parent_ids = parent_ids
+        self._field_mappings = field_mappings
 
         try:
             self._project_id = get_or_create_project(Session(), project_name)
@@ -708,9 +708,9 @@ class HyperDataset(HyperDatasetManagement):
             dataset_id=self.dataset_id,
             version_id=self.version_id,
         )
-        self.version_name = (
+        self._version_name = (
             getattr(modified_self_response, "name", None)
-            or self.version_name
+            or self._version_name
         )
 
         # Instantiate the new hyperdataset
@@ -720,8 +720,8 @@ class HyperDataset(HyperDatasetManagement):
         )
 
         snapshot_hyperdataset = HyperDataset(
-            project_name=self.project_name,
-            dataset_name=self.dataset_name,
+            project_name=self._project_name,
+            dataset_name=self._dataset_name,
             version_name=getattr(snapshot_response, "name", None),
             parent_ids=self._version_id,
         )
