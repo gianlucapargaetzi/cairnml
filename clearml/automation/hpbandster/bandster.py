@@ -1,3 +1,5 @@
+import sys
+from logging import getLogger
 from time import sleep, time
 from typing import Optional, Sequence, Any
 
@@ -29,9 +31,18 @@ try:
 
     Task.add_requirements("hpbandster")
 except ImportError:
-    raise ImportError(
-        "OptimizerBOHB requires 'hpbandster' package, it was not found\ninstall with: pip install hpbandster"
+    _py312_note = (
+        "\nNote: hpbandster is unmaintained and may fail to install or import on Python 3.12+. "
+        "Consider using Python 3.11 or an alternative optimizer (e.g. OptimizerOptuna)."
+        if sys.version_info >= (3, 12)
+        else ""
     )
+    raise ImportError(
+        "OptimizerBOHB requires 'hpbandster' package, it was not found\n"
+        "install with: pip install hpbandster" + _py312_note
+    )
+
+logger = getLogger("clearml.automation.hpbandster")
 
 
 class _TrainsBandsterWorker(Worker):
@@ -70,6 +81,24 @@ class _TrainsBandsterWorker(Worker):
                 'loss' (scalar)
                 'info' (dict)
         """
+        # Enforce the total job budget. BOHB drives job creation directly from the worker and
+        # never goes through SearchStrategy.process_step, so the standard `total_max_jobs` cap
+        # is not applied. Without this guard, hyperband launches a job for every configuration
+        # it samples across all of its brackets, far exceeding the requested budget (and the
+        # optimization appears to never stop). Once the cap is reached we report the trial as
+        # infinitely bad without launching it, so hyperband can wind down quickly.
+        # noinspection PyProtectedMember
+        if (
+            self.optimizer.total_max_jobs
+            and len(self.optimizer._created_jobs_ids) >= self.optimizer.total_max_jobs
+        ):
+            print(
+                "TrainsBandsterWorker: reached total_max_jobs="
+                f"{self.optimizer.total_max_jobs}, skipping configuration {config} "
+                "(treating as infinitely bad)"
+            )
+            return {"loss": float("inf"), "info": "skipped: total_max_jobs budget reached"}
+
         self._current_job = self.optimizer.helper_create_job(self.base_task_id, parameter_override=config)
         # noinspection PyProtectedMember
         self.optimizer._current_jobs.append(self._current_job)
@@ -107,14 +136,26 @@ class _TrainsBandsterWorker(Worker):
                 float(iteration_value[0][0]) / self.optimizer._max_iteration_per_job,
             )
 
+        normalized_objective = self.objective.get_normalized_objective(self._current_job)
+        if normalized_objective is None:
+            # The job failed or never reported the objective metric. Instead of letting the
+            # exception propagate and abort the entire optimization, treat this trial as
+            # infinitely bad (HpBandSter always minimizes) so the optimization can continue.
+            loss = float("inf")
+            print(
+                f"TrainsBandsterWorker: job {self._current_job.task_id()} reported no objective metric, "
+                "treating trial as infinitely bad (inf loss)"
+            )
+        else:
+            loss = float(normalized_objective * -1.0)
         result = {
             # this is the a mandatory field to run hyperband
             # remember: HpBandSter always minimizes!
-            "loss": float(self.objective.get_normalized_objective(self._current_job) * -1.0),
+            "loss": loss,
             # can be used for any user-defined information - also mandatory
             "info": self._current_job.task_id(),
         }
-        print(f"TrainsBandsterWorker result {result}, iteration {iteration_value[0]}")
+        print(f"TrainsBandsterWorker result {result}, iteration {iteration_value[0] if iteration_value else None}")
         # noinspection PyProtectedMember
         self.optimizer._current_jobs.remove(self._current_job)
         return result
@@ -181,6 +222,13 @@ class OptimizerBOHB(SearchStrategy, RandomSeed):
         :param int local_port: default port 9090 tcp, this is a must for the BOHB workers to communicate, even locally.
         :param bohb_kwargs: arguments passed directly to the BOHB object
         """
+        if sys.version_info >= (3, 12):
+            logger.warning(
+                "OptimizerBOHB (hpbandster) is not fully supported on Python 3.12+. "
+                "hpbandster is unmaintained and you may encounter compatibility issues. "
+                "Consider using Python 3.11 or an alternative optimizer (e.g. OptimizerOptuna)."
+            )
+
         if not max_iteration_per_job or not min_iteration_per_job or not total_max_jobs:
             raise ValueError(
                 "OptimizerBOHB is missing a defined budget.\n"
