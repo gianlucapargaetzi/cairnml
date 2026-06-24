@@ -2123,13 +2123,19 @@ class HyperParameterOptimizer:
             child_tasks = self.optimizer._get_child_tasks(parent_task_id=cur_task.id, status=["completed", "stopped"])
             hyper_parameters = [h.name for h in self.hyper_parameters]
             for task in child_tasks:
+                objective = self._objective_metric.get_objective(task)
+                if objective is None:
+                    # The job failed or never reported the objective metric. Exclude it from the
+                    # summary (same as in a fresh run) instead of substituting a fake value: a
+                    # sentinel like -1 would rank a failed job as *good* for a minimized objective,
+                    # and it can never be a top performer anyway.
+                    continue
                 params = {k: v for k, v in task.get_parameters().items() if k in hyper_parameters}
                 params["status"] = str(task.status)
                 # noinspection PyProtectedMember
                 iteration_value = task.get_last_iteration()
-                objective = self._objective_metric.get_objective(task)
                 completed_jobs[task.id] = (
-                    objective if objective is not None else ([-1] * self._objective_metric.len),
+                    objective,
                     [iteration_value] * self._objective_metric.len
                     if iteration_value is not None
                     else ([-1] * self._objective_metric.len),
