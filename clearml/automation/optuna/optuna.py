@@ -104,10 +104,21 @@ class OptunaObjective:
 
         # noinspection PyProtectedMember
         objective_metric = self.optimizer._objective_metric.get_objective(current_job)
+        if objective_metric is None:
+            # The job failed or never reported the objective metric. Instead of letting the
+            # exception propagate and abort the entire optimization, prune this trial. Optuna
+            # records it as pruned (excluded from the sampler) and keeps optimizing the rest,
+            # which is also safe for value-based samplers (e.g. GP, CMA-ES).
+            print(
+                f"OptunaObjective: job {current_job.task_id()} reported no objective metric, pruning trial"
+            )
+            # noinspection PyProtectedMember
+            self.optimizer._current_jobs.remove(current_job)
+            raise optuna.TrialPruned()
         # noinspection PyProtectedMember
         if self.optimizer._objective_metric.len == 1:
             objective_metric = objective_metric[0]
-            iteration_value = iteration_value[0]
+            iteration_value = iteration_value[0] if iteration_value else None
         print(f"OptunaObjective result metric={objective_metric}, iteration {iteration_value}")
         # noinspection PyProtectedMember
         self.optimizer._current_jobs.remove(current_job)
