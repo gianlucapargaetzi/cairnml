@@ -1,13 +1,16 @@
-import hashlib
 import json
 from typing import Optional, Union, Dict, Tuple
 from zlib import crc32
 
 from clearml.debugging.log import LoggerRoot
+from clearml.utilities.hashing import (
+    safe_hash,
+    sha256_safe_hash,
+    StrHashFunction,
+)
 
 STR_HASH_FUNCTIONS = {"md5", "sha256", "sha384", "sha512"}
 DICT_HASH_FUNCTIONS = {"crc32", *STR_HASH_FUNCTIONS}
-StrHashFunction = str  # Literal["md5", "sha256", "sha384", "sha512"]
 DictHashFunction = str  # Literal["md5", "sha256", "sha384", "sha512", "crc32"]
 
 
@@ -33,27 +36,27 @@ def sha256sum(
         the header) and the hex digest of the full file. The second element
         is None if skip_header is 0. Returns (None, None) on error.
     """
-    h = hashlib.sha256()
-    file_hash = hashlib.sha256()
+    hasher = sha256_safe_hash()
+    file_hasher = sha256_safe_hash()
     b = bytearray(block_size)
     mv = memoryview(b)
     try:
         with open(filename, "rb", buffering=0) as f:
             if skip_header:
-                file_hash.update(f.read(skip_header))
+                file_hasher.update(f.read(skip_header))
             # noinspection PyUnresolvedReferences
             for n in iter(lambda: f.readinto(mv), 0):
-                h.update(mv[:n])
+                hasher.update(mv[:n])
                 if skip_header:
-                    file_hash.update(mv[:n])
+                    file_hasher.update(mv[:n])
     except Exception as e:
         LoggerRoot.get_base_logger().warning(str(e))
         return None, None
 
     return (
-        h.hexdigest(),
+        hasher.hexdigest(),
         (
-            file_hash.hexdigest()
+            file_hasher.hexdigest()
             if skip_header
             else None
         )
@@ -86,14 +89,16 @@ def hash_text(
 
     :param text: string to hash
     :param seed: use prefix seed for hashing
-    :param hash_func: hashing function. currently supported md5 sha256
+    :param hash_func: hashing function. currently supported: "md5", "sha256", "sha384", "sha512"
     :return: hashed string
     """
     if hash_func not in STR_HASH_FUNCTIONS:
         raise ValueError(f"Invalid hash function: '{hash_func}'. Valid hash_func parameters are: {STR_HASH_FUNCTIONS}")
-    h = getattr(hashlib, hash_func)()
-    h.update((str(seed) + str(text)).encode("utf-8"))
-    return h.hexdigest()
+
+    return safe_hash(
+        name=hash_func,
+        data=f"{seed}{text}".encode("utf-8"),
+    ).hexdigest()
 
 
 def md5text(
