@@ -19,6 +19,8 @@ import psutil
 from attr import attrs, attrib
 from pathlib2 import Path
 
+from clearml.utilities.hashing import sha256_safe_hash
+
 from .. import Task, StorageManager, Logger
 from ..backend_api import Session
 from ..backend_interface.task.development.worker import DevWorker
@@ -2916,8 +2918,6 @@ class Dataset:
 
         :return: the target folder
         """
-        import hashlib
-
         assert part is None or (isinstance(part, int) and part >= 0)
         assert num_parts is None or (isinstance(num_parts, int) and num_parts >= 1)
 
@@ -2933,8 +2933,8 @@ class Dataset:
         subset_hash = None
         link_entries_of_interest = None
         if files_of_interest:
-            subset_hash = hashlib.sha256(
-                "\n".join(sorted(files_of_interest)).encode()
+            subset_hash = sha256_safe_hash(
+                data="\n".join(sorted(files_of_interest)).encode(),
             ).hexdigest()[:8]
             link_entries_of_interest = {
                 k: v for k, v in self._dataset_link_entries.items() if k in files_of_interest

@@ -6,7 +6,6 @@ import itertools
 import json
 import logging
 import mimetypes
-import hashlib
 import os
 import platform
 import shutil
@@ -58,6 +57,7 @@ from os.path import expandvars, expanduser
 from heapq import heapify, heappush, heappop
 from psutil import disk_usage
 
+from clearml.utilities.hashing import md5_safe_hash
 from clearml.utilities.requests_toolbelt import (
     MultipartEncoderMonitor,
     MultipartEncoder,
@@ -4111,7 +4111,7 @@ class StorageHelper(_StorageHelper):
         scheme, netloc, filename, query, fragment = fast_urlsplit(canonized_url, allow_fragments=False)
         if query:
             filename = filename.split('/')
-            filename[-1] = f'{hashlib.md5(query.encode()).hexdigest()}.{filename[-1]}'
+            filename[-1] = f'{md5_safe_hash(data=query.encode()).hexdigest()}.{filename[-1]}'
             filename = '/'.join(filename if filename[0] else filename[1:])
         else:
             filename = str(Path(filename.lstrip("/")))
@@ -4568,7 +4568,7 @@ class StorageHelper(_StorageHelper):
                 (
                     f
                     if len(f) <= 255
-                    else f"{hashlib.md5(f.encode()).hexdigest()}.{f[-200:]}"
+                    else f"{md5_safe_hash(data=f.encode()).hexdigest()}.{f[-200:]}"
                 )
                 for f in folder_path.split(sep)
             ]

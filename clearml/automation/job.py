@@ -1,4 +1,3 @@
-import hashlib
 import json
 import os
 import subprocess
@@ -13,6 +12,7 @@ from typing import Optional, Mapping, Sequence, Callable, Union, Tuple, List, An
 
 from pathlib2 import Path
 
+from clearml.utilities.hashing import md5_safe_hash
 from ..backend_api import Session
 from ..backend_api.services import tasks as tasks_service
 from ..backend_interface.util import get_or_create_project, exact_match_regex
@@ -67,8 +67,8 @@ class BaseJob:
 
     @staticmethod
     def get_metric_req_params(title: str, series: str) -> Tuple[List[str], str, str, List[str]]:
-        title = hashlib.md5(str(title).encode("utf-8")).hexdigest()
-        series = hashlib.md5(str(series).encode("utf-8")).hexdigest()
+        title = md5_safe_hash(data=str(title).encode("utf-8")).hexdigest()
+        series = md5_safe_hash(data=str(series).encode("utf-8")).hexdigest()
         metric = f"last_metrics.{title}.{series}."
         values = ["min_value", "max_value", "value"]
         metrics = [metric + v for v in values]

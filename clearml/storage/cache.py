@@ -1,5 +1,4 @@
 import atexit
-import hashlib
 import os
 import shutil
 from collections import OrderedDict
@@ -7,6 +6,8 @@ from threading import RLock
 from typing import Union, Optional, Tuple, Dict
 
 from pathlib2 import Path
+
+from clearml.utilities.hashing import md5_safe_hash
 
 from .helper import StorageHelper
 from .url import quote_url
@@ -107,7 +108,7 @@ class CacheManager:
 
         @classmethod
         def get_hashed_url_file(cls, url: str) -> str:
-            str_hash = hashlib.md5(url.encode()).hexdigest()
+            str_hash = md5_safe_hash(data=url.encode()).hexdigest()
             filename = url.split("/")[-1]
             return f"{str_hash}.{quote_url(filename)}"
 

@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-import hashlib
 import time
 from functools import reduce
 from logging import getLevelName
@@ -12,6 +11,8 @@ import pathlib2
 import six
 from PIL import Image
 from six.moves.urllib.parse import urlparse, urlunparse
+
+from clearml.utilities.hashing import md5_safe_hash
 
 from ...backend_api.services import events
 from ...config import deferred_config
@@ -421,11 +422,11 @@ class UploadEvent(MetricsEventAdapter):
                 return folder_path
             parts = folder_path.split(".")
             if len(parts) > 1:
-                prefix = hashlib.md5(str(".".join(parts[:-1])).encode("utf-8")).hexdigest()
+                prefix = md5_safe_hash(data=str(".".join(parts[:-1])).encode("utf-8")).hexdigest()
                 new_path = "{}.{}".format(prefix, parts[-1])
                 if len(new_path) <= 250:
                     return new_path
-            return hashlib.md5(str(folder_path).encode("utf-8")).hexdigest()
+            return md5_safe_hash(data=str(folder_path).encode("utf-8")).hexdigest()
 
         self._generate_file_name()
         e_storage_uri = self._upload_uri or storage_uri
