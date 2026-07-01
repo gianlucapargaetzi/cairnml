@@ -1,4 +1,3 @@
-import hashlib
 import json
 from copy import copy, deepcopy
 from datetime import datetime
@@ -20,6 +19,8 @@ from typing import (
     Any,
 )
 from abc import ABC, abstractmethod
+
+from clearml.utilities.hashing import md5_safe_hash
 
 from .job import ClearmlJob, LocalClearmlJob
 from .parameters import Parameter
@@ -257,8 +258,8 @@ class Objective(_ObjectiveInterface):
         if order_by and (order_by.startswith("last_metrics") or order_by.startswith("-last_metrics")):
             parts = order_by.split(".")
             if parts[-1] in ("min", "max", "last"):
-                title = hashlib.md5(str(parts[1]).encode("utf-8")).hexdigest()
-                series = hashlib.md5(str(parts[2]).encode("utf-8")).hexdigest()
+                title = md5_safe_hash(data=str(parts[1]).encode("utf-8")).hexdigest()
+                series = md5_safe_hash(data=str(parts[2]).encode("utf-8")).hexdigest()
                 minmax = "min_value" if "min" in parts[3] else ("max_value" if "max" in parts[3] else "value")
                 order_by = "{}last_metrics.".join(
                     (
@@ -281,8 +282,8 @@ class Objective(_ObjectiveInterface):
         :return: The objective title/series.
         """
         if not self._metric:
-            title = hashlib.md5(str(self.title).encode("utf-8")).hexdigest()
-            series = hashlib.md5(str(self.series).encode("utf-8")).hexdigest()
+            title = md5_safe_hash(data=str(self.title).encode("utf-8")).hexdigest()
+            series = md5_safe_hash(data=str(self.series).encode("utf-8")).hexdigest()
             self._metric = title, series
 
         sign = (
@@ -1047,8 +1048,8 @@ class SearchStrategy:
         if order_by and (order_by.startswith("last_metrics") or order_by.startswith("-last_metrics")):
             parts = order_by.split(".")
             if parts[-1] in ("min", "max", "last"):
-                title = hashlib.md5(str(parts[1]).encode("utf-8")).hexdigest()
-                series = hashlib.md5(str(parts[2]).encode("utf-8")).hexdigest()
+                title = md5_safe_hash(data=str(parts[1]).encode("utf-8")).hexdigest()
+                series = md5_safe_hash(data=str(parts[2]).encode("utf-8")).hexdigest()
                 minmax = "min_value" if "min" in parts[3] else ("max_value" if "max" in parts[3] else "value")
                 order_by = "{}last_metrics.".join(
                     (

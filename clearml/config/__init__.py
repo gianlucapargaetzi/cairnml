@@ -6,6 +6,8 @@ from os.path import expandvars, expanduser
 from typing import Optional, Callable, Iterable, Tuple, List, Any
 from pathlib2 import Path
 
+from clearml.utilities.hashing import md5_safe_hash
+
 from .defs import *  # noqa: F403
 from .remote import running_remotely_task_id as _running_remotely_task_id
 from ..backend_api import load_config
@@ -230,11 +232,10 @@ def get_node_id(default: int = 0) -> int:
                     torch_rank = int(w_id)
                 except Exception:
                     # guess a number based on wid hopefully unique value
-                    import hashlib
-
-                    h = hashlib.md5()
-                    h.update(str(w_id).encode("utf-8"))
-                    torch_rank = int(h.hexdigest(), 16)
+                    torch_rank = int(
+                        md5_safe_hash(data=str(w_id).encode("utf-8")).hexdigest(),
+                        16,
+                    )
         except Exception:
             torch_rank = None
 
