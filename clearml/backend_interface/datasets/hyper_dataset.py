@@ -1,4 +1,4 @@
-from typing import Optional, List, Dict, Any, Sequence
+from typing import Optional, List, Dict, Any, Sequence, Union
 
 from ...backend_api.services import datasets
 from ...backend_api import Session
@@ -78,7 +78,8 @@ class HyperDatasetManagementBackend(IdObjectBase):
         name: str,
         dataset_id: str,
         comment: Optional[str] = None,
-        parent_ids: Optional[List[str]] = None,
+        parent_id: Optional[str] = None,
+        **kwargs,
     ):
         """
         Create a new dataset version or return the existing version with the same name.
@@ -86,7 +87,9 @@ class HyperDatasetManagementBackend(IdObjectBase):
         :param name: Human-readable name identifying the dataset version
         :param dataset_id: Identifier of the parent dataset collection
         :param comment: Optional description attached to the dataset version
-        :param parent_ids: Optional list of parent version IDs to record lineage
+        :param parent_id: Optional list of parent version IDs to record lineage
+        :param parent_ids: (Deprecated) Optional list of parent dataset version IDs to link.
+            Only one parent ID by hyperdataset is supported. Use `parent_id` instead.
 
         :return: Newly created version ID or the ID of an existing version with the same name
         """
@@ -96,7 +99,10 @@ class HyperDatasetManagementBackend(IdObjectBase):
             name=name,
             comment=comment,
             task=(current.id if current else None),
-            parent=parent_ids,
+            parent=HyperDatasetManagementBackend._define_parent_id(
+                parent_id=parent_id,
+                parent_ids=kwargs.get("parent_ids", None),
+            ),
         )
         session = cls._get_default_session()
         try:
@@ -533,6 +539,31 @@ class HyperDatasetManagementBackend(IdObjectBase):
                 page += 1
         except Exception:
             return False
+
+    @staticmethod
+    def _define_parent_id(
+        parent_id: Optional[str] = None,
+        parent_ids: Optional[Union[str, List[str]]] = None,
+    ) -> Optional[str]:
+        """
+        Allows the deprecation of the `parent_ids` argument by duplicating the attribute but only using
+        `parent_id` internally and encouraging the usage of `parent_id` against `parent_ids`.
+        We only ever planned to support one parent ID per version, `parent_ids` was a typo in that context.
+
+        :param parent_id: Optional parent dataset version IDs to link
+        :param parent_ids: (Deprecated) Optional list of parent dataset version IDs to link.
+            Only one parent ID by hyperdataset is supported. Use `parent_id` instead.
+        """
+        return (
+            parent_id
+            or (
+                parent_ids[0]
+                if isinstance(parent_ids, list) and len(parent_ids) > 0
+                else parent_ids
+                if isinstance(parent_ids, str)
+                else None
+            )
+        )
 
     @classmethod
     def update_dataset_tags(
