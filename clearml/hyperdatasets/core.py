@@ -34,9 +34,11 @@ class HyperDataset(HyperDatasetManagement):
         dataset_name: str,
         version_name: str,
         description: Optional[str] = None,
-        parent_ids: Optional[List[str]] = None,
+        parent_id: Optional[str] = None,
+        # parent_ids: Optional[List[str]] = None,
         field_mappings: Optional[Dict[str, Any]] = None,
         raise_if_exists: bool = False,
+        **kwargs,
     ):
         """Create a new HyperDataset version within the requested project.
 
@@ -44,7 +46,9 @@ class HyperDataset(HyperDatasetManagement):
         :param dataset_name: HyperDataset collection name (top-level dataset)
         :param version_name: Version name to create (or reuse if it already exists)
         :param description: Optional dataset description string
-        :param parent_ids: Optional list of parent dataset version IDs to link
+        :param parent_id: Optional parent dataset version IDs to link
+        :param parent_ids: (Deprecated) Optional list of parent dataset version IDs to link.
+            Only one parent ID by hyperdataset is supported. Use `parent_id` instead.
         :param field_mappings: Optional mapping that defines vector-capable metadata fields.
             Provide the fully-qualified frame metadata path (e.g. ``meta.my_vector``) and
             the corresponding field settings accepted by the ClearML backend / Elasticsearch
@@ -67,8 +71,13 @@ class HyperDataset(HyperDatasetManagement):
         self._dataset_name = dataset_name
         self._version_name = version_name
         self._description = description
-        self._parent_ids = parent_ids
         self._field_mappings = field_mappings
+
+        self._parent_id = HyperDatasetManagementBackend._define_parent_id(
+            parent_id=parent_id,
+            parent_ids=kwargs.get("parent_ids", None),
+        )
+        self._parent_ids = self._parent_id
 
         try:
             self._project_id = get_or_create_project(Session(), project_name)
@@ -83,7 +92,7 @@ class HyperDataset(HyperDatasetManagement):
         self._version_id = HyperDatasetManagementBackend.create_version(
             name=version_name,
             dataset_id=self._dataset_id,
-            parent_ids=parent_ids,
+            parent_id=self._parent_id,
         )
         self._tags = None  # Create uninitialized _tags cache
 
@@ -723,7 +732,7 @@ class HyperDataset(HyperDatasetManagement):
             project_name=self._project_name,
             dataset_name=self._dataset_name,
             version_name=getattr(snapshot_response, "name", None),
-            parent_ids=self._version_id,
+            parent_id=self._version_id,
         )
 
         return snapshot_hyperdataset
