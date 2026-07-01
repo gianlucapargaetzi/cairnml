@@ -98,11 +98,11 @@ class DataViewManagementBackend(IdObjectBase):
             req=dataviews.CreateRequest(
                 name=(
                     name
-                    or make_message('Anonymous dataview (%(user)s@%(host)s %(time)s)'),
+                    or make_message('Anonymous dataview (%(user)s@%(host)s %(time)s)')
                 ),
                 description=(
                     description
-                    or make_message('Auto-generated on %(time)s by %(user)s@%(host)s'),
+                    or make_message('Auto-generated on %(time)s by %(user)s@%(host)s')
                 ),
                 tags=tags,
                 filters=[],
