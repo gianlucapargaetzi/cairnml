@@ -81,10 +81,10 @@ class BaseScheduleJob:
             # noinspection PyProtectedMember
             if (
                 PipelineController._tag in task.get_system_tags()
-                and "/{}/".format(PipelineController._project_section) not in self.target_project
+                and f"/{PipelineController._project_section}/" not in self.target_project
             ):
                 # noinspection PyProtectedMember
-                return "{}/{}/{}".format(self.target_project, PipelineController._project_section, task.name)
+                return f"{self.target_project}/{PipelineController._project_section}/{task.name}"
         except Exception:
             pass
         return self.target_project
@@ -124,22 +124,34 @@ class ScheduleJob(BaseScheduleJob):
                 return False
 
         super(ScheduleJob, self).verify()
-        if self.weekdays and self.day not in (None, 0, 1):
+        if (
+            self.weekdays
+            and self.day not in (None, 0, 1)
+        ):
             raise ValueError("`weekdays` and `day` combination is not valid (day must be None,0 or 1)")
-        if self.weekdays and any(w not in self._weekdays_ind for w in self.weekdays):
-            raise ValueError("`weekdays` must be a list of strings, valid values are: {}".format(self._weekdays_ind))
-        if not (self.minute or self.hour or self.day or self.month or self.year):
+        if (
+            self.weekdays
+            and any(
+                w not in self._weekdays_ind
+                for w in self.weekdays
+            )
+        ):
+            raise ValueError(f"`weekdays` must be a list of strings, valid values are: {self._weekdays_ind}")
+        if not any((
+            self.minute,
+            self.hour,
+            self.day,
+            self.month,
+            self.year,
+        )):
             raise ValueError("Schedule time/date was not provided")
-        if self.minute and not check_integer(self.minute):
-            raise ValueError("Schedule `minute` must be an integer")
-        if self.hour and not check_integer(self.hour):
-            raise ValueError("Schedule `hour` must be an integer")
-        if self.day and not check_integer(self.day):
-            raise ValueError("Schedule `day` must be an integer")
-        if self.month and not check_integer(self.month):
-            raise ValueError("Schedule `month` must be an integer")
-        if self.year and not check_integer(self.year):
-            raise ValueError("Schedule `year` must be an integer")
+        for timescale in ["minute", "hour", "day", "month", "year"]:
+            timescale_value = getattr(self, timescale, None)  # e.g. self.minute (or None if absent)
+            if (
+                timescale_value
+                and not check_integer(timescale_value)
+            ):
+                raise ValueError(f"Schedule `{timescale}` must be an integer")
 
     def next_run(self) -> Optional[datetime]:
         return self._next_run
@@ -382,7 +394,7 @@ class BaseScheduler:
                     self._deserialize()
                     self._update_execution_plots()
             except Exception as ex:
-                self._log("Warning: Exception caught during deserialization: {}".format(ex))
+                self._log(f"Warning: Exception caught during deserialization: {ex}")
                 self._last_sync = time()
 
             try:
@@ -390,13 +402,13 @@ class BaseScheduler:
                     self._serialize_state()
                     self._update_execution_plots()
             except Exception as ex:
-                self._log("Warning: Exception caught during scheduling step: {}".format(ex))
+                self._log(f"Warning: Exception caught during scheduling step: {ex}")
                 # rate control
                 sleep(15)
 
             # sleep until the next pool (default None)
             if self._pooling_frequency_minutes:
-                self._log("Sleeping until the next pool in {} minutes".format(self._pooling_frequency_minutes))
+                self._log(f"Sleeping until the next pool in {self._pooling_frequency_minutes} minutes")
                 sleep(self._pooling_frequency_minutes * 60.0)
 
     def start_remotely(self, queue: str = "services") -> None:
@@ -474,7 +486,7 @@ class BaseScheduler:
         if job.single_instance and job.get_last_executed_task_id():
             t = Task.get_task(task_id=job.get_last_executed_task_id())
             if t.status in ("in_progress", "queued"):
-                self._log("Skipping Task {} scheduling, previous Task instance {} still running".format(job.name, t.id))
+                self._log(f"Skipping Task {job.name} scheduling, previous Task instance {t.id} still running")
                 job.run(None)
                 return None
 
@@ -482,10 +494,7 @@ class BaseScheduler:
         queue_id = get_queue_id(Task._get_default_session(), job.queue)
         if not queue_id:
             self._log(
-                "Skipping Task {} scheduling, queue '{}' was not found or is inaccessible.".format(
-                    job.name,
-                    job.queue,
-                ),
+                f"Skipping Task {job.name} scheduling, queue '{job.queue}' was not found or is inaccessible.",
                 level=logging.WARNING,
             )
             job.run(None)
@@ -501,13 +510,12 @@ class BaseScheduler:
             target_project=job.get_resolved_target_project(),
             tags=[add_tags] if add_tags and isinstance(add_tags, str) else add_tags,
         )
-        self._log("Scheduling Job {}, Task {} on queue {}.".format(job.name, task_job.task_id(), job.queue))
+        self._log(f"Scheduling Job {job.name}, Task {task_job.task_id()} on queue {job.queue}.")
         if not task_job.launch(queue_name=queue_id):
             self._log(
-                "Skipping Task {} scheduling, failed enqueuing Task {} on queue '{}'.".format(
-                    job.name,
-                    task_job.task_id(),
-                    job.queue,
+                (
+                    f"Skipping Task {job.name} scheduling, "
+                    f"failed enqueuing Task {task_job.task_id()} on queue '{job.queue}'."
                 ),
                 level=logging.WARNING,
             )
@@ -517,7 +525,11 @@ class BaseScheduler:
         job.run(task_job.task_id())
         return task_job
 
-    def _launch_job_function(self, job: BaseScheduleJob, func_args: Optional[Sequence] = None) -> Optional[Thread]:
+    def _launch_job_function(
+        self,
+        job: BaseScheduleJob,
+        func_args: Optional[Sequence] = None,
+    ) -> Optional[Thread]:
         # make sure this IS a function job
         if not job.base_function:
             return None
@@ -534,15 +546,17 @@ class BaseScheduler:
 
             if a_thread and a_thread.is_alive():
                 self._log(
-                    "Skipping Task '{}' scheduling, previous Thread instance '{}' still running".format(
-                        job.name, a_thread.ident
-                    )
+                    f"Skipping Task '{job.name}' scheduling, "
+                    f"previous Thread instance '{a_thread.ident}' still running"
                 )
                 job.run(None)
                 return None
 
-        self._log("Scheduling Job '{}', Task '{}' on background thread".format(job.name, job.base_function))
-        t = Thread(target=job.base_function, args=func_args or ())
+        self._log(f"Scheduling Job '{job.name}', Task '{job.base_function}' on background thread")
+        t = Thread(
+            target=job.base_function,
+            args=func_args or (),
+        )
         t.start()
         # mark as run
         job.run(t.ident)
@@ -757,16 +771,43 @@ class TaskScheduler(BaseScheduler):
         :param task_id: Task or Task ID to be removed
         :return: return True of the Task ID was found in the scheduled jobs list and was removed.
         """
-        if isinstance(task_id, (Task, str)):
-            task_id = task_id.id if isinstance(task_id, Task) else str(task_id)
-            if not any(t.base_task_id == task_id for t in self._schedule_jobs):
-                return False
-            self._schedule_jobs = [t for t in self._schedule_jobs if t.base_task_id != task_id]
-        else:
-            if not any(t.base_function == task_id for t in self._schedule_jobs):
-                return False
-            self._schedule_jobs = [t for t in self._schedule_jobs if t.base_function != task_id]
-        return True
+        def get_schedule_job_task_id(schedule_job: ScheduleJob) -> Any:
+            """
+            Compares the provided task_id with the scheduled job's task ID by means of equality.
+            - isinstance(task_id, Task) -> `schedule_job.base_task_id == task_id.id
+            - isinstance(task_id, str) -> `schedule_job.base_task_id == str(task_id)
+            - isinstance(task_id, Callable) (fallback case) -> `schedule_job.base_function == task_id`
+            """
+            return (
+                getattr(
+                    schedule_job,
+                    (
+                        "base_task_id"
+                        if isinstance(task_id, (Task, str))
+                        else "base_function"
+                    ),
+                    None,
+                )
+            )
+
+        task_to_remove_id = (
+            task_id.id
+            if isinstance(task_id, Task)
+            else str(task_id)
+            if isinstance(task_id, str)
+            else task_id  # if isinstance(task_id, Callable)
+        )
+
+        scheduled_jobs_with_task_removed = [
+            schedule_job
+            for schedule_job in self._schedule_jobs
+            if get_schedule_job_task_id(schedule_job) != task_to_remove_id
+        ]
+
+        did_task_get_removed = len(scheduled_jobs_with_task_removed) < len(self._scheduled_jobs)
+        self._scheduled_jobs = scheduled_jobs_with_task_removed
+
+        return did_task_get_removed
 
     def start(self) -> None:
         """
@@ -800,7 +841,7 @@ class TaskScheduler(BaseScheduler):
         if not scheduled_jobs and timeout_job_datetime is None:
             # sleep and retry
             seconds = 60.0 * self._sync_frequency_minutes
-            self._log("Nothing to do, sleeping for {:.2f} minutes.".format(seconds / 60.0))
+            self._log(f"Nothing to do, sleeping for {seconds / 60.0:.2f} minutes.")
             sleep(seconds)
             return False
 
@@ -813,9 +854,8 @@ class TaskScheduler(BaseScheduler):
             # sleep until we need to run a job or maximum sleep time
             seconds = min(sleep_time, 60.0 * self._sync_frequency_minutes)
             self._log(
-                "Waiting for next run [UTC {}], sleeping for {:.2f} minutes, until next sync.".format(
-                    next_time_stamp, seconds / 60.0
-                )
+                f"Waiting for next run [UTC {next_time_stamp}], "
+                f"sleeping for {seconds / 60.0:.2f} minutes, until next sync."
             )
             sleep(seconds)
             return False
@@ -823,11 +863,11 @@ class TaskScheduler(BaseScheduler):
         # check if this is a Task timeout check
         if timeout_job_datetime is not None and next_time_stamp == timeout_job_datetime:
             task_id = self._timeout_jobs[timeout_job_datetime]
-            self._log("Aborting job due to timeout: {}".format(task_id))
+            self._log(f"Aborting job due to timeout: {task_id}")
             self._cancel_task(task_id=task_id)
             self._timeout_jobs.pop(timeout_job_datetime, None)
         else:
-            self._log("Launching job: {}".format(scheduled_jobs[0]))
+            self._log(f"Launching job: {scheduled_jobs[0]}")
             self._launch_job(scheduled_jobs[0])
 
         return True
@@ -901,7 +941,7 @@ class TaskScheduler(BaseScheduler):
                 current_jobs=self._schedule_jobs,
             )
         except Exception as ex:
-            self._log("Failed deserializing configuration: {}".format(ex), level=logging.WARN)
+            self._log(f"Failed deserializing configuration: {ex}", level=logging.WARN)
             return
 
     @staticmethod
@@ -935,8 +975,8 @@ class TaskScheduler(BaseScheduler):
 
         task_link_template = (
             self._task.get_output_log_web_page()
-            .replace("/{}/".format(self._task.project), "/{project}/")
-            .replace("/{}/".format(self._task.id), "/{task}/")
+            .replace(f"/{self._task.project}/", "/{project}/")
+            .replace(f"/{self._task.id}/", "/{task}/")
         )
 
         # plot the schedule definition
@@ -965,10 +1005,7 @@ class TaskScheduler(BaseScheduler):
             j_dict = j.to_dict()
             j_dict["next_run"] = j.next()
             j_dict["base_function"] = (
-                "{}.{}".format(
-                    getattr(j.base_function, "__module__", ""),
-                    getattr(j.base_function, "__name__", ""),
-                )
+                f"{getattr(j.base_function, '__module__', '')}.{getattr(j.base_function, '__name__', '')}"
                 if j.base_function
                 else ""
             )
@@ -981,7 +1018,11 @@ class TaskScheduler(BaseScheduler):
                 for c in columns
             ]
             if row[1]:
-                row[1] = '<a href="{}">{}</a>'.format(task_link_template.format(project="*", task=row[1]), row[1])
+                row[1] = (
+                    f'<a href="{task_link_template.format(project="*", task=row[1])}">'
+                    f"{row[1]}"
+                    '</a>'
+                )
             scheduler_table += [row]
 
         # plot the already executed Tasks
@@ -1004,9 +1045,10 @@ class TaskScheduler(BaseScheduler):
             executed_table += [
                 [
                     executed_job.name,
-                    '<a href="{}">{}</a>'.format(
-                        task_link_template.format(project="*", task=executed_job.task_id),
-                        executed_job.task_id,
+                    (
+                        f'<a href="{task_link_template.format(project="*", task=executed_job.task_id)}">'
+                        f"{executed_job.task_id}"
+                        '</a>'
                     )
                     if executed_job.task_id
                     else "function",

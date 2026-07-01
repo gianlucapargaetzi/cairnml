@@ -40,7 +40,7 @@ class WorkerId:
         self.prefix = self.name = self.instance_type = self.cloud_id = ""
         match = _workers_pattern.match(worker_id)
         if not match:
-            raise ValueError("bad worker ID: {!r}".format(worker_id))
+            raise ValueError(f"bad worker ID: {worker_id!r}")
 
         self.prefix = match["prefix"]
         self.name = match["name"]
@@ -198,15 +198,18 @@ class AutoScaler:
         """Hook for subclass to use"""
         return []
 
-    def gen_worker_prefix(self, resource: str, resource_conf: dict) -> str:
-        return "{workers_prefix}:{worker_type}:{instance_type}".format(
-            workers_prefix=self.workers_prefix,
-            worker_type=resource,
-            instance_type=resource_conf["instance_type"],
-        )
+    def gen_worker_prefix(
+        self,
+        resource: str,
+        resource_conf: dict,
+    ) -> str:
+        return f"{self.workers_prefix}:{resource}:{resource_conf['instance_type']}"
 
-    def is_worker_still_idle(self, worker_id: str) -> bool:
-        self.logger.info("Checking if worker %r is still idle", worker_id)
+    def is_worker_still_idle(
+        self,
+        worker_id: str,
+    ) -> bool:
+        self.logger.info(f"Checking if worker {worker_id!r} is still idle")
         for worker in self.api_client.workers.get_all():
             if worker.id == worker_id:
                 return getattr(worker, "task", None) is None
@@ -316,28 +319,35 @@ class AutoScaler:
                         resource = WorkerId(worker_id).name
 
                     queue = self.resource_to_queue[resource]
-                    suffix = ", task_id={!r}".format(task_id) if task_id else ""
+                    suffix = (
+                        f", task_id={task_id!r}"
+                        if task_id
+                        else ""
+                    )
                     self.logger.info(
-                        "Spinning new instance resource=%r, prefix=%r, queue=%r%s",
-                        resource,
-                        self.workers_prefix,
-                        queue,
-                        suffix,
+                        "Spinning new instance "
+                        f"resource={resource!r}, "
+                        f"prefix={self.workers_prefix!r}, "
+                        f"queue={queue!r}{suffix}",
                     )
                     resource_conf = self.resource_configurations[resource]
-                    worker_prefix = self.gen_worker_prefix(resource, resource_conf)
-                    instance_id = self.driver.spin_up_worker(resource_conf, worker_prefix, queue, task_id=task_id)
+                    worker_prefix = self.gen_worker_prefix(
+                        resource=resource,
+                        resource_conf=resource_conf,
+                    )
+                    instance_id = self.driver.spin_up_worker(
+                        resource=resource_conf,
+                        worker_prefix=worker_prefix,
+                        queue_name=queue,
+                        task_id=task_id,
+                    )
                     self.monitor_startup(instance_id)
-                    worker_id = "{}:{}".format(worker_prefix, instance_id)
-                    self.logger.info("New instance ID: %s", instance_id)
+                    worker_id = f"{worker_prefix}:{instance_id}"
+                    self.logger.info(f"New instance ID: {instance_id}")
                     spun_workers[worker_id] = (resource, time())
                     up_machines[resource] += 1
                 except Exception as ex:
-                    self.logger.exception(
-                        "Failed to start new instance (resource %r), Error: %s",
-                        resource,
-                        ex,
-                    )
+                    self.logger.exception(f"Failed to start new instance (resource {resource!r}), Error: {ex}")
 
             # Go over the idle workers list, and spin down idle workers
             for worker_id in list(idle_workers):
