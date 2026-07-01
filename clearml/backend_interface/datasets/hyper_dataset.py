@@ -489,6 +489,7 @@ class HyperDatasetManagementBackend(IdObjectBase):
             req=datasets.GetVersionsRequest(
                 dataset=dataset_id,
                 versions=[version_id],
+                only_published=False,  # Fails to retrieve committed/drafted versions without this option
                 **({"only_fields": only_fields} if only_fields is not None else {}),
             ),
             raise_on_errors=False,
