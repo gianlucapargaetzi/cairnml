@@ -73,7 +73,7 @@ class Monitor:
             try:
                 self.monitor_step()
             except Exception as ex:
-                print("Exception: {}".format(ex))
+                print(f"Exception: {ex}")
 
             # print I'm alive message every 15 minutes
             if time() - last_report > 60.0 * 15:
@@ -99,7 +99,7 @@ class Monitor:
                 "page_size": 100,
                 "page": 0,
                 "status_changed": [
-                    ">{}".format(datetime.utcfromtimestamp(previous_timestamp)),
+                    f">{datetime.utcfromtimestamp(previous_timestamp)}",
                 ],
                 "project": self._get_projects_ids(),
             }
@@ -108,7 +108,7 @@ class Monitor:
             queried_tasks = Task.get_tasks(task_name=self._task_name_filter, task_filter=task_filter)
         except Exception as ex:
             # do not update the previous timestamp
-            print("Exception querying Tasks: {}".format(ex))
+            print(f"Exception querying Tasks: {ex}")
             return
 
         # process queried tasks
@@ -116,7 +116,7 @@ class Monitor:
             try:
                 self.process_task(task)
             except Exception as ex:
-                print("Exception processing Task ID={}:\n{}".format(task.id, ex))
+                print(f"Exception processing Task ID={task.id}:\n{ex}")
 
         self._previous_timestamp = timestamp
 
