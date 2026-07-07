@@ -90,10 +90,17 @@ class BatchRequest(Request, ABC):
             try:
                 req.validate()
             except (SchemaError, ValidationError, FormatError, Unresolvable) as e:
-                raise Exception("Validation error in batch item #%d: %s" % (i, str(e)))
+                raise Exception(f"Validation error in batch item #{i}: {e}")
 
     def get_json(self) -> List[Union[Dict, Any]]:
-        return [r if isinstance(r, dict) else r.to_dict() for r in self.requests]
+        return [
+            (
+                r
+                if isinstance(r, dict)
+                else r.to_dict()
+            )
+            for r in self.requests
+        ]
 
 
 class CompoundRequest(Request):

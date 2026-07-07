@@ -106,31 +106,24 @@ class DataModel:
             )
 
     def __repr__(self) -> str:
-        return "<{}.{}: {}>".format(
-            self.__module__.split(".")[-1],
-            type(self).__name__,
-            json.dumps(
-                self.to_dict(),
-                indent=4,
-                default=format_date,
-            ),
+        payload = json.dumps(
+            self.to_dict(),
+            indent=4,
+            default=format_date,
         )
+        return f"<{self.__module__.split('.')[-1]}.{type(self).__name__}: {payload}>"
 
     @staticmethod
     def assert_isinstance(value: Any, field_name: str, expected: type, is_array: bool = False) -> None:
         if not is_array:
             if not isinstance(value, expected):
-                raise TypeError("Expected %s of type %s, got %s" % (field_name, expected, type(value).__name__))
+                raise TypeError(f"Expected {field_name} of type {expected}, got {type(value).__name__}")
             return
 
         if not all(isinstance(x, expected) for x in value):
             raise TypeError(
-                "Expected %s of type list[%s], got %s"
-                % (
-                    field_name,
-                    expected,
-                    ", ".join(set(type(x).__name__ for x in value)),
-                )
+                f"Expected {field_name} of type list[{expected}], "
+                f"got {', '.join(set(type(x).__name__ for x in value))}"
             )
 
     @staticmethod
@@ -165,8 +158,7 @@ class NonStrictDataModelMixin:
     def __init__(self, **kwargs: Any) -> None:
         # unexpected = [key for key in kwargs if not key.startswith('_')]
         # if unexpected:
-        #     message = '{}: unused keyword argument(s) {}' \
-        #         .format(type(self).__name__, unexpected)
+        #     message = f"{type(self).__name__}: unused keyword argument(s) {unexpected}"
         #     warnings.warn(message, UnusedKwargsWarning)
 
         # ignore extra data warnings
