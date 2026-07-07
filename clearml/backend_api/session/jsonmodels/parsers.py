@@ -94,7 +94,7 @@ def _create_primitive_field_schema(
     elif isinstance(field, fields.BoolField):
         obj_type = "boolean"
     else:
-        raise errors.FieldNotSupported("Field {field} is not supported!".format(field=type(field).__class__.__name__))
+        raise errors.FieldNotSupported(f"Field {type(field).__class__.__name__} is not supported!")
 
     if field.nullable:
         obj_type = [obj_type, "null"]

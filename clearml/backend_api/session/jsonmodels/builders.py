@@ -78,16 +78,13 @@ class ObjectBuilder(Builder):
         if self.is_definition and not self.is_root:
             self.add_definition(builder)
             [self.maybe_build(value) for _, value in self.properties.items()]
-            return "#/definitions/{name}".format(name=self.type_name)
+            return f"#/definitions/{self.type_name}"
         else:
             return builder.build_definition(nullable=self.nullable)
 
     @property
     def type_name(self) -> str:
-        module_name = "{module}.{name}".format(
-            module=self.type.__module__,
-            name=self.type.__name__,
-        )
+        module_name = f"{self.type.__module__}.{self.type.__name__}"
         return module_name.replace(".", "_").lower()
 
     def build_definition(self, add_defintitions: bool = True, nullable: bool = False) -> dict:

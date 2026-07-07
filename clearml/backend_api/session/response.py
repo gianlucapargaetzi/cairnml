@@ -54,23 +54,22 @@ class ResponseMeta(jsonmodels.models.Base):
     error_stack = jsonmodels.fields.StringField()
 
     def __str__(self) -> str:
-        if self.result_code == requests.codes.ok:
-            return "<%d: %s/v%s>" % (
-                self.result_code,
-                self.endpoint.name,
-                self.endpoint.actual_version,
+        result_code = (
+            self.result_code
+            if self.result_code == requests.codes.ok
+            else f"{self.result_code}/{self.result_subcode}"
+        )
+        endpoint = (
+            f"{self.endpoint.name}/v{self.endpoint.actual_version}"
+            if (
+                self.result_code == requests.codes.ok
+                or self._is_valid
             )
-        elif self._is_valid:
-            return "<%d/%d: %s/v%s (%s)>" % (
-                self.result_code,
-                self.result_subcode,
-                self.endpoint.name,
-                self.endpoint.actual_version,
-                self.result_msg,
-            )
-        return "<%d/%d: %s (%s)>" % (
-            self.result_code,
-            self.result_subcode,
-            self.endpoint.name,
-            self.result_msg,
+            else self.endpoint.name
+        )
+
+        return (
+            f"<{result_code}: {endpoint} ({self.result_msg})>"
+            if self.result_msg
+            else f"<{result_code}: {endpoint}>"
         )
