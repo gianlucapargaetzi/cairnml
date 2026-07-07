@@ -56,17 +56,17 @@ class Service:
     def parse(self, service_config: ConfigTree) -> None:
         self._default = service_config.get("_default", ConfigTree()).as_plain_ordered_dict()
 
-        self._doc = "{} service".format(self.name)
+        self._doc = f"{self.name} service"
         description = service_config.get("_description", "")
         if description:
-            self._doc += "\n\n{}".format(description)
+            self._doc += f"\n\n{description}"
         self._definitions = service_config.get("_definitions", ConfigTree()).as_plain_ordered_dict()
         self._definitions_refs = {k: self._get_schema_references(v) for k, v in self._definitions.items()}
         all_refs = set(itertools.chain(*self.definitions_refs.values()))
         if not all_refs.issubset(self.definitions):
+            unresolved_references = ", ".join(all_refs.difference(self.definitions))
             raise ValueError(
-                "Unresolved references (%s) in %s/definitions"
-                % (", ".join(all_refs.difference(self.definitions)), self.name)
+                f"Unresolved references ({unresolved_references}) in {self.name}/definitions"
             )
 
         actions = {k: v.as_plain_ordered_dict() for k, v in service_config.items() if not k.startswith("_")}
@@ -85,9 +85,7 @@ class Service:
                 return float(action_version)
             except (ValueError, TypeError) as ex:
                 raise ValueError(
-                    "Failed parsing version number {} ({}) in {}/{}".format(
-                        action_version, ex.args[0], self.name, action_name
-                    )
+                    f"Failed parsing version number {action_version} ({ex.args[0]}) in {self.name}/{action_name}"
                 )
 
         def add_internal(cfg: dict) -> dict:
@@ -163,18 +161,16 @@ class Service:
                     self._resolve_schema_references(schema, refs=refs)
                     definitions_keys.update(refs)
                 except ValueError as ex:
-                    name = "%s.%s/%.1f/%s" % (
-                        self.name,
-                        action_name,
-                        action_version,
-                        schema_key,
-                    )
-                    raise ValueError("%s in %s" % (str(ex), name))
+                    raise ValueError(f"{ex} in {self.name}.{action_name}/{action_version:.1f}/{schema_key}")
 
         return Action(
             name=action_name,
             version=action_version,
             definitions_keys=list(definitions_keys),
             service=self.name,
-            **({key: value for key, value in data.items() if key in attr.fields_dict(Action)})
+            **({
+                key: value
+                for key, value in data.items()
+                if key in attr.fields_dict(Action)
+            })
         )
