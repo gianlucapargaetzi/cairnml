@@ -44,7 +44,7 @@ class CallResult:
         if response and not isinstance(response, Response):
             raise ValueError("response should be an instance of %s" % Response.__name__)
         elif response_data and not isinstance(response_data, dict):
-            raise TypeError("data should be an instance of {}".format(dict.__name__))
+            raise TypeError(f"data should be an instance of {dict.__name__}")
 
         self.__meta = meta
         self.__response = response
@@ -58,7 +58,7 @@ class CallResult:
             try:
                 self.__response_data = response.to_dict()
             except AttributeError:
-                raise TypeError("response should be an instance of {}".format(Response.__name__))
+                raise TypeError(f"response should be an instance of {Response.__name__}")
         else:
             self.__response_data = None
 
@@ -115,7 +115,7 @@ class CallResult:
             # TODO: validate meta?
             # meta.validate()
         except Exception as ex:
-            raise ValueError("Failed parsing meta section in response payload (data=%s, error=%s)" % (data, ex))
+            raise ValueError(f"Failed parsing meta section in response payload (data={data}, error={ex})")
 
         response = None
         response_data = None
@@ -127,7 +127,7 @@ class CallResult:
                 # response.validate()
         except Exception as e:
             if logger:
-                logger.warning("Failed parsing response: %s" % str(e))
+                logger.warning(f"Failed parsing response: {e}")
         return cls(
             meta=meta,
             response=response,
@@ -178,10 +178,10 @@ class CallResult:
                     progress = (
                         "waiting forever"
                         if timeout is False
-                        else "%.1f/%.1f seconds remaining" % (remaining, float(timeout or 0))
+                        else f"{remaining:.1f}/{float(timeout or 0):.1f} seconds remaining"
                     )
                     session._logger.info(
-                        "Waiting for asynchronous call %s (%s)" % (self.request_cls.__name__, progress)
+                        f"Waiting for asynchronous call {self.request_cls.__name__} ({progress})"
                     )
                 time.sleep(poll_interval)
                 remaining -= poll_interval
@@ -193,4 +193,4 @@ class CallResult:
         raise TimeoutExpiredError(self._format_msg("Timeout expired"), call_id=self.meta.id)
 
     def _format_msg(self, msg: str) -> str:
-        return msg + " for call %s (%s)" % (self.request_cls.__name__, self.meta.id)
+        return f"{msg} for call {self.request_cls.__name__} ({self.meta.id})"

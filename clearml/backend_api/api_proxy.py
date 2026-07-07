@@ -35,7 +35,7 @@ class ApiServiceProxy:
             version = [str(v) for v in ApiServiceProxy._available_versions if Session.check_min_api_version(v)][-1]
             Session.api_version = version
             self.__dict__["__wrapped_version__"] = Session.api_version
-            name = ".v{}.{}".format(version.replace(".", "_"), self.__dict__.get("__wrapped_name__"))
+            name = f".v{version.replace('.', '_')}.{self.__dict__.get('__wrapped_name__')}"
             self.__dict__["__wrapped__"] = self._import_module(name, self._main_services_module)
 
         return getattr(self.__dict__["__wrapped__"], attr)
@@ -58,7 +58,7 @@ class ExtApiServiceProxy(ApiServiceProxy):
             except ImportError:
                 pass
 
-        raise ImportError("No module '{}' in all predefined services module paths".format(name))
+        raise ImportError(f"No module '{name}' in all predefined services module paths")
 
     @classmethod
     def add_services_module(cls, module_path: str) -> None:
