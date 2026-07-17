@@ -250,7 +250,7 @@ class Config:
     def get(self, key: str, default: Any = _MISSING) -> Any:
         value = self._config.get(key, default)
         if value is self._MISSING:
-            raise KeyError("Unable to find value for key '{}' and default value was not provided.".format(key))
+            raise KeyError(f"Unable to find value for key '{key}' and default value was not provided.")
         return value
 
     def to_dict(self) -> dict:
@@ -321,15 +321,15 @@ class Config:
             return ConfigFactory.parse_file(file_path)
         except ParseSyntaxException as ex:
             msg = (
-                "Failed parsing {0} ({1.__class__.__name__}): "
-                "(at char {1.loc}, line:{1.lineno}, col:{1.column})".format(file_path, ex)
+                f"Failed parsing {file_path} ({ex.__class__.__name__}): "
+                f"(at char {ex.loc}, line:{ex.lineno}, col:{ex.column})"
             )
             raise ConfigurationError(msg, file_path=file_path) from ex
         except (ParseException, ParseFatalException, RecursiveGrammarException) as ex:
-            msg = "Failed parsing {0} ({1.__class__.__name__}): {1}".format(file_path, ex)
+            msg = f"Failed parsing {file_path} ({ex.__class__.__name__}): {ex}"
             raise ConfigurationError(msg) from ex
         except Exception as ex:
-            print("Failed loading %s: %s" % (file_path, ex))
+            print(f"Failed loading {file_path}: {ex}")
             raise
 
     def get_config_for_bucket(
