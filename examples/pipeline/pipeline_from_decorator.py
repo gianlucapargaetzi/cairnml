@@ -99,7 +99,7 @@ def executing_pipeline(pickle_url, mock_parameter="mock"):
 
     # Notice since we are "printing" the `model` object,
     # we actually deserialize the object from the third step, and thus wait for the third step to complete.
-    print("returned model: {}".format(model))
+    print(f"returned model: {model}")
 
     print("launch step four")
     accuracy = 100 * step_four(model, X_data=X_test, Y_data=y_test)
