@@ -7,9 +7,12 @@ class Main:
         self.prize = prize
 
     def person(self, name: str):
-        return "{} won {}!".format(name, self.prize)
+        return f"{name} won {self.prize}!"
 
 
 if __name__ == "__main__":
-    Task.init(project_name="examples", task_name="jsonargparse command")
+    Task.init(
+        project_name="examples",
+        task_name="jsonargparse command",
+    )
     print(CLI(Main))
