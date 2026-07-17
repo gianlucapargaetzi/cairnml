@@ -107,7 +107,7 @@ class PatchGradio:
             return
         cls.__server_config_warning.add((server_name, server_port, root_path))
         if server_name is not None and server_port is not None:
-            server_config = "{}:{}".format(server_name, server_port)
+            server_config = f"{server_name}:{server_port}"
             what_to_ignore = "name and port"
         elif server_name is not None:
             server_config = str(server_name)
@@ -115,18 +115,13 @@ class PatchGradio:
         else:
             server_config = str(server_port)
             what_to_ignore = "port"
+
+        gradio_url = f"{PatchGradio._default_gradio_address}:{PatchGradio._default_gradio_port}"
         getLogger().warning(
-            "ClearML only supports '{}:{}' as the Gradio server. Ignoring {} '{}' in remote execution".format(
-                PatchGradio._default_gradio_address,
-                PatchGradio._default_gradio_port,
-                what_to_ignore,
-                server_config,
-            )
+            f"ClearML only supports '{gradio_url}' as the Gradio server. "
+            f"Ignoring {what_to_ignore} '{server_config}' in remote execution"
         )
         if root_path is not None:
             getLogger().warning(
-                "ClearML will override root_path '{}' to '{}' in remote execution".format(
-                    root_path,
-                    PatchGradio._get_root_path(),
-                )
+                f"ClearML will override root_path '{root_path}' to '{PatchGradio._get_root_path()}' in remote execution"
             )
