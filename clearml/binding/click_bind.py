@@ -126,18 +126,26 @@ class PatchClick:
             if running_remotely():
                 PatchClick._load_task_params()
                 for p in self.params:
-                    name = "{}/{}".format(self.name, p.name) if PatchClick._num_commands > 1 else p.name
+                    name = (
+                        f"{self.name}/{p.name}"
+                        if PatchClick._num_commands > 1
+                        else p.name
+                    )
                     value = PatchClick.__remote_task_params_dict.get(name)
                     ctx.params[p.name] = p.process_value(
                         ctx,
-                        cast_str_to_bool(value, strip=True) if isinstance(p.type, BoolParamType) else value,
+                        (
+                            cast_str_to_bool(value, strip=True)
+                            if isinstance(p.type, BoolParamType)
+                            else value
+                        ),
                     )
             else:
                 if not isinstance(self, Group):
                     PatchClick._args[self.name] = True
                 for k, v in ctx.params.items():
                     # store passed value
-                    PatchClick._args[self.name + "/" + str(k)] = str(v or "")
+                    PatchClick._args[f"{self.name}/{k}"] = str(v or "")
 
                 PatchClick._update_task_args()
         return ret

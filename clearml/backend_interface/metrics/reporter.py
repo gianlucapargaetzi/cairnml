@@ -362,7 +362,7 @@ class Reporter(InterfaceBase, AbstractContextManager, SetupUploadMixin, AsyncMan
             self.stop()
         except Exception as e:
             logging.getLogger("clearml.reporter").warning(
-                "Exception encountered cleaning up the reporter: {}".format(e)
+                f"Exception encountered cleaning up the reporter: {e}"
             )
 
     def flush(self) -> None:

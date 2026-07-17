@@ -212,7 +212,7 @@ class PatchedJoblib:
                 framework = Framework.scikitlearn
         except Exception:
             LoggerRoot.get_base_logger().debug(
-                "Can't get model framework {}, model framework will be: {} ".format(object_orig_module, framework)
+                f"Can't get model framework {object_orig_module}, model framework will be: {framework} "
             )
         return framework
 

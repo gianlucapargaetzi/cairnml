@@ -60,7 +60,7 @@ class Entry(ABC):
             try:
                 value = self.convert(value, converter)
             except Exception as ex:  # noqa: F841
-                self.error("invalid value {key}={value}: {ex}".format(**locals()))
+                self.error(f"invalid value {key}={value}: {ex}")
                 break
             return key, value
         result = self.default if default is NotSet else default

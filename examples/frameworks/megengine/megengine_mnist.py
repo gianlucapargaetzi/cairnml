@@ -85,27 +85,52 @@ def train(dataloader, args):
             optimizer.step().clear_grad()
 
             if step % 50 == 0:
-                print("epoch:{}, iter:{}, loss:{}".format(epoch + 1, step, float(loss)))  # noqa
-            writer.add_scalar("loss", float(loss), epoch * epoch_length + step)
+                print(f"epoch:{epoch + 1}, iter:{step}, loss:{float(loss)}")  # noqa
+            writer.add_scalar(
+                "loss",
+                float(loss),
+                epoch * epoch_length + step,
+            )
         if (epoch + 1) % 5 == 0:
             mge.save(
-                net.state_dict(), os.path.join(gettempdir(), f"mnist_net_e{epoch + 1}.pkl"),
+                net.state_dict(),
+                os.path.join(
+                    gettempdir(),
+                    f"mnist_net_e{epoch + 1}.pkl",
+                ),
             )  # noqa
 
 
 def main():
-    task = Task.init(project_name="examples", task_name="MegEngine MNIST train")  # noqa
+    Task.init(
+        project_name="examples",
+        task_name="MegEngine MNIST train",
+    )  # noqa
 
     parser = argparse.ArgumentParser(description="MegEngine MNIST Example")
     parser.add_argument(
-        "--epoch", type=int, default=10, help="number of training epoch(default: 10)",
+        "--epoch",
+        type=int,
+        default=10,
+        help="number of training epoch(default: 10)",
     )
-    parser.add_argument("--lr", type=float, default=0.01, help="learning rate(default: 0.01)")
     parser.add_argument(
-        "--momentum", type=float, default=0.9, help="SGD momentum (default: 0.9)",
+        "--lr",
+        type=float,
+        default=0.01,
+        help="learning rate(default: 0.01)",
     )
     parser.add_argument(
-        "--wd", type=float, default=5e-4, help="SGD weight decay(default: 5e-4)",
+        "--momentum",
+        type=float,
+        default=0.9,
+        help="SGD momentum (default: 0.9)",
+    )
+    parser.add_argument(
+        "--wd",
+        type=float,
+        default=5e-4,
+        help="SGD weight decay(default: 5e-4)",
     )
 
     args = parser.parse_args()

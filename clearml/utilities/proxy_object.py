@@ -156,7 +156,7 @@ def convert_bool(s: str) -> bool:
         return True
     elif s == "false" or not s:
         return False
-    raise ValueError("Invalid value (boolean literal expected): {}".format(s))
+    raise ValueError(f"Invalid value (boolean literal expected): {s}")
 
 
 def cast_basic_type(value: Any, type_str: str) -> Any:
@@ -185,7 +185,7 @@ def cast_basic_type(value: Any, type_str: str) -> Any:
                 v = yaml.load(v, Loader=yaml.SafeLoader)
                 return basic_types.get(parts[0])(v)
             except Exception:
-                getLogger().warning("Could not cast `{}` to basic type. Returning it as `str`".format(value))
+                getLogger().warning(f"Could not cast `{value}` to basic type. Returning it as `str`")
                 return value
 
     t = basic_types.get(str(type_str).lower().strip(), False)
@@ -224,19 +224,19 @@ def get_basic_type(value: Any) -> str:
         tv = type(value)
         t = type(value[0])
         if all(t == type(v) for v in value):
-            return "{}/{}".format(str(getattr(tv, "__name__", tv)), str(getattr(t, "__name__", t)))
+            return f"{getattr(tv, '__name__', tv)}/{getattr(t, '__name__', t)}"
     elif isinstance(value, dict) and value:
         t = type(list(value.values())[0])
         if all(t == type(v) for v in value.values()):
-            return "dict/{}".format(str(getattr(t, "__name__", t)))
+            return f"dict/{getattr(t, '__name__', t)}"
 
     # it might be an empty list/dict/tuple
     t = type(value)
     if isinstance(value, (float, int, bool, str, list, tuple, dict)):
-        return str(getattr(t, "__name__", t))
+        return f"{getattr(t, '__name__', t)}"
 
     # we are storing it, even though we will not be able to restore it
-    return str(getattr(t, "__name__", t))
+    return f"{getattr(t, '__name__', t)}"
 
 
 def flatten_dictionary(a_dict: dict, prefix: str = "", sep: str = "/") -> dict:

@@ -94,7 +94,7 @@ class TaskModels(UserDict):
         else:
             # remove duplicates and preserve order
             input_models = OrderedDict(
-                ("Input Model #{}".format(i), a_model)
+                (f"Input Model #{i}", a_model)
                 for i, a_model in enumerate(filter(None, map(get_model, OrderedDict.fromkeys(parsed_ids))))
             )
 
@@ -112,7 +112,7 @@ class TaskModels(UserDict):
         id_to_name = {x.model: x.name for x in task.data.models.output} if Session.check_min_api_version("2.13") else {}
 
         def resolve_name(index: int, model_id: str) -> str:
-            return id_to_name.get(model_id, "Output Model #{}".format(index))
+            return id_to_name.get(model_id, f"Output Model #{index}")
 
         from clearml.model import Model
 

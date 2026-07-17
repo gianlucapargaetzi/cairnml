@@ -13,7 +13,10 @@ from clearml import Task
 
 # Connecting ClearML with the current process,
 # from here on everything is logged automatically
-task = Task.init(project_name='examples', task_name='TensorFlow v2 MNIST with summaries')
+task = Task.init(
+    project_name="examples",
+    task_name="TensorFlow v2 MNIST with summaries",
+)
 
 
 # Load and prepare the MNIST dataset.
@@ -23,8 +26,8 @@ mnist = tf.keras.datasets.mnist
 x_train, x_test = x_train / 255.0, x_test / 255.0
 
 # Add a channels dimension
-x_train = x_train[..., tf.newaxis].astype('float32')
-x_test = x_test[..., tf.newaxis].astype('float32')
+x_train = x_train[..., tf.newaxis].astype("float32")
+x_test = x_test[..., tf.newaxis].astype("float32")
 
 # Use tf.data to batch and shuffle the dataset
 train_ds = tf.data.Dataset.from_tensor_slices((x_train, y_train)).shuffle(10000).batch(32)
@@ -35,10 +38,23 @@ test_ds = tf.data.Dataset.from_tensor_slices((x_test, y_test)).batch(32)
 class MyModel(Model):
     def __init__(self):
         super(MyModel, self).__init__()
-        self.conv1 = Conv2D(32, 3, activation='relu', dtype=tf.float32)
+        self.conv1 = Conv2D(
+            32,
+            3,
+            activation="relu",
+            dtype=tf.float32,
+        )
         self.flatten = Flatten()
-        self.d1 = Dense(128, activation='relu', dtype=tf.float32)
-        self.d2 = Dense(10, activation='softmax', dtype=tf.float32)
+        self.d1 = Dense(
+            128,
+            activation="relu",
+            dtype=tf.float32,
+        )
+        self.d2 = Dense(
+            10,
+            activation="softmax",
+            dtype=tf.float32,
+        )
 
     def call(self, x):
         x = self.conv1(x)
@@ -56,11 +72,11 @@ optimizer = tf.keras.optimizers.Adam()
 
 # Select metrics to measure the loss and the accuracy of the model.
 # These metrics accumulate the values over epochs and then print the overall result.
-train_loss = tf.keras.metrics.Mean(name='train_loss', dtype=tf.float32)
-train_accuracy = tf.keras.metrics.SparseCategoricalAccuracy(name='train_accuracy')
+train_loss = tf.keras.metrics.Mean(name="train_loss", dtype=tf.float32)
+train_accuracy = tf.keras.metrics.SparseCategoricalAccuracy(name="train_accuracy")
 
-test_loss = tf.keras.metrics.Mean(name='test_loss', dtype=tf.float32)
-test_accuracy = tf.keras.metrics.SparseCategoricalAccuracy(name='test_accuracy')
+test_loss = tf.keras.metrics.Mean(name="test_loss", dtype=tf.float32)
+test_accuracy = tf.keras.metrics.SparseCategoricalAccuracy(name="test_accuracy")
 
 
 # Use tf.GradientTape to train the model
@@ -87,17 +103,17 @@ def test_step(images, labels):
 
 
 # Set up summary writers to write the summaries to disk in a different logs directory
-train_log_dir = os.path.join(gettempdir(), 'logs', 'gradient_tape', 'train')
-test_log_dir = os.path.join(gettempdir(), 'logs', 'gradient_tape', 'test')
+train_log_dir = os.path.join(gettempdir(), "logs", "gradient_tape", "train")
+test_log_dir = os.path.join(gettempdir(), "logs", "gradient_tape", "test")
 train_summary_writer = tf.summary.create_file_writer(train_log_dir)
 test_summary_writer = tf.summary.create_file_writer(test_log_dir)
 
 # Set up checkpoints manager
 ckpt = tf.train.Checkpoint(step=tf.Variable(1), net=model)
-manager = tf.train.CheckpointManager(ckpt, os.path.join(gettempdir(), 'tf_ckpts'), max_to_keep=3)
+manager = tf.train.CheckpointManager(ckpt, os.path.join(gettempdir(), "tf_ckpts"), max_to_keep=3)
 ckpt.restore(manager.latest_checkpoint)
 if manager.latest_checkpoint:
-    print("Restored from {}".format(manager.latest_checkpoint))
+    print(f"Restored from {manager.latest_checkpoint}")
 else:
     print("Initializing from scratch.")
 
@@ -107,26 +123,27 @@ for epoch in range(EPOCHS):
     for images, labels in train_ds:
         train_step(images, labels)
         with train_summary_writer.as_default():
-            tf.summary.scalar('loss', train_loss.result(), step=epoch)
-            tf.summary.scalar('accuracy', train_accuracy.result(), step=epoch)
+            tf.summary.scalar("loss", train_loss.result(), step=epoch)
+            tf.summary.scalar("accuracy", train_accuracy.result(), step=epoch)
 
     ckpt.step.assign_add(1)
     if int(ckpt.step) % 1 == 0:
         save_path = manager.save()
-        print("Saved checkpoint for step {}: {}".format(int(ckpt.step), save_path))
+        print(f"Saved checkpoint for step {int(ckpt.step)}: {save_path}")
 
     for test_images, test_labels in test_ds:
         test_step(test_images, test_labels)
         with test_summary_writer.as_default():
-            tf.summary.scalar('loss', test_loss.result(), step=epoch)
-            tf.summary.scalar('accuracy', test_accuracy.result(), step=epoch)
+            tf.summary.scalar("loss", test_loss.result(), step=epoch)
+            tf.summary.scalar("accuracy", test_accuracy.result(), step=epoch)
 
-    template = 'Epoch {}, Loss: {}, Accuracy: {}, Test Loss: {}, Test Accuracy: {}'
-    print(template.format(epoch+1,
-                          train_loss.result(),
-                          train_accuracy.result()*100,
-                          test_loss.result(),
-                          test_accuracy.result()*100))
+    print(
+        f"Epoch {epoch+1}, "
+        f"Loss: {train_loss.result()}, "
+        f"Accuracy: {train_accuracy.result()*100}, "
+        f"Test Loss: {test_loss.result()}, "
+        f"Test Accuracy: {test_accuracy.result()*100}"
+    )
 
     # Reset the metrics for the next epoch
     try:

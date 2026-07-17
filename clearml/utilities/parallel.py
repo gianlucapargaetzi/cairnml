@@ -288,7 +288,7 @@ class ParallelZipper:
             :param arcname: Name of the file in the archive
             """
             if self._verbose and self._task:
-                self._task.get_logger().report_text("Compressing {}".format(Path(file_path).as_posix()))
+                self._task.get_logger().report_text(f"Compressing {Path(file_path).as_posix()}")
             self.zip_file.write(file_path, arcname=arcname)
             self.count += 1
             preview_path = arcname
@@ -443,7 +443,7 @@ class ParallelZipper:
         filtered_file_paths = []
         for file_path in file_paths:
             if not Path(file_path).is_file():
-                LoggerRoot.get_base_logger().warning("Could not store dataset file {}. File skipped".format(file_path))
+                LoggerRoot.get_base_logger().warning(f"Could not store dataset file {file_path}. File skipped")
             else:
                 filtered_file_paths.append(file_path)
         file_paths = filtered_file_paths

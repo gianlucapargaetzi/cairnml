@@ -70,7 +70,7 @@ def get_filename_from_file_object(
                     os.fsync(fileno)
                 return os.path.abspath(filename)
             elif sys.platform == "linux":
-                filename = os.readlink("/proc/self/fd/{}".format(fileno))
+                filename = os.readlink(f"/proc/self/fd/{fileno}")
                 if flush:
                     os.fsync(fileno)
                 return os.path.abspath(filename)

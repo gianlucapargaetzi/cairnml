@@ -46,6 +46,6 @@ data_loader = DataLoader(
     prefetch_factor=2,
 )
 for i, data in enumerate(data_loader):
-    print('{}] {}'.format(i, data))
+    print(f'{i}] {data}')
 
 print('done')

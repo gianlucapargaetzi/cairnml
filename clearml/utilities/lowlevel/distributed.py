@@ -47,7 +47,7 @@ def create_torch_distributed_anchor(task_id: str) -> None:
             f.write(str(task_id) + "\n")
     except Exception:
         # we failed for some reason?
-        getLogger().warning("Failed creating torch task ID anchor file: {}".format(torch_dist_path))
+        getLogger().warning(f"Failed creating torch task ID anchor file: {torch_dist_path}")
 
 
 def get_torch_distributed_anchor_task_id(timeout: float = None) -> str:
@@ -93,5 +93,5 @@ def get_torch_distributed_anchor_task_id(timeout: float = None) -> str:
         # we failed for some reason?
         pass
 
-    getLogger().warning("Torch Distributed Local Rank {} Task ID {} detected".format(_local_rank, task_id))
+    getLogger().warning(f"Torch Distributed Local Rank {_local_rank} Task ID {task_id} detected")
     return task_id

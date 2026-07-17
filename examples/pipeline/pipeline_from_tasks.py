@@ -5,9 +5,7 @@ from clearml.automation import PipelineController
 def pre_execute_callback_example(a_pipeline, a_node, current_param_override):
     # type (PipelineController, PipelineController.Node, dict) -> bool
     print(
-        "Cloning Task id={} with parameters: {}".format(
-            a_node.base_task_id, current_param_override
-        )
+        f"Cloning Task id={a_node.base_task_id} with parameters: {current_param_override}"
     )
     # if we want to skip this node (and subtree of this node) we return False
     # return True to continue DAG execution
@@ -16,7 +14,7 @@ def pre_execute_callback_example(a_pipeline, a_node, current_param_override):
 
 def post_execute_callback_example(a_pipeline, a_node):
     # type (PipelineController, PipelineController.Node) -> None
-    print("Completed Task id={}".format(a_node.executed))
+    print(f"Completed Task id={a_node.executed}")
     # if we need the actual executed Task: Task.get_task(task_id=a_node.executed)
     return
 

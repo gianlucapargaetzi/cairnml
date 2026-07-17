@@ -78,8 +78,10 @@ class PatchHydra:
                     PatchHydra._current_task.set_parameter(
                         allow_omegaconf_edit_section,
                         allow_omegaconf_edit_section_val,
-                        description="If True, the `{}` parameter section will be completely ignored. The OmegaConf will instead be pulled from the `{}` section".format(
-                            PatchHydra._parameter_section, PatchHydra._config_section
+                        description=(
+                            "If True, "
+                            f"the `{PatchHydra._parameter_section}` parameter section will be completely ignored. "
+                            f"The OmegaConf will instead be pulled from the `{PatchHydra._config_section}` section"
                         ),
                     )
                 PatchHydra._current_task.connect(**PatchHydra._last_untracked_state["connect"])
@@ -251,24 +253,21 @@ class PatchHydra:
     def _register_omegaconf(config: "omegaconf.DictConfig", is_read_only: bool = True) -> None:
         from omegaconf import OmegaConf  # noqa
 
-        if is_read_only:
-            description = (
-                "Full OmegaConf YAML configuration. "
-                "This is a read-only section, unless '{}/{}' is set to True".format(
-                    PatchHydra._parameter_section, PatchHydra._parameter_allow_full_edit
+        allow_full_edit_param_key = f"{PatchHydra._parameter_section}/{PatchHydra._parameter_allow_full_edit}"
+        configuration = {
+            "name": PatchHydra._config_section,
+            "description": (
+                (
+                    "Full OmegaConf YAML configuration. "
+                    f"This is a read-only section, unless '{allow_full_edit_param_key}' is set to True"
                 )
-            )
-        else:
-            description = "Full OmegaConf YAML configuration overridden! ({}/{}=True)".format(
-                PatchHydra._parameter_section, PatchHydra._parameter_allow_full_edit
-            )
+                if is_read_only
+                else f"Full OmegaConf YAML configuration overridden! ({allow_full_edit_param_key}=True)"
+            ),
+            "config_type": "OmegaConf YAML",
+            "config_text": OmegaConf.to_yaml(config, resolve=False),
+        }
 
-        configuration = dict(
-            name=PatchHydra._config_section,
-            description=description,
-            config_type="OmegaConf YAML",
-            config_text=OmegaConf.to_yaml(config, resolve=False),
-        )
         if PatchHydra._current_task:
             # noinspection PyProtectedMember
             PatchHydra._current_task._set_configuration(**configuration)
