@@ -46,7 +46,7 @@ def get_frames_with_roi_meta(data_path, ext):
     """
     frames_to_reg = []
     # Go over each jpg file in base path
-    for file in glob.glob(os.path.join(data_path, "*.{}".format(ext))):
+    for file in glob.glob(os.path.join(data_path, f"*.{ext}")):
         full_path = os.path.abspath(file)
         print("Getting files from: " + full_path)
         # read the json file next to the image
@@ -125,7 +125,7 @@ if __name__ == '__main__':
     local_img_path = StorageManager.download_folder(example_dataset_path)
 
     # this folder contains the images and json files for the data
-    base_path = os.path.abspath('{}/datasets/hyperdataset_example/ds_with_rois'.format(local_img_path))
+    base_path = os.path.abspath(f"{local_img_path}/datasets/hyperdataset_example/ds_with_rois")
     dataset_name = args.ds_name
     version_name = args.version_name
 

@@ -196,11 +196,10 @@ def main() -> None:
         raise RuntimeError(f"Failed registering entries: {errors['register']}")
 
     print(
-        "Created HyperDataset version: project={project} dataset={dataset} version={version}".format(
-            project=dataset.project_id,
-            dataset=dataset.dataset_id,
-            version=dataset.version_id,
-        )
+        "Created HyperDataset version: "
+        f"project={dataset.project_id} "
+        f"dataset={dataset.dataset_id} "
+        f"version={dataset.version_id}"
     )
 
 
