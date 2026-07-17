@@ -24,8 +24,11 @@ class SimpleNamespace:
 
     def __repr__(self) -> str:
         keys = sorted(self.__dict__)
-        items = ("{}={!r}".format(k, self.__dict__[k]) for k in keys)
-        return "{}({})".format(type(self).__name__, ", ".join(items))
+        items = (
+            f"{k}={self.__dict__[k]!r}"
+            for k in keys
+        )
+        return f"{type(self).__name__}({', '.join(items)})"
 
     def __eq__(self, other: "SimpleNamespace") -> bool:
         return self.__dict__ == other.__dict__

@@ -126,7 +126,7 @@ class PatchLIGHTgbmModelIO(PatchBaseModelIO):
                         logger.report_scalar(
                             title=data_title,
                             series=data_series,
-                            value="{:.6f}".format(value),
+                            value=f"{value:.6f}",
                             iteration=iteration,
                         )
                 except Exception:

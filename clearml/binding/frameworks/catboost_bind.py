@@ -139,10 +139,15 @@ class PatchCatBoostModelIO(PatchBaseModelIO):
                 iteration = info.get("iteration")
                 for title, metric in (info.get("metrics") or {}).items():
                     if self._scalar_index != 0:
-                        title = "{} - {}".format(title, self._scalar_index)
+                        title = f"{title} - {self._scalar_index}"
                     for series, log in metric.items():
                         value = log[-1]
-                        self._logger.report_scalar(title=title, series=series, value=value, iteration=iteration)
+                        self._logger.report_scalar(
+                            title=title,
+                            series=series,
+                            value=value,
+                            iteration=iteration,
+                        )
                 return True
 
         return ClearMLCallback

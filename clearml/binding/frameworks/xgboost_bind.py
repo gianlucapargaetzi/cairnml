@@ -202,10 +202,15 @@ class PatchXGBoostModelIO(PatchBaseModelIO):
             def _report_eval_log(self, epoch: int, eval_log: Dict[str, Dict[str, List[float]]]) -> None:
                 for data, metric in eval_log.items():
                     if self._scalar_index != 0:
-                        data = "{} - {}".format(data, self._scalar_index)
+                        data = f"{data} - {self._scalar_index}"
                     for metric_name, log in metric.items():
                         value = log[-1]
 
-                        self._logger.report_scalar(title=data, series=metric_name, value=value, iteration=epoch)
+                        self._logger.report_scalar(
+                            title=data,
+                            series=metric_name,
+                            value=value,
+                            iteration=epoch,
+                        )
 
         return ClearMLCallback
