@@ -456,9 +456,8 @@ class WeightsFileHandler:
                                 in_model_id = in_model_id.id
 
                                 get_logger(TrainsFrameworkAdapter).info(
-                                    "Found existing registered model id={} [{}] reusing it.".format(
-                                        in_model_id, model_info.local_model_path
-                                    )
+                                    "Found existing registered model "
+                                    f"id={in_model_id} [{model_info.local_model_path}] reusing it."
                                 )
                         except Exception:
                             in_model_id = None
@@ -467,11 +466,21 @@ class WeightsFileHandler:
 
                 trains_out_model = OutputModel(
                     task=task,
-                    config_dict=config_obj if isinstance(config_obj, dict) else None,
-                    config_text=config_obj if isinstance(config_obj, str) else None,
-                    name=None
-                    if in_model_id
-                    else "{} - {}".format(task.name, model_name or Path(model_info.local_model_path).stem),
+                    config_dict=(
+                        config_obj
+                        if isinstance(config_obj, dict)
+                        else None
+                    ),
+                    config_text=(
+                        config_obj
+                        if isinstance(config_obj, str)
+                        else None
+                    ),
+                    name=(
+                        f"{task.name} - {model_name or Path(model_info.local_model_path).stem}"
+                        if not in_model_id
+                        else None
+                    ),
                     label_enumeration=task.get_labels_enumeration(),
                     framework=framework,
                     base_model_id=in_model_id,

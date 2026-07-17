@@ -1589,10 +1589,17 @@ class Task(_Task):
         """
         task_filter = task_filter or {}
         if not allow_archived:
-            task_filter["system_tags"] = (task_filter.get("system_tags") or []) + ["-{}".format(cls.archived_tag)]
+            task_filter["system_tags"] = [
+                *(task_filter.get("system_tags") or []),
+                f"-{cls.archived_tag}",
+            ]
 
         return cls.__get_tasks(
-            task_ids=task_ids, project_name=project_name, tags=tags, task_name=task_name, **task_filter
+            task_ids=task_ids,
+            project_name=project_name,
+            tags=tags,
+            task_name=task_name,
+            **task_filter,
         )
 
     @classmethod

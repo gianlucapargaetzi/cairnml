@@ -156,7 +156,7 @@ def hocon_quote_key(a_obj: Any) -> Any:
     new_dict = type(a_dict)()
     for k, v in a_dict.items():
         if isinstance(k, str) and "." in k:
-            new_dict['"{}"'.format(k)] = hocon_quote_key(v)
+            new_dict[f'"{k}"'] = hocon_quote_key(v)
         else:
             new_dict[k] = hocon_quote_key(v)
     return new_dict

@@ -23,7 +23,7 @@ def get_frames_with_masks(data_path, ext="png", mask_ext="_mask.png"):
     frame_groups = {}
 
     # Go over each jpg file in base path
-    for file in glob.glob(os.path.join(data_path, "*.{}".format(ext))):
+    for file in glob.glob(os.path.join(data_path, f"*.{ext}")):
         full_path = os.path.abspath(file)
 
         # if this is a mask file skip it, we will manually add it later to the images it belongs to
@@ -119,7 +119,7 @@ if __name__ == '__main__':
     example_dataset_path = 's3://clearml-public/datasets/hyperdataset_example/ds_with_masks'
     local_img_path = StorageManager.download_folder(example_dataset_path)
     # this folder contains the images and json files for the data
-    base_path = os.path.abspath('{}/datasets/hyperdataset_example/ds_with_masks'.format(local_img_path))
+    base_path = os.path.abspath(f"{local_img_path}/datasets/hyperdataset_example/ds_with_masks")
     dataset_name = args.ds_name
     version_name = args.version_name
 

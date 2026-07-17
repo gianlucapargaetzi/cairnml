@@ -49,7 +49,14 @@ class Net(nn.Module):
         return F.log_softmax(x, dim=1)
 
 
-def train(args, model, device, train_loader, optimizer, epoch):
+def train(
+    args,
+    model,
+    device,
+    train_loader,
+    optimizer,
+    epoch,
+):
     model.train()
     for batch_idx, (data, target) in enumerate(train_loader):
         data, target = data.to(device), target.to(device)
@@ -66,17 +73,20 @@ def train(args, model, device, train_loader, optimizer, epoch):
                 value=loss.item(),
             )
             print(
-                "Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}".format(
-                    epoch,
-                    batch_idx * len(data),
-                    len(train_loader.dataset),
-                    100.0 * batch_idx / len(train_loader),
-                    loss.item(),
-                )
+                f"Train Epoch: {epoch} "
+                f"[{batch_idx * len(data)}/{len(train_loader.dataset)} "
+                f"({100.0 * batch_idx / len(train_loader):.0f}%)]\t"
+                f"Loss: {loss.item():.6f}"
             )
 
 
-def test(args, model, device, test_loader, epoch):
+def test(
+    args,
+    model,
+    device,
+    test_loader,
+    epoch,
+):
     model.eval()
     test_loss = 0
     correct = 0
@@ -101,27 +111,40 @@ def test(args, model, device, test_loader, epoch):
         "test", "accuracy", iteration=epoch, value=(correct / len(test_loader.dataset))
     )
     print(
-        "Test set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)".format(
-            test_loss,
-            correct,
-            len(test_loader.dataset),
-            100.0 * correct / len(test_loader.dataset),
-        )
+        "Test set: "
+        f"Average loss: {test_loss:.4f}, "
+        f"Accuracy: {correct}/{len(test_loader.dataset)} ({100.0 * correct / len(test_loader.dataset):.0f}%)"
     )
 
 
 def main(_):
     # Connecting ClearML with the current process,
     # from here on everything is logged automatically
-    task = Task.init(project_name="examples", task_name="PyTorch MNIST train with abseil")
+    Task.init(
+        project_name="examples",
+        task_name="PyTorch MNIST train with abseil",
+    )
 
-    use_cuda = FLAGS.cuda and torch.cuda.is_available()
-
+    use_cuda = (
+        FLAGS.cuda
+        and torch.cuda.is_available()
+    )
     torch.manual_seed(FLAGS.seed)
 
-    device = torch.device("cuda" if use_cuda else "cpu")
+    device = torch.device(
+        "cuda"
+        if use_cuda
+        else "cpu"
+    )
 
-    kwargs = {"num_workers": 4, "pin_memory": True} if use_cuda else {}
+    kwargs = (
+        {
+            "num_workers": 4,
+            "pin_memory": True,
+        }
+        if use_cuda
+        else {}
+    )
     train_loader = torch.utils.data.DataLoader(
         datasets.MNIST(
             os.path.join("..", "data"),

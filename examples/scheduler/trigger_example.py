@@ -4,17 +4,17 @@ from clearml.automation import TriggerScheduler
 
 def trigger_model_func(model_id):
     model = Model(model_id=model_id)
-    print('model id {} modified'.format(model.id))
+    print(f'model id {model.id} modified')
 
 
 def trigger_dataset_func(dataset_id):
     dataset = Dataset.get(dataset_id=dataset_id)
-    print('dataset id {} created'.format(dataset.id))
+    print(f'dataset id {dataset.id} created')
 
 
 def trigger_task_func(task_id):
     task = Task.get_task(task_id=task_id)
-    print('Task ID {} metric above threshold'.format(task.id))
+    print(f'Task ID {task.id} metric above threshold')
 
 
 if __name__ == '__main__':

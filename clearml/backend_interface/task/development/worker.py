@@ -107,7 +107,7 @@ class DevWorker:
             return
         except BaseException as ex:  # noqa
             if task and task.log:
-                task.log.warning("### TASK STOPPING - USER ABORTED - CALLBACK EXCEPTION: {} ###".format(ex))
+                task.log.warning(f"### TASK STOPPING - USER ABORTED - CALLBACK EXCEPTION: {ex} ###")
 
         # set runtime property, abort completed for the agent to know we are done
         if task:
@@ -118,7 +118,7 @@ class DevWorker:
         timeout = self._abort_cb_timeout or 300.0
         if self._task and self._task.log:
             self._task.log.warning(
-                "### TASK STOPPING - USER ABORTED - LAUNCHING CALLBACK (timeout {} sec) ###".format(timeout)
+                f"### TASK STOPPING - USER ABORTED - LAUNCHING CALLBACK (timeout {timeout} sec) ###"
             )
 
         tic = time()
@@ -136,11 +136,16 @@ class DevWorker:
             pass
 
         if self._task and self._task.log:
+            callback_status = (
+                "TIMED OUT"
+                if timed_out
+                else "COMPLETED"
+                if self._cb_completed
+                else "FAILED"
+            )
+            time_elapsed = time() - tic
             self._task.log.warning(
-                "### TASK STOPPING - USER ABORTED - CALLBACK {} ({:.2f} sec) ###".format(
-                    "TIMED OUT" if timed_out else ("COMPLETED" if self._cb_completed else "FAILED"),
-                    time() - tic,
-                )
+                f"### TASK STOPPING - USER ABORTED - CALLBACK {callback_status} ({time_elapsed:.2f} sec) ###"
             )
 
     def _daemon(self) -> None:
