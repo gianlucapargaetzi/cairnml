@@ -38,7 +38,7 @@ else:
             if not self.task:
                 return
             data = {
-                "trial_id_{}".format(trial_id): trial_state,
+                f"trial_id_{trial_id}": trial_state,
             }
             data.update(self.task.get_model_config_dict())
             self.task.connect_configuration(data)
@@ -52,14 +52,14 @@ else:
 
             trial = {}
             for k, v in trial_state.get("metrics", {}).get("metrics", {}).items():
-                m = "metric/{}".format(k)
+                m = f"metric/{k}"
                 observations = trial_state["metrics"]["metrics"][k].get("observations")
                 if observations:
                     observations = observations[-1].get("value")
                 if observations:
                     trial[m] = observations[-1]
             for k, v in trial_state.get("hyperparameters", {}).get("values", {}).items():
-                m = "values/{}".format(k)
+                m = f"values/{k}"
                 trial[m] = trial_state["hyperparameters"]["values"][k]
 
             if trial_id in self._summary.index:
