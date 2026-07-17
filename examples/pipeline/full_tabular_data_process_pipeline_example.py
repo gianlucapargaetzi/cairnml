@@ -37,11 +37,16 @@ def preprocess_dataset(dataset_id: str):
 
     # store in a new dataset
     new_dataset = Dataset.create(
-        dataset_project=dataset.project, dataset_name="{} v2".format(dataset.name),
+        dataset_project=dataset.project,
+        dataset_name=f"{dataset.name} v2",
         parent_datasets=[dataset]
     )
     new_dataset.add_files("./dataset.csv")
-    new_dataset.get_logger().report_table(title="sample", series="head", table_plot=df.head())
+    new_dataset.get_logger().report_table(
+        title="sample",
+        series="head",
+        table_plot=df.head(),
+    )
     new_dataset.finalize(auto_upload=True)
 
     print("done preprocess_dataset")
@@ -127,7 +132,7 @@ def select_best_model(models_score: list):
         if not best_model or m["error"] < best_model["error"]:
             best_model = m
 
-    print("The best model is {}".format(best_model))
+    print(f"The best model is {best_model}")
     # lets store it on the pipeline
     best_model = OutputModel(base_model_id=best_model["model_id"])
     # let's make sure we have it
@@ -164,7 +169,7 @@ def pipeline(data_url: str, project: str):
         models_score.append(model_score)
 
     model_id = select_best_model(models_score=models_score)
-    print("selected model_id = {}".format(model_id))
+    print(f"selected model_id = {model_id}")
 
 
 if __name__ == '__main__':

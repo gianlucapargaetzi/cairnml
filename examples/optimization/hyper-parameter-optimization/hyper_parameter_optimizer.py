@@ -28,9 +28,9 @@ def job_complete_callback(
     job_parameters,         # type: dict
     top_performance_job_id  # type: str
 ):
-    print('Job completed!', job_id, objective_value, objective_iteration, job_parameters)
+    print("Job completed!", job_id, objective_value, objective_iteration, job_parameters)
     if job_id == top_performance_job_id:
-        print('WOOT WOOT we broke the record! Objective reached {}'.format(objective_value))
+        print(f"WOOT WOOT we broke the record! Objective reached {objective_value}")
 
 
 parser = argparse.ArgumentParser()

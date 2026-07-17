@@ -118,4 +118,4 @@ if __name__ == '__main__':
     python_version = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
     print(f"Running under Python {python_version}", file=sys.stderr)
     task_params = task.get_parameters()
-    print("Task parameters are: {}".format(task_params))
+    print(f"Task parameters are: {task_params}")
