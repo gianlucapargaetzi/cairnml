@@ -76,18 +76,33 @@ class S3BucketConfig:
         dict_list: Union[Tuple[Dict], List[Dict]],
         log: Optional[logging.Logger] = None,
     ) -> List["S3BucketConfig"]:
-        if not isinstance(dict_list, (tuple, list)) or not all(isinstance(x, dict) for x in dict_list):
-            raise ValueError("Expecting a list of configurations dictionaries")
-        configs = [cls(**entry) for entry in dict_list]
-        valid_configs = [conf for conf in configs if conf.is_valid()]
-        if log and len(valid_configs) < len(configs):
-            log.warning(
-                "Invalid bucket configurations detected for {}".format(
-                    ", ".join(
-                        "/".join((config.host, config.bucket)) for config in configs if config not in valid_configs
-                    )
-                )
+        if not (
+            isinstance(dict_list, (tuple, list))
+            and all(
+                isinstance(x, dict)
+                for x in dict_list
             )
+        ):
+            raise ValueError("Expecting a list of configurations dictionaries")
+
+        configs = [
+            cls(**entry)
+            for entry in dict_list
+        ]
+        valid_configs = [
+            conf
+            for conf in configs
+            if conf.is_valid()
+        ]
+
+        if log and len(valid_configs) < len(configs):
+            buckets_with_invalid_configuration = ", ".join((
+                f"{config.host}/{config.bucket}"
+                for config in configs
+                if config not in valid_configs
+            ))
+            log.warning(f"Invalid bucket configurations detected for {buckets_with_invalid_configuration}")
+
         return valid_configs
 
 
@@ -281,7 +296,7 @@ class GSBucketConfig:
     def update(self, **kwargs: Any) -> None:
         for item in kwargs:
             if not hasattr(self, item):
-                warnings.warn("Unexpected argument {} for update. Ignored".format(item))
+                warnings.warn(f"Unexpected argument {item} for update. Ignored")
             else:
                 setattr(self, item, kwargs[item])
 
@@ -388,7 +403,7 @@ class AzureContainerConfig:
     def update(self, **kwargs: Any) -> None:
         for item in kwargs:
             if not hasattr(self, item):
-                warnings.warn("Unexpected argument {} for update. Ignored".format(item))
+                warnings.warn(f"Unexpected argument {item} for update. Ignored")
             else:
                 setattr(self, item, kwargs[item])
 
@@ -460,8 +475,8 @@ class AzureContainerConfigurations:
 
         if not f.path.segments:
             raise ValueError(
-                "URI {} is missing a container name (expected "
-                "[https/azure]://<account-name>.../<container-name>)".format(uri)
+                f"URI {uri} is missing a container name (expected "
+                "[https/azure]://<account-name>.../<container-name>)"
             )
 
         container = f.path.segments[0]
