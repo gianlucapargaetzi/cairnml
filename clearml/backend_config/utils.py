@@ -58,14 +58,14 @@ def apply_files(config: "Config") -> None:
         # noinspection PyBroadException
         try:
             if target.is_dir():
-                print("Skipped [{}]: is a directory {}".format(key, target))
+                print(f"Skipped [{key}]: is a directory {target}")
                 continue
 
             if not overwrite and target.is_file():
-                print("Skipped [{}]: file exists {}".format(key, target))
+                print(f"Skipped [{key}]: file exists {target}")
                 continue
         except Exception as ex:
-            print("Skipped [{}]: can't access {} ({})".format(key, target, ex))
+            print(f"Skipped [{key}]: can't access {target} ({ex})")
             continue
 
         if contents:
@@ -75,14 +75,14 @@ def apply_files(config: "Config") -> None:
                     if target_fmt != "bytes":
                         contents = contents.decode("utf-8")
             except Exception as ex:
-                print("Skipped [{}]: failed decoding {} ({})".format(key, fmt, ex))
+                print(f"Skipped [{key}]: failed decoding {fmt} ({ex})")
                 continue
 
         # noinspection PyBroadException
         try:
             target.parent.mkdir(parents=True, exist_ok=True)
         except Exception as ex:
-            print("Skipped [{}]: failed creating path {} ({})".format(key, target.parent, ex))
+            print(f"Skipped [{key}]: failed creating path {target.parent} ({ex})")
             continue
 
         try:
@@ -103,10 +103,10 @@ def apply_files(config: "Config") -> None:
                             contents = contents.as_plain_ordered_dict()
                         text = str(contents)
                 except Exception as ex:
-                    print("Skipped [{}]: failed encoding to {} ({})".format(key, target_fmt, ex))
+                    print(f"Skipped [{key}]: failed encoding to {target_fmt} ({ex})")
                     continue
                 target.write_text(text)
-            print("Saved [{}]: {}".format(key, target))
+            print(f"Saved [{key}]: {target}")
         except Exception as ex:
-            print("Skipped [{}]: failed saving file {} ({})".format(key, target, ex))
+            print(f"Skipped [{key}]: failed saving file {target} ({ex})")
             continue
