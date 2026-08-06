@@ -3703,6 +3703,27 @@ CLEARML_SECONDARY_CACHE_DIR = EnvEntry("CLEARML_SECONDARY_CACHE_DIR", type=str)
 _DISK_STRATEGY_SECTION = "disk_space_file_size_strategy"
 _CONFIG_MISSING = object()
 
+# legacy (allegroai-style) cache size configuration lives directly under storage.cache
+# with no enable flag - the presence of these sections was the opt-in
+_LEGACY_SIZE_SECTIONS = ("size", "secondary")
+_legacy_size_config_warned = [False]
+
+
+def _resolve_disk_strategy_enabled():
+    enabled = config.get(f"storage.cache.{_DISK_STRATEGY_SECTION}.enabled", None)
+    if enabled is not None:
+        return bool(enabled)
+    if any(config.get(f"storage.cache.{section}", None) for section in _LEGACY_SIZE_SECTIONS):
+        if not _legacy_size_config_warned[0]:
+            _legacy_size_config_warned[0] = True
+            logging.getLogger("clearml.storage").warning(
+                "Legacy cache size configuration detected (sdk.storage.cache.size/secondary), "
+                f"enabling sdk.storage.cache.{_DISK_STRATEGY_SECTION}. "
+                f"Please migrate these settings into the sdk.storage.cache.{_DISK_STRATEGY_SECTION} section"
+            )
+        return True
+    return False
+
 
 # Simplified urlsplit tailored for ClearML usage
 def fast_urlsplit(remote_path, *_, **__):
@@ -3730,11 +3751,7 @@ class StorageHelper(_StorageHelper):
     """ Cached File Storage helper.
         Overloads the standard StorageHelper and provides local caching support for calls to download_to_file().
     """
-    use_disk_space_file_size_strategy = deferred_config(
-        f"storage.cache.{_DISK_STRATEGY_SECTION}.enabled",
-        False,
-        transform=bool,
-    )
+    use_disk_space_file_size_strategy = deferred_config(transform=_resolve_disk_strategy_enabled)
 
     class CacheConfigs:
         configs = {}
@@ -3846,8 +3863,30 @@ class StorageHelper(_StorageHelper):
         """
         return self.cache_base_dir
 
+    @classmethod
+    def _legacy_cache_override(cls) -> bool:
+        """
+        The legacy allegroai SDK subclasses StorageHelper with its own copy of this caching layer
+        (same method names) and expects super() calls to provide the plain, uncached behavior.
+        If the caching internals are overridden, the disk-space strategy must step aside:
+        otherwise download_to_file() -> self._multi_cache_download() dispatches back into the
+        subclass, whose _download() calls super().download_to_file() -> infinite recursion.
+        
+        :return bool: Whether the use_disk_space_file_size_strategy behavior must be overriden (True) or not (False).
+        """
+        return cls._multi_cache_download is not StorageHelper._multi_cache_download
+
+    @classmethod
+    def _use_disk_space_file_size_strategy(cls) -> bool:
+        """
+        Determines if the disk space file size strategy should be used or not. See classmethod '_legacy_cache_override'.
+        
+        :return bool: Whether the disk space file size strategy should be used (True) or not (False).
+        """
+        return bool(cls.use_disk_space_file_size_strategy) and not cls._legacy_cache_override()
+
     def __init__(self, *args, **kwargs):
-        if not bool(self.use_disk_space_file_size_strategy):
+        if not self._use_disk_space_file_size_strategy():
             return super(StorageHelper, self).__init__(*args, **kwargs)
 
         self.__class__.init_configs()
@@ -3937,7 +3976,7 @@ class StorageHelper(_StorageHelper):
         :param force_cache: force caching for this path, regardless of configuration
         :return:
         """
-        if not bool(self.use_disk_space_file_size_strategy):
+        if not self._use_disk_space_file_size_strategy():
             return super().download_as_stream(remote_path=remote_path, chunk_size=chunk_size)
 
         try:
@@ -4002,7 +4041,7 @@ class StorageHelper(_StorageHelper):
         :param direct_access: The parameter is not used, and is present here only for compatibility reasons
         :return:
         """
-        if not bool(self.use_disk_space_file_size_strategy):
+        if not self._use_disk_space_file_size_strategy():
             return super().download_to_file(
                 remote_path=remote_path,
                 local_path=local_path,
@@ -4074,7 +4113,7 @@ class StorageHelper(_StorageHelper):
         :param remote_url: Remote URL. Example: https://example.com/file.jpg s3://bucket/folder/file.mp4 etc.
         :return: Path to local copy of the downloaded file. None if error occurred.
         """
-        if not bool(cls.use_disk_space_file_size_strategy):
+        if not cls._use_disk_space_file_size_strategy():
             return super().get_local_copy(remote_url=remote_url, skip_zero_size_check=skip_zero_size_check)
         helper = cls.get(remote_url)
         if not helper:
@@ -4613,12 +4652,28 @@ def _secondary_disk_config_key(*keys):
     return ".".join(filter(None, ("storage.cache", _DISK_STRATEGY_SECTION, "secondary", *keys)))
 
 
+def _legacy_config_key(cache_name, *keys):
+    # legacy (allegroai-style) location, directly under storage.cache with no strategy section
+    storage_key = "storage.cache"
+    if cache_name is not None:
+        storage_key += f".{cache_name}"
+    return ".".join(filter(None, (storage_key, *keys)))
+
+
+def _resolved_disk_config_key(cache_name, *keys):
+    # prefer the disk strategy section, fall back to the legacy location
+    key = _disk_config_key(cache_name, *keys)
+    if config.get(key, _CONFIG_MISSING) is _CONFIG_MISSING:
+        key = _legacy_config_key(cache_name, *keys)
+    return key
+
+
 def _disk_config(*keys, default=None, cache_name=None):
     if cache_name == "secondary":
         value = config.get(_secondary_disk_config_key(*keys), _CONFIG_MISSING)
         if value is not _CONFIG_MISSING:
             return default if value is None else value
-    return config.get(_disk_config_key(cache_name, *keys), default)
+    return config.get(_resolved_disk_config_key(cache_name, *keys), default)
 
 
 def _disk_config_human_size(*keys, default=None, cache_name=None):
@@ -4628,7 +4683,7 @@ def _disk_config_human_size(*keys, default=None, cache_name=None):
             if value is None:
                 return default
             return get_human_size_default({"value": value}, "value", default)
-    return get_human_size_default(config, _disk_config_key(cache_name, *keys), default)
+    return get_human_size_default(config, _resolved_disk_config_key(cache_name, *keys), default)
 
 
 def _disk_config_percentage(*keys, default=None, cache_name=None):
@@ -4638,7 +4693,7 @@ def _disk_config_percentage(*keys, default=None, cache_name=None):
             if value is None:
                 return default
             return get_percentage({"value": value}, "value", required=False, default=default)
-    return get_percentage(config, _disk_config_key(cache_name, *keys), required=False, default=default)
+    return get_percentage(config, _resolved_disk_config_key(cache_name, *keys), required=False, default=default)
 
 
 def _get_cache_dir(cache_name=None):
