@@ -6,8 +6,8 @@ from queue import Queue
 from typing import (
     Any,
     List,
-    Dict,
     Optional,
+    Tuple,
     Union,
     Sequence,
     Iterable,
@@ -16,6 +16,7 @@ from typing import (
 from clearml.backend_api import Session
 from clearml.backend_api.services import dataviews as _dataviews
 from clearml.backend_interface.datasets.hyper_dataset_data_view import DataViewManagementBackend
+from clearml.backend_interface.util import mutually_exclusive
 from clearml.config import (
     deferred_config,
     running_remotely,
@@ -114,6 +115,37 @@ class HyperDatasetQuery:
         self._weight = weight
         self._filter_by_roi = filter_by_roi
         self._label_rules = label_rules
+
+    @classmethod
+    def _from_filter_rule(
+        cls,
+        rule: Any,
+        dataset_id: Optional[str] = None,
+        version_id: Optional[str] = None,
+    ) -> "HyperDatasetQuery":
+        """
+        Reconstruct a query from a backend `dataviews.FilterRule` object.
+
+        The rule comes from a stored DataView, so dataset/version existence and
+        Lucene syntax are not re-validated (no extra server round-trips).
+
+        :param rule: `dataviews.FilterRule` (or duck-typed object) fetched from the backend
+        :param dataset_id: Optional concrete dataset id overriding the rule's (used when
+            expanding a wildcard rule against the dataview's version pool)
+        :param version_id: Optional concrete version id overriding the rule's
+        :return: A `HyperDatasetQuery` instance mirroring the rule
+        """
+        query = cls.__new__(cls)
+        query._project_id = "*"
+        query._dataset_id = dataset_id or getattr(rule, "dataset", None) or "*"
+        query._version_id = version_id or getattr(rule, "version", None) or "*"
+        query._source_query = getattr(rule, "sources_query", None)
+        query._frame_query = getattr(rule, "frame_query", None)
+        weight = getattr(rule, "weight", None)
+        query._weight = float(weight) if weight is not None else 1.0
+        query._filter_by_roi = getattr(rule, "filter_by_roi", None)
+        query._label_rules = getattr(rule, "label_rules", None)
+        return query
 
     @property
     def dataset_id(self) -> str:
@@ -261,6 +293,9 @@ class DataView:
         self._id = None
         self._filter_rules: List[Any] = []
         self._queries: List[HyperDatasetQuery] = []
+        # Concrete (dataset, version) pairs stored as the backend dataview's version
+        # pool; wildcard filter rules select from this pool
+        self._version_pool: List[Tuple[str, str]] = []
         self._count_cache = None
         self._synthetic_epoch_limit = None
         self._private_metadata = {}
@@ -326,6 +361,119 @@ class DataView:
         """
         self._name = value
 
+    @classmethod
+    def get(
+        cls,
+        dataview_id: Optional[str] = None,
+        dataview_name: Optional[str] = None,
+    ) -> "DataView":
+        """
+        Get a previously stored DataView from the server.
+
+        The returned DataView is populated with the stored queries and iteration
+        parameters, and is not auto-connected to the current Task.
+
+        :param dataview_id: The ID of the DataView.
+        :param dataview_name: The name of the DataView. If more than one DataView shares
+            the name, the most recently created one is selected (a warning is logged).
+
+        :return: A new DataView object populated from the stored definition
+
+        .. note::
+            ``dataview_id`` and ``dataview_name`` are mutually exclusive.
+            Exactly one of them must be provided, otherwise a ValueError is raised.
+        """
+        mutually_exclusive(_exception_cls=ValueError, dataview_id=dataview_id, dataview_name=dataview_name)
+        backend_dataview = (
+            DataViewManagementBackend.get_by_id(dataview_id)
+            if dataview_id
+            else DataViewManagementBackend.get_by_name(dataview_name)
+        )
+        if not backend_dataview:
+            raise ValueError(
+                'DataView id "{}" was not found'.format(dataview_id)
+                if dataview_id
+                else 'DataView named "{}" was not found'.format(dataview_name)
+            )
+        dataview = cls(auto_connect_with_task=False)
+        dataview._init_from_backend_object(backend_dataview)
+        return dataview
+
+    def _init_from_backend_object(self, backend_dataview: Any) -> None:
+        """
+        Populate local state from a fetched `dataviews.Dataview` backend object.
+
+        :param backend_dataview: `dataviews.Dataview` object returned by the backend
+        """
+        self._id = getattr(backend_dataview, "id", None)
+        self._name = getattr(backend_dataview, "name", None)
+        self._description = getattr(backend_dataview, "description", None)
+        self._tags = getattr(backend_dataview, "tags", None)
+
+        iteration = getattr(backend_dataview, "iteration", None)
+        if iteration is not None:
+            order = getattr(iteration, "order", None)
+            if order is not None:
+                self._iteration_order = getattr(order, "value", order)
+            infinite = getattr(iteration, "infinite", None)
+            if infinite is not None:
+                self._iteration_infinite = bool(infinite)
+            self._iteration_random_seed = getattr(iteration, "random_seed", None)
+            limit = getattr(iteration, "limit", None)
+            self._iteration_limit = int(limit) if limit is not None else None
+
+        version_entries = getattr(backend_dataview, "versions", None) or []
+        self._version_pool = [
+            (dataset_id, version_id)
+            for dataset_id, version_id in (
+                (getattr(entry, "dataset", None), getattr(entry, "version", None))
+                for entry in version_entries
+            )
+            if dataset_id and dataset_id != "*" and version_id and version_id != "*"
+        ]
+
+        filters = getattr(backend_dataview, "filters", None) or []
+        self._filter_rules = list(filters)
+        if filters:
+            # A rule with a wildcard dataset/version selects from the dataview's version
+            # pool — expand such rules against the pool so queries hold concrete pairs
+            queries: List[HyperDatasetQuery] = []
+            for rule in filters:
+                rule_dataset = getattr(rule, "dataset", None) or "*"
+                rule_version = getattr(rule, "version", None) or "*"
+                matching_pool_pairs = (
+                    [
+                        (dataset_id, version_id)
+                        for dataset_id, version_id in self._version_pool
+                        if (rule_dataset == "*" or dataset_id == rule_dataset)
+                        and (rule_version == "*" or version_id == rule_version)
+                    ]
+                    if (rule_dataset == "*" or rule_version == "*")
+                    else []
+                )
+                if matching_pool_pairs:
+                    queries.extend(
+                        HyperDatasetQuery._from_filter_rule(
+                            rule,
+                            dataset_id=dataset_id,
+                            version_id=version_id,
+                        )
+                        for dataset_id, version_id in matching_pool_pairs
+                    )
+                else:
+                    queries.append(HyperDatasetQuery._from_filter_rule(rule))
+            self._queries = queries
+        else:
+            # No filter rules stored: the version pool alone defines the selection
+            # (`DataviewEntry` also carries `dataset`/`version` attributes)
+            self._queries = [
+                HyperDatasetQuery._from_filter_rule(entry)
+                for entry in version_entries
+            ]
+
+        self._count_cache = None
+        self._synthetic_epoch_limit = None
+
     def get_queries(self) -> List[HyperDatasetQuery]:
         """Return current HyperDatasetQuery objects attached to this dataview."""
         return list(self._queries)
@@ -373,9 +521,12 @@ class DataView:
         self._synthetic_epoch_limit = None
         self._resync_task_attachment()
         if self._id:
+            # Reuse the stored dataview: update it in place, keeping its version pool
+            # consistent with the rules (new queries may reference versions not in it yet)
             result = DataViewManagementBackend.update_filter_rules(
                 dataview_id=self._id,
                 filter_rules=self._filter_rules,
+                versions=self._collect_version_pairs(),
             )
             if not result:
                 raise ValueError(f"Failed updating DataView {self._id}")
@@ -398,6 +549,7 @@ class DataView:
         )
         self._filter_rules = []
         self._queries = []
+        self._version_pool = []
         self._count_cache = None
         self._synthetic_epoch_limit = None
         if not normalized:
@@ -529,6 +681,33 @@ class DataView:
             pass
         return None
 
+    def _collect_version_pairs(self) -> List[Tuple[str, str]]:
+        """
+        Return the ordered, unique, concrete (dataset, version) pairs this DataView spans:
+        the stored version pool plus every pair referenced by the current queries.
+        Wildcard or incomplete pairs are dropped.
+
+        :return: List of (dataset_id, version_id) tuples
+        """
+        pairs: List[Tuple[str, str]] = []
+        seen = set()
+        candidates = list(self._version_pool) + [
+            (getattr(query, "dataset_id", None), getattr(query, "version_id", None))
+            for query in self._queries
+        ]
+        for dataset_id, version_id in candidates:
+            if (
+                not dataset_id
+                or dataset_id == "*"
+                or not version_id
+                or version_id == "*"
+                or (dataset_id, version_id) in seen
+            ):
+                continue
+            seen.add((dataset_id, version_id))
+            pairs.append((dataset_id, version_id))
+        return pairs
+
     def _build_inline_payload(self) -> Any:
         """
         Build a `frames.Dataview` payload from this DataView's current local state.
@@ -536,38 +715,21 @@ class DataView:
         Used by read paths (count, iteration) so they hit the inline `frames.*ForDataview`
         endpoints — no stored DataView id required, no project write permission required.
         """
-        def convert_query_to_version(query: HyperDatasetQuery) -> Optional[Any]:  # _dataviews.DataviewEntry
-            dataset_id = getattr(query, "dataset_id", None)
-            version_id = getattr(query, "version_id", None)
+        version_pairs = self._collect_version_pairs()
 
-            return (
-                _dataviews.DataviewEntry(
-                    dataset=dataset_id,
-                    version=version_id,
-                )
-                if (
-                    (dataset_id and dataset_id != "*")
-                    and (version_id and version_id != "*")
-                )
-                else None
-            )
-
-        versions = [
-            version
-            for version in (
-                convert_query_to_version(query=query)
-                for query in self._queries
-            )
-            if version is not None
-        ]
-
-        if len(versions) == 0:
+        if len(version_pairs) == 0:
             raise ValueError(
                 "Cannot fetch DataView contents: no concrete (dataset, version) provided in queries"
             )
 
         return DataViewManagementBackend.build_inline_dataview(
-            versions=versions,
+            versions=[
+                _dataviews.DataviewEntry(
+                    dataset=dataset_id,
+                    version=version_id,
+                )
+                for dataset_id, version_id in version_pairs
+            ],
             filters=(
                 self._filter_rules
                 or None
@@ -636,32 +798,17 @@ class DataView:
 
     def _create_on_server(self) -> None:
         """Build the create payload from local state and persist it. Raises on failure."""
-        def convert_query_to_version(query: HyperDatasetQuery) -> Optional[Dict[str, Any]]:
-            dataset_id = getattr(query, "dataset_id", None)
-            version_id = getattr(query, "version_id", None)
+        version_pairs = self._collect_version_pairs()
 
-            return (
-                {"dataset": dataset_id, "version": version_id}
-                if (
-                    (dataset_id and dataset_id != "*")
-                    and (version_id and version_id != "*")
-                )
-                else None
-            )
-
-        versions = [
-            version
-            for version in (
-                convert_query_to_version(query=query)
-                for query in self._queries
-            )
-            if version is not None
-        ]
-
-        if len(versions) == 0:
+        if len(version_pairs) == 0:
             raise ValueError(
                 "Cannot fetch DataView contents: no concrete (dataset, version) provided in queries"
             )
+
+        versions = [
+            {"dataset": dataset_id, "version": version_id}
+            for dataset_id, version_id in version_pairs
+        ]
 
         self._id = DataViewManagementBackend.create(
             name=self._name,
@@ -681,6 +828,7 @@ class DataView:
                 filter_rules=self._filter_rules,
             )
 
+        self._version_pool = version_pairs
         self._count_cache = None
         self._resync_task_attachment()
 
@@ -850,6 +998,7 @@ class DataView:
         self._iteration_limit = getattr(other, "_iteration_limit", self._iteration_limit)
         self._filter_rules = list(getattr(other, "_filter_rules", []))
         self._queries = list(getattr(other, "_queries", []))
+        self._version_pool = list(getattr(other, "_version_pool", []) or [])
         self._synthetic_epoch_limit = getattr(other, "_synthetic_epoch_limit", self._synthetic_epoch_limit)
         self._private_metadata = dict(getattr(other, "_private_metadata", self._private_metadata) or {})
 
