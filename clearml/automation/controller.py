@@ -42,10 +42,12 @@ from ..utilities.version import Version
 
 class PipelineController:
     """
-    Pipeline controller.
-    Pipeline is a DAG of base tasks, each task will be cloned (arguments changed as required), executed, and monitored.
-    The pipeline process (task) itself can be executed manually or by the clearml-agent services queue.
-    Notice: The pipeline controller lives as long as the pipeline itself is being executed.
+    A PipelineController orchestrates a pipeline: a DAG of steps, each executed as a cloned Task (or a Task
+    created from a function) and monitored until it completes.
+
+    The pipeline itself runs as a Task of its own (the "pipeline controller" Task), which can be launched
+    locally or remotely on a clearml-agent services queue. This controller Task stays active for as long as
+    the pipeline runs, launching and monitoring the DAG's steps until the pipeline finishes.
     """
 
     _tag = "pipeline"
@@ -184,8 +186,9 @@ class PipelineController:
 
         def copy(self) -> "PipelineController.Node":
             """
-            return a copy of the current Node, excluding the `job`, `executed`, fields
-            :return: new Node copy
+            Return a copy of the current Node, excluding the ``job``, ``executed`` fields.
+
+            :return: New Node copy.
             """
             new_copy = PipelineController.Node(
                 name=self.name,
@@ -249,38 +252,38 @@ class PipelineController:
         """
         Create a new pipeline controller. The newly created object will launch and monitor the new experiments.
 
-        :param name: Provide pipeline name (if main Task exists it overrides its name)
-        :param project: Provide project storing the pipeline (if main Task exists  it overrides its project)
+        :param name: Provide pipeline name (if main Task exists it overrides its name).
+        :param project: Provide project storing the pipeline (if main Task exists it overrides its project).
         :param version: Pipeline version. This version allows to uniquely identify the pipeline
-            template execution. Examples for semantic versions: version='1.0.1' , version='23', version='1.2'.
+            template execution. Examples for semantic versions: ``version='1.0.1'``, ``version='23'``, ``version='1.2'``.
             If not set, find the latest version of the pipeline and increment it. If no such version is found,
-            default to '1.0.0'
+            default to ``'1.0.0'``.
         :param float pool_frequency: The pooling frequency (in minutes) for monitoring experiments / states.
-        :param bool add_pipeline_tags: (default: False) if True, add `pipe: <pipeline_task_id>` tag to all
+        :param bool add_pipeline_tags: (default: ``False``) if ``True``, add ``pipe: PIPELINE_TASK_ID`` tag to all
             steps (Tasks) created by this pipeline.
         :param str target_project: If provided, all pipeline steps are cloned into the target project.
-            If True, pipeline steps are stored into the pipeline project
-        :param bool auto_version_bump: (Deprecated) If True, if the same pipeline version already exists
-            (with any difference from the current one), the current pipeline version will be bumped to a new version
-            version bump examples: 1.0.0 -> 1.0.1 , 1.2 -> 1.3, 10 -> 11 etc.
-        :param bool abort_on_failure: If False (default), failed pipeline steps will not cause the pipeline
+            If ``True``, pipeline steps are stored into the pipeline project.
+        :param bool auto_version_bump: (Deprecated) If ``True``, if the same pipeline version already exists
+            (with any difference from the current one), the current pipeline version will be bumped to a new version.
+            Version bump examples: ``1.0.0`` -> ``1.0.1``, ``1.2`` -> ``1.3``, ``10`` -> ``11`` etc.
+        :param bool abort_on_failure: If ``False`` (default), failed pipeline steps will not cause the pipeline
             to stop immediately, instead any step that is not connected (or indirectly connected) to the failed step,
             will still be executed. Nonetheless the pipeline itself will be marked failed, unless the failed step
-            was specifically defined with "continue_on_fail=True".
-            If True, any failed step will cause the pipeline to immediately abort, stop all running steps,
+            was specifically defined with ``continue_on_fail=True``.
+            If ``True``, any failed step will cause the pipeline to immediately abort, stop all running steps,
             and mark the pipeline as failed.
-        :param add_run_number: If True (default), add the run number of the pipeline to the pipeline name.
-            Example, the second time we launch the pipeline "best pipeline", we rename it to "best pipeline #2"
-        :param retry_on_failure: Integer (number of retries) or Callback function that returns True to allow a retry
+        :param add_run_number: If ``True`` (default), add the run number of the pipeline to the pipeline name.
+            Example, the second time we launch the pipeline "best pipeline", we rename it to "best pipeline #2".
+        :param retry_on_failure: Integer (number of retries) or Callback function that returns ``True`` to allow a retry.
 
           - Integer: In case of node failure, retry the node the number of times indicated by this parameter.
           - Callable: A function called on node failure. Takes as parameters:
-            the PipelineController instance, the PipelineController.Node that failed and an int
+            the PipelineController instance, the ``PipelineController.Node`` that failed, and an ``int``
             representing the number of previous retries for the node that failed.
             The function must return ``True`` if the node should be retried and ``False`` otherwise.
-            If True, the node will be re-queued and the number of retries left will be decremented by 1.
+            If ``True``, the node will be re-queued and the number of retries left will be decremented by 1.
             By default, if this callback is not specified, the function will be retried the number of
-            times indicated by `retry_on_failure`.
+            times indicated by ``retry_on_failure``.
 
             .. code-block:: py
 
@@ -289,31 +292,31 @@ class PipelineController:
                     # allow up to 5 retries (total of 6 runs)
                     return retries < 5
 
-        :param docker: Select the docker image to be executed in by the remote session
-        :param docker_args: Add docker arguments, pass a single string
+        :param docker: Select the docker image to be executed in by the remote session.
+        :param docker_args: Add docker arguments, pass a single string.
         :param docker_bash_setup_script: Add bash script to be executed
-            inside the docker before setting up the Task's environment
+            inside the docker before setting up the Task's environment.
         :param packages: Manually specify a list of required packages or a local requirements.txt file.
-            Example: ["tqdm>=2.1", "scikit-learn"] or "./requirements.txt"
+            Example: ``["tqdm==2.1", "scikit-learn"]`` or ``"./requirements.txt"``.
             If not provided, packages are automatically added.
-            Use `False` to install requirements from "requirements.txt" inside your git repository
-        :param repo: Optional, specify a repository to attach to the pipeline controller, when remotely executing.
+            Use ``False`` to install requirements from ``"requirements.txt"`` inside your git repository.
+        :param repo: Specify a repository to attach to the pipeline controller, when remotely executing.
             Allow users to execute the controller inside the specified repository, enabling them to load modules/script
             from the repository. Notice the execution work directory will be the repository root folder.
-            Supports both git repo url link, and local repository path (automatically converted into the remote
+            Supports both git repo URL link, and local repository path (automatically converted into the remote
             git/commit as is currently checkout).
-            Example remote url: 'https://github.com/user/repo.git'
-            Example local repo copy: './repo' -> will automatically store the remote
-            repo url and commit ID based on the locally cloned copy
-            Use empty string ("") to disable any repository auto-detection
-        :param repo_branch: Optional, specify the remote repository branch (Ignored, if local repo path is used)
-        :param repo_commit: Optional, specify the repository commit ID (Ignored, if local repo path is used)
-        :param always_create_from_code: If True (default) the pipeline is always constructed from code,
-            if False, pipeline is generated from pipeline configuration section on the pipeline Task itsef.
-            this allows to edit (also add/remove) pipeline steps without changing the original codebase
+            Example remote URL: ``'https://github.com/user/repo.git'``.
+            Example local repo copy: ``'./repo'`` -> will automatically store the remote
+            repo URL and commit ID based on the locally cloned copy.
+            Use empty string (``""``) to disable any repository auto-detection.
+        :param repo_branch: Specify the remote repository branch (Ignored, if local repo path is used).
+        :param repo_commit: Specify the repository commit ID (Ignored, if local repo path is used).
+        :param always_create_from_code: If ``True`` (default) the pipeline is always constructed from code,
+            if ``False``, pipeline is generated from pipeline configuration section on the pipeline Task itsef.
+            this allows to edit (also add/remove) pipeline steps without changing the original codebase.
         :param artifact_serialization_function: A serialization function that takes one
             parameter of any type which is the object to be serialized. The function should return
-            a `bytes` or `bytearray` object, which represents the serialized object. All parameter/return
+            a ``bytes`` or ``bytearray`` object, which represents the serialized object. All parameter/return
             artifacts uploaded by the pipeline will be serialized using this function.
             All relevant imports must be done in this function. For example:
 
@@ -323,7 +326,7 @@ class PipelineController:
                     import dill
                     return dill.dumps(obj)
 
-        :param artifact_deserialization_function: A deserialization function that takes one parameter of type `bytes`,
+        :param artifact_deserialization_function: A deserialization function that takes one parameter of type ``bytes``,
             which represents the serialized object. This function should return the deserialized object.
             All parameter/return artifacts fetched by the pipeline will be deserialized using this function.
             All relevant imports must be done in this function. For example:
@@ -334,17 +337,17 @@ class PipelineController:
                     import dill
                     return dill.loads(bytes_)
 
-        :param output_uri: The storage / output url for this pipeline. This is the default location for output
-            models and other artifacts. Check Task.init reference docs for more info (output_uri is a parameter).
-            The `output_uri` of this pipeline's steps will default to this value.
-        :param skip_global_imports: If True, global imports will not be included in the steps' execution when creating
+        :param output_uri: The storage / output URL for this pipeline. This is the default location for output
+            models and other artifacts. Check Task.init reference docs for more info (``output_uri`` is a parameter).
+            The ``output_uri`` of this pipeline's steps will default to this value.
+        :param skip_global_imports: If ``True``, global imports will not be included in the steps' execution when creating
             the steps from a functions, otherwise all global imports will be automatically imported in a safe manner at
-             the beginning of each step’s execution. Default is False
+            the beginning of each step's execution. Default is ``False``.
         :param working_dir: Working directory to launch the pipeline from.
-        :param enable_local_imports: If True, allow pipeline steps to import from local files
-            by appending to the PYTHONPATH of each step the directory the pipeline controller
-            script resides in (sys.path[0]).
-            If False, the directory won't be appended to PYTHONPATH. Default is True.
+        :param enable_local_imports: If ``True``, allow pipeline steps to import from local files
+            by appending to the ``PYTHONPATH`` of each step the directory the pipeline controller
+            script resides in (``sys.path[0]``).
+            If ``False``, the directory won't be appended to ``PYTHONPATH``. Default is ``True``.
             Ignored while running remotely.
         """
         if auto_version_bump is not None:
@@ -465,15 +468,15 @@ class PipelineController:
 
     def set_default_execution_queue(self, default_execution_queue: Optional[str]) -> None:
         """
-        Set the default execution queue if pipeline step does not specify an execution queue
+        Set the default execution queue if pipeline step does not specify an execution queue.
 
-        :param default_execution_queue: The execution queue to use if no execution queue is provided
+        :param default_execution_queue: The execution queue to use if no execution queue is provided.
         """
         self._default_execution_queue = str(default_execution_queue) if default_execution_queue else None
 
     def set_pipeline_execution_time_limit(self, max_execution_minutes: Optional[float]) -> None:
         """
-        Set maximum execution time (minutes) for the entire pipeline. Pass None or 0 to disable execution time limit.
+        Set maximum execution time (minutes) for the entire pipeline. Pass ``None`` or ``0`` to disable execution time limit.
 
         :param float max_execution_minutes: The maximum time (minutes) for the entire pipeline process. The
             default is ``None``, indicating no time limit.
@@ -512,85 +515,85 @@ class PipelineController:
     ) -> bool:
         """
         Add a step to the pipeline execution DAG.
-        Each step must have a unique name (this name will later be used to address the step)
+        Each step must have a unique name (this name will later be used to address the step).
 
-        :param name: Unique of the step. For example `stage1`
+        :param name: Unique name of the step. For example ``stage1``.
         :param base_task_id: The Task ID to use for the step. Each time the step is executed,
             the base Task is cloned, then the cloned task will be sent for execution.
-        :param parents: Optional list of parent nodes in the DAG.
+        :param parents: List of parent nodes in the DAG.
             The current step in the pipeline will be sent for execution only after all the parent nodes
             have been executed successfully.
-        :param parameter_override: Optional parameter overriding dictionary.
+        :param parameter_override: Parameter overriding dictionary.
             The dict values can reference a previously executed step using the following form ``'${step_name}'``. Examples:
 
-          - Artifact access ``parameter_override={'Args/input_file': '${<step_name>.artifacts.<artifact_name>.url}' }``
-          - Model access (last model used) ``parameter_override={'Args/input_file': '${<step_name>.models.output.-1.url}' }``
-          - Parameter access ``parameter_override={'Args/input_file': '${<step_name>.parameters.Args/input_file}' }``
-          - Pipeline Task argument (see `Pipeline.add_parameter`) ``parameter_override={'Args/input_file': '${pipeline.<pipeline_parameter>}' }``
+          - Artifact access ``parameter_override={'Args/input_file': '${STEP_NAME.artifacts.ARTIFACT_NAME.url}' }``
+          - Model access (last model used) ``parameter_override={'Args/input_file': '${STEP_NAME.models.output.-1.url}' }``
+          - Parameter access ``parameter_override={'Args/input_file': '${STEP_NAME.parameters.Args/input_file}' }``
+          - Pipeline Task argument (see ``Pipeline.add_parameter``) ``parameter_override={'Args/input_file': '${pipeline.PIPELINE_PARAMETER}' }``
           - Task ID ``parameter_override={'Args/input_file': '${stage3.id}' }``
-        :param recursively_parse_parameters: If True, recursively parse parameters from parameter_override in lists, dicts, or tuples.
+        :param recursively_parse_parameters: If ``True``, recursively parse parameters from parameter_override in lists, dicts, or tuples.
             Example:
 
-          - ``parameter_override={'Args/input_file': ['${<step_name>.artifacts.<artifact_name>.url}', 'file2.txt']}`` will be correctly parsed.
-          - ``parameter_override={'Args/input_file': ('${<step_name_1>.parameters.Args/input_file}', '${<step_name_2>.parameters.Args/input_file}')}`` will be correctly parsed.
-        :param configuration_overrides: Optional, override Task configuration objects.
+          - ``parameter_override={'Args/input_file': ['${STEP_NAME.artifacts.ARTIFACT_NAME.url}', 'file2.txt']}`` will be correctly parsed.
+          - ``parameter_override={'Args/input_file': ('${{STEP_NAME_1.parameters.Args/input_file}', '${STEP_NAME_2.parameters.Args/input_file}')}`` will be correctly parsed.
+        :param configuration_overrides: Override Task configuration objects.
             Expected dictionary of configuration object name and configuration object content.
             Examples:
 
           - ``{'General': dict(key='value')}``
           - ``{'General': 'configuration file content'}``
           - ``{'OmegaConf': YAML.dumps(full_hydra_dict)}``
-        :param task_overrides: Optional task section overriding dictionary.
+        :param task_overrides: Task section overriding dictionary.
             The dict values can reference a previously executed step using the following form ``'${step_name}'``. Examples:
 
           - Get the latest commit from a specific branch ``task_overrides={'script.version_num': '', 'script.branch': 'main'}``
           - Match git repository branch to a previous step ``task_overrides={'script.branch': '${stage1.script.branch}', 'script.version_num': ''}``
           - Change container image ``task_overrides={'container.image': 'nvidia/cuda:11.6.0-devel-ubuntu20.04', 'container.arguments': '--ipc=host'}``
           - Match container image to a previous step ``task_overrides={'container.image': '${stage1.container.image}'}``
-          - Reset requirements (the agent will use the "requirements.txt" inside the repo) ``task_overrides={'script.requirements.pip': ""}``
-        :param execution_queue: Optional, the queue to use for executing this specific step.
-            If not provided, the task will be sent to the default execution queue, as defined on the class
-        :param monitor_metrics: Optional, log the step's metrics on the pipeline Task.
+          - Reset requirements (the agent will use the ``"requirements.txt"`` inside the repo) ``task_overrides={'script.requirements.pip': ""}``
+        :param execution_queue: The queue to use for executing this specific step.
+            If not provided, the task will be sent to the default execution queue, as defined on the class.
+        :param monitor_metrics: Log the step's metrics on the pipeline Task.
             Format is a list of pairs metric (title, series) to log: ``[(step_metric_title, step_metric_series), ]``.
             For example: ``[('test', 'accuracy'), ]``.
             Or a list of tuple pairs, to specify a different target metric for to use on the pipeline Task:
             ``[((step_metric_title, step_metric_series), (target_metric_title, target_metric_series)), ]``.
-            For example: ``[[('test', 'accuracy'), ('model', 'accuracy')], ]``
-        :param monitor_artifacts: Optional, log the step's artifacts on the pipeline Task.
+            For example: ``[[('test', 'accuracy'), ('model', 'accuracy')], ]``.
+        :param monitor_artifacts: Log the step's artifacts on the pipeline Task.
             Provided a list of artifact names existing on the step's Task, they will also appear on the Pipeline itself.
             Example: ``[('processed_data', 'final_processed_data'), ]``.
             Alternatively user can also provide a list of artifacts to monitor
             (target artifact name will be the same as original artifact name).
-            Example: ``['processed_data', ]``
-        :param monitor_models: Optional, log the step's output models on the pipeline Task.
+            Example: ``['processed_data', ]``.
+        :param monitor_models: Log the step's output models on the pipeline Task.
             Provided a list of model names existing on the step's Task, they will also appear on the Pipeline itself.
             Example: ``[('model_weights', 'final_model_weights'), ]``.
             Alternatively user can also provide a list of models to monitor
             (target models name will be the same as original model).
             Example: ``['model_weights', ]``.
-            To select the latest (lexicographic) model use "model_*", or the last created model with just "*".
-            Example:  ``['model_weights_*', ]``
-        :param time_limit: Default None, no time limit.
+            To select the latest (lexicographic) model use ``"model_*"``, or the last created model with just ``"*"``.
+            Example: ``['model_weights_*', ]``.
+        :param time_limit: Default ``None``, no time limit.
             Step execution time limit, if exceeded the Task is aborted and the pipeline is stopped and marked failed.
-        :param base_task_project: If base_task_id is not given,
-            use the base_task_project and base_task_name combination to retrieve the base_task_id to use for the step.
-        :param base_task_name: If base_task_id is not given,
-            use the base_task_project and base_task_name combination to retrieve the base_task_id to use for the step.
-        :param clone_base_task: If True (default), the pipeline will clone the base task, and modify/enqueue
-            the cloned Task. If False, the base-task is used directly, notice it has to be in draft-mode (created).
-        :param continue_on_fail: (Deprecated, use `continue_behaviour` instead).
-            If True, failed step will not cause the pipeline to stop
-            (or marked as failed). Notice, that steps that are connected (or indirectly connected)
-            to the failed step will be skipped. Defaults to False
+        :param base_task_project: If ``base_task_id`` is not given,
+            use the ``base_task_project`` and ``base_task_name`` combination to retrieve the ``base_task_id`` to use for the step.
+        :param base_task_name: If ``base_task_id`` is not given,
+            use the ``base_task_project`` and ``base_task_name`` combination to retrieve the ``base_task_id`` to use for the step.
+        :param clone_base_task: If ``True`` (default), the pipeline will clone the base task, and modify/enqueue
+            the cloned Task. If ``False``, the base task is used directly, notice it has to be in draft-mode (created).
+        :param continue_on_fail: (Deprecated, use ``continue_behaviour`` instead).
+            If ``True``, failed step will not cause the pipeline to stop
+            (or be marked as failed). Notice, that steps that are connected (or indirectly connected)
+            to the failed step will be skipped. Defaults to ``False``.
         :param pre_execute_callback: Callback function, called when the step (Task) is created
             and before it is sent for execution. Allows a user to modify the Task before launch.
-            Use `node.job` to access the ClearmlJob object, or `node.job.task` to directly access the Task object.
+            Use ``node.job`` to access the ClearmlJob object, or ``node.job.task`` to directly access the Task object.
             ``parameters`` are the configuration arguments passed to the ClearmlJob.
 
-            If the callback returned value is `False`,
+            If the callback returned value is ``False``,
             the Node is skipped and so is any node in the DAG that relies on this node.
 
-            Notice the `parameters` are already parsed,
+            Notice the ``parameters`` are already parsed,
             e.g. ``${step1.parameters.Args/param}`` is replaced with relevant value.
 
             .. code-block:: py
@@ -613,24 +616,23 @@ class PipelineController:
                 ):
                     pass
 
-        :param cache_executed_step: If True, before launching the new step,
+        :param cache_executed_step: If ``True``, before launching the new step,
             after updating with the latest configuration, check if an exact Task with the same parameter/code
             was already executed. If it was found, use it instead of launching a new Task.
-            Default: False, a new cloned copy of base_task is always used.
+            Default: ``False``, a new cloned copy of the base task is always used.
             Notice: If the git repo reference does not have a specific commit ID, the Task will never be used.
-            If `clone_base_task` is False there is no cloning, hence the base_task is used.
-        :param base_task_factory: Optional, instead of providing a pre-existing Task,
-            provide a Callable function to create the Task (returns Task object)
-        :param retry_on_failure: Integer (number of retries) or Callback function that returns True to allow a retry
+            If ``clone_base_task`` is ``False`` there is no cloning, hence the base task is used directly.
+        :param base_task_factory: Instead of providing a pre-existing Task,
+            provide a Callable function to create the Task (returns Task object).
+        :param retry_on_failure: Integer (number of retries) or Callback function that returns ``True`` to allow a retry.
 
           - Integer: In case of node failure, retry the node the number of times indicated by this parameter.
           - Callable: A function called on node failure. Takes as parameters:
             the PipelineController instance, the PipelineController.Node that failed and an int
             representing the number of previous retries for the node that failed.
-            The function must return ``True`` if the node should be retried and ``False`` otherwise.
-            If True, the node will be re-queued and the number of retries left will be decremented by 1.
-            By default, if this callback is not specified, the function will be retried the number of
-            times indicated by `retry_on_failure`.
+            If the function returns ``True``, the node will be re-queued and the number of retries left will be
+            decremented by 1. By default, if this callback is not specified, the function will be retried the number of
+            times indicated by ``retry_on_failure``.
 
             .. code-block:: py
 
@@ -640,7 +642,7 @@ class PipelineController:
                     return retries < 5
 
         :param status_change_callback: Callback function, called when the status of a step (Task) changes.
-            Use `node.job` to access the ClearmlJob object, or `node.job.task` to directly access the Task object.
+            Use ``node.job`` to access the ClearmlJob object, or ``node.job.task`` to directly access the Task object.
             The signature of the function must look the following way:
 
             .. code-block:: py
@@ -652,25 +654,25 @@ class PipelineController:
                 ):
                     pass
 
-        :param output_uri: The storage / output url for this step. This is the default location for output
-            models and other artifacts. Check Task.init reference docs for more info (output_uri is a parameter).
+        :param output_uri: The storage / output URL for this step. This is the default location for output
+            models and other artifacts. Check Task.init reference docs for more info (``output_uri`` is a parameter).
         :param continue_behaviour: Controls whether the pipeline will continue running after a step failed/was aborted.
             Different behaviours can be set using a dictionary of boolean options. Supported options are:
 
-          - continue_on_fail - If True, the pipeline will continue even if the step failed.
-            If False, the pipeline will stop
-          - continue_on_abort - If True, the pipeline will continue even if the step was aborted.
-            If False, the pipeline will stop
-          - skip_children_on_fail - If True, the children of this step will be skipped if it failed.
-            If False, the children will run even if this step failed.
-            Any parameters passed from the failed step to its children will default to None
-          - skip_children_on_abort - If True, the children of this step will be skipped if it was aborted.
-            If False, the children will run even if this step was aborted.
-            Any parameters passed from the failed step to its children will default to None
-          - If the keys are not present in the dictionary, their values will default to True
-        :param stage: Name of the stage. This parameter enables pipeline step grouping into stages
+          - ``continue_on_fail`` - If ``True``, the pipeline will continue even if the step failed.
+            If ``False``, the pipeline will stop.
+          - ``continue_on_abort`` - If ``True``, the pipeline will continue even if the step was aborted.
+            If ``False``, the pipeline will stop.
+          - ``skip_children_on_fail`` - If ``True``, the children of this step will be skipped if it failed.
+            If ``False``, the children will run even if this step failed.
+            Any parameters passed from the failed step to its children will default to ``None``.
+          - ``skip_children_on_abort`` - If ``True``, the children of this step will be skipped if it was aborted.
+            If ``False``, the children will run even if this step was aborted.
+            Any parameters passed from the failed step to its children will default to ``None``.
+          - If the keys are not present in the dictionary, their values will default to ``True``.
+        :param stage: Name of the stage. This parameter enables pipeline step grouping into stages.
 
-        :return: True if successful
+        :return: ``True`` if successful.
         """
         if continue_on_fail:
             warnings.warn(
@@ -811,7 +813,7 @@ class PipelineController:
     ) -> bool:
         """
         Create a Task from a function, including wrapping the function input arguments
-        into the hyper-parameter section as kwargs, and storing function results as named artifacts
+        into the hyperparameter section as kwargs, and storing function results as named artifacts.
 
         Example:
 
@@ -839,80 +841,81 @@ class PipelineController:
                 function_return=['square_matrix']
             )
 
-        :param name: Unique of the step. For example `stage1`
-        :param function: A global function to convert into a standalone Task
-        :param function_kwargs: Optional, provide subset of function arguments and default values to expose.
-            If not provided automatically take all function arguments & defaults
-            Optional, pass input arguments to the function from other Tasks' output artifact.
-            Example argument named `numpy_matrix` from Task ID `aabbcc` artifact name `answer`:
+        :param name: Unique name of the step. For example ``stage1``.
+        :param function: A global function to convert into a standalone Task.
+        :param function_kwargs: Provide subset of function arguments and default values to expose.
+            If not provided automatically take all function arguments & defaults.
+            You can also pass input arguments to the function from other Tasks' output artifact.
+            Example argument named ``numpy_matrix`` from Task ID ``aabbcc`` artifact name ``answer``:
             ``{'numpy_matrix': 'aabbcc.answer'}``
         :param function_return: Provide a list of names for all the results.
             If not provided, no results will be stored as artifacts.
-        :param project_name: Set the project name for the task. Required if base_task_id is None.
-        :param task_name: Set the name of the remote task, if not provided use `name` argument.
-        :param task_type: Optional, The task type to be created. Supported values: 'training', 'testing', 'inference',
-            'data_processing', 'application', 'monitor', 'controller', 'optimizer', 'service', 'qc', 'custom'
-        :param auto_connect_frameworks: Control the frameworks auto connect, see `Task.init` auto_connect_frameworks
-        :param auto_connect_arg_parser: Control the ArgParser auto connect, see `Task.init` auto_connect_arg_parser
+        :param project_name: Set the project name for the task.
+            If not provided, the pipeline's target project (or the pipeline Task's own project) is used.
+        :param task_name: Set the name of the remote task, if not provided use ``name`` argument.
+        :param task_type: The task type to be created. Supported values: ``'training'``, ``'testing'``, ``'inference'``,
+            ``'data_processing'``, ``'application'``, ``'monitor'``, ``'controller'``, ``'optimizer'``, ``'service'``, ``'qc'``, ``'custom'``.
+        :param auto_connect_frameworks: Control the frameworks auto connect, see ``Task.init`` ``auto_connect_frameworks``.
+        :param auto_connect_arg_parser: Control the ArgParser auto connect, see ``Task.init`` ``auto_connect_arg_parser``.
         :param packages: Manually specify a list of required packages or a local requirements.txt file.
-            Example: ["tqdm>=2.1", "scikit-learn"] or "./requirements.txt"
+            Example: ``["tqdm==2.1", "scikit-learn"]`` or ``"./requirements.txt"``.
             If not provided, packages are automatically added based on the imports used in the function.
-            Use `False` to install requirements from "requirements.txt" inside your git repository
-        :param repo: Optional, specify a repository to attach to the function, when remotely executing.
+            Use ``False`` to install requirements from ``"requirements.txt"`` inside your git repository.
+        :param repo: Specify a repository to attach to the function, when remotely executing.
             Allow users to execute the function inside the specified repository, enabling to load modules/script
-            from a repository Notice the execution work directory will be the repository root folder.
-            Supports both git repo url link, and local repository path.
-            Example remote url: 'https://github.com/user/repo.git'
-            Example local repo copy: './repo' -> will automatically store the remote
-            repo url and commit ID based on the locally cloned copy
-        :param repo_branch: Optional, specify the remote repository branch (Ignored, if local repo path is used)
-        :param repo_commit: Optional, specify the repository commit ID (Ignored, if local repo path is used)
-        :param helper_functions: Optional, a list of helper functions to make available
+            from a repository. Notice the execution work directory will be the repository root folder.
+            Supports both git repo URL link, and local repository path.
+            Example remote URL: ``'https://github.com/user/repo.git'``.
+            Example local repo copy: ``'./repo'`` -> will automatically store the remote
+            repo URL and commit ID based on the locally cloned copy.
+        :param repo_branch: Specify the remote repository branch (Ignored, if local repo path is used).
+        :param repo_commit: Specify the repository commit ID (Ignored, if local repo path is used).
+        :param helper_functions: A list of helper functions to make available
             for the standalone function Task.
-        :param docker: Select the docker image to be executed in by the remote session
-        :param docker_args: Add docker arguments, pass a single string
+        :param docker: Select the docker image to be executed in by the remote session.
+        :param docker_args: Add docker arguments, pass a single string.
         :param docker_bash_setup_script: Add bash script to be executed
-            inside the docker before setting up the Task's environment
-        :param parents: Optional list of parent nodes in the DAG.
+            inside the docker before setting up the Task's environment.
+        :param parents: List of parent nodes in the DAG.
             The current step in the pipeline will be sent for execution only after all the parent nodes
             have been executed successfully.
-        :param execution_queue: Optional, the queue to use for executing this specific step.
-            If not provided, the task will be sent to the default execution queue, as defined on the class
-        :param monitor_metrics: Optional, log the step's metrics on the pipeline Task.
+        :param execution_queue: The queue to use for executing this specific step.
+            If not provided, the task will be sent to the default execution queue, as defined on the class.
+        :param monitor_metrics: Log the step's metrics on the pipeline Task.
             Format is a list of pairs metric (title, series) to log: ``[(step_metric_title, step_metric_series), ]``.
             For example: ``[('test', 'accuracy'), ]``.
             Or a list of tuple pairs, to specify a different target metric for to use on the pipeline Task:
             ``[((step_metric_title, step_metric_series), (target_metric_title, target_metric_series)), ]``.
-            For example: ``[[('test', 'accuracy'), ('model', 'accuracy')], ]``
-        :param monitor_artifacts: Optional, log the step's artifacts on the pipeline Task.
+            For example: ``[[('test', 'accuracy'), ('model', 'accuracy')], ]``.
+        :param monitor_artifacts: Log the step's artifacts on the pipeline Task.
             Provided a list of artifact names existing on the step's Task, they will also appear on the Pipeline itself.
             Example: ``[('processed_data', 'final_processed_data'), ]``.
             Alternatively user can also provide a list of artifacts to monitor
             (target artifact name will be the same as original artifact name).
-            Example: ``['processed_data', ]``
-        :param monitor_models: Optional, log the step's output models on the pipeline Task.
+            Example: ``['processed_data', ]``.
+        :param monitor_models: Log the step's output models on the pipeline Task.
             Provided a list of model names existing on the step's Task, they will also appear on the Pipeline itself.
             Example: ``[('model_weights', 'final_model_weights'), ]``.
             Alternatively user can also provide a list of models to monitor
             (target models name will be the same as original model).
             Example: ``['model_weights', ]``.
-            To select the latest (lexicographic) model use "model_*", or the last created model with just "*".
-            Example:  ``['model_weights_*', ]``
-        :param time_limit: Default None, no time limit.
+            To select the latest (lexicographic) model use ``"model_*"``, or the last created model with just ``"*"``.
+            Example: ``['model_weights_*', ]``.
+        :param time_limit: Default ``None``, no time limit.
             Step execution time limit, if exceeded the Task is aborted and the pipeline is stopped and marked failed.
-        :param continue_on_fail: (Deprecated, use `continue_behaviour` instead).
-            If True, failed step will not cause the pipeline to stop
-            (or marked as failed). Notice, that steps that are connected (or indirectly connected)
-            to the failed step will be skipped. Defaults to False
+        :param continue_on_fail: (Deprecated, use ``continue_behaviour`` instead).
+            If ``True``, failed step will not cause the pipeline to stop
+            (or be marked as failed). Notice, that steps that are connected (or indirectly connected)
+            to the failed step will be skipped. Defaults to ``False``.
         :param pre_execute_callback: Callback function, called when the step (Task) is created
             and before it is sent for execution. Allows a user to modify the Task before launch.
-            Use `node.job` to access the ClearmlJob object, or `node.job.task` to directly access the Task object.
+            Use ``node.job`` to access the ClearmlJob object, or ``node.job.task`` to directly access the Task object.
             ``parameters`` are the configuration arguments passed to the ClearmlJob.
 
-            If the callback returned value is `False`,
+            If the callback returned value is ``False``,
             the Node is skipped and so is any node in the DAG that relies on this node.
 
-            Notice the `parameters` are already parsed,
+            Notice the ``parameters`` are already parsed,
             e.g. ``${step1.parameters.Args/param}`` is replaced with relevant value.
 
             .. code-block:: py
@@ -935,21 +938,21 @@ class PipelineController:
                 ):
                     pass
 
-        :param cache_executed_step: If True, before launching the new step,
+        :param cache_executed_step: If ``True``, before launching the new step,
             after updating with the latest configuration, check if an exact Task with the same parameter/code
             was already executed. If it was found, use it instead of launching a new Task.
-            Default: False, a new cloned copy of base_task is always used.
+            Default: ``False``, a new cloned copy of the base task is always used.
             Notice: If the git repo reference does not have a specific commit ID, the Task will never be used.
-        :param retry_on_failure: Integer (number of retries) or Callback function that returns True to allow a retry
+        :param retry_on_failure: Integer (number of retries) or Callback function that returns ``True`` to allow a retry.
 
           - Integer: In case of node failure, retry the node the number of times indicated by this parameter.
           - Callable: A function called on node failure. Takes as parameters:
             the PipelineController instance, the PipelineController.Node that failed and an int
             representing the number of previous retries for the node that failed.
             The function must return ``True`` if the node should be retried and ``False`` otherwise.
-            If True, the node will be re-queued and the number of retries left will be decremented by 1.
+            If ``True``, the node will be re-queued and the number of retries left will be decremented by 1.
             By default, if this callback is not specified, the function will be retried the number of
-            times indicated by `retry_on_failure`.
+            times indicated by ``retry_on_failure``.
 
             .. code-block:: py
 
@@ -959,7 +962,7 @@ class PipelineController:
                     return retries < 5
 
         :param status_change_callback: Callback function, called when the status of a step (Task) changes.
-            Use `node.job` to access the ClearmlJob object, or `node.job.task` to directly access the Task object.
+            Use ``node.job`` to access the ClearmlJob object, or ``node.job.task`` to directly access the Task object.
             The signature of the function must look the following way:
 
             .. code-block:: py
@@ -974,27 +977,27 @@ class PipelineController:
         :param tags: A list of tags for the specific pipeline step.
             When executing a Pipeline remotely
             (i.e. launching the pipeline from the UI/enqueuing it), this method has no effect.
-        :param output_uri: The storage / output url for this step. This is the default location for output
-            models and other artifacts. Check Task.init reference docs for more info (output_uri is a parameter).
-        :param draft: (default False). If True, the Task will be created as a draft task.
+        :param output_uri: The storage / output URL for this step. This is the default location for output
+            models and other artifacts. Check Task.init reference docs for more info (``output_uri`` is a parameter).
+        :param draft: If ``True``, the Task will be created as a draft task  (default ``False``).
         :param working_dir: Working directory to launch the script from.
         :param continue_behaviour: Controls whether the pipeline will continue running after a step failed/was aborted.
             Different behaviours can be set using a dictionary of boolean options. Supported options are:
 
-          - continue_on_fail - If True, the pipeline will continue even if the step failed.
-            If False, the pipeline will stop
-          - continue_on_abort - If True, the pipeline will continue even if the step was aborted.
-            If False, the pipeline will stop
-          - skip_children_on_fail - If True, the children of this step will be skipped if it failed.
-            If False, the children will run even if this step failed. Any parameters passed from the failed step to its
-            children will default to None
-          - skip_children_on_abort - If True, the children of this step will be skipped if it was aborted.
-            If False, the children will run even if this step was aborted.
-            Any parameters passed from the failed step to its children will default to None
-          - If the keys are not present in the dictionary, their values will default to True
-        :param stage: Name of the stage. This parameter enables pipeline step grouping into stages
+          - ``continue_on_fail`` - If ``True``, the pipeline will continue even if the step failed.
+            If ``False``, the pipeline will stop.
+          - ``continue_on_abort`` - If ``True``, the pipeline will continue even if the step was aborted.
+            If ``False``, the pipeline will stop.
+          - ``skip_children_on_fail`` - If ``True``, the children of this step will be skipped if it failed.
+            If ``False``, the children will run even if this step failed. Any parameters passed from the failed step to its
+            children will default to ``None``.
+          - ``skip_children_on_abort`` - If ``True``, the children of this step will be skipped if it was aborted.
+            If ``False``, the children will run even if this step was aborted.
+            Any parameters passed from the failed step to its children will default to ``None``.
+          - If the keys are not present in the dictionary, their values will default to ``True``.
+        :param stage: Name of the stage. This parameter enables pipeline step grouping into stages.
 
-        :return: True if successful
+        :return: ``True`` if successful.
         """
         if continue_on_fail:
             warnings.warn(
@@ -1064,16 +1067,16 @@ class PipelineController:
         Start the current pipeline remotely (on the selected services queue).
         The current process will be stopped and launched remotely.
 
-        :param queue: queue name to launch the pipeline on
+        :param queue: Queue name to launch the pipeline on.
         :param Callable step_task_created_callback: Callback function, called when a step (Task) is created
             and before it is sent for execution. Allows a user to modify the Task before launch.
-            Use `node.job` to access the ClearmlJob object, or `node.job.task` to directly access the Task object.
-            `parameters` are the configuration arguments passed to the ClearmlJob.
+            Use ``node.job`` to access the ClearmlJob object, or ``node.job.task`` to directly access the Task object.
+            ``parameters`` are the configuration arguments passed to the ClearmlJob.
 
-            If the callback returned value is `False`,
+            If the callback returned value is ``False``,
             the Node is skipped and so is any node in the DAG that relies on this node.
 
-            Notice the `parameters` are already parsed,
+            Notice the ``parameters`` are already parsed,
             e.g. ``${step1.parameters.Args/param}`` is replaced with relevant value.
 
             .. code-block:: py
@@ -1095,10 +1098,10 @@ class PipelineController:
                     node,                 # type: PipelineController.Node,
                 ):
                     pass
-        :param wait: If True (default), start the pipeline controller, return only
-            after the pipeline is done (completed/aborted/failed)
+        :param wait: If ``True`` (default), start the pipeline controller, return only
+            after the pipeline is done (completed/aborted/failed).
 
-        :return: True, if the controller started. False, if the controller did not start.
+        :return: ``True``, if the controller started. ``False``, if the controller did not start.
 
         """
         if not self._task:
@@ -1127,15 +1130,15 @@ class PipelineController:
     def start_locally(self, run_pipeline_steps_locally: bool = False) -> None:
         """
         Start the current pipeline locally, meaning the pipeline logic is running on the current machine,
-        instead of on the `services` queue.
+        instead of on the ``services`` queue.
 
-        Using run_pipeline_steps_locally=True you can run all the pipeline steps locally as sub-processes.
+        Using ``run_pipeline_steps_locally=True`` you can run all the pipeline steps locally as sub-processes.
         Notice: when running pipeline steps locally, it assumes local code execution
-        (i.e. it is running the local code as is, regardless of the git commit/diff on the pipeline steps Task)
+        (i.e. it is running the local code as is, regardless of the git commit/diff on the pipeline steps Task).
 
-        :param run_pipeline_steps_locally: (default False) If True, run the pipeline steps themselves locally as a
+        :param run_pipeline_steps_locally: (default ``False``) If ``True``, run the pipeline steps themselves locally as a
             subprocess (use for debugging the pipeline locally, notice the pipeline code is expected to be available
-            on the local machine)
+            on the local machine).
         """
         if not self._task:
             raise ValueError(
@@ -1155,15 +1158,15 @@ class PipelineController:
 
     def create_draft(self) -> None:
         """
-        Optional, manually create & serialize the Pipeline Task (use with care for manual multi pipeline creation).
+        Manually create and serialize the Pipeline Task (optional, use with care for manual multi pipeline creation).
 
-        **Notice** The recommended flow would be to call `pipeline.start(queue=None)`
+        **Notice** The recommended flow would be to call ``pipeline.start(queue=None)``
         which would have a similar effect and will allow you to clone/enqueue later on.
 
-        After calling Pipeline.create(), users can edit the pipeline in the UI and enqueue it for execution.
+        After calling ``PipelineController.create()``, users can edit the pipeline in the UI and enqueue it for execution.
 
-        Notice: this function should be used to programmatically create pipeline for later usage.
-        To automatically create and launch pipelines, call the `start()` method.
+        Notice: this function should be used to programmatically create a pipeline for later usage.
+        To automatically create and launch pipelines, call the ``start()`` method.
         """
         self._verify()
         self._serialize_pipeline_task()
@@ -1202,13 +1205,13 @@ class PipelineController:
             A local path must be relative path. When executing a pipeline remotely in a worker, the contents brought
             from the **ClearML Server** (backend) overwrites the contents of the file.
 
-        :param str name: Configuration section name. default: 'General'
-            Allowing users to store multiple configuration dicts/files
+        :param str name: Configuration section name. Default: ``'General'``.
+            Allows users to store multiple configuration dicts/files.
 
-        :param str description: Configuration section description (text). default: None
+        :param str description: Configuration section description (text). Default: ``None``.
 
-        :return: If a dictionary is specified, then a dictionary is returned. If pathlib2.Path / string is
-            specified, then a path to a local configuration file is returned. Configuration object.
+        :return: If a dictionary is specified, then a dictionary is returned. If ``pathlib2.Path`` / string is
+            specified, then a path to a local configuration file is returned.
         """
         return self._task.connect_configuration(configuration, name=name, description=description)
 
@@ -1219,9 +1222,9 @@ class PipelineController:
         The logger can be used by any function/tasks executed by the pipeline, in order to report
         directly to the pipeline Task itself. It can also be called from the main pipeline control Task.
 
-        Raise ValueError if main Pipeline task could not be located.
+        Raise ``ValueError`` if main Pipeline task could not be located.
 
-        :return: Logger object for reporting metrics (scalars, plots, debug samples etc.)
+        :return: Logger object for reporting metrics (scalars, plots, debug samples etc.).
         """
         return cls._get_pipeline_task().get_logger()
 
@@ -1234,20 +1237,20 @@ class PipelineController:
     ) -> OutputModel:
         """
         Upload (add) a model to the main Pipeline Task object.
-        This function can be called from any pipeline component to directly add models into the main pipeline Task
+        This function can be called from any pipeline component to directly add models into the main pipeline Task.
 
         The model file/path will be uploaded to the Pipeline Task and registered on the model repository.
 
-        Raise ValueError if main Pipeline task could not be located.
+        Raise ``ValueError`` if main Pipeline task could not be located.
 
-        :param model_name: Model name as will appear in the model registry (in the pipeline's project)
+        :param model_name: Model name as it will appear in the model registry (in the pipeline's project).
         :param model_local_path: Path to the local model file or directory to be uploaded.
             If a local directory is provided the content of the folder (recursively) will be
-            packaged into a zip file and uploaded
+            packaged into a zip file and uploaded.
         :param upload_uri: The URI of the storage destination for model weights upload. The default value
             is the previously used URI.
 
-        :return: The uploaded OutputModel
+        :return: The uploaded OutputModel.
         """
         task = cls._get_pipeline_task()
         model_name = str(model_name)
@@ -1276,7 +1279,7 @@ class PipelineController:
         The artifact can be uploaded by any function/tasks executed by the pipeline, in order to report
         directly to the pipeline Task itself. It can also be called from the main pipeline control Task.
 
-        Raise ValueError if main Pipeline task could not be located.
+        Raise ``ValueError`` if main Pipeline task could not be located.
 
         The currently supported upload artifact types include:
         - string / Path - A path to artifact file. If a wildcard or a folder is specified, then ClearML
@@ -1285,39 +1288,39 @@ class PipelineController:
         - pandas.DataFrame - ClearML stores a pandas.DataFrame as ``.csv.gz`` (compressed CSV) file and uploads it.
         - numpy.ndarray - ClearML stores a numpy.ndarray as ``.npz`` file and uploads it.
         - PIL.Image - ClearML stores a PIL.Image as ``.png`` file and uploads it.
-        - Any - If called with auto_pickle=True, the object will be pickled and uploaded.
+        - Any - If called with ``auto_pickle=True``, the object will be pickled and uploaded.
 
         :param name: The artifact name.
 
             .. warning::
                If an artifact with the same name was previously uploaded, then it is overwritten.
 
-        :param artifact_object:  The artifact object.
+        :param artifact_object: The artifact object.
         :param metadata: A dictionary of key-value pairs for any metadata. This dictionary appears with the
             experiment in the **ClearML Web-App (UI)**, **ARTIFACTS** tab.
-        :param delete_after_upload: After the upload, delete the local copy of the artifact
+        :param delete_after_upload: After the upload, delete the local copy of the artifact:
 
-            - ``True`` - Delete the local copy of the artifact.
-            - ``False`` - Do not delete. (default)
+          - ``True`` - Delete the local copy of the artifact.
+          - ``False`` - Do not delete (default).
 
-        :param auto_pickle: If True, and the artifact_object is not one of the following types:
-            pathlib2.Path, dict, pandas.DataFrame, numpy.ndarray, PIL.Image, url (string), local_file (string)
-            the artifact_object will be pickled and uploaded as pickle file artifact (with file extension .pkl)
-            If set to None (default) the sdk.development.artifacts.auto_pickle configuration value will be used.
+        :param auto_pickle: If ``True``, and the ``artifact_object`` is not one of the following types:
+            pathlib2.Path, dict, pandas.DataFrame, numpy.ndarray, PIL.Image, URL (string), local_file (string)
+            the ``artifact_object`` will be pickled and uploaded as pickle file artifact (with file extension ``.pkl``).
+            If set to ``None`` (default) the ``sdk.development.artifacts.auto_pickle`` configuration value will be used.
 
-        :param preview: The artifact preview
+        :param preview: The artifact preview.
 
-        :param wait_on_upload: Whether the upload should be synchronous, forcing the upload to complete
+        :param wait_on_upload: If ``True``, the upload is synchronous, forcing the upload to complete
             before continuing.
 
         :param serialization_function: A serialization function that takes one
             parameter of any type which is the object to be serialized. The function should return
-            a `bytes` or `bytearray` object, which represents the serialized object. Note that the object will be
+            a ``bytes`` or ``bytearray`` object, which represents the serialized object. Note that the object will be
             immediately serialized using this function, thus other serialization methods will not be used
-            (e.g. `pandas.DataFrame.to_csv`), even if possible. To deserialize this artifact when getting
-            it using the `Artifact.get` method, use its `deserialization_function` argument.
+            (e.g. ``pandas.DataFrame.to_csv``), even if possible. To deserialize this artifact when getting
+            it using the ``Artifact.get`` method, use its ``deserialization_function`` argument.
 
-        :param sort_keys: If True (default), sort the keys of the artifact if it is yaml/json serializable.
+        :param sort_keys: If ``True`` (default), sort the keys of the artifact if it is yaml/json serializable.
             Otherwise, don't sort the keys. Ignored if the artifact is not yaml/json serializable.
 
         :return: The status of the upload.
@@ -1348,13 +1351,13 @@ class PipelineController:
     ) -> None:
         """
         Stop the pipeline controller and the optimization thread.
-        If mark_failed and mark_aborted are False (default) mark the pipeline as completed,
+        If ``mark_failed`` and ``mark_aborted`` are ``False`` (default) mark the pipeline as completed,
         unless one of the steps failed, then mark the pipeline as failed.
 
         :param timeout: Wait timeout for the optimization thread to exit (minutes).
             The default is ``None``, indicating do not wait to terminate immediately.
-        :param mark_failed: If True, mark the pipeline task as failed. (default False)
-        :param mark_aborted: If True, mark the pipeline task as aborted. (default False)
+        :param mark_failed: If ``True``, mark the pipeline task as failed. (default ``False``).
+        :param mark_aborted: If ``True``, mark the pipeline task as aborted. (default ``False``).
         """
         self._stop_event.set()
 
@@ -1382,9 +1385,9 @@ class PipelineController:
             This method does not stop the pipeline. Call :meth:`stop` to terminate the pipeline.
 
         :param float timeout: The timeout to wait for the pipeline to complete (minutes).
-            If ``None``, then wait until we reached the timeout, or pipeline completed.
+            If ``None``, wait indefinitely until the pipeline completes.
 
-        :return: True, if the pipeline finished. False, if the pipeline timed out.
+        :return: ``True``, if the pipeline finished. ``False``, if the pipeline timed out.
 
         """
         if not self.is_running():
@@ -1403,7 +1406,7 @@ class PipelineController:
 
     def is_running(self) -> bool:
         """
-        return True if the pipeline controller is running.
+        Return ``True`` if the pipeline controller is running.
 
         :return: A boolean indicating whether the pipeline controller is active (still running) or stopped.
         """
@@ -1413,15 +1416,15 @@ class PipelineController:
         """
         Evaluate whether the pipeline is successful.
 
-        :param fail_on_step_fail: If True (default), evaluate the pipeline steps' status to assess if the pipeline
-            is successful. If False, only evaluate the controller
-        :param fail_condition: Must be one of the following: 'all' (default), 'failed' or 'aborted'. If 'failed', this
-            function will return False if the pipeline failed and True if the pipeline was aborted. If 'aborted',
-            this function will return False if the pipeline was aborted and True if the pipeline failed. If 'all',
-            this function will return False in both cases.
+        :param fail_on_step_fail: If ``True`` (default), evaluate the pipeline steps' status to assess if the pipeline
+            is successful. If ``False``, only evaluate the controller.
+        :param fail_condition: Must be one of the following: ``'all'`` (default), ``'failed'`` or ``'aborted'``. If ``'failed'``, this
+            function will return ``False`` if the pipeline failed and ``True`` if the pipeline was aborted. If ``'aborted'``,
+            this function will return ``False`` if the pipeline was aborted and ``True`` if the pipeline failed. If ``'all'``,
+            this function will return ``False`` in both cases.
 
         :return: A boolean indicating whether the pipeline was successful or not. Note that if the pipeline is in a
-            running/pending state, this function will return False
+            running/pending state, this function will return ``False``.
         """
         if fail_condition == "all":
             success_status = [Task.TaskStatusEnum.completed]
@@ -1456,9 +1459,9 @@ class PipelineController:
 
     def get_pipeline_dag(self) -> Mapping[str, "PipelineController.Node"]:
         """
-        Return the pipeline execution graph, each node in the DAG is PipelineController.Node object.
+        Return the pipeline execution graph, each node in the DAG is a ``PipelineController.Node`` object.
         Graph itself is a dictionary of Nodes (key based on the Node name),
-        each node holds links to its parent Nodes (identified by their unique names)
+        each node holds links to its parent Nodes (identified by their unique names).
 
         :return: execution tree, as a nested dictionary. Example:
 
@@ -1477,24 +1480,24 @@ class PipelineController:
 
     def get_processed_nodes(self) -> Sequence["PipelineController.Node"]:
         """
-        Return a list of the processed pipeline nodes, each entry in the list is PipelineController.Node object.
+        Return a list of the processed pipeline nodes, each entry in the list is a ``PipelineController.Node`` object.
 
-        :return: executed (excluding currently executing) nodes list
+        :return: executed (excluding currently executing) nodes list.
         """
         return {k: n for k, n in self._nodes.items() if n.executed}
 
     def get_running_nodes(self) -> Sequence["PipelineController.Node"]:
         """
         Return a list of the currently running pipeline nodes,
-        each entry in the list is PipelineController.Node object.
+        each entry in the list is a ``PipelineController.Node`` object.
 
-        :return: Currently running nodes list
+        :return: Currently running nodes list.
         """
         return {k: n for k, n in self._nodes.items() if k in self._running_nodes}
 
     def update_execution_plot(self) -> None:
         """
-        Update sankey diagram of the current pipeline
+        Update sankey diagram of the current pipeline.
         """
         with self._reporting_lock:
             self._update_execution_plot()
@@ -1511,14 +1514,14 @@ class PipelineController:
         """
         Add a parameter to the pipeline Task.
         The parameter can be used as input parameter for any step in the pipeline.
-        Notice all parameters will appear under the PipelineController Task's Hyper-parameters -> Pipeline section
-        Example: pipeline.add_parameter(name='dataset', description='dataset ID to process the pipeline')
-        Then in one of the steps we can refer to the value of the parameter with ``'${pipeline.dataset}'``
+        Notice all parameters will appear under the PipelineController Task's Hyperparameters -> Pipeline section.
+        Example: ``pipeline.add_parameter(name='dataset', description='dataset ID to process the pipeline')``.
+        Then in one of the steps we can refer to the value of the parameter with ``'${pipeline.dataset}'``.
 
         :param name: String name of the parameter.
-        :param default: Default value to be put as the default value (can be later changed in the UI)
-        :param description: String description of the parameter and its usage in the pipeline
-        :param param_type: Optional, parameter type information (to be used as hint for casting and description)
+        :param default: Default value to be put as the default value (can be later changed in the UI).
+        :param description: String description of the parameter and its usage in the pipeline.
+        :param param_type: Parameter type information (to be used as hint for casting and description).
         """
         self._pipeline_args[str(name)] = default
         if description:
@@ -1528,9 +1531,9 @@ class PipelineController:
 
     def get_parameters(self) -> dict:
         """
-        Return the pipeline parameters dictionary
+        Return the pipeline parameters dictionary.
 
-        :return: Dictionary str -> str
+        :return: Dictionary ``str`` -> ``Any``.
         """
         return self._pipeline_args
 
@@ -1612,43 +1615,45 @@ class PipelineController:
     ) -> "PipelineController":
         """
         Manually create and populate a new Pipeline in the system.
-        Supports pipelines from functions, decorators and tasks.
+        Supports pipelines from functions, decorators, and tasks.
 
         :param project_name: Set the project name for the pipeline.
-        :param task_name: Set the name of the remote pipeline..
+        :param task_name: Set the name of the remote pipeline.
         :param repo: Remote URL for the repository to use, or path to local copy of the git repository.
-            Example: 'https://github.com/allegroai/clearml.git' or '~/project/repo'. If ``repo`` is specified, then
-            the ``script`` parameter must also be specified
-        :param branch: Select specific repository branch/tag (implies the latest commit from the branch)
+            Example: ``'https://github.com/allegroai/clearml.git'`` or ``'~/project/repo'``. If ``repo`` is specified, then
+            the ``script`` parameter must also be specified.
+        :param branch: Select specific repository branch/tag (implies the latest commit from the branch).
         :param commit: Select specific commit ID to use (default: latest commit,
-            or when used with local repository matching the local commit ID)
+            or when used with local repository matching the local commit ID).
         :param script: Specify the entry point script for the remote execution. When used in tandem with
             remote git repository the script should be a relative path inside the repository,
-            for example: './source/train.py' . When used with local repository path it supports a
-            direct path to a file inside the local repository itself, for example: '~/project/source/train.py'
+            for example: ``'./source/train.py'``. When used with local repository path it supports a
+            direct path to a file inside the local repository itself, for example: ``'~/project/source/train.py'``.
         :param working_directory: Working directory to launch the script from. Default: repository root folder.
             Relative to repo root or local folder.
-        :param packages: Manually specify a list of required packages. Example: ``["tqdm>=2.1", "scikit-learn"]``
-            or `True` to automatically create requirements
+        :param packages: Manually specify a list of required packages. Example: ``["tqdm==2.1", "scikit-learn"]``
+            or ``True`` to automatically create requirements
             based on locally installed packages (repository must be local).
-            Pass an empty string to not install any packages (not even from the repository)
+            Pass an empty string to not install any packages (not even from the repository).
         :param requirements_file: Specify requirements.txt file to install when setting the session.
             If not provided, the requirements.txt from the repository will be used.
-        :param docker: Select the docker image to be executed in by the remote session
-        :param docker_args: Add docker arguments, pass a single string
+        :param docker: Select the docker image to be executed in by the remote session.
+        :param docker_args: Add docker arguments, pass a single string.
         :param docker_bash_setup_script: Add bash script to be executed
-            inside the docker before setting up the Task's environment
-        :param argparse_args: Arguments to pass to the remote execution, list of string pairs (argument, value)
-            Notice, only supported if the codebase itself uses argparse.ArgumentParser
-        :param force_single_script_file: If True, do not auto-detect local repository
-        :param binary: Binary used to launch the pipeline
-        :param module: If specified instead of executing `script`, a module named `module` is executed.
-            Implies script is empty. Module can contain multiple argument for execution,
-            for example: module="my.module arg1 arg2"
-        :param detect_repository: If True, detect the repository if no repository has been specified.
-            If False, don't detect repository under any circumstance. Ignored if `repo` is specified
+            inside the docker before setting up the Task's environment.
+        :param argparse_args: Arguments to pass to the remote execution, list of string pairs (argument, value).
+            Notice, only supported if the codebase itself uses argparse.ArgumentParser.
+        :param force_single_script_file: If ``True``, do not auto-detect local repository.
+        :param version: Pipeline version. If not provided, defaults to ``'1.0.0'``.
+        :param add_run_number: If ``True`` (default), add the run number of the pipeline to the pipeline name.
+        :param binary: Binary used to launch the pipeline.
+        :param module: If specified instead of executing ``script``, a module named ``module`` is executed.
+            Implies ``script`` is empty. Module can contain multiple arguments for execution,
+            for example: ``module="my.module arg1 arg2"``.
+        :param detect_repository: If ``True``, detect the repository if no repository has been specified.
+            If ``False``, don't detect repository under any circumstance. Ignored if ``repo`` is specified.
 
-        :return: The newly created PipelineController
+        :return: The newly created PipelineController.
         """
         pipeline_project_args = cls._create_pipeline_project_args(name=task_name, project=project_name)
         pipeline_controller = Task.create(
@@ -1702,16 +1707,16 @@ class PipelineController:
         :param str comment: A comment / description for the new cloned pipeline.
         :param str parent: The ID of the parent Task of the new pipeline.
 
-          - If ``parent`` is not specified, then ``parent`` is set to ``source_task.parent``.
-          - If ``parent`` is not specified and ``source_task.parent`` is not available,
-          then ``parent`` set to ``source_task``.
+          - If ``parent`` is not specified, then ``parent`` is set to the cloned pipeline's own parent.
+          - If ``parent`` is not specified and the cloned pipeline has no parent,
+            then ``parent`` is set to the cloned pipeline itself.
 
         :param str project: The project name in which to create the new pipeline.
-            If ``None``, the clone inherits the original pipeline's project
+            If ``None``, the clone inherits the original pipeline's project.
         :param str version: The version of the new cloned pipeline. If ``None``, the clone
-            inherits the original pipeline's version
+            inherits the original pipeline's version.
 
-        :return: The new cloned PipelineController
+        :return: The new cloned PipelineController.
         """
         if isinstance(pipeline_controller, str):
             pipeline_controller = Task.get_task(task_id=pipeline_controller)
@@ -1755,10 +1760,10 @@ class PipelineController:
            A worker daemon must be listening at the queue for the worker to fetch the Task and execute it,
            see "ClearML Agent" in the ClearML Documentation.
 
-        :param pipeline_controller: The PipelineController to enqueue. Specify a PipelineController object or PipelineController ID
+        :param pipeline_controller: The PipelineController to enqueue. Specify a PipelineController object or PipelineController ID.
         :param queue_name: The name of the queue. If not specified, then ``queue_id`` must be specified.
         :param queue_id: The ID of the queue. If not specified, then ``queue_name`` must be specified.
-        :param bool force: If True, reset the PipelineController if necessary before enqueuing it
+        :param bool force: If ``True``, reset the PipelineController if necessary before enqueuing it.
 
         :return: An enqueue JSON response.
 
@@ -1777,7 +1782,7 @@ class PipelineController:
                         }
                 }
 
-            - ``queued``  - The number of Tasks enqueued (an integer or ``null``).
+            - ``queued`` - The number of Tasks enqueued (an integer or ``null``).
             - ``updated`` - The number of Tasks updated (an integer or ``null``).
             - ``fields``
 
@@ -1813,16 +1818,20 @@ class PipelineController:
         """
         Get a specific PipelineController. If multiple pipeline controllers are found, the pipeline controller
         with the highest semantic version is returned. If no semantic version is found, the most recently
-        updated pipeline controller is returned. This function raises aan Exception if no pipeline controller
-        was found
+        updated pipeline controller is returned. This function raises an Exception if no pipeline controller
+        was found.
 
-        Note: In order to run the pipeline controller returned by this function, use PipelineController.enqueue
+        Note: In order to run the pipeline controller returned by this function, use ``PipelineController.enqueue``.
 
-        :param pipeline_id: Requested PipelineController ID
-        :param pipeline_project: Requested PipelineController project
-        :param pipeline_name: Requested PipelineController name
-        :param pipeline_tags: Requested PipelineController tags (list of tag strings)
-        :param shallow_search: If True, search only the first 500 results (first page)
+        :param pipeline_id: Requested PipelineController ID.
+        :param pipeline_project: Requested PipelineController project.
+        :param pipeline_name: Requested PipelineController name.
+        :param pipeline_version: Requested PipelineController version. If not provided, the pipeline controller
+            with the highest semantic version is returned.
+        :param pipeline_tags: Requested PipelineController tags (list of tag strings).
+        :param shallow_search: If ``True``, search only the first 500 results (first page).
+
+        :return: The requested PipelineController.
         """
         mutually_exclusive(
             pipeline_id=pipeline_id,
@@ -1994,13 +2003,13 @@ class PipelineController:
 
         :param Callable step_task_created_callback: Callback function, called when a step (Task) is created
             and before it is sent for execution. Allows a user to modify the Task before launch.
-            Use `node.job` to access the ClearmlJob object, or `node.job.task` to directly access the Task object.
-            `parameters` are the configuration arguments passed to the ClearmlJob.
+            Use ``node.job`` to access the ClearmlJob object, or ``node.job.task`` to directly access the Task object.
+            ``parameters`` are the configuration arguments passed to the ClearmlJob.
 
-            If the callback returned value is `False`,
+            If the callback returned value is ``False``,
             the Node is skipped and so is any node in the DAG that relies on this node.
 
-            Notice the `parameters` are already parsed,
+            Notice the ``parameters`` are already parsed,
             e.g. ``${step1.parameters.Args/param}`` is replaced with relevant value.
 
             .. code-block:: py
@@ -2022,10 +2031,10 @@ class PipelineController:
                     node,                 # type: PipelineController.Node,
                 ):
                     pass
-        :param wait: If True (default), start the pipeline controller, return only
-        after the pipeline is done (completed/aborted/failed)
+        :param wait: If ``True`` (default), start the pipeline controller, return only
+        after the pipeline is done (completed/aborted/failed).
 
-        :return: True, if the controller started. False, if the controller did not start.
+        :return: ``True``, if the controller started. ``False``, if the controller did not start.
 
         """
         if self._thread:
@@ -2081,9 +2090,9 @@ class PipelineController:
 
     def _serialize_pipeline_task(self) -> Tuple[dict, dict]:
         """
-        Serialize current pipeline state into the main Task
+        Serialize current pipeline state into the main Task.
 
-        :return: params, pipeline_dag
+        :return: params, pipeline_dag.
         """
         params = {
             "default_queue": self._default_execution_queue,
@@ -2226,7 +2235,7 @@ class PipelineController:
     def _serialize(self) -> dict:
         """
         Store the definition of the pipeline DAG into a dictionary.
-        This dictionary will be used to store the DAG as a configuration on the Task
+        This dictionary will be used to store the DAG as a configuration on the Task.
         :return:
         """
         nodes_items = list(self._nodes.items())
@@ -2288,7 +2297,7 @@ class PipelineController:
 
     def _has_stored_configuration(self) -> bool:
         """
-        Return True if we are running remotely, and we have stored configuration on the Task
+        Return ``True`` if running remotely, and there is stored configuration on the Task.
         """
         if self._auto_connect_task and self._task and not self._task.running_locally() and self._task.is_main_task():
             stored_config = self._task.get_configuration_object(self._config_section)
@@ -2298,10 +2307,10 @@ class PipelineController:
 
     def _verify(self) -> bool:
         """
-        Verify the DAG, (i.e. no cycles and no missing parents)
-        On error raise ValueError with verification details
+        Verify the DAG, (i.e. no cycles and no missing parents).
+        On error raise ``ValueError`` with verification details.
 
-        :return: return True iff DAG has no errors
+        :return: ``True`` iff DAG has no errors.
         """
         # verify nodes
         for node in list(self._nodes.values()):
@@ -2316,9 +2325,9 @@ class PipelineController:
 
     def _verify_node(self, node: "PipelineController.Node") -> bool:
         """
-        Raise ValueError on verification errors
+        Raise ``ValueError`` on verification errors.
 
-        :return: Return True iff the specific node is verified
+        :return: Return ``True`` iff the specific node is verified.
         """
         if not node.base_task_id and not node.task_factory_func:
             raise ValueError(f"Node '{node.name}', base_task_id is empty")
@@ -2410,7 +2419,7 @@ class PipelineController:
 
     def _verify_dag(self) -> bool:
         """
-        :return: True iff the pipeline dag is fully accessible and contains no cycles
+        :return: ``True`` iff the pipeline dag is fully accessible and contains no cycles.
         """
         visited = set()
         prev_visited = None
@@ -2470,7 +2479,7 @@ class PipelineController:
     ) -> bool:
         """
         Create a Task from a function, including wrapping the function input arguments
-        into the hyperparameter section as kwargs, and storing function results as named artifacts
+        into the hyperparameter section as kwargs, and storing function results as named artifacts.
 
         Example:
 
@@ -2498,81 +2507,82 @@ class PipelineController:
                 function_return=['square_matrix']
             )
 
-        :param name: Unique of the step. For example `stage1`
-        :param function: A global function to convert into a standalone Task
-        :param function_kwargs: Optional, provide subset of function arguments and default values to expose.
-            If not provided automatically take all function arguments & defaults
-            Optional, pass input arguments to the function from other Tasks's output artifact.
-            Example argument named `numpy_matrix` from Task ID `aabbcc` artifact name `answer`:
+        :param name: Unique name of the step. For example ``stage1``.
+        :param function: A global function to convert into a standalone Task.
+        :param function_kwargs: Provide subset of function arguments and default values to expose.
+            If not provided automatically take all function arguments & defaults.
+            You can also pass input arguments to the function from other Tasks' output artifact.
+            Example argument named ``numpy_matrix`` from Task ID ``aabbcc`` artifact name ``answer``:
             ``{'numpy_matrix': 'aabbcc.answer'}``
         :param function_return: Provide a list of names for all the results.
             If not provided, no results will be stored as artifacts.
-        :param project_name: Set the project name for the task. Required if base_task_id is None.
-        :param task_name: Set the name of the remote task, if not provided use `name` argument.
-        :param task_type: Optional, The task type to be created. Supported values: 'training', 'testing', 'inference',
-            'data_processing', 'application', 'monitor', 'controller', 'optimizer', 'service', 'qc', 'custom'
-        :param auto_connect_frameworks: Control the frameworks auto connect, see `Task.init` auto_connect_frameworks
-        :param auto_connect_arg_parser: Control the ArgParser auto connect, see `Task.init` auto_connect_arg_parser
+        :param project_name: Set the project name for the task.
+            If not provided, the pipeline's target project (or the pipeline Task's own project) is used.
+        :param task_name: Set the name of the remote task, if not provided use ``name`` argument.
+        :param task_type: The task type to be created. Supported values: ``'training'``, ``'testing'``, ``'inference'``,
+            ``'data_processing'``, ``'application'``, ``'monitor'``, ``'controller'``, ``'optimizer'``, ``'service'``, ``'qc'``, ``'custom'``.
+        :param auto_connect_frameworks: Control the frameworks auto connect, see ``Task.init`` ``auto_connect_frameworks``.
+        :param auto_connect_arg_parser: Control the ArgParser auto connect, see ``Task.init`` ``auto_connect_arg_parser``.
         :param packages: Manually specify a list of required packages or a local requirements.txt file.
-            Example: ["tqdm>=2.1", "scikit-learn"] or "./requirements.txt"
+            Example: ``["tqdm==2.1", "scikit-learn"]`` or ``"./requirements.txt"``.
             If not provided, packages are automatically added based on the imports used in the function.
-            Use `False` to install requirements from "requirements.txt" inside your git repository
-        :param repo: Optional, specify a repository to attach to the function, when remotely executing.
+            Use ``False`` to install requirements from ``"requirements.txt"`` inside your git repository.
+        :param repo: Specify a repository to attach to the function, when remotely executing.
             Allow users to execute the function inside the specified repository, enabling to load modules/script
-            from a repository Notice the execution work directory will be the repository root folder.
-            Supports both git repo url link, and local repository path.
-            Example remote url: 'https://github.com/user/repo.git'
-            Example local repo copy: './repo' -> will automatically store the remote
-            repo url and commit ID based on the locally cloned copy
-        :param repo_branch: Optional, specify the remote repository branch (Ignored, if local repo path is used)
-        :param repo_commit: Optional, specify the repository commit ID (Ignored, if local repo path is used)
-        :param helper_functions: Optional, a list of helper functions to make available
+            from a repository. Notice the execution work directory will be the repository root folder.
+            Supports both git repo URL link, and local repository path.
+            Example remote URL: ``'https://github.com/user/repo.git'``.
+            Example local repo copy: ``'./repo'`` -> will automatically store the remote
+            repo URL and commit ID based on the locally cloned copy.
+        :param repo_branch: Specify the remote repository branch (Ignored, if local repo path is used).
+        :param repo_commit: Specify the repository commit ID (Ignored, if local repo path is used).
+        :param helper_functions: A list of helper functions to make available
             for the standalone function Task.
-        :param docker: Select the docker image to be executed in by the remote session
-        :param docker_args: Add docker arguments, pass a single string
+        :param docker: Select the docker image to be executed in by the remote session.
+        :param docker_args: Add docker arguments, pass a single string.
         :param docker_bash_setup_script: Add bash script to be executed
-            inside the docker before setting up the Task's environment
-        :param parents: Optional list of parent nodes in the DAG.
+            inside the docker before setting up the Task's environment.
+        :param parents: List of parent nodes in the DAG.
             The current step in the pipeline will be sent for execution only after all the parent nodes
             have been executed successfully.
-        :param execution_queue: Optional, the queue to use for executing this specific step.
-            If not provided, the task will be sent to the default execution queue, as defined on the class
-        :param monitor_metrics: Optional, log the step's metrics on the pipeline Task.
+        :param execution_queue: The queue to use for executing this specific step.
+            If not provided, the task will be sent to the default execution queue, as defined on the class.
+        :param monitor_metrics: Log the step's metrics on the pipeline Task.
             Format is a list of pairs metric (title, series) to log:
-                [(step_metric_title, step_metric_series), ]
-                Example: [('test', 'accuracy'), ]
+                ``[(step_metric_title, step_metric_series), ]``
+                Example: ``[('test', 'accuracy'), ]``
             Or a list of tuple pairs, to specify a different target metric for to use on the pipeline Task:
-                [((step_metric_title, step_metric_series), (target_metric_title, target_metric_series)), ]
-                Example: [[('test', 'accuracy'), ('model', 'accuracy')], ]
-        :param monitor_artifacts: Optional, log the step's artifacts on the pipeline Task.
+                ``[((step_metric_title, step_metric_series), (target_metric_title, target_metric_series)), ]``
+                Example: ``[[('test', 'accuracy'), ('model', 'accuracy')], ]``
+        :param monitor_artifacts: Log the step's artifacts on the pipeline Task.
             Provided a list of artifact names existing on the step's Task, they will also appear on the Pipeline itself.
-            Example: [('processed_data', 'final_processed_data'), ]
+            Example: ``[('processed_data', 'final_processed_data'), ]``.
             Alternatively user can also provide a list of artifacts to monitor
-            (target artifact name will be the same as original artifact name)
-            Example: ['processed_data', ]
-        :param monitor_models: Optional, log the step's output models on the pipeline Task.
+            (target artifact name will be the same as original artifact name).
+            Example: ``['processed_data', ]``.
+        :param monitor_models: Log the step's output models on the pipeline Task.
             Provided a list of model names existing on the step's Task, they will also appear on the Pipeline itself.
-            Example: [('model_weights', 'final_model_weights'), ]
+            Example: ``[('model_weights', 'final_model_weights'), ]``.
             Alternatively user can also provide a list of models to monitor
-            (target models name will be the same as original model)
-            Example: ['model_weights', ]
-            To select the latest (lexicographic) model use "model_*", or the last created model with just "*"
-            Example:  ['model_weights_*', ]
-        :param time_limit: Default None, no time limit.
+            (target models name will be the same as original model).
+            Example: ``['model_weights', ]``.
+            To select the latest (lexicographic) model use ``"model_*"``, or the last created model with just ``"*"``.
+            Example: ``['model_weights_*', ]``.
+        :param time_limit: Default ``None``, no time limit.
             Step execution time limit, if exceeded the Task is aborted and the pipeline is stopped and marked failed.
-        :param continue_on_fail: (Deprecated, use `continue_behaviour` instead).
-            If True, failed step will not cause the pipeline to stop
-            (or marked as failed). Notice, that steps that are connected (or indirectly connected)
-            to the failed step will be skipped. Defaults to False
+        :param continue_on_fail: (Deprecated, use ``continue_behaviour`` instead).
+            If ``True``, failed step will not cause the pipeline to stop
+            (or be marked as failed). Notice, that steps that are connected (or indirectly connected)
+            to the failed step will be skipped. Defaults to ``False``.
         :param pre_execute_callback: Callback function, called when the step (Task) is created,
             and before it is sent for execution. Allows a user to modify the Task before launch.
-            Use `node.job` to access the ClearmlJob object, or `node.job.task` to directly access the Task object.
+            Use ``node.job`` to access the ClearmlJob object, or ``node.job.task`` to directly access the Task object.
             ``parameters`` are the configuration arguments passed to the ClearmlJob.
 
-            If the callback returned value is `False`,
+            If the callback returned value is ``False``,
             the Node is skipped and so is any node in the DAG that relies on this node.
 
-            Notice the `parameters` are already parsed,
+            Notice the ``parameters`` are already parsed,
             e.g. ``${step1.parameters.Args/param}`` is replaced with relevant value.
 
             .. code-block:: py
@@ -2595,31 +2605,32 @@ class PipelineController:
                 ):
                     pass
 
-        :param cache_executed_step: If True, before launching the new step,
+        :param cache_executed_step: If ``True``, before launching the new step,
             after updating with the latest configuration, check if an exact Task with the same parameter/code
             was already executed. If it was found, use it instead of launching a new Task.
-            Default: False, a new cloned copy of base_task is always used.
+            Default: ``False``, a new cloned copy of the base task is always used.
             Notice: If the git repo reference does not have a specific commit ID, the Task will never be used.
 
-        :param retry_on_failure: Integer (number of retries) or Callback function that returns True to allow a retry
-            - Integer: In case of node failure, retry the node the number of times indicated by this parameter.
-            - Callable: A function called on node failure. Takes as parameters:
-              the PipelineController instance, the PipelineController.Node that failed and an int
-              representing the number of previous retries for the node that failed
-              The function must return a `bool`: True if the node should be retried and False otherwise.
-              If True, the node will be re-queued and the number of retries left will be decremented by 1.
-              By default, if this callback is not specified, the function will be retried the number of
-              times indicated by `retry_on_failure`.
+        :param retry_on_failure: Integer (number of retries) or Callback function that returns ``True`` to allow a retry.
 
-              .. code-block:: py
+          - Integer: In case of node failure, retry the node the number of times indicated by this parameter.
+          - Callable: A function called on node failure. Takes as parameters:
+            the PipelineController instance, the ``PipelineController.Node`` that failed and an int
+            representing the number of previous retries for the node that failed.
+            The function must return a ``bool``: ``True`` if the node should be retried and ``False`` otherwise.
+            If ``True``, the node will be re-queued and the number of retries left will be decremented by 1.
+            By default, if this callback is not specified, the function will be retried the number of
+            times indicated by ``retry_on_failure``.
 
-                  def example_retry_on_failure_callback(pipeline, node, retries):
-                      print(node.name, ' failed')
-                      # allow up to 5 retries (total of 6 runs)
-                      return retries < 5
+            .. code-block:: py
+
+                def example_retry_on_failure_callback(pipeline, node, retries):
+                    print(node.name, ' failed')
+                    # allow up to 5 retries (total of 6 runs)
+                    return retries < 5
 
         :param status_change_callback: Callback function, called when the status of a step (Task) changes.
-            Use `node.job` to access the ClearmlJob object, or `node.job.task` to directly access the Task object.
+            Use ``node.job`` to access the ClearmlJob object, or ``node.job.task`` to directly access the Task object.
             The signature of the function must look the following way:
 
             .. code-block:: py
@@ -2634,26 +2645,26 @@ class PipelineController:
         :param tags: A list of tags for the specific pipeline step.
             When executing a Pipeline remotely
             (i.e. launching the pipeline from the UI/enqueuing it), this method has no effect.
-        :param output_uri: The storage / output url for this step. This is the default location for output
-            models and other artifacts. Check Task.init reference docs for more info (output_uri is a parameter).
-        :param draft: (default False). If True, the Task will be created as a draft task.
-        :param working_dir:  Working directory to launch the step from.
+        :param output_uri: The storage / output URL for this step. This is the default location for output
+            models and other artifacts. Check Task.init reference docs for more info (``output_uri`` is a parameter).
+        :param draft: (default ``False``). If ``True``, the Task will be created as a draft task.
+        :param working_dir: Working directory to launch the step from.
         :param continue_behaviour: Controls whether the pipeline will continue running after a step failed/was aborted.
             Different behaviours can be set using a dictionary of boolean options. Supported options are:
-              - continue_on_fail - If True, the pipeline will continue even if the step failed.
-                 If False, the pipeline will stop
-              - continue_on_abort - If True, the pipeline will continue even if the step was aborted.
-                 If False, the pipeline will stop
-              - skip_children_on_fail - If True, the children of this step will be skipped if it failed.
-                 If False, the children will run even if this step failed.
-                 Any parameters passed from the failed step to its children will default to None
-              - skip_children_on_abort - If True, the children of this step will be skipped if it was aborted.
-                 If False, the children will run even if this step was aborted.
-                 Any parameters passed from the failed step to its children will default to None
-              If the keys are not present in the dictionary, their values will default to True
-        :param stage: Name of the stage. This parameter enables pipeline step grouping into stages
+              - ``continue_on_fail`` - If ``True``, the pipeline will continue even if the step failed.
+                 If ``False``, the pipeline will stop.
+              - ``continue_on_abort`` - If ``True``, the pipeline will continue even if the step was aborted.
+                 If ``False``, the pipeline will stop.
+              - ``skip_children_on_fail`` - If ``True``, the children of this step will be skipped if it failed.
+                 If ``False``, the children will run even if this step failed.
+                 Any parameters passed from the failed step to its children will default to ``None``.
+              - ``skip_children_on_abort`` - If ``True``, the children of this step will be skipped if it was aborted.
+                 If ``False``, the children will run even if this step was aborted.
+                 Any parameters passed from the failed step to its children will default to ``None``.
+               If the keys are not present in the dictionary, their values will default to ``True``.
+        :param stage: Name of the stage. This parameter enables pipeline step grouping into stages.
 
-        :return: True if successful
+        :return: ``True`` if successful.
         """
         # always store callback functions (even when running remotely)
         if pre_execute_callback:
@@ -2861,10 +2872,10 @@ class PipelineController:
 
     def _launch_node(self, node: "PipelineController.Node") -> bool:
         """
-        Launch a single node (create and enqueue a ClearmlJob)
+        Launch a single node (create and enqueue a ClearmlJob).
 
-        :param node: Node to launch
-        :return: Return True if a new job was launched
+        :param node: Node to launch.
+        :return: ``True`` if a new job was launched.
         """
         # clear state if we are creating a new job
         if not node.job:
@@ -2961,8 +2972,8 @@ class PipelineController:
 
     def _update_execution_plot(self) -> None:
         """
-        Update sankey diagram of the current pipeline
-        Also update the controller Task artifact storing the DAG state (with all the nodes states)
+        Update sankey diagram of the current pipeline.
+        Also update the controller Task artifact storing the DAG state (with all the nodes states).
         """
         if not self._task:
             return
@@ -3143,12 +3154,12 @@ class PipelineController:
 
     def _build_table_report(self, node_params: List, visited: List) -> List[List]:
         """
-        Create the detailed table report on all the jobs in the pipeline
+        Create the detailed table report on all the jobs in the pipeline.
 
-        :param node_params: list of node parameters
-        :param visited: list of nodes
+        :param node_params: list of node parameters.
+        :param visited: list of nodes.
 
-        :return: Table as a List of a List of strings (cell)
+        :return: Table as a List of a List of strings (cell).
         """
         task_link_template = (
             self._task.get_output_log_web_page()
@@ -3330,7 +3341,7 @@ class PipelineController:
 
     def _update_progress(self) -> None:
         """
-        Update progress of the pipeline every PipelineController._update_progress_interval seconds.
+        Update progress of the pipeline every ``PipelineController._update_progress_interval`` seconds.
         Progress is calculated as the mean of the progress of each step in the pipeline.
         """
         if time() - self._last_progress_update_time < self._update_progress_interval:
@@ -3504,9 +3515,9 @@ class PipelineController:
 
     def _parse_step_ref(self, value: Any, recursive: bool = False) -> Optional[str]:
         """
-        Return the step reference. For example ``"${step1.parameters.Args/param}"``
-        :param value: string
-        :param recursive: if True, recursively parse all values in the dict, list or tuple
+        Return the step reference. For example ``"${step1.parameters.Args/param}"``.
+        :param value: string.
+        :param recursive: if ``True``, recursively parse all values in the dict, list or tuple.
         :return:
         """
         # look for all the step references
@@ -3535,8 +3546,8 @@ class PipelineController:
 
     def _parse_task_overrides(self, task_overrides: dict) -> dict:
         """
-        Return the step reference. For example ``"${step1.parameters.Args/param}"``
-        :param task_overrides: string
+        Return the step reference. For example ``"${step1.parameters.Args/param}"``.
+        :param task_overrides: string.
         :return:
         """
         updated_overrides = {}
@@ -3553,7 +3564,7 @@ class PipelineController:
 
     def _scan_monitored_nodes(self) -> None:
         """
-        Scan all nodes and monitor their metrics/artifacts/models
+        Scan all nodes and monitor their metrics/artifacts/models.
         """
         for node in list(self._nodes.values()):
             self._monitor_node(node)
@@ -3561,7 +3572,7 @@ class PipelineController:
     def _monitor_node(self, node: "PipelineController.Node") -> None:
         """
         If Node is running, put the metrics from the node on the pipeline itself.
-        :param node: Node to test
+        :param node: Node to test.
         """
         if not node:
             return
@@ -3653,11 +3664,11 @@ class PipelineController:
 
     def _get_target_project(self, return_project_id: bool = False) -> str:
         """
-        return the pipeline components target folder name/id
+        Return the pipeline components target folder name/ID.
 
-        :param return_project_id: if False (default), return target folder name. If True, return project id
+        :param return_project_id: If ``False`` (default), return target folder name. If ``True``, return project ID.
 
-        :return: project id/name (None if not valid)
+        :return: Project ID/name (``None`` if not valid).
         """
         if not self._target_project:
             return ""
@@ -3731,10 +3742,10 @@ class PipelineController:
     @classmethod
     def _get_pipeline_task(cls) -> Task:
         """
-        Return the pipeline Task (either the current one, or the parent Task of the currently running Task)
-        Raise ValueError if we could not locate the pipeline Task
+        Return the pipeline Task (either the current one, or the parent Task of the currently running Task).
+        Raise ``ValueError`` if we could not locate the pipeline Task.
 
-        :return: Pipeline Task
+        :return: Pipeline Task.
         """
         # get main Task.
         task = Task.current_task()
@@ -3750,12 +3761,12 @@ class PipelineController:
 
     def __verify_step_reference(self, node: "PipelineController.Node", step_ref_string: str) -> Optional[str]:
         """
-        Verify the step reference. For example ``"${step1.parameters.Args/param}"``
-        Raise ValueError on misconfiguration
+        Verify the step reference. For example ``"${step1.parameters.Args/param}"``.
+        Raise ``ValueError`` on misconfiguration.
 
-        :param Node node: calling reference node (used for logging)
-        :param str step_ref_string: For example ``"${step1.parameters.Args/param}"``
-        :return: If step reference is used, return the pipeline step name, otherwise return None
+        :param Node node: calling reference node (used for logging).
+        :param str step_ref_string: For example ``"${step1.parameters.Args/param}"``.
+        :return: If step reference is used, return the pipeline step name, otherwise return ``None``.
         """
         parts = step_ref_string[2:-1].split(".")
         v = step_ref_string
@@ -3817,9 +3828,9 @@ class PipelineController:
 
     def __parse_step_reference(self, step_ref_string: str) -> Optional[str]:
         """
-        return the adjusted value for "${step...}"
-        :param step_ref_string: reference string of the form ${step_name.type.value}"
-        :return: str with value
+        Return the adjusted value for ``"${step...}"``.
+        :param step_ref_string: reference string of the form ``${step_name.type.value}``.
+        :return: ``str`` with value.
         """
         parts = step_ref_string[2:-1].split(".")
         if len(parts) < 2:
@@ -4010,64 +4021,64 @@ class PipelineDecorator(PipelineController):
         """
         Create a new pipeline controller. The newly created object will launch and monitor the new experiments.
 
-        :param name: Provide pipeline name (if main Task exists it overrides its name)
-        :param project: Provide project storing the pipeline (if main Task exists  it overrides its project)
+        :param name: Provide pipeline name (if main Task exists it overrides its name).
+        :param project: Provide project storing the pipeline (if main Task exists it overrides its project).
         :param version: Pipeline version. This version allows to uniquely identify the pipeline
-            template execution. Examples for semantic versions: version='1.0.1' , version='23', version='1.2'.
+            template execution. Examples for semantic versions: ``version='1.0.1'``, ``version='23'``, ``version='1.2'``.
             If not set, find the latest version of the pipeline and increment it. If no such version is found,
-            default to '1.0.0'
+            default to ``'1.0.0'``.
         :param float pool_frequency: The pooling frequency (in minutes) for monitoring experiments / states.
-        :param bool add_pipeline_tags: (default: False) if True, add `pipe: <pipeline_task_id>` tag to all
+        :param bool add_pipeline_tags: (default: ``False``) if ``True``, add ``pipe: <pipeline_task_id>`` tag to all
             steps (Tasks) created by this pipeline.
-        :param str target_project: If provided, all pipeline steps are cloned into the target project
-        :param bool abort_on_failure: If False (default), failed pipeline steps will not cause the pipeline
+        :param str target_project: If provided, all pipeline steps are cloned into the target project.
+        :param bool abort_on_failure: If ``False`` (default), failed pipeline steps will not cause the pipeline
             to stop immediately, instead any step that is not connected (or indirectly connected) to the failed step,
             will still be executed. Nonetheless, the pipeline itself will be marked failed, unless the failed step
-            was specifically defined with "continue_on_fail=True".
-            If True, any failed step will cause the pipeline to immediately abort, stop all running steps,
+            was specifically defined with ``continue_on_fail=True``.
+            If ``True``, any failed step will cause the pipeline to immediately abort, stop all running steps,
             and mark the pipeline as failed.
-        :param add_run_number: If True (default), add the run number of the pipeline to the pipeline name.
-            Example, the second time we launch the pipeline "best pipeline", we rename it to "best pipeline #2"
-        :param retry_on_failure: Integer (number of retries) or Callback function that returns True to allow a retry
+        :param add_run_number: If ``True`` (default), add the run number of the pipeline to the pipeline name.
+            Example, the second time we launch the pipeline "best pipeline", we rename it to "best pipeline #2".
+        :param retry_on_failure: Integer (number of retries) or Callback function that returns ``True`` to allow a retry.
 
           - Integer: In case of node failure, retry the node the number of times indicated by this parameter.
           - Callable: A function called on node failure. Takes as parameters:
-            the PipelineController instance, the PipelineController.Node that failed and an int
+            the PipelineController instance, the ``PipelineController.Node`` that failed and an int
             representing the number of previous retries for the node that failed.
             The function must return ``True`` if the node should be retried and ``False`` otherwise.
-            If True, the node will be re-queued and the number of retries left will be decremented by 1.
+            If ``True``, the node will be re-queued and the number of retries left will be decremented by 1.
             By default, if this callback is not specified, the function will be retried the number of
-            times indicated by `retry_on_failure`.
+            times indicated by ``retry_on_failure``.
 
-              .. code-block:: py
+            .. code-block:: py
 
-                  def example_retry_on_failure_callback(pipeline, node, retries):
-                      print(f"{node.name} failed")
-                      # allow up to 5 retries (total of 6 runs)
-                      return retries < 5
+                def example_retry_on_failure_callback(pipeline, node, retries):
+                    print(f"{node.name} failed")
+                    # allow up to 5 retries (total of 6 runs)
+                    return retries < 5
 
-        :param docker: Select the docker image to be executed in by the remote session
-        :param docker_args: Add docker arguments, pass a single string
+        :param docker: Select the docker image to be executed in by the remote session.
+        :param docker_args: Add docker arguments, pass a single string.
         :param docker_bash_setup_script: Add bash script to be executed
-            inside the docker before setting up the Task's environment
+            inside the docker before setting up the Task's environment.
         :param packages: Manually specify a list of required packages or a local requirements.txt file.
-            Example: ["tqdm>=2.1", "scikit-learn"] or "./requirements.txt"
+            Example: ``["tqdm==2.1", "scikit-learn"]`` or ``"./requirements.txt"``.
             If not provided, packages are automatically added.
-            Use `False` to install requirements from "requirements.txt" inside your git repository
-        :param repo: Optional, specify a repository to attach to the pipeline controller, when remotely executing.
+            Use ``False`` to install requirements from ``"requirements.txt"`` inside your git repository.
+        :param repo: Specify a repository to attach to the pipeline controller, when remotely executing.
             Allow users to execute the controller inside the specified repository, enabling them to load modules/script
             from the repository. Notice the execution work directory will be the repository root folder.
-            Supports both git repo url link, and local repository path (automatically converted into the remote
+            Supports both git repo URL link, and local repository path (automatically converted into the remote
             git/commit as is currently checkout).
-            Example remote url: 'https://github.com/user/repo.git'
-            Example local repo copy: './repo' -> will automatically store the remote
-            repo url and commit ID based on the locally cloned copy
-            Use empty string ("") to disable any repository auto-detection
-        :param repo_branch: Optional, specify the remote repository branch (Ignored, if local repo path is used)
-        :param repo_commit: Optional, specify the repository commit ID (Ignored, if local repo path is used)
+            Example remote URL: ``'https://github.com/user/repo.git'``.
+            Example local repo copy: ``'./repo'`` -> will automatically store the remote
+            repo URL and commit ID based on the locally cloned copy.
+            Use empty string (``""``) to disable any repository auto-detection.
+        :param repo_branch: Specify the remote repository branch (Ignored, if local repo path is used).
+        :param repo_commit: Specify the repository commit ID (Ignored, if local repo path is used).
         :param artifact_serialization_function: A serialization function that takes one
             parameter of any type which is the object to be serialized. The function should return
-            a `bytes` or `bytearray` object, which represents the serialized object. All parameter/return
+            a ``bytes`` or ``bytearray`` object, which represents the serialized object. All parameter/return
             artifacts uploaded by the pipeline will be serialized using this function.
             All relevant imports must be done in this function. For example:
 
@@ -4077,7 +4088,7 @@ class PipelineDecorator(PipelineController):
                     import dill
                     return dill.dumps(obj)
 
-        :param artifact_deserialization_function: A deserialization function that takes one parameter of type `bytes`,
+        :param artifact_deserialization_function: A deserialization function that takes one parameter of type ``bytes``,
             which represents the serialized object. This function should return the deserialized object.
             All parameter/return artifacts fetched by the pipeline will be deserialized using this function.
             All relevant imports must be done in this function. For example:
@@ -4088,17 +4099,17 @@ class PipelineDecorator(PipelineController):
                     import dill
                     return dill.loads(bytes_)
 
-        :param output_uri: The storage / output url for this pipeline. This is the default location for output
-            models and other artifacts. Check Task.init reference docs for more info (output_uri is a parameter).
-            The `output_uri` of this pipeline's steps will default to this value.
-        :param skip_global_imports: If True, global imports will not be included in the steps' execution, otherwise all
-            global imports will be automatically imported in a safe manner at the beginning of each step’s execution.
-            Default is False
+        :param output_uri: The storage / output URL for this pipeline. This is the default location for output
+            models and other artifacts. Check Task.init reference docs for more info (``output_uri`` is a parameter).
+            The ``output_uri`` of this pipeline's steps will default to this value.
+        :param skip_global_imports: If ``True``, global imports will not be included in the steps' execution, otherwise all
+            global imports will be automatically imported in a safe manner at the beginning of each step's execution.
+            Default is ``False``.
         :param working_dir: Working directory to launch the pipeline from.
-        :param enable_local_imports: If True, allow pipeline steps to import from local files
-            by appending to the PYTHONPATH of each step the directory the pipeline controller
-            script resides in (sys.path[0]).
-            If False, the directory won't be appended to PYTHONPATH. Default is True.
+        :param enable_local_imports: If ``True``, allow pipeline steps to import from local files
+            by appending to the ``PYTHONPATH`` of each step the directory the pipeline controller
+            script resides in (``sys.path[0]``).
+            If ``False``, the directory won't be appended to ``PYTHONPATH``. Default is ``True``.
             Ignored while running remotely.
         """
         super(PipelineDecorator, self).__init__(
@@ -4146,7 +4157,7 @@ class PipelineDecorator(PipelineController):
     def _daemon(self) -> None:
         """
         The main pipeline execution loop. This loop is executed on its own dedicated thread.
-        override the daemon function, we only need to update the state
+        Override the daemon function, we only need to update the state.
 
         :return:
         """
@@ -4280,7 +4291,7 @@ class PipelineDecorator(PipelineController):
 
     def update_execution_plot(self) -> None:
         """
-        Update sankey diagram of the current pipeline
+        Update sankey diagram of the current pipeline.
         """
         with self._reporting_lock:
             self._update_eager_generated_steps()
@@ -4421,9 +4432,9 @@ class PipelineDecorator(PipelineController):
     def _adjust_task_hashing(self, task_hash: dict) -> dict:
         """
         Fix the Task hashing so that parameters pointing to the current Task artifact are encoded using the
-        hash content of the artifact, instead of the Task.id
-        :param task_hash: Task representation dict
-        :return: Adjusted Task representation dict
+        hash content of the artifact, instead of the ``Task.id``.
+        :param task_hash: Task representation dict.
+        :return: Adjusted Task representation dict.
         """
         if task_hash.get("hyper_params"):
             updated_params = {}
@@ -4498,87 +4509,87 @@ class PipelineDecorator(PipelineController):
         stage: Optional[str] = None,
     ) -> Callable:
         """
-        pipeline component function to be executed remotely
+        Pipeline component function to be executed remotely.
 
-        :param _func: wrapper function
+        :param _func: wrapper function.
         :param return_values: Provide a list of names for all the results.
             Notice! If not provided, no results will be stored as artifacts.
-        :param name: Optional, set the name of the pipeline component task.
-            If not provided, the wrapped function name is used as the pipeline component name
-        :param cache: If True, before launching the new step,
+        :param name: Set the name of the pipeline component task.
+            If not provided, the wrapped function name is used as the pipeline component name.
+        :param cache: If ``True``, before launching the new step,
             after updating with the latest configuration, check if an exact Task with the same parameter/code
-            was already executed. If it was found, use it instead of launching a new Task. Default: False
+            was already executed. If it was found, use it instead of launching a new Task. Default: ``False``.
         :param packages: Manually specify a list of required packages or a local requirements.txt file.
-            Example: ["tqdm>=2.1", "scikit-learn"] or "./requirements.txt"
+            Example: ``["tqdm==2.1", "scikit-learn"]`` or ``"./requirements.txt"``.
             If not provided, packages are automatically added based on the imports used inside the wrapped function.
-            Use `False` to install requirements from "requirements.txt" inside your git repository
-        :param parents: Optional list of parent nodes in the DAG.
+            Use ``False`` to install requirements from ``"requirements.txt"`` inside your git repository.
+        :param parents: List of parent nodes in the DAG.
             The current step in the pipeline will be sent for execution only after all the parent nodes
             have been executed successfully.
-        :param execution_queue: Optional, the queue to use for executing this specific step.
-            If not provided, the task will be sent to the pipeline's default execution queue
-        :param continue_on_fail: (Deprecated, use `continue_behaviour` instead).
-            If True, failed step will not cause the pipeline to stop
-            (or marked as failed). Notice, that steps that are connected (or indirectly connected)
-            to the failed step will be skipped. Defaults to False
-        :param docker: Specify the docker image to be used when executing the pipeline step remotely
+        :param execution_queue: The queue to use for executing this specific step.
+            If not provided, the task will be sent to the pipeline's default execution queue.
+        :param continue_on_fail: (Deprecated, use ``continue_behaviour`` instead).
+            If ``True``, failed step will not cause the pipeline to stop
+            (or be marked as failed). Notice, that steps that are connected (or indirectly connected)
+            to the failed step will be skipped. Defaults to ``False``.
+        :param docker: Specify the docker image to be used when executing the pipeline step remotely.
         :param docker_args: Add docker execution arguments for the remote execution
             (use single string for all docker arguments).
         :param docker_bash_setup_script: Add a bash script to be executed inside the docker before
-            setting up the Task's environment
-        :param task_type: Optional, The task type to be created. Supported values: 'training', 'testing', 'inference',
-            'data_processing', 'application', 'monitor', 'controller', 'optimizer', 'service', 'qc', 'custom'
-        :param auto_connect_frameworks: Control the frameworks auto connect, see `Task.init` auto_connect_frameworks
-        :param auto_connect_arg_parser: Control the ArgParser auto connect, see `Task.init` auto_connect_arg_parser
-        :param repo: Optional, specify a repository to attach to the function, when remotely executing.
+            setting up the Task's environment.
+        :param task_type: The task type to be created. Supported values: ``'training'``, ``'testing'``, ``'inference'``,
+            ``'data_processing'``, ``'application'``, ``'monitor'``, ``'controller'``, ``'optimizer'``, ``'service'``, ``'qc'``, ``'custom'``.
+        :param auto_connect_frameworks: Control the frameworks auto connect, see ``Task.init`` ``auto_connect_frameworks``.
+        :param auto_connect_arg_parser: Control the ArgParser auto connect, see ``Task.init`` ``auto_connect_arg_parser``.
+        :param repo: Specify a repository to attach to the function, when remotely executing.
             Allow users to execute the function inside the specified repository, enabling them to load modules/script
             from the repository. Notice the execution work directory will be the repository root folder.
-            Supports both git repo url link, and local repository path (automatically converted into the remote
+            Supports both git repo URL link, and local repository path (automatically converted into the remote
             git/commit as is currently checkout).
-            Example remote url: 'https://github.com/user/repo.git'
-            Example local repo copy: './repo' -> will automatically store the remote
-            repo url and commit ID based on the locally cloned copy
-        :param repo_branch: Optional, specify the remote repository branch (Ignored, if local repo path is used)
-        :param repo_commit: Optional, specify the repository commit ID (Ignored, if local repo path is used)
-        :param helper_functions: Optional, a list of helper functions to make available
+            Example remote URL: ``'https://github.com/user/repo.git'``.
+            Example local repo copy: ``'./repo'`` -> will automatically store the remote
+            repo URL and commit ID based on the locally cloned copy.
+        :param repo_branch: Specify the remote repository branch (Ignored, if local repo path is used).
+        :param repo_commit: Specify the repository commit ID (Ignored, if local repo path is used).
+        :param helper_functions: A list of helper functions to make available
             for the standalone pipeline step function Task. By default the pipeline step function has
-            no access to any of the other functions, by specifying additional functions here, the remote pipeline step
+            no access to any of the other functions. By specifying additional functions here, the remote pipeline step
             could call the additional functions.
-            Example, assuming we have two functions parse_data(), and load_data(): [parse_data, load_data]
-        :param monitor_metrics: Optional, Automatically log the step's reported metrics also on the pipeline Task.
+            Example, assuming we have two functions parse_data(), and load_data(): ``[parse_data, load_data]``.
+        :param monitor_metrics: Automatically log the step's reported metrics also on the pipeline Task.
             The expected format is a list of pairs metric (title, series) to log: ``[(step_metric_title, step_metric_series), ]``.
             For example: ``[('test', 'accuracy'), ]``.
             Or a list of tuple pairs, to specify a different target metric to use on the pipeline Task:
             ``[((step_metric_title, step_metric_series), (target_metric_title, target_metric_series)), ]``.
-            For example: ``[[('test', 'accuracy'), ('model', 'accuracy')], ]``
-        :param monitor_artifacts: Optional, Automatically log the step's artifacts on the pipeline Task.
+            For example: ``[[('test', 'accuracy'), ('model', 'accuracy')], ]``.
+        :param monitor_artifacts: Automatically log the step's artifacts on the pipeline Task.
             Provided a list of artifact names created by the step function, these artifacts will be logged
             automatically also on the Pipeline Task itself.
-            Example: ``['processed_data', ]``
-            (target artifact name on the Pipeline Task will hav ethe same name as the original artifact).
+            Example: ``['processed_data', ]``.
+            (target artifact name on the Pipeline Task will have the same name as the original artifact).
             Alternatively, provide a list of pairs ``(source_artifact_name, target_artifact_name)``:
             where the first string is the artifact name as it appears on the component Task,
             and the second is the target artifact name to put on the Pipeline Task.
-            Example: ``[('processed_data', 'final_processed_data'), ]``
-        :param monitor_models: Optional, Automatically log the step's output models on the pipeline Task.
+            Example: ``[('processed_data', 'final_processed_data'), ]``.
+        :param monitor_models: Automatically log the step's output models on the pipeline Task.
             Provided a list of model names created by the step's Task, they will also appear on the Pipeline itself.
             Example: ``['model_weights', ]``.
-            To select the latest (lexicographic) model use "model_*", or the last created model with just "*".
-            Example:  ``['model_weights_*', ]``.
+            To select the latest (lexicographic) model use ``"model_*"``, or the last created model with just ``"*"``.
+            Example: ``['model_weights_*', ]``.
             Alternatively, provide a list of pairs ``(source_model_name, target_model_name)``:
             where the first string is the model name as it appears on the component Task,
             and the second is the target model name to put on the Pipeline Task.
-            Example: ``[('model_weights', 'final_model_weights'), ]``
-        :param retry_on_failure: Integer (number of retries) or Callback function that returns True to allow a retry
+            Example: ``[('model_weights', 'final_model_weights'), ]``.
+        :param retry_on_failure: Integer (number of retries) or Callback function that returns ``True`` to allow a retry.
 
           - Integer: In case of node failure, retry the node the number of times indicated by this parameter.
           - Callable: A function called on node failure. Takes as parameters:
-            the PipelineController instance, the PipelineController.Node that failed and an int
-            representing the number of previous retries for the node that failed
-            The function must return a `bool`: True if the node should be retried and False otherwise.
-            If True, the node will be re-queued and the number of retries left will be decremented by 1.
+            the PipelineController instance, the ``PipelineController.Node`` that failed and an int
+            representing the number of previous retries for the node that failed.
+            The function must return a ``bool``: ``True`` if the node should be retried and ``False`` otherwise.
+            If ``True``, the node will be re-queued and the number of retries left will be decremented by 1.
             By default, if this callback is not specified, the function will be retried the number of
-            times indicated by `retry_on_failure`.
+            times indicated by ``retry_on_failure``.
 
             .. code-block:: py
 
@@ -4589,13 +4600,13 @@ class PipelineDecorator(PipelineController):
 
         :param pre_execute_callback: Callback function, called when the step (Task) is created,
             and before it is sent for execution. Allows a user to modify the Task before launch.
-            Use `node.job` to access the ClearmlJob object, or `node.job.task` to directly access the Task object.
+            Use ``node.job`` to access the ClearmlJob object, or ``node.job.task`` to directly access the Task object.
             ``parameters`` are the configuration arguments passed to the ClearmlJob.
 
-            If the callback returned value is `False`,
+            If the callback returned value is ``False``,
             the Node is skipped and so is any node in the DAG that relies on this node.
 
-            Notice the `parameters` are already parsed,
+            Notice the ``parameters`` are already parsed,
             e.g. ``${step1.parameters.Args/param}`` is replaced with relevant value.
 
             .. code-block:: py
@@ -4608,7 +4619,7 @@ class PipelineDecorator(PipelineController):
                     pass
 
         :param post_execute_callback: Callback function, called when a step (Task) is completed
-            and other jobs are going to be executed. Allows a user to modify the Task status after completion.
+            and other jobs are executed. Allows a user to modify the Task status after completion.
 
             .. code-block:: py
 
@@ -4619,7 +4630,7 @@ class PipelineDecorator(PipelineController):
                     pass
 
         :param status_change_callback: Callback function, called when the status of a step (Task) changes.
-            Use `node.job` to access the ClearmlJob object, or `node.job.task` to directly access the Task object.
+            Use ``node.job`` to access the ClearmlJob object, or ``node.job.task`` to directly access the Task object.
             The signature of the function must look the following way:
 
             .. code-block:: py
@@ -4634,27 +4645,27 @@ class PipelineDecorator(PipelineController):
         :param tags: A list of tags for the specific pipeline step.
             When executing a Pipeline remotely
             (i.e. launching the pipeline from the UI/enqueuing it), this method has no effect.
-        :param output_uri: The storage / output url for this step. This is the default location for output
-            models and other artifacts. Check Task.init reference docs for more info (output_uri is a parameter).
-        :param draft: (default False). If True, the Task will be created as a draft task.
-        :param working_dir:  Working directory to launch the step from.
+        :param output_uri: The storage / output URL for this step. This is the default location for output
+            models and other artifacts. Check Task.init reference docs for more info (``output_uri`` is a parameter).
+        :param draft: (default ``False``). If ``True``, the Task will be created as a draft task.
+        :param working_dir: Working directory to launch the step from.
         :param continue_behaviour: Controls whether the pipeline will continue running after a step failed/was aborted.
             Different behaviours can be set using a dictionary of boolean options. Supported options are:
 
-          - continue_on_fail - If True, the pipeline will continue even if the step failed.
-            If False, the pipeline will stop
-          - continue_on_abort - If True, the pipeline will continue even if the step was aborted.
-            If False, the pipeline will stop
-          - skip_children_on_fail - If True, the children of this step will be skipped if it failed.
-            If False, the children will run even if this step failed.
-            Any parameters passed from the failed step to its children will default to None
-          - skip_children_on_abort - If True, the children of this step will be skipped if it was aborted.
-            If False, the children will run even if this step was aborted.
-           Any parameters passed from the failed step to its children will default to None
-          - If the keys are not present in the dictionary, their values will default to True
-        :param stage: Name of the stage. This parameter enables pipeline step grouping into stages
+          - ``continue_on_fail`` - If ``True``, the pipeline will continue even if the step failed.
+            If ``False``, the pipeline will stop.
+          - ``continue_on_abort`` - If ``True``, the pipeline will continue even if the step was aborted.
+            If ``False``, the pipeline will stop.
+          - ``skip_children_on_fail`` - If ``True``, the children of this step will be skipped if it failed.
+            If ``False``, the children will run even if this step failed.
+            Any parameters passed from the failed step to its children will default to ``None``.
+          - ``skip_children_on_abort`` - If ``True``, the children of this step will be skipped if it was aborted.
+            If ``False``, the children will run even if this step was aborted.
+            Any parameters passed from the failed step to its children will default to ``None``.
+          - If the keys are not present in the dictionary, their values will default to ``True``.
+        :param stage: Name of the stage. This parameter enables pipeline step grouping into stages.
 
-        :return: function wrapper
+        :return: function wrapper.
         """
 
         def decorator_wrap(func: Callable) -> Callable:
@@ -4999,38 +5010,38 @@ class PipelineDecorator(PipelineController):
         """
         Decorate pipeline logic function.
 
-        :param name: Provide pipeline name (if main Task exists it overrides its name)
-        :param project: Provide project storing the pipeline (if main Task exists  it overrides its project)
+        :param name: Provide pipeline name (if main Task exists it overrides its name).
+        :param project: Provide project storing the pipeline (if main Task exists it overrides its project).
         :param version: Pipeline version. This version allows to uniquely identify the pipeline
-            template execution. Examples for semantic versions: version='1.0.1' , version='23', version='1.2'.
+            template execution. Examples for semantic versions: ``version='1.0.1'``, ``version='23'``, ``version='1.2'``.
             If not set, find the latest version of the pipeline and increment it. If no such version is found,
-            default to '1.0.0'
-        :param return_value: Optional, Provide an artifact name to store the pipeline function return object
-            Notice, If not provided the pipeline will not store the pipeline function return value.
-        :param default_queue: default pipeline step queue
+            default to ``'1.0.0'``.
+        :param return_value: Provide an artifact name to store the pipeline function return object.
+            Notice, if not provided the pipeline will not store the pipeline function return value.
+        :param default_queue: default pipeline step queue.
         :param float pool_frequency: The pooling frequency (in minutes) for monitoring experiments / states.
-        :param bool add_pipeline_tags: (default: False) if True, add `pipe: <pipeline_task_id>` tag to all
+        :param bool add_pipeline_tags: (default: ``False``) if ``True``, add ``pipe: <pipeline_task_id>`` tag to all
             steps (Tasks) created by this pipeline.
-        :param str target_project: If provided, all pipeline steps are cloned into the target project
-        :param bool abort_on_failure: If False (default), failed pipeline steps will not cause the pipeline
+        :param str target_project: If provided, all pipeline steps are cloned into the target project.
+        :param bool abort_on_failure: If ``False`` (default), failed pipeline steps will not cause the pipeline
             to stop immediately, instead any step that is not connected (or indirectly connected) to the failed step,
             will still be executed. Nonetheless, the pipeline itself will be marked failed, unless the failed step
-            was specifically defined with "continue_on_fail=True".
-            If True, any failed step will cause the pipeline to immediately abort, stop all running steps,
+            was specifically defined with ``continue_on_fail=True``.
+            If ``True``, any failed step will cause the pipeline to immediately abort, stop all running steps,
             and mark the pipeline as failed.
-        :param pipeline_execution_queue: remote pipeline execution queue (default 'services' queue).
-            If None is passed, execute the pipeline logic locally (pipeline steps are still executed remotely)
-        :param multi_instance_support: If True, allow multiple calls to the same pipeline function,
+        :param pipeline_execution_queue: remote pipeline execution queue (default ``'services'`` queue).
+            If ``None`` is passed, execute the pipeline logic locally (pipeline steps are still executed remotely).
+        :param multi_instance_support: If ``True``, allow multiple calls to the same pipeline function,
             each call creating a new Pipeline Task. Notice it is recommended to create an additional Task on the
             "main process" acting as a master pipeline, automatically collecting the execution plots.
-            If multi_instance_support=='parallel' then the pipeline calls are executed in parallel,
-            in the `parallel` case the function calls return None, to collect all pipeline results call
-            `PipelineDecorator.wait_for_multi_pipelines()`.
-            Default False, no multi instance pipeline support.
-        :param add_run_number: If True (default), add the run number of the pipeline to the pipeline name.
-            Example, the second time we launch the pipeline "best pipeline", we rename it to "best pipeline #2"
+            If ``multi_instance_support=='parallel'`` then the pipeline calls are executed in parallel,
+            in the ``'parallel'`` case the function calls return ``None``, to collect all pipeline results call
+            ``PipelineDecorator.wait_for_multi_pipelines()``.
+            Default ``False``, no multi instance pipeline support.
+        :param add_run_number: If ``True`` (default), add the run number of the pipeline to the pipeline name.
+            Example, the second time we launch the pipeline "best pipeline", we rename it to "best pipeline #2".
         :param args_map: Map arguments to their specific configuration section. Arguments not included in this map
-            will default to `Args` section. For example, for the following code:
+            will default to ``Args`` section. For example, for the following code:
 
             .. code-block:: py
 
@@ -5040,54 +5051,54 @@ class PipelineDecorator(PipelineController):
 
             Parameters would be stored as:
 
-          - paramA: sectionA/paramA
-          - paramB: sectionB/paramB
-          - paramC: sectionB/paramC
-          - paramD: Args/paramD
+          - ``paramA``: ``sectionA/paramA``
+          - ``paramB``: ``sectionB/paramB``
+          - ``paramC``: ``sectionB/paramC``
+          - ``paramD``: ``Args/paramD``
 
-        :param start_controller_locally: If True, start the controller on the local machine. The steps will run
-            remotely if `PipelineDecorator.run_locally` or `PipelineDecorator.debug_pipeline` are not called.
-            Default: False
-        :param retry_on_failure: Integer (number of retries) or Callback function that returns True to allow a retry
+        :param start_controller_locally: If ``True``, start the controller on the local machine. The steps will run
+            remotely if ``PipelineDecorator.run_locally`` or ``PipelineDecorator.debug_pipeline`` are not called.
+            Default: ``False``.
+        :param retry_on_failure: Integer (number of retries) or Callback function that returns ``True`` to allow a retry.
 
           - Integer: In case of node failure, retry the node the number of times indicated by this parameter.
           - Callable: A function called on node failure. Takes as parameters:
-            the PipelineController instance, the PipelineController.Node that failed and an int
+            the PipelineController instance, the ``PipelineController.Node`` that failed and an int
             representing the number of previous retries for the node that failed.
             The function must return ``True`` if the node should be retried and ``False`` otherwise.
-            If True, the node will be re-queued and the number of retries left will be decremented by 1.
+            If ``True``, the node will be re-queued and the number of retries left will be decremented by 1.
             By default, if this callback is not specified, the function will be retried the number of
-            times indicated by `retry_on_failure`.
+            times indicated by ``retry_on_failure``.
 
-              .. code-block:: py
+            .. code-block:: py
 
-                  def example_retry_on_failure_callback(pipeline, node, retries):
-                      print(node.name, ' failed')
-                      # allow up to 5 retries (total of 6 runs)
-                      return retries < 5
+                def example_retry_on_failure_callback(pipeline, node, retries):
+                    print(node.name, ' failed')
+                    # allow up to 5 retries (total of 6 runs)
+                    return retries < 5
 
-        :param docker: Select the docker image to be executed in by the remote session
-        :param docker_args: Add docker arguments, pass a single string
+        :param docker: Select the docker image to be executed in by the remote session.
+        :param docker_args: Add docker arguments, pass a single string.
         :param docker_bash_setup_script: Add bash script to be executed
-            inside the docker before setting up the Task's environment
+            inside the docker before setting up the Task's environment.
         :param packages: Manually specify a list of required packages or a local requirements.txt file.
-            Example: ["tqdm>=2.1", "scikit-learn"] or "./requirements.txt"
+            Example: ``["tqdm==2.1", "scikit-learn"]`` or ``"./requirements.txt"``.
             If not provided, packages are automatically added based on the imports used in the function.
-            Use `False` to install requirements from "requirements.txt" inside your git repository
-        :param repo: Optional, specify a repository to attach to the function, when remotely executing.
+            Use ``False`` to install requirements from ``"requirements.txt"`` inside your git repository.
+        :param repo: Specify a repository to attach to the function, when remotely executing.
             Allow users to execute the function inside the specified repository, enabling them to load modules/script
             from the repository. Notice the execution work directory will be the repository root folder.
-            Supports both git repo url link, and local repository path (automatically converted into the remote
+            Supports both git repo URL link, and local repository path (automatically converted into the remote
             git/commit as is currently checkout).
-            Example remote url: 'https://github.com/user/repo.git'
-            Example local repo copy: './repo' -> will automatically store the remote
-            repo url and commit ID based on the locally cloned copy
-            Use empty string ("") to disable any repository auto-detection
-        :param repo_branch: Optional, specify the remote repository branch (Ignored, if local repo path is used)
-        :param repo_commit: Optional, specify the repository commit ID (Ignored, if local repo path is used)
+            Example remote URL: ``'https://github.com/user/repo.git'``.
+            Example local repo copy: ``'./repo'`` -> will automatically store the remote
+            repo URL and commit ID based on the locally cloned copy.
+            Use empty string (``""``) to disable any repository auto-detection.
+        :param repo_branch: Specify the remote repository branch (Ignored, if local repo path is used).
+        :param repo_commit: Specify the repository commit ID (Ignored, if local repo path is used).
         :param artifact_serialization_function: A serialization function that takes one
             parameter of any type which is the object to be serialized. The function should return
-            a `bytes` or `bytearray` object, which represents the serialized object. All parameter/return
+            a ``bytes`` or ``bytearray`` object, which represents the serialized object. All parameter/return
             artifacts uploaded by the pipeline will be serialized using this function.
             All relevant imports must be done in this function. For example:
 
@@ -5097,7 +5108,7 @@ class PipelineDecorator(PipelineController):
                     import dill
                     return dill.dumps(obj)
 
-        :param artifact_deserialization_function: A deserialization function that takes one parameter of type `bytes`,
+        :param artifact_deserialization_function: A deserialization function that takes one parameter of type ``bytes``,
             which represents the serialized object. This function should return the deserialized object.
             All parameter/return artifacts fetched by the pipeline will be deserialized using this function.
             All relevant imports must be done in this function. For example:
@@ -5108,17 +5119,17 @@ class PipelineDecorator(PipelineController):
                     import dill
                     return dill.loads(bytes_)
 
-        :param output_uri: The storage / output url for this pipeline. This is the default location for output
-            models and other artifacts. Check Task.init reference docs for more info (output_uri is a parameter).
-            The `output_uri` of this pipeline's steps will default to this value.
-        :param skip_global_imports: If True, global imports will not be included in the steps' execution, otherwise all
-            global imports will be automatically imported in a safe manner at the beginning of each step’s execution.
-            Default is False
-        :param working_dir:  Working directory to launch the pipeline from.
-        :param enable_local_imports: If True, allow pipeline steps to import from local files
-            by appending to the PYTHONPATH of each step the directory the pipeline controller
-            script resides in (sys.path[0]).
-            If False, the directory won't be appended to PYTHONPATH. Default is True.
+        :param output_uri: The storage / output URL for this pipeline. This is the default location for output
+            models and other artifacts. Check Task.init reference docs for more info (``output_uri`` is a parameter).
+            The ``output_uri`` of this pipeline's steps will default to this value.
+        :param skip_global_imports: If ``True``, global imports will not be included in the steps' execution, otherwise all
+            global imports will be automatically imported in a safe manner at the beginning of each step's execution.
+            Default is ``False``.
+        :param working_dir: Working directory to launch the pipeline from.
+        :param enable_local_imports: If ``True``, allow pipeline steps to import from local files
+            by appending to the ``PYTHONPATH`` of each step the directory the pipeline controller
+            script resides in (``sys.path[0]``).
+            If ``False``, the directory won't be appended to ``PYTHONPATH``. Default is ``True``.
             Ignored while running remotely.
         """
 
@@ -5322,19 +5333,19 @@ class PipelineDecorator(PipelineController):
     @classmethod
     def set_default_execution_queue(cls, default_execution_queue: Optional[str]) -> None:
         """
-        Set the default execution queue if pipeline step does not specify an execution queue
+        Set the default execution queue if pipeline step does not specify an execution queue.
 
-        :param default_execution_queue: The execution queue to use if no execution queue is provided
+        :param default_execution_queue: The execution queue to use if no execution queue is provided.
         """
         cls._default_execution_queue = str(default_execution_queue) if default_execution_queue else None
 
     @classmethod
     def run_locally(cls) -> None:
         """
-        Set local mode, run all functions locally as subprocess
+        Set local mode, run all functions locally as subprocess.
 
-        Run the full pipeline DAG locally, where steps are executed as sub-processes Tasks
-        Notice: running the DAG locally assumes the local code execution (i.e. it will not clone & apply git diff)
+        Run the full pipeline DAG locally, where steps are executed as sub-processes Tasks.
+        Notice: running the DAG locally assumes the local code execution (i.e. it will not clone & apply git diff).
 
         """
         cls._debug_execute_step_process = True
@@ -5343,8 +5354,8 @@ class PipelineDecorator(PipelineController):
     @classmethod
     def debug_pipeline(cls) -> None:
         """
-        Set debugging mode, run all functions locally as functions (serially)
-        Run the full pipeline DAG locally, where steps are executed as functions
+        Set debugging mode, run all functions locally as functions (serially).
+        Run the full pipeline DAG locally, where steps are executed as functions.
 
         .. note::
             Running the DAG locally assumes local code execution (i.e. it will not clone & apply git diff).
@@ -5356,7 +5367,7 @@ class PipelineDecorator(PipelineController):
     @classmethod
     def get_current_pipeline(cls) -> "PipelineDecorator":
         """
-        Return the currently running pipeline instance
+        Return the currently running pipeline instance.
         """
         return cls._singleton
 
@@ -5480,7 +5491,7 @@ class PipelineDecorator(PipelineController):
     ) -> Callable:
         """
         Add support for multiple pipeline function calls,
-        enabling execute multiple instances of the same pipeline from a single script.
+        enabling execution of multiple instances of the same pipeline from a single script.
 
         .. code-block:: py
 
@@ -5497,12 +5508,13 @@ class PipelineDecorator(PipelineController):
             pipeline(parameter=1)
             pipeline(parameter=2)
 
-        :param parallel: If True, the pipeline is running in the background, which implies calling
+        :param func: The pipeline function to wrap.
+        :param parallel: If ``True``, the pipeline is running in the background, which implies calling
             the pipeline twice means running the pipelines in parallel.
-            Default: False, pipeline function returns when pipeline completes
-        :return: Return wrapped pipeline function.
+            Default: ``False``, pipeline function returns when pipeline completes.
+        :return: Wrapped pipeline function.
             Notice the return value of the pipeline wrapped function:
-            if parallel==True, return will be None, otherwise expect the return of the pipeline wrapped function
+            if ``parallel==True``, return will be ``None``, otherwise expect the return of the pipeline wrapped function.
         """
 
         def internal_decorator(*args: Any, **kwargs: Any) -> Any:
