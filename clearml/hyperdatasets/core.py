@@ -98,28 +98,32 @@ class HyperDataset(HyperDatasetManagement):
 
     def add_data_entries(
         self,
-        data_entries,
+        data_entries: Sequence[DataEntry],
         upload_local_files_destination: Optional[str] = None,
         batch_size: int = 1000,
         max_workers: Optional[int] = None,
         show_progress: bool = True,
         upload_retries: int = 5,
         force_upload: bool = False,
-        max_request_size_mb: int = None,
+        max_request_size_mb: int = 100,
         hash_sources: bool = False,
     ):
         """
         Upload and register a collection of data entries into the HyperDataset version.
         Successful registrations automatically trigger a commit to refresh the version statistics.
 
-        :param data_entries: Iterable of `DataEntry` instances to register
+        :param data_entries: Sequence of `DataEntry` instances to register
         :param upload_local_files_destination: Optional storage URI for uploading local sources
         :param batch_size: Number of entries per backend registration batch
         :param max_workers: Maximum number of threads for upload work
         :param show_progress: Reserved for API compatibility (no progress emitted currently)
         :param upload_retries: Number of upload retry attempts per file
         :param force_upload: Upload even when hashes indicate the source already exists
-        :param max_request_size_mb: Optional upper bound for registration request payload size
+        :param max_request_size_mb: Upper bound for registration request payload size, in MB
+            (default 100). Registration batches whose payload exceeds this size are split into
+            multiple requests. A single entry larger than this limit is sent in its own request.
+            Pass `None` (or 0) to disable splitting and send each batch as a single request
+            regardless of its payload size
         :param hash_sources: Whether to hash sources for deduplication prior to upload
 
         :return: Dictionary containing upload and registration error mappings
@@ -138,13 +142,10 @@ class HyperDataset(HyperDatasetManagement):
                     hash_sources=hash_sources,
                     thread_pool=thread_pool,
                 )
-                if max_request_size_mb:
-                    register_errors = self._register_data_entries_batched_request_size(
-                        data_entries=batched_data_entries, max_request_size_mb=max_request_size_mb
-                    )
-                else:
-                    register_errors = self._register_data_entries(data_entries=batched_data_entries)
-                register_errors = register_errors or {}
+                register_errors = self._register_data_entries_batched_request_size(
+                    data_entries=batched_data_entries,
+                    max_request_size_mb=max_request_size_mb,
+                ) or {}
                 errors["upload"].update(upload_errors)
                 errors["register"].update(register_errors)
                 if batched_data_entries and len(register_errors) < len(batched_data_entries):
@@ -175,48 +176,96 @@ class HyperDataset(HyperDatasetManagement):
 
     def _register_data_entries_batched_request_size(
         self,
-        data_entries,
+        data_entries: Sequence[DataEntry],
         max_request_size_mb: int = None,
     ):
         """
         Register data entries while splitting requests to respect the maximum payload size.
 
-        :param data_entries: Iterable of data entries to register
+        :param data_entries: Sequence of data entries to register
         :param max_request_size_mb: Maximum request size (MB); `None` disables batching
 
         :return: Mapping of entry ids to registration errors
         """
-        if not max_request_size_mb:
-            return self._register_data_entries(data_entries)
+        if max_request_size_mb is not None:
+            request_fixed_size = len(
+                requests_json.dumps(
+                    _get_save_frames_request_no_validate()(version=self._version_id, frames=[]).to_dict()
+                ).encode("utf-8")
+            )
+            max_request_size_bytes = (max_request_size_mb * 1024 * 1024) - request_fixed_size
+            batched_data_entries = self._batch_data_entries_by_payload_size(
+                data_entries=data_entries,
+                max_request_size_bytes=max_request_size_bytes,
+            )
+        else:
+            batched_data_entries = [data_entries]
+
+        errors = {}
+        for data_entry_batch in batched_data_entries:
+            errors.update(self._register_data_entries(data_entry_batch))
+
+        return errors
+
+    def _batch_data_entries_by_payload_size(
+        self,
+        data_entries: Sequence[DataEntry],
+        max_request_size_bytes: int,
+    ) -> List[List[Any]]:
+        """
+        Aggregate a list of data entries in batches based on the payload size of registering them to the API server.
+
+        :param data_entries: Sequence of data entries to register
+        :param max_request_size_mb: Maximum request size (in bytes).
+
+        :return: A list of data entry batches aggregated in lists for individual calls to `self._register_data_entries`.
+        """
+        data_entry_payload_sizes = [
+            len(requests_json.dumps(data_entry.to_api_object()).encode("utf-8"))
+            for data_entry in data_entries
+        ]
 
         current_batch = []
         current_batch_size = 0
-        errors = {}
-        request_fixed_size = len(
-            requests_json.dumps(_get_save_frames_request_no_validate()(version=self._version_id, frames=[]).to_dict()).encode(
-                "utf-8"
-            )
-        )
-        max_request_size_bytes = (max_request_size_mb * 1024 * 1024) - request_fixed_size
-        for data_entry in data_entries:
-            payload = data_entry.to_api_object()
-            data_entry_payload_size = len(requests_json.dumps(payload).encode("utf-8"))
+        batches = []
+        for data_entry, data_entry_payload_size in zip(data_entries, data_entry_payload_sizes):
+            # Case 1. If the next data entry does not fit in a batch:
+            #     - Add the current batch in the list of batches
+            #     - Put the current data entry in its own batch
+            #     - Reset the batch size calculation
             if data_entry_payload_size > max_request_size_bytes:
-                errors[data_entry.id] = "Data entry payload exceeds 'max_request_size_mb'"
-                continue
-            if current_batch_size + len(current_batch) + data_entry_payload_size > max_request_size_bytes:
-                errors.update(self._register_data_entries(current_batch))
+                if len(current_batch) > 0:
+                    batches.append(current_batch)
+
+                batches.append([data_entry])
                 current_batch = []
                 current_batch_size = 0
-            current_batch.append(data_entry)
-            current_batch_size += data_entry_payload_size
-        errors.update(self._register_data_entries(current_batch))
-        return errors
+            # Case 2. If the current batch together with the next data entry does not fit in a batch
+            #    - Add the current batch into the list of batches
+            #    - Start a new batch with the next data entry
+            #    - Update the batch size calculation
+            elif current_batch_size + data_entry_payload_size > max_request_size_bytes:
+                if len(current_batch) > 0:
+                    batches.append(current_batch)
+
+                current_batch = [data_entry]
+                current_batch_size = data_entry_payload_size
+            # Case 3. If the current batch together with the next data entry fits in a batch
+            #    - Add the next data entry in the current batch
+            #    - Update the batch size calculation
+            else:
+                current_batch.append(data_entry)
+                current_batch_size += data_entry_payload_size
+
+        if len(current_batch) > 0:
+            batches.append(current_batch)
+
+        return batches
 
     def _register_data_entries(
         self,
-        data_entries,
-    ):
+        data_entries: Sequence[DataEntry],
+    ) -> Dict[str, Any]:
         """
         Register a batch of data entries against the current dataset version.
 
@@ -224,15 +273,15 @@ class HyperDataset(HyperDatasetManagement):
 
         :return: Mapping of entry ids to registration errors
         """
-        errors = {}
         if not data_entries:
-            return errors
+            return {}
         try:
             response = HyperDatasetManagementBackend.save_data_entries(self._version_id, data_entries)
         except Exception as e:
             errors = {data_entry.id: e for data_entry in data_entries}
             return errors
 
+        errors = {}
         for error in response.errors:
             try:
                 data_entry_id = (error.get("_id") or error.get("index", {}).get("_id", "")).partition("/")[2]
@@ -243,7 +292,7 @@ class HyperDataset(HyperDatasetManagement):
 
     def _upload_data_entries(
         self,
-        data_entries,
+        data_entries: Sequence[DataEntry],
         upload_destination: Optional[str] = None,
         retries: int = 5,
         hash_batch_size: int = MAX_HASH_FETCH_BATCH_SIZE,
@@ -254,7 +303,7 @@ class HyperDataset(HyperDatasetManagement):
         """
         Upload local sources for the supplied data entries using the provided thread pool.
 
-        :param data_entries: Iterable of data entries whose sources might require uploading
+        :param data_entries: Sequence of data entries whose sources might require uploading
         :param upload_destination: Explicit storage destination URI, optional per-entry override
         :param retries: Number of retry attempts for failed uploads
         :param hash_batch_size: Batch size used when checking existing hashes
@@ -305,7 +354,7 @@ class HyperDataset(HyperDatasetManagement):
 
     def _upload_sources(
         self,
-        data_entry: Any,
+        data_entry: DataEntry,
         upload_errors: dict,
         upload_destination: Optional[str] = None,
     ):
@@ -355,7 +404,7 @@ class HyperDataset(HyperDatasetManagement):
 
     def _set_already_uploaded_files(
         self,
-        data_entries,
+        data_entries: Sequence[DataEntry],
     ):
         """
         Reuse existing remote sources by matching hashes of already-uploaded files.
