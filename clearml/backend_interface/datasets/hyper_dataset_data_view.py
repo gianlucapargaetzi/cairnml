@@ -10,7 +10,7 @@ from typing import (
 )
 
 from ..base import IdObjectBase
-from ..util import get_or_create_project, make_message
+from ..util import exact_match_regex, get_or_create_project, get_single_result, make_message
 from ...backend_api.services import dataviews, frames
 
 
@@ -48,44 +48,8 @@ class DataViewManagementBackend(IdObjectBase):
 
         :return: Identifier of the created DataView
         """
-        def convert_version_to_dataview_entry(
-            version: Union[Mapping[str, str], Sequence[str]],
-        ) -> Optional[Any]:  # Optional[dataviews.DataviewEntry]
-            dataset, dataset_version = (
-                (version.get("dataset"), version.get("version"))
-                if isinstance(version, dict)
-                else (version[0], version[1])
-                if isinstance(version, (tuple, list)) and len(version) >= 2
-                else (None, None)
-            )
-
-            return (
-                dataviews.DataviewEntry(
-                    dataset=dataset,
-                    version=dataset_version,
-                )
-                if (
-                    (dataset and dataset != "*")
-                    and (dataset_version and dataset_version != "*")
-                )
-                else None
-            )
-
         session = cls._get_default_session()
-        dataview_entries = (
-            [
-                dataview_entry
-                for dataview_entry in (
-                    [
-                        convert_version_to_dataview_entry(version=version)
-                        for version in versions
-                    ]
-                )
-                if dataview_entry is not None
-            ]
-            if versions
-            else None
-        )
+        dataview_entries = cls._convert_versions_to_dataview_entries(versions)
         project_id = (
             get_or_create_project(session, project_name)
             if project_name
@@ -120,24 +84,83 @@ class DataViewManagementBackend(IdObjectBase):
         return response.response.id
 
     @classmethod
+    def _convert_versions_to_dataview_entries(
+        cls,
+        versions: Optional[Iterable[Union[Mapping[str, str], Sequence[str]]]],
+    ) -> Optional[List[Any]]:  # Optional[List[dataviews.DataviewEntry]]
+        """
+        Convert `{"dataset": ..., "version": ...}` mappings or (dataset, version) pairs into
+        `dataviews.DataviewEntry` objects, dropping wildcard or incomplete entries.
+
+        :param versions: Iterable of version mappings/pairs, or None
+        :return: List of `dataviews.DataviewEntry` objects, or None when nothing remains
+        """
+        def convert_version_to_dataview_entry(
+            version: Union[Mapping[str, str], Sequence[str]],
+        ) -> Optional[Any]:  # Optional[dataviews.DataviewEntry]
+            dataset, dataset_version = (
+                (version.get("dataset"), version.get("version"))
+                if isinstance(version, dict)
+                else (version[0], version[1])
+                if isinstance(version, (tuple, list)) and len(version) >= 2
+                else (None, None)
+            )
+
+            return (
+                dataviews.DataviewEntry(
+                    dataset=dataset,
+                    version=dataset_version,
+                )
+                if (
+                    (dataset and dataset != "*")
+                    and (dataset_version and dataset_version != "*")
+                )
+                else None
+            )
+
+        if not versions:
+            return None
+
+        dataview_entries = [
+            dataview_entry
+            for dataview_entry in (
+                convert_version_to_dataview_entry(version=version)
+                for version in versions
+            )
+            if dataview_entry is not None
+        ]
+
+        return dataview_entries or None
+
+    @classmethod
     def update_filter_rules(
         cls,
         dataview_id: str,
         filter_rules: Sequence[Any],  # Sequence[dataviews.FilterRule]
+        versions: Optional[Iterable[Union[Mapping[str, str], Sequence[str]]]] = None,
     ):
         """
         Replace filter rules associated with a DataView.
 
         :param dataview_id: Identifier of the DataView being updated
         :param filter_rules: Iterable of filter rule objects compatible with the API
+        :param versions: Optional version-pool entries (mappings or (dataset, version)
+            pairs) to store together with the rules. When None the stored pool is
+            left untouched.
 
         :return: True when the backend confirms a successful update
         """
+        dataview_entries = cls._convert_versions_to_dataview_entries(versions)
         response = cls._send(
             session=cls._get_default_session(),
             req=dataviews.UpdateRequest(
                 dataview=dataview_id,
                 filters=filter_rules,
+                **(
+                    {"versions": dataview_entries}
+                    if dataview_entries
+                    else {}
+                ),
             ),
         )
 
@@ -161,6 +184,38 @@ class DataViewManagementBackend(IdObjectBase):
             return getattr(getattr(response, "response", None), "dataview", None)
         except Exception:
             return None
+
+    @classmethod
+    def get_by_name(cls, dataview_name: str):
+        """
+        Fetch a DataView definition using its name.
+
+        When more than one DataView matches the name, the most recently created one is
+        selected (a warning listing the selection is logged).
+
+        :param dataview_name: DataView name to search for (exact match)
+
+        :return: DataView object from the backend or None when missing
+        """
+        response = cls._send(
+            session=cls._get_default_session(),
+            req=dataviews.GetAllRequest(
+                name=exact_match_regex(dataview_name),
+                only_fields=["name", "id", "created"],
+            ),
+            raise_on_errors=False,
+        )
+        results = getattr(getattr(response, "response", None), "dataviews", None) or []
+        dataview = get_single_result(
+            entity="dataview",
+            query=dataview_name,
+            results=results,
+            raise_on_error=False,
+            sort_by_date=True,
+        )
+        if not dataview:
+            return None
+        return cls.get_by_id(dataview_id=dataview.id)
 
     @classmethod
     def create_filter_rule(
