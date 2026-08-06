@@ -1225,8 +1225,6 @@ class _GoogleCloudStorageDriver(_Driver):
         return obj
 
     def download_object_as_stream(self, obj: Any, chunk_size: int = 256 * 1024, **_: Any) -> _Stream:
-        raise NotImplementedError("Unsupported for google storage")
-
         def async_download(a_obj: Any, a_stream: Any) -> None:
             try:
                 a_obj.download_to_file(a_stream)
@@ -1237,6 +1235,9 @@ class _GoogleCloudStorageDriver(_Driver):
 
         # return iterable object
         stream = _Stream()
+        if chunk_size:
+            # google storage rejects chunk sizes that are not a multiple of 256 KB, round up
+            chunk_size = max(262144, -(-chunk_size // 262144) * 262144)
         obj.chunk_size = chunk_size
         self._get_stream_download_pool().submit(async_download, obj, stream)
 
@@ -1481,6 +1482,19 @@ class _AzureBlobServiceStorageDriver(_Driver):
 
             return client.download_blob().content_as_bytes()
 
+        def iter_blob_chunks(
+            self,
+            container_name: str,
+            blob_name: str,
+        ) -> Iterable[bytes]:
+            client = self.blob_service.get_blob_client(
+                container=container_name,
+                blob=blob_name,
+            )
+
+            # chunk granularity is determined by the client's max_chunk_get_size
+            return client.download_blob().chunks()
+
         def get_blob_to_path(
             self,
             container_name: str,
@@ -1655,7 +1669,14 @@ class _AzureBlobServiceStorageDriver(_Driver):
 
         return self._Object(container=container, blob_name=blob.name, content_length=blob.size)
 
-    def download_object_as_stream(self, obj: Any, verbose: bool, *_: Any, **__: Any) -> bytes:
+    def download_object_as_stream(
+        self,
+        obj: Any,
+        chunk_size: int = None,
+        verbose: bool = None,
+        *_: Any,
+        **__: Any,
+    ) -> Generator[bytes, None, None]:
         container = obj.container
         total_size_mb = obj.content_length / (1024.0 * 1024.0)
         remote_path = os.path.join(
@@ -1665,13 +1686,16 @@ class _AzureBlobServiceStorageDriver(_Driver):
             obj.blob_name,
         )
         cb = DownloadProgressReport(total_size_mb, verbose, remote_path, self.get_logger())
-        blob = container.get_blob_to_bytes(
-            container.name,
-            obj.blob_name,
-            progress_callback=cb,
-        )
-        cb.close()
-        return blob
+        try:
+            # chunk_size is ignored - chunk granularity is set by the azure client's max_chunk_get_size
+            for chunk in container.iter_blob_chunks(container.name, obj.blob_name):
+                cb(len(chunk))
+                yield chunk
+            cb.close(report_completed=True)
+        except Exception as ex:
+            cb.close()
+            logger = self.get_logger()
+            logger.error(f"Failed downloading: {ex}", exc_info=logger.isEnabledFor(logging.DEBUG))
 
     def download_object(
         self,
