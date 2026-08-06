@@ -3895,7 +3895,7 @@ class StorageHelper(_StorageHelper):
         If the caching internals are overridden, the disk-space strategy must step aside:
         otherwise download_to_file() -> self._multi_cache_download() dispatches back into the
         subclass, whose _download() calls super().download_to_file() -> infinite recursion.
-        
+
         :return bool: Whether the use_disk_space_file_size_strategy behavior must be overriden (True) or not (False).
         """
         return cls._multi_cache_download is not StorageHelper._multi_cache_download
@@ -3904,7 +3904,7 @@ class StorageHelper(_StorageHelper):
     def _use_disk_space_file_size_strategy(cls) -> bool:
         """
         Determines if the disk space file size strategy should be used or not. See classmethod '_legacy_cache_override'.
-        
+
         :return bool: Whether the disk space file size strategy should be used (True) or not (False).
         """
         return bool(cls.use_disk_space_file_size_strategy) and not cls._legacy_cache_override()
