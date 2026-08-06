@@ -4,14 +4,14 @@ import shutil
 from multiprocessing.pool import ThreadPool
 from random import random
 from time import time
-from typing import List, Optional, Union
+from typing import Iterator, List, Optional, Union
 from six.moves.urllib.parse import quote
 
 from pathlib2 import Path
 
 from .cache import CacheManager
 from .callbacks import ProgressReport
-from .helper import StorageHelper, StorageHelperDiskSpaceFileSizeStrategy
+from .helper import StorageHelper, StorageHelperDiskSpaceFileSizeStrategy, _StorageHelper
 from .archive import extract_tar_archive, extract_zip_archive
 from ..config import deferred_config
 from ..debugging.log import LoggerRoot
@@ -86,6 +86,43 @@ class StorageManager:
                 cache_path_encoding=cache_path_encoding.as_posix(),
             )
         return cached_file
+
+    @classmethod
+    def get_stream(
+        cls,
+        remote_url: str,
+        chunk_size: Optional[int] = None,
+    ) -> Optional[Iterator[bytes]]:
+        """
+        Download a remote file and return its content as an in-memory stream (an iterator of bytes chunks),
+        without writing it to disk or storing it in the local cache.
+
+        Example:
+
+        .. code-block:: py
+
+            from io import BytesIO
+
+            buffer = BytesIO()
+            for chunk in StorageManager.get_stream("s3://bucket/data/file.bin"):
+                buffer.write(chunk)
+
+        :param remote_url: URL of the remote file to stream. Supports ``http(s)``, ``s3``, ``gs``, ``azure``,
+            and shared filesystem. Example: ``'s3://bucket/data/file.bin'``
+        :param chunk_size: Optional download chunk size in bytes. Best effort: some storage drivers determine
+            their own chunk granularity (Google Storage rounds it up to a multiple of 256 KB, Azure and shared
+            filesystem ignore it).
+        :return: An iterator yielding the file content as bytes chunks. ``None`` on error.
+        """
+        helper = cls.storage_helper.get(remote_url)
+        # stream directly from the remote storage, explicitly bypassing the cached
+        # download_as_stream override (it downloads through the disk cache when the
+        # disk space file size strategy is enabled)
+        stream = _StorageHelper.download_as_stream(helper, remote_url, chunk_size=chunk_size)
+        if stream is None or not isinstance(stream, bytes):
+            return stream
+        # normalize drivers that return the entire payload as a single bytes object
+        return iter([stream])
 
     @classmethod
     def upload_file(
