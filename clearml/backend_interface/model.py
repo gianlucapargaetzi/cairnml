@@ -165,7 +165,7 @@ class Model(IdObjectBase, AsyncManagerMixin, _StorageUriMixin):
         elif res is False:
             self.log.info("Failed model upload")
         else:
-            self.log.info("Completed model upload to {}".format(res))
+            self.log.info(f"Completed model upload to {res}")
         if cb:
             cb(res)
 
@@ -395,8 +395,8 @@ class Model(IdObjectBase, AsyncManagerMixin, _StorageUriMixin):
                 if uploaded_uri is False:
                     uploaded_uri = (
                         self.data.uri
-                        if self.data.uri != "{}/uploading_file".format(self._upload_storage_uri or "file://")
-                        else "{}/failed_uploading".format(self._upload_storage_uri or "file://")
+                        if self.data.uri != f"{self._upload_storage_uri or 'file://'}/uploading_file"
+                        else f"{self._upload_storage_uri or 'file://'}/failed_uploading"
                     )
 
                 Model._local_model_to_id_uri[str(model_file)] = (
@@ -465,7 +465,7 @@ class Model(IdObjectBase, AsyncManagerMixin, _StorageUriMixin):
             # backwards compatibility, None
             req = None
         else:
-            raise ValueError("Type '{}' unsupported (use either 'input' or 'output')".format(type_))
+            raise ValueError(f"Type '{type_}' unsupported (use either 'input' or 'output')")
 
         if req:
             self.send(req)
@@ -581,8 +581,8 @@ class Model(IdObjectBase, AsyncManagerMixin, _StorageUriMixin):
             Model._local_model_to_id_uri[str(local_download)] = (self.model_id, uri)
         elif raise_on_error:
             raise ValueError(
-                "Could not retrieve a local copy of model weights {}, "
-                "failed downloading {}".format(self.model_id, uri)
+                f"Could not retrieve a local copy of model weights {self.model_id}, "
+                f"failed downloading {uri}"
             )
 
         return local_download
@@ -668,7 +668,7 @@ class Model(IdObjectBase, AsyncManagerMixin, _StorageUriMixin):
     def _create_empty_model(self, upload_storage_uri: str = None, project_id: str = None) -> bool:
         upload_storage_uri = upload_storage_uri or self.upload_storage_uri
         name = make_message("Anonymous model %(time)s")
-        uri = "{}/uploading_file".format(upload_storage_uri or "file://")
+        uri = f"{upload_storage_uri or 'file://'}/uploading_file"
         req = models.CreateRequest(uri=uri, name=name, labels={}, project=project_id)
         res = self.send(req)
         if not res:

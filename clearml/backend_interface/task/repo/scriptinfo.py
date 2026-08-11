@@ -82,7 +82,7 @@ class ScriptRequirements:
                         reqs[k] = guess[k]
             return self.create_requirements_txt(reqs, local_pks, detailed=detailed_req_report)
         except Exception as ex:
-            self._get_logger().warning("Failed auto-generating package requirements: {}".format(ex))
+            self._get_logger().warning(f"Failed auto-generating package requirements: {ex}")
             return "", ""
 
     @staticmethod
@@ -186,7 +186,7 @@ class ScriptRequirements:
                 for r in conda_packages_json:
                     # the exception is cudatoolkit which we want to log anyhow
                     if r.get("name") == "cudatoolkit" and r.get("version"):
-                        conda_requirements += "{0} {1} {2}\n".format(r.get("name"), "==", r.get("version"))
+                        conda_requirements += f"{r.get('name')} == {r.get('version')}\n"
                         continue
                     # check if this is a pypi package, if it is, leave it outside
                     if not r.get("channel") or r.get("channel") == "pypi":
@@ -206,9 +206,9 @@ class ScriptRequirements:
 
                     if k and v is not None:
                         if v.version:
-                            conda_requirements += "{0} {1} {2}\n".format(k, "==", v.version)
+                            conda_requirements += f"{k} == {v.version}\n"
                         else:
-                            conda_requirements += "{0}\n".format(k)
+                            conda_requirements += f"{k}\n"
         except Exception:
             conda_requirements = ""
 
@@ -234,9 +234,9 @@ class ScriptRequirements:
             requirements_txt += "\n# Local modules found - skipping:\n"
             for k, v in local_pks.sorted_items():
                 if v.version:
-                    requirements_txt += "# {0} == {1}\n".format(k, v.version)
+                    requirements_txt += f"# {k} == {v.version}\n"
                 else:
-                    requirements_txt += "# {0}\n".format(k)
+                    requirements_txt += f"# {k}\n"
 
         # requirement summary
         requirements_txt += "\n"
@@ -267,18 +267,18 @@ class ScriptRequirements:
             if local_pks:
                 for k, v in local_pks.sorted_items():
                     requirements_txt += "\n"
-                    requirements_txt += "# IMPORT LOCAL PACKAGE {0}\n".format(k)
-                    requirements_txt += "".join(["# {0}\n".format(c) for c in v.comments.sorted_items()])
+                    requirements_txt += f"# IMPORT LOCAL PACKAGE {k}\n"
+                    requirements_txt += "".join([f"# {c}\n" for c in v.comments.sorted_items()])
 
             for k, v in reqs.sorted_items():
                 if not v:
                     continue
                 requirements_txt += "\n"
                 if k == "-e":
-                    requirements_txt += "# IMPORT PACKAGE {0} {1}\n".format(k, v.version)
+                    requirements_txt += f"# IMPORT PACKAGE {k} {v.version}\n"
                 else:
-                    requirements_txt += "# IMPORT PACKAGE {0}\n".format(k)
-                requirements_txt += "".join(["# {0}\n".format(c) for c in v.comments.sorted_items()])
+                    requirements_txt += f"# IMPORT PACKAGE {k}\n"
+                requirements_txt += "".join([f"# {c}\n" for c in v.comments.sorted_items()])
 
         # make sure we do not exceed the size a size limit
         return (
@@ -292,15 +292,15 @@ class ScriptRequirements:
     def _make_req_line(k: str, version: str) -> str:
         requirements_txt = ""
         if k == "-e" and version:
-            requirements_txt += "{0}\n".format(version)
+            requirements_txt += f"{version}\n"
         elif k.startswith("-e "):
-            requirements_txt += "{0} {1}\n".format(k.replace("-e ", "", 1), version or "")
+            requirements_txt += f"{k.replace('-e ', '', 1)} {version or ''}\n"
         elif version and str(version or " ").strip()[0].isdigit():
-            requirements_txt += "{0} {1} {2}\n".format(k, "==", version)
+            requirements_txt += f"{k} == {version}\n"
         elif version and str(version).strip():
-            requirements_txt += "{0} {1}\n".format(k, version)
+            requirements_txt += f"{k} {version}\n"
         else:
-            requirements_txt += "{0}\n".format(k)
+            requirements_txt += f"{k}\n"
         return requirements_txt
 
     @staticmethod
@@ -399,13 +399,11 @@ class _JupyterObserver:
                 _script_exporter = ScriptExporter()
 
         except Exception as ex:
-            cls._get_logger().warning("Could not read Jupyter Notebook: {}".format(ex))
+            cls._get_logger().warning(f"Could not read Jupyter Notebook: {ex}")
             if isinstance(ex, ImportError):
                 module_name = getattr(ex, "name", None)
                 if module_name:
-                    cls._get_logger().warning(
-                        'Please install {name} using "pip install {name}"'.format(name=module_name)
-                    )
+                    cls._get_logger().warning(f'Please install {module_name} using "pip install {module_name}"')
             _script_exporter = None
 
         # load pigar
@@ -520,7 +518,7 @@ class _JupyterObserver:
                                 os.unlink(local_jupyter_filename)
                             except Exception:
                                 pass
-                            get_ipython().run_line_magic("history", "-t -f {}".format(local_jupyter_filename))
+                            get_ipython().run_line_magic("history", f"-t -f {local_jupyter_filename}")
                             with open(local_jupyter_filename, "r") as f:
                                 script_code = f.read()
                             # load the modules
@@ -554,7 +552,7 @@ class _JupyterObserver:
                                 from nbconvert.exporters import HTMLExporter  # noqa
 
                                 html, _ = HTMLExporter().from_filename(filename=local_jupyter_filename)
-                                local_html = Path(gettempdir()) / "notebook_{}.html".format(task.id)
+                                local_html = Path(gettempdir()) / f"notebook_{task.id}.html"
                                 with open(local_html.as_posix(), "wt", encoding="utf-8") as f:
                                     f.write(html)
                                 task.upload_artifact(
@@ -780,7 +778,7 @@ class ScriptInfo:
                         url=server_info["url"] + "api/sessions",
                         cookies=cookies,
                         headers={
-                            "Authorization": "token {}".format(auth_token),
+                            "Authorization": f"token {auth_token}",
                         },
                         verify=verify,
                     )
@@ -796,7 +794,7 @@ class ScriptInfo:
                         url=server_info["url"] + "api/sessions",
                         cookies=cookies,
                         headers={
-                            "Authorization": "token {}".format(auth_token),
+                            "Authorization": f"token {auth_token}",
                         },
                         verify=verify,
                     )
@@ -815,7 +813,7 @@ class ScriptInfo:
                         url=server_info["url"] + "api/sessions",
                         cookies=cookies,
                         headers={
-                            "Authorization": "token {}".format(auth_token),
+                            "Authorization": f"token {auth_token}",
                         },
                         verify=verify,
                     )
@@ -827,10 +825,9 @@ class ScriptInfo:
                     # raise on last one only
                     if server_index == len(jupyter_servers) - 1:
                         cls._get_logger().warning(
-                            "Failed accessing the jupyter server{}: {}".format(
-                                " [password={}]".format(password) if server_info.get("password") else "",
-                                ex,
-                            )
+                            f"Failed accessing the jupyter server [password={password}]: {ex}"
+                            if server_info.get("password")
+                            else f"Failed accessing the jupyter server: {ex}"
                         )
                         return os.path.join(os.getcwd(), "error_notebook_not_found.py")
 
@@ -896,13 +893,11 @@ class ScriptInfo:
                         if entry_point_alternative.exists():
                             entry_point = entry_point_alternative
                     except Exception as ex:
-                        cls._get_logger().warning("Failed accessing jupyter notebook {}: {}".format(notebook_path, ex))
+                        cls._get_logger().warning(f"Failed accessing jupyter notebook {notebook_path}: {ex}")
 
                 # if we failed to get something we can access, print an error
                 if not entry_point.exists():
-                    cls._get_logger().warning(
-                        "Jupyter Notebook auto-logging failed, could not access: {}".format(entry_point)
-                    )
+                    cls._get_logger().warning(f"Jupyter Notebook auto-logging failed, could not access: {entry_point}")
                     return "error_notebook_not_found.py"
 
                 # get local ipynb for observer
@@ -915,7 +910,7 @@ class ScriptInfo:
                 script_entry_point = entry_point.as_posix()
             else:
                 # we could not find and access any jupyter server
-                cls._get_logger().warning("Failed accessing the jupyter server(s): {}".format(jupyter_servers))
+                cls._get_logger().warning(f"Failed accessing the jupyter server(s): {jupyter_servers}")
                 return None  # 'error_notebook_not_found.py'
 
             # install the post store hook,
@@ -992,7 +987,7 @@ class ScriptInfo:
                 if jupyter_session.get("kernel", {}).get("id") == current_kernel:
                     return jupyter_session.get("path", ""), jupyter_session.get("name", "")
         except Exception as e:
-            cls._get_logger().warning("Failed finding Notebook in SageMaker environment. Error is: '{}'".format(e))
+            cls._get_logger().warning(f"Failed finding Notebook in SageMaker environment. Error is: '{e}'")
         return None, None
 
     @classmethod
@@ -1120,14 +1115,14 @@ class ScriptInfo:
                     if f and f.endswith("/<stdin>"):
                         raise ScriptInfoError("python console detected")
 
-                raise ScriptInfoError("Script file {} could not be found".format(filepaths))
+                raise ScriptInfoError(f"Script file {filepaths} could not be found")
 
         scripts_dir = [f if f.is_dir() else f.parent for f in scripts_path]
 
         def _log(msg: str, *args: Any, **kwargs: Any) -> None:
             if not log:
                 return
-            log.warning("Failed auto-detecting task repository: {}".format(msg.format(*args, **kwargs)))
+            log.warning(f"Failed auto-detecting task repository: {msg.format(*args, **kwargs)}")
 
         script_dir = scripts_dir[0]
         script_path = scripts_path[0]
@@ -1198,7 +1193,7 @@ class ScriptInfo:
             if len(diff) > cls.max_diff_size_bytes:
                 messages.append(
                     "======> WARNING! Git diff too large to store "
-                    "({}kb), skipping uncommitted changes <======".format(len(diff) // 1024)
+                    f"({len(diff) // 1024}kb), skipping uncommitted changes <======"
                 )
                 auxiliary_git_diff = diff
                 diff = (
@@ -1273,6 +1268,7 @@ class ScriptInfo:
         if not is_torch_distributed and not is_transformers_distributed:
             return entry_point
 
+        framework = "Torch Distributed" if is_torch_distributed else "Transformers Accelerate"
         # this torch distributed
         # noinspection PyBroadException
         try:
@@ -1297,21 +1293,15 @@ class ScriptInfo:
 
             # we assume our entrypoint is the last parameter of the execution cmd line
             if Path(filearg).stem == Path(entry_point).stem:
-                entry_point = "-m {} {}".format(" ".join(new_cmd), entry_point)
+                entry_point = f"-m {' '.join(new_cmd)} {entry_point}"
             if log:
                 log.info(
-                    "{} execution detected: adjusting entrypoint to "
-                    "reflect distributed execution arguments".format(
-                        "Torch Distributed" if is_torch_distributed else "Transformers Accelerate"
-                    )
+                    f"{framework} execution detected: adjusting entrypoint to "
+                    "reflect distributed execution arguments"
                 )
         except Exception:
             if log:
-                log.warning(
-                    "{} execution detected: Failed Detecting launch arguments, skipping".format(
-                        "Torch Distributed" if is_torch_distributed else "Transformers Accelerate"
-                    )
-                )
+                log.warning(f"{framework} execution detected: Failed Detecting launch arguments, skipping")
 
         return entry_point
 
@@ -1372,7 +1362,7 @@ class ScriptInfo:
             pass
         except BaseException as ex:
             if log:
-                log.warning("Failed auto-detecting task repository: {}".format(ex))
+                log.warning(f"Failed auto-detecting task repository: {ex}")
         return ScriptInfoResult(), None
 
     @classmethod
@@ -1406,7 +1396,7 @@ class ScriptInfo:
                                 a_abs,
                                 os.path.join(git_root, str(script_dict["working_dir"])),
                             )
-                    argvs += " {}".format(a)
+                    argvs += f" {a}"
 
                 # noinspection PyBroadException
                 try:
@@ -1415,7 +1405,11 @@ class ScriptInfo:
                     module_name = vars(sys.modules["__main__"])["__package__"]
 
                 # update the script entry point to match the real argv and module call
-                script_dict["entry_point"] = "-m {}{}".format(module_name, (" " + argvs) if argvs else "")
+                script_dict["entry_point"] = (
+                    f"-m {module_name} {argvs}"
+                    if argvs
+                    else f"-m {module_name}"
+                )
         except Exception:
             pass
         return script_dict
@@ -1478,9 +1472,9 @@ class ScriptInfo:
         """
 
         if ScriptInfo.is_pycharm():
-            ide_str = "PyCharm{}".format("_Jupyter" if jupyter_status else "")
+            ide_str = "PyCharm_Jupyter" if jupyter_status else "PyCharm"
         elif ScriptInfo.is_vscode():
-            ide_str = "VSCode{}".format("_Jupyter" if jupyter_status else "")
+            ide_str = "VSCode_Jupyter" if jupyter_status else "VSCode"
         elif ScriptInfo.is_google_colab():
             ide_str = "Google_Colab"
         else:

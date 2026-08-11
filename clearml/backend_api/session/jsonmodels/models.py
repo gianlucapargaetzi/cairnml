@@ -59,7 +59,7 @@ class Base(metaclass=JsonmodelMeta):
                 field.validate_for_object(self)
             except ValidationError as error:
                 raise ValidationError(
-                    "Error for field '{name}'.".format(name=name),
+                    f"Error for field '{name}'.",
                     error,
                 )
 
@@ -102,19 +102,17 @@ class Base(metaclass=JsonmodelMeta):
             except ValidationError:
                 pass
 
-        return "{class_name}({fields})".format(
-            class_name=self.__class__.__name__,
-            fields=", ".join("{0[0]}={0[1]}".format(x) for x in sorted(attrs.items())),
-        )
+        fields = ", ".join(f"{item[0]}={item[1]}" for item in sorted(attrs.items()))
+        return f"{self.__class__.__name__}({fields})"
 
     def __str__(self) -> str:
-        return "{name} object".format(name=self.__class__.__name__)
+        return f"{self.__class__.__name__} object"
 
     def __setattr__(self, name: str, value: Any) -> None:
         try:
             return super(Base, self).__setattr__(name, value)
         except ValidationError as error:
-            raise ValidationError("Error for field '{name}'.".format(name=name), error)
+            raise ValidationError(f"Error for field '{name}'.", error)
 
     def __eq__(self, other: Any) -> bool:
         if type(other) is not type(self):

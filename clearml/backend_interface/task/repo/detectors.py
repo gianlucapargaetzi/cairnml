@@ -102,11 +102,9 @@ class Detector(ABC):
                         return get_command_output(fallback_command, path, strip=strip)
                     except (CalledProcessError, UnicodeDecodeError):
                         pass
-            self._get_logger().warning("Can't get {} information for {} repo in {}".format(name, self.type_name, path))
+            self._get_logger().warning(f"Can't get {name} information for {self.type_name} repo in {path}")
             # full details only in debug
-            self._get_logger().debug(
-                "Can't get {} information for {} repo in {}: {}".format(name, self.type_name, path, str(ex))
-            )
+            self._get_logger().debug(f"Can't get {name} information for {self.type_name} repo in {path}: {ex}")
             return ""
 
     def _get_info(
@@ -199,7 +197,7 @@ class Detector(ABC):
                     == 0
                 )
         except CalledProcessError:
-            self._get_logger().warning("Can't get {} status".format(self.type_name))
+            self._get_logger().warning(f"Can't get {self.type_name} status")
         except (OSError, EnvironmentError, IOError):
             # File not found or can't be executed
             pass
@@ -340,7 +338,7 @@ class GitDetector(Detector):
 
 class EnvDetector(Detector):
     def __init__(self, type_name: str) -> None:
-        super(EnvDetector, self).__init__(type_name, "{} environment".format(type_name))
+        super(EnvDetector, self).__init__(type_name, f"{type_name} environment")
 
     def _is_repo_type(self, script_path: str) -> bool:
         return VCS_REPO_TYPE.get().lower() == self.type_name and bool(VCS_REPOSITORY_URL.get())

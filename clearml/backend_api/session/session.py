@@ -159,7 +159,7 @@ class Session(TokenManager):
             level = resolve_logging_level(ENV_VERBOSE.get(converter=str)) if self._verbose else logging.INFO
             self._logger = get_logger(level=level, stream=sys.stderr if level is logging.DEBUG else None)
         self.__worker = worker or self.get_worker_host_name()
-        self.client = ", ".join("{}-{}".format(*x) for x in self._client)
+        self.client = ", ".join(f"{item[0]}-{item[1]}" for item in self._client)
 
         self.__init_api_key = api_key
         self.__init_secret_key = secret_key
@@ -184,7 +184,7 @@ class Session(TokenManager):
                     cls._client.insert(0, (client, value))
                 else:
                     cls._client.append((client, value))
-                cls.client = ", ".join("{}-{}".format(*x) for x in cls._client)
+                cls.client = ", ".join(f"{item[0]}-{item[1]}" for item in cls._client)
         except Exception:
             pass
 
@@ -262,7 +262,7 @@ class Session(TokenManager):
             Session.max_api_version = Session.api_version = str(api_version)
             Session.feature_set = str(token_dict.get("feature_set", self.feature_set) or "basic")
         except (jwt.DecodeError, ValueError):
-            local_logger().warning("Failed parsing server API level, defaulting to {}".format(Session.api_version))
+            local_logger().warning(f"Failed parsing server API level, defaulting to {Session.api_version}")
 
         # now setup the session reporting, so one consecutive retries will show warning
         # we do that here, so if we have problems authenticating, we see them immediately
@@ -309,10 +309,10 @@ class Session(TokenManager):
             try:
                 retry_codes.add(int(code))
             except (ValueError, TypeError):
-                print("Warning: invalid extra HTTP retry code detected: {}".format(code))
+                print(f"Warning: invalid extra HTTP retry code detected: {code}")
 
         if retry_codes.difference(self._retry_codes):
-            print("Using extra HTTP retry codes {}".format(sorted(retry_codes.difference(self._retry_codes))))
+            print(f"Using extra HTTP retry codes {sorted(retry_codes.difference(self._retry_codes))}")
 
         return list(retry_codes)
 
@@ -331,7 +331,7 @@ class Session(TokenManager):
                         return r
             except Exception as e:
                 (self._logger or get_logger()).warning(
-                    "Failed parsing vault {}: {}".format(vault.get("description", "<unknown>"), e)
+                    f"Failed parsing vault {vault.get('description', '<unknown>')}: {e}"
                 )
 
         # noinspection PyBroadException
@@ -346,7 +346,7 @@ class Session(TokenManager):
             elif res.status_code != 404:
                 raise Exception(res.json().get("meta", {}).get("result_msg", res.text))
         except Exception as ex:
-            (self._logger or get_logger()).warning("Failed getting vaults: {}".format(ex))
+            (self._logger or get_logger()).warning(f"Failed getting vaults: {ex}")
 
     def _load_vaults(self) -> Optional[bool]:
         # () -> Optional[bool]
@@ -366,16 +366,16 @@ class Session(TokenManager):
             try:
                 keys = apply_environment(self.config)
                 if keys:
-                    print("Environment variables set from configuration: {}".format(keys))
+                    print(f"Environment variables set from configuration: {keys}")
             except Exception as ex:
-                local_logger().warning("Failed applying environment from configuration: {}".format(ex))
+                local_logger().warning(f"Failed applying environment from configuration: {ex}")
 
         default = self.config.get("sdk.apply_files", default=False)
         if ENV_ENABLE_FILES_CONFIG_SECTION.get(default=default):
             try:
                 apply_files(self.config)
             except Exception as ex:
-                local_logger().warning("Failed applying files from configuration: {}".format(ex))
+                local_logger().warning(f"Failed applying files from configuration: {ex}")
 
     def _send_request(
         self,
@@ -457,7 +457,7 @@ class Session(TokenManager):
                 retry_counter += 1
                 # we should retry
                 if retry_counter >= self._ssl_error_count_verbosity:
-                    (self._logger or get_logger()).warning("SSLError Retrying {}".format(ex))
+                    (self._logger or get_logger()).warning(f"SSLError Retrying {ex}")
                 sleep(0.1)
                 continue
             except (
@@ -468,7 +468,7 @@ class Session(TokenManager):
                 retry_counter += 1
                 # we should retry
                 if retry_counter >= self._ssl_error_count_verbosity:
-                    (self._logger or get_logger()).warning("Network decoding error Retrying {}".format(ex))
+                    (self._logger or get_logger()).warning(f"Network decoding error Retrying {ex}")
                 sleep(0.1)
                 continue
 
@@ -488,7 +488,7 @@ class Session(TokenManager):
                 "api.http.wait_on_maintenance_forever", True
             ):
                 (self._logger or get_logger()).warning(
-                    "Service unavailable: {} is undergoing maintenance, retrying...".format(host)
+                    f"Service unavailable: {host} is undergoing maintenance, retrying..."
                 )
                 retry_counter += 1
                 continue
@@ -497,7 +497,7 @@ class Session(TokenManager):
         return res
 
     def add_auth_headers(self, headers: Dict[str, str]) -> Dict[str, str]:
-        headers[self._AUTHORIZATION_HEADER] = "Bearer {}".format(self.token)
+        headers[self._AUTHORIZATION_HEADER] = f"Bearer {self.token}"
         return headers
 
     def send_request(
@@ -882,10 +882,10 @@ class Session(TokenManager):
             if not cls._get_all_active_sessions():
                 Session()  # create a temporary session such that feature_set is populated
             if cls.feature_set not in feature_set:
-                raise ValueError("ClearML-server does not support requested feature set '{}'{}".format(
-                    feature_set,
-                    f" ({extra_msg})" if extra_msg else ""
-                ))
+                extra_msg_suffix = f" ({extra_msg})" if extra_msg else ""
+                raise ValueError(
+                    f"ClearML-server does not support requested feature set '{feature_set}'{extra_msg_suffix}"
+                )
 
     @staticmethod
     def _version_tuple(v: str) -> Tuple[int]:
@@ -898,9 +898,7 @@ class Session(TokenManager):
         """
         verbose = self._verbose and self._logger
         if verbose:
-            self._logger.info(
-                "Refreshing token from {} (access_key={}, exp={})".format(self.host, self.access_key, exp)
-            )
+            self._logger.info(f"Refreshing token from {self.host} (access_key={self.access_key}, exp={exp})")
 
         auth = None
         headers = None
@@ -914,7 +912,7 @@ class Session(TokenManager):
             token = self.raw_token
 
         if token:
-            headers = dict(Authorization="Bearer {}".format(token))
+            headers = dict(Authorization=f"Bearer {token}")
 
         if not auth and not headers:
             # No authorization info, something went wrong
@@ -940,7 +938,7 @@ class Session(TokenManager):
                 resp = {}
             if res.status_code != 200:
                 msg = resp.get("meta", {}).get("result_msg", res.reason)
-                raise LoginError("Failed getting token (error {} from {}): {}".format(res.status_code, self.host, msg))
+                raise LoginError(f"Failed getting token (error {res.status_code} from {self.host}): {msg}")
             if verbose:
                 self._logger.info("Received new token")
 
@@ -959,15 +957,15 @@ class Session(TokenManager):
             # check if this is a misconfigured api server (getting 200 without the data section)
             if res and res.status_code == 200:
                 raise ValueError(
-                    "It seems *api_server* is misconfigured. Is this the ClearML API server {} ?".format(self.host)
+                    f"It seems *api_server* is misconfigured. Is this the ClearML API server {self.host} ?"
                 )
             else:
                 raise LoginError(
-                    "Response data mismatch: No 'token' in 'data' value from res, receive : {}, "
-                    "exception: {}".format(res, ex)
+                    f"Response data mismatch: No 'token' in 'data' value from res, receive : {res}, "
+                    f"exception: {ex}"
                 )
         except Exception as ex:
-            raise LoginError("Unrecognized Authentication Error: {} {}".format(type(ex), ex))
+            raise LoginError(f"Unrecognized Authentication Error: {type(ex)} {ex}")
 
     @staticmethod
     def __get_browser_token(webserver: str) -> Optional[str]:
@@ -1012,14 +1010,13 @@ class Session(TokenManager):
             return None
 
         if result_code != 200:
-            raise ValueError("Automatic authenticating failed, please login to {} and try again".format(webserver))
+            raise ValueError(f"Automatic authenticating failed, please login to {webserver} and try again")
 
         return token
 
     def __str__(self) -> str:
-        return "{self.__class__.__name__}[{self.host}, {self.access_key}/{secret_key}]".format(
-            self=self, secret_key=self.secret_key[:5] + "*" * (len(self.secret_key) - 5)
-        )
+        secret_key = self.secret_key[:5] + "*" * (len(self.secret_key) - 5)
+        return f"{self.__class__.__name__}[{self.host}, {self.access_key}/{secret_key}]"
 
     class _LocalLogger:
         def __init__(self, local_logger: logging.Logger) -> None:
@@ -1067,7 +1064,7 @@ def browser_login(clearml_server: Optional[str] = None) -> None:
     # conform clearml_server address
     if clearml_server:
         if not clearml_server.lower().startswith("http"):
-            clearml_server = "http://{}".format(clearml_server)
+            clearml_server = f"http://{clearml_server}"
 
         parsed = urlparse(clearml_server)
         if parsed.port:
@@ -1105,10 +1102,10 @@ def browser_login(clearml_server: Optional[str] = None) -> None:
                 print(
                     "ClearML automatic browser login failed, please login or create a new account\n"
                     "To get started with ClearML: setup your own `clearml-server`, "
-                    "or create a free account at {}\n".format(clearml_app_server)
+                    f"or create a free account at {clearml_app_server}\n"
                 )
                 print(
-                    "Please login to {} , then press [Enter] to connect ".format(clearml_app_server),
+                    f"Please login to {clearml_app_server} , then press [Enter] to connect ",
                     end="",
                 )
                 input()
@@ -1123,9 +1120,9 @@ def browser_login(clearml_server: Optional[str] = None) -> None:
                 print(
                     "\n"
                     "We cannot connect automatically (adblocker / incognito?) \N{worried face} \n"
-                    "Please go to {}/settings/workspace-configuration \n"
+                    f"Please go to {clearml_app_server.lstrip('/')}/settings/workspace-configuration \n"
                     "Then press \x1B[1m\x1B[48;2;26;30;44m\x1B[37m + Create new credentials \x1b[0m \n"
-                    "And copy/paste your \x1B[1m\x1B[4mAccess Key\x1b[0m here: ".format(clearml_app_server.lstrip("/")),
+                    "And copy/paste your \x1B[1m\x1B[4mAccess Key\x1b[0m here: ",
                     end="",
                 )
 
@@ -1146,9 +1143,8 @@ def browser_login(clearml_server: Optional[str] = None) -> None:
                     try:
                         with open(get_config_file(), "wt") as f:
                             f.write(
-                                "api.credentials.access_key={}\napi.credentials.secret_key={}\n".format(
-                                    ENV_ACCESS_KEY.get(), ENV_SECRET_KEY.get()
-                                )
+                                f"api.credentials.access_key={ENV_ACCESS_KEY.get()}\n"
+                                f"api.credentials.secret_key={ENV_SECRET_KEY.get()}\n"
                             )
                     except Exception:
                         pass

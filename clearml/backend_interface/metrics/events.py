@@ -141,9 +141,8 @@ class MetricsEventAdapter(ABC):
             cls._report_nan_warning_iteration += 1
             if cls._report_nan_warning_iteration >= cls.report_nan_warning_period:
                 LoggerRoot.get_base_logger().info(
-                    "NaN value encountered. Reporting it as '{}'. Use clearml.Logger.set_reporting_nan_value to assign another value".format(
-                        cls.default_nan_value
-                    )
+                    f"NaN value encountered. Reporting it as '{cls.default_nan_value}'. "
+                    "Use clearml.Logger.set_reporting_nan_value to assign another value"
                 )
                 cls._report_nan_warning_iteration = 0
             return cls.default_nan_value
@@ -151,9 +150,8 @@ class MetricsEventAdapter(ABC):
             cls._report_inf_warning_iteration += 1
             if cls._report_inf_warning_iteration >= cls.report_inf_warning_period:
                 LoggerRoot.get_base_logger().info(
-                    "inf value encountered. Reporting it as '{}'. Use clearml.Logger.set_reporting_inf_value to assign another value".format(
-                        cls.default_inf_value
-                    )
+                    f"inf value encountered. Reporting it as '{cls.default_inf_value}'. "
+                    "Use clearml.Logger.set_reporting_inf_value to assign another value"
                 )
                 cls._report_inf_warning_iteration = 0
             return cls.default_inf_value
@@ -245,7 +243,7 @@ class UploadEvent(MetricsEventAdapter):
         # notice % will be converted to %25 when the link is quoted, so we should not use it
         # Replace quote safe characters: ";" | "/" | "?" | ":" | "@" | "&" | "=" | "+" | "$" | "," | "\n" | "\r"
         return reduce(
-            lambda a, b: a.replace(b, "0x{:02x}".format(ord(b))),
+            lambda a, b: a.replace(b, f"0x{ord(b):02x}"),
             "#\"';?:@&=+$,%!\r\n",
             part.replace("\\", "/").strip("/").replace("/", ".slash."),
         )
@@ -295,11 +293,9 @@ class UploadEvent(MetricsEventAdapter):
 
         self._filename = self._override_filename
         if not self._filename:
-            self._filename = "{}_{}".format(self._metric, self._variant)
+            self._filename = f"{self._metric}_{self._variant}"
             cnt = self._count if self.file_history_size < 1 else (self._count % self.file_history_size)
-            self._filename += (
-                "_{:05x}{:03d}".format(force_pid_suffix, cnt) if force_pid_suffix else "_{:08d}".format(cnt)
-            )
+            self._filename += f"_{force_pid_suffix:05x}{cnt:03d}" if force_pid_suffix else f"_{cnt:08d}"
 
         # make sure we have to '/' in the filename because it might access other folders,
         # and we don't want that to occur
@@ -396,7 +392,7 @@ class UploadEvent(MetricsEventAdapter):
 
             if output is None:
                 LoggerRoot.get_base_logger().warning(
-                    "Skipping upload, could not find object file '{}'".format(self._local_image_path)
+                    f"Skipping upload, could not find object file '{self._local_image_path}'"
                 )
                 return None
 
@@ -423,7 +419,7 @@ class UploadEvent(MetricsEventAdapter):
             parts = folder_path.split(".")
             if len(parts) > 1:
                 prefix = md5_safe_hash(data=str(".".join(parts[:-1])).encode("utf-8")).hexdigest()
-                new_path = "{}.{}".format(prefix, parts[-1])
+                new_path = f"{prefix}.{parts[-1]}"
                 if len(new_path) <= 250:
                     return new_path
             return md5_safe_hash(data=str(folder_path).encode("utf-8")).hexdigest()

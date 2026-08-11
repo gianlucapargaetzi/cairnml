@@ -30,9 +30,7 @@ class Min:
                 raise ValidationError(tpl.format(value=value, min=self.minimum_value))
         else:
             if value < self.minimum_value:
-                raise ValidationError(
-                    "'{value}' is lower than minimum ('{min}').".format(value=value, min=self.minimum_value)
-                )
+                raise ValidationError(f"'{value}' is lower than minimum ('{self.minimum_value}').")
 
     def modify_schema(self, field_schema: dict) -> None:
         """Modify field schema."""
@@ -63,9 +61,7 @@ class Max:
                 raise ValidationError(tpl.format(val=value, max=self.maximum_value))
         else:
             if value > self.maximum_value:
-                raise ValidationError(
-                    "'{value}' is bigger than maximum ('{max}').".format(value=value, max=self.maximum_value)
-                )
+                raise ValidationError(f"'{value}' is bigger than maximum ('{self.maximum_value}').")
 
     def modify_schema(self, field_schema: dict) -> None:
         """Modify field schema."""
@@ -114,9 +110,7 @@ class Regex:
             raise ValidationError(*te.args)
 
         if not result:
-            raise ValidationError(
-                'Value "{value}" did not match pattern "{pattern}".'.format(value=value, pattern=self.pattern)
-            )
+            raise ValidationError(f'Value "{value}" did not match pattern "{self.pattern}".')
 
     def _calculate_flags(self) -> int:
         return reduce(lambda x, y: x | y, self.flags, 0)
@@ -154,13 +148,7 @@ class Length:
             raise ValidationError(tpl.format(val=value, min=self.minimum_value))
 
         if self.maximum_value is not None and len_ > self.maximum_value:
-            raise ValidationError(
-                "Value '{val}' length is bigger than "
-                "allowed maximum '{max}'.".format(
-                    val=value,
-                    max=self.maximum_value,
-                )
-            )
+            raise ValidationError(f"Value '{value}' length is bigger than allowed maximum '{self.maximum_value}'.")
 
     def modify_schema(self, field_schema: dict) -> None:
         """Modify field schema."""
