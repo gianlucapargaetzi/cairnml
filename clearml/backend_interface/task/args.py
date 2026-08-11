@@ -137,18 +137,20 @@ class _Arguments:
             # don't crash us if we failed parsing the inputs
             defaults_ = {a.dest: a.default if a.default not in (None, SUPPRESS) else "" for a in actions}
 
-        desc_ = {
-            a.dest: str(a.help)
-            or (
-                "{}default: {}".format(
-                    "choices: {}, ".format(a.choices) if a.choices else "",
-                    defaults_.get(a.dest, ""),
-                )
+        def format_action(action):
+            default = defaults_.get(action.dest, "")
+            return (
+                f"choices: {action.choices}, default: {default}"
+                if action.choices
+                else f"default: {default}"
             )
-            for a in actions
+
+        desc_ = {
+            action.dest: str(action.help) or format_action(action=action)
+            for action in actions
         }
         descriptions.update(desc_)
-        types_ = {a.dest: (a.type or None) for a in actions}
+        types_ = {action.dest: (action.type or None) for action in actions}
         arg_types.update(types_)
 
         full_args_dict = copy(defaults)
@@ -157,7 +159,7 @@ class _Arguments:
 
         # deal with sub parsers
         # noinspection PyProtectedMember
-        sub_parsers = [a for a in a_parser._actions if isinstance(a, _SubParsersAction)]
+        sub_parsers = [action for action in a_parser._actions if isinstance(action, _SubParsersAction)]
         for sub_parser in sub_parsers:
             if sub_parser.dest and sub_parser.dest != SUPPRESS:
                 defaults[sub_parser.dest] = full_args_dict.get(sub_parser.dest) or ""
@@ -389,9 +391,7 @@ class _Arguments:
                     except Exception:
                         if self._task and self._task.log:
                             self._task.log.warning(
-                                'Failed parsing task parameter {}="{}" keeping default {}={}'.format(
-                                    k, v, k, current_action.default
-                                )
+                                f'Failed parsing task parameter {k}="{v}" keeping default {k}={current_action.default}'
                             )
                         continue
 
@@ -636,9 +636,7 @@ class _Arguments:
                 v_type = type(v)
 
             def warn_failed_parsing() -> None:
-                self._task.log.warning(
-                    "Failed parsing task parameter {}={} keeping default {}={}".format(k, param, k, v)
-                )
+                self._task.log.warning(f"Failed parsing task parameter {k}={param} keeping default {k}={v}")
 
             # if parameter is empty and default value is None, keep as None
             if param == "" and v is None:

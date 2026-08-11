@@ -222,7 +222,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
             self._validate(check_output_dest_credentials=False)
 
         if self.data is None:
-            raise ValueError('Task ID "{}" could not be found'.format(self.id))
+            raise ValueError(f'Task ID "{self.id}" could not be found')
 
         self._project_name = (self.project, project_name)
         self._project_object = None
@@ -278,17 +278,17 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
                     default=config.get("development.suppress_update_message", False)
                 ):
                     if not latest_version[1]:
-                        sep = os.linesep
+                        client_name = Session.get_clients()[0][0].upper()
                         self.get_logger().report_text(
-                            "{} new package available: UPGRADE to v{} is recommended!\nRelease Notes:\n{}".format(
-                                Session.get_clients()[0][0].upper(),
-                                latest_version[0],
-                                sep.join(latest_version[2]),
-                            ),
+                            "\n".join([
+                                f"{client_name} new package available: UPGRADE to v{latest_version[0]} is recommended!",
+                                "Release Notes:",
+                                os.linesep.join(latest_version[2]),
+                            ])
                         )
                     else:
                         self.get_logger().report_text(
-                            "ClearML new version available: upgrade to v{} is recommended!".format(latest_version[0]),
+                            f"ClearML new version available: upgrade to v{latest_version[0]} is recommended!",
                         )
             except Exception:
                 pass
@@ -336,7 +336,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
                 try:
                     self._set_runtime_properties(runtime_properties={"ide": result.script["ide"]})
                 except Exception as ex:
-                    self.log.info("Failed logging ide information: {}".format(ex))
+                    self.log.info(f"Failed logging ide information: {ex}")
 
             # store original entry point
             entry_point = result.script.get("entry_point") if result.script else None
@@ -412,9 +412,9 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
             self.TaskTypes.testing.value,
         ) and not Session.check_min_api_version("2.8"):
             print(
-                'WARNING: Changing task type to "{}" : '
-                'clearml-server does not support task type "{}", '
-                "please upgrade clearml-server.".format(self.TaskTypes.training, task_type)
+                f'WARNING: Changing task type to "{self.TaskTypes.training}" : '
+                f'clearml-server does not support task type "{task_type}", '
+                "please upgrade clearml-server."
             )
             task_type = self.TaskTypes.training.value
 
@@ -438,7 +438,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         if res:
             return res.response.id
 
-        id = "offline-{}".format(str(uuid4()).replace("-", ""))
+        id = f"offline-{uuid4().hex}"
         self._edit(type=tasks.TaskTypeEnum(task_type))
         return id
 
@@ -645,10 +645,10 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         # project path limit to 256 (including subproject names), and task name limit to 128.
         def limit_folder_name(a_name: str, uuid: str, max_length: int, always_add_uuid: bool) -> str:
             if always_add_uuid:
-                return "{}.{}".format(a_name[: max(2, max_length - len(uuid) - 1)], uuid)
+                return f"{a_name[: max(2, max_length - len(uuid) - 1)]}.{uuid}"
             if len(a_name) < max_length:
                 return a_name
-            return "{}.{}".format(a_name[: max(2, max_length - len(uuid) - 1)], uuid)
+            return f"{a_name[: max(2, max_length - len(uuid) - 1)]}.{uuid}"
 
         project_name = self.get_project_name() or "unknown"
 
@@ -1038,10 +1038,10 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
                     # Model not found, already deleted by DeleteRequest
                     should_delete = True
                 else:
-                    failures.append("model id: {}".format(m.id))
+                    failures.append(f"model id: {m.id}")
                     continue
             except Exception:
-                failures.append("model id: {}".format(m.id))
+                failures.append(f"model id: {m.id}")
                 continue
             if should_delete and not self._delete_uri(m.uri):
                 failures.append(m.uri)
@@ -1065,7 +1065,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         try:
             deleted = StorageHelper.get(uri).delete(uri, silent=silent)
             if deleted:
-                self.log.debug("Deleted file: {}".format(uri))
+                self.log.debug(f"Deleted file: {uri}")
                 return True
         except Exception as ex:
             self.log.error(
@@ -1150,7 +1150,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
 
         output_model = OutputModel(
             task=self,
-            name=model_name or ("{} - {}".format(self.name, name) if name else self.name),
+            name=model_name or (f"{self.name} - {name}" if name else self.name),
             tags=tags,
             comment=comment,
         )
@@ -1297,7 +1297,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         if not backwards_compatibility:
             for section in hyperparams:
                 for key, section_param in hyperparams[section].items():
-                    parameters["{}/{}".format(section, key)] = (
+                    parameters[f"{section}/{key}"] = (
                         cast_basic_type(section_param.value, section_param.type) if cast else section_param.value
                     )
         else:
@@ -1305,9 +1305,9 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
                 for key, section_param in hyperparams[section].items():
                     v = cast_basic_type(section_param.value, section_param.type) if cast else section_param.value
                     if section_param.type == "legacy" and section in (self._legacy_parameters_section_name,):
-                        parameters["{}".format(key)] = v
+                        parameters[f"{key}"] = v
                     else:
-                        parameters["{}/{}".format(section, key)] = v
+                        parameters[f"{section}/{key}"] = v
 
         return parameters
 
@@ -1366,7 +1366,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         new_parameters.update(kwargs)
         if prefix:
             prefix = prefix.strip("/")
-            new_parameters = dict(("{}/{}".format(prefix, k), v) for k, v in new_parameters.items())
+            new_parameters = dict((f"{prefix}/{k}", v) for k, v in new_parameters.items())
 
         # verify parameters type:
         not_allowed = {
@@ -1375,11 +1375,8 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
             if not verify_basic_type(v, self._parameters_allowed_types)
         }
         if not_allowed:
-            self.log.warning(
-                "Parameters must be of builtin type ({})".format(
-                    ", ".join("%s[%s]" % p for p in not_allowed.items()),
-                )
-            )
+            not_allowed_types = ", ".join("%s[%s]" % p for p in not_allowed.items())
+            self.log.warning(f"Parameters must be of builtin type ({not_allowed_types})")
             new_parameters = {k: v for k, v in new_parameters.items() if k not in not_allowed}
 
         use_hyperparams = Session.check_min_api_version("2.9")
@@ -1420,7 +1417,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
 
                     org_k = k
                     if "/" not in k:
-                        k = "{}/{}".format(self._default_configuration_section_name, k)
+                        k = f"{self._default_configuration_section_name}/{k}"
                     section_name, key = k.split("/", 1)
                     section = hyperparams.get(section_name, dict())
                     org_param = org_hyperparams.get(section_name, dict()).get(key, None)
@@ -1650,7 +1647,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
                 if setup_shell_script:
                     raise ValueError("Your ClearML-server does not support docker bash script feature, please upgrade.")
                 execution = self.data.execution
-                execution.docker_cmd = image + (" {}".format(arguments) if arguments else "")
+                execution.docker_cmd = image + (f" {arguments}" if arguments else "")
                 self._edit(execution=execution)
 
     def get_base_docker(self) -> str:
@@ -1660,7 +1657,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
             container = self._get_task_property("container", raise_on_error=False, log_on_error=False, default={})
             return (
                 container.get("image", "")
-                + (" {}".format(container["arguments"]) if container.get("arguments", "") else "")
+                + (f" {container['arguments']}" if container.get("arguments", "") else "")
             ) or None
         else:
             return self._get_task_property("execution.docker_cmd", raise_on_error=False, log_on_error=False)
@@ -1977,7 +1974,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
 
         res = self.send(projects.GetByIdRequest(project=self.project), raise_on_errors=False)
         if not res or not res.response or not res.response.project:
-            self.log.warning("Project {} not found or no read access available".format(self.project))
+            self.log.warning(f"Project {self.project} not found or no read access available")
             return None
         self._project_object = (self.project, res.response.project)
         return self._project_object[1]
@@ -2550,7 +2547,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
             import pkg_resources
         except ImportError:
             get_logger("task").warning(
-                "Requirement file `{}` skipped since pkg_resources is not installed".format(package_name)
+                f"Requirement file `{package_name}` skipped since pkg_resources is not installed"
             )
         else:
             with Path(package_name).open() as requirements_txt:
@@ -2871,7 +2868,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
                 else:
                     raise ValueError(
                         "Task object can only be updated if created or in_progress "
-                        "[status={} fields={}]".format(status, list(kwargs.keys()))
+                        f"[status={status} fields={list(kwargs.keys())}]"
                     )
 
             res = self.send(
@@ -3272,7 +3269,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         if not PROC_MASTER_ID_ENV_VAR.get() or len(PROC_MASTER_ID_ENV_VAR.get().split(":")) < 2:
             self.__edit_lock = RLock()
         elif PROC_MASTER_ID_ENV_VAR.get().split(":")[1] == str(self.id):
-            filename = os.path.join(gettempdir(), "clearml_{}.lock".format(self.id))
+            filename = os.path.join(gettempdir(), f"clearml_{self.id}.lock")
             # no need to remove previous file lock if we have a dead process, it will automatically release the lock.
             # # noinspection PyBroadException
             # try:

@@ -80,20 +80,20 @@ class APIError(Exception):
             return None
 
     def __str__(self) -> str:
-        message = "{}: ".format(type(self).__name__)
+        message = f"{type(self).__name__}: "
         if self.extra_info:
-            message += "{}: ".format(self.extra_info)
+            message += f"{self.extra_info}: "
         if not self.meta:
             message += "no meta available"
             return message
         if not self.code:
             message += "no error code available"
             return message
-        message += "code {0.code}".format(self)
+        message += f"code {self.code}"
         if self.subcode:
-            message += "/{.subcode}".format(self)
+            message += f"/{self.subcode}"
         if self.message:
-            message += ": {.message}".format(self)
+            message += f": {self.message}"
         return message
 
 
@@ -353,12 +353,12 @@ class Entity(ABC):
         """
         Display entity type, ID, and - if available - name.
         """
-        parts = (type(self).__name__, ": ", "id={}".format(self.data.id))
+        parts = (type(self).__name__, ": ", f"id={self.data.id}")
         try:
-            parts += (", ", 'name="{}"'.format(self.data.name))
+            parts += (", ", f'name="{self.data.name}"')
         except AttributeError:
             pass
-        return "<{}>".format("".join(parts))
+        return f"<{''.join(parts)}>"
 
 
 def wrap_request_class(cls) -> Type:
@@ -535,7 +535,7 @@ class APIClient:
                 return None
 
         if api_version:
-            api_version = "v{}".format(str(api_version).replace(".", "_"))
+            api_version = f"v{str(api_version).replace('.', '_')}"
             services = OrderedDict(
                 (name, mod)
                 for name, mod in (

@@ -118,7 +118,7 @@ class CreateAndPopulate:
             if not script and not module:
                 raise ValueError("Entry point script not provided")
             if not repo and not folder and (script and not Path(script).is_file()):
-                raise ValueError("Script file '{}' could not be found".format(script))
+                raise ValueError(f"Script file '{script}' could not be found")
         if raise_on_missing_entries and commit and branch:
             raise ValueError(
                 "Specify either a branch/tag or specific commit id, not both (either --commit or --branch)"
@@ -176,7 +176,7 @@ class CreateAndPopulate:
             self.cwd = os.path.expandvars(os.path.expanduser(self.cwd)) if self.cwd else None
 
             if self.module:
-                entry_point = "-m {}".format(self.module)
+                entry_point = f"-m {self.module}"
                 # we must have a folder if we are here
                 local_entry_file = self.folder.rstrip("/") + "/."
             else:
@@ -209,7 +209,7 @@ class CreateAndPopulate:
                     ):
                         entry_point = (Path(self.cwd) / self.script).as_posix()
                     else:
-                        raise ValueError("Script entrypoint file '{}' could not be found".format(entry_point))
+                        raise ValueError(f"Script entrypoint file '{entry_point}' could not be found")
 
                 local_entry_file = entry_point
 
@@ -245,7 +245,7 @@ class CreateAndPopulate:
                     if repo_info.script["diff"]:
                         print(
                             "Warning: local git repo diff is ignored, "
-                            "storing only the standalone script form {}".format(self.script)
+                            f"storing only the standalone script form {self.script}"
                         )
                         repo_info.script["diff"] = a_repo_info.script["diff"] or ""
                     repo_info.script["entry_point"] = a_repo_info.script["entry_point"]
@@ -260,7 +260,7 @@ class CreateAndPopulate:
             and (not repo_info or not repo_info.script or not repo_info.script.get("repository"))
             and (not entry_point or not entry_point.endswith(".sh"))
         ):
-            raise ValueError("Standalone script detected '{}', but no requirements provided".format(self.script))
+            raise ValueError(f"Standalone script detected '{self.script}', but no requirements provided")
         if dry_run:
             task = None
             task_state: dict = dict(
@@ -275,7 +275,7 @@ class CreateAndPopulate:
 
             if self.base_task_id:
                 if self.verbose:
-                    print("Cloning task {}".format(self.base_task_id))
+                    print(f"Cloning task {self.base_task_id}")
                 task = Task.clone(
                     source_task=self.base_task_id,
                     project=Task.get_project_id(self.project_name),
@@ -340,10 +340,10 @@ class CreateAndPopulate:
 
                 elif not Path(cwd).is_dir():
                     # we were passed an absolute dir and it does not exist
-                    raise ValueError("Working directory '{}' could not be found".format(cwd))
+                    raise ValueError(f"Working directory '{cwd}' could not be found")
 
                 if self.module:
-                    entry_point = "-m {}".format(self.module)
+                    entry_point = f"-m {self.module}"
                 elif stand_alone_script_outside_repo:
                     # this should be relative and the temp file we generated
                     entry_point = repo_info.script["entry_point"]
@@ -375,7 +375,7 @@ class CreateAndPopulate:
             cwd = "/".join([p for p in (self.cwd or ".").split("/") if p and p != "."])
             # normalize backslashes and remove first one
             if self.module:
-                entry_point = "-m {}".format(self.module)
+                entry_point = f"-m {self.module}"
             else:
                 entry_point = "/".join([p for p in self.script.split("/") if p and p != "."])
                 if cwd and entry_point.startswith(cwd + "/"):
@@ -429,7 +429,7 @@ class CreateAndPopulate:
         else:
             # standalone task
             task_state["script"]["entry_point"] = (
-                self.script if self.script else ("-m {}".format(self.module) if self.module else "")
+                self.script if self.script else (f"-m {self.module}" if self.module else "")
             )
             task_state["script"]["working_dir"] = "."
             if self.binary:
@@ -468,8 +468,8 @@ class CreateAndPopulate:
             poetry_toml_file = Path(repo_info.script["repo_root"]) / "pyproject.toml"
             if self.raise_on_missing_entries and not reqs_txt_file.is_file() and not poetry_toml_file.is_file():
                 raise ValueError(
-                    "requirements.txt not found [{}] "
-                    "Use --requirements or --packages".format(reqs_txt_file.as_posix())
+                    f"requirements.txt not found [{reqs_txt_file.as_posix()}] "
+                    "Use --requirements or --packages"
                 )
 
         if self.add_task_init_call:
@@ -514,14 +514,14 @@ class CreateAndPopulate:
                 # Add Task.init call
                 if not self.module and script_entry and str(script_entry).lower().endswith(".py"):
                     task_init_patch += (
-                        "diff --git a{script_entry} b{script_entry}\n"
-                        "--- a{script_entry}\n"
-                        "+++ b{script_entry}\n"
-                        "@@ -{idx_a},0 +{idx_b},4 @@\n"
+                        f"diff --git a{script_entry} b{script_entry}\n"
+                        f"--- a{script_entry}\n"
+                        f"+++ b{script_entry}\n"
+                        f"@@ -{idx_a},0 +{idx_a + 1},4 @@\n"
                         "+try: from allegroai import Task\n"
                         "+except ImportError: from clearml import Task\n"
                         '+(__name__ != "__main__") or Task.init()\n'
-                        "+\n".format(script_entry=script_entry, idx_a=idx_a, idx_b=idx_a + 1)
+                        "+\n"
                     )
             elif self.module:
                 # if we are here, do nothing
@@ -572,26 +572,30 @@ class CreateAndPopulate:
                 repo_details = {
                     k: v for k, v in task_state["script"].items() if v and k not in ("diff", "requirements", "binary")
                 }
-                print("Repository Detected\n{}".format(json.dumps(repo_details, indent=2)))
+                print(f"Repository Detected\n{json.dumps(repo_details, indent=2)}")
             else:
-                print("Standalone script detected\n  Script: {}".format(self.script))
+                print(f"Standalone script detected\n  Script: {self.script}")
 
             if task_state["script"].get("requirements") and task_state["script"]["requirements"].get("pip"):
-                print(
-                    "Requirements:{}{}".format(
-                        "\n  Using requirements.txt: {}".format(self.requirements_file.as_posix())
-                        if self.requirements_file
-                        else "",
-                        "\n  {}Packages: {}".format(
-                            "Additional " if self.requirements_file else "",
-                            self.packages,
-                        )
-                        if self.packages
-                        else "",
-                    )
+                requirements_file_line = (
+                    f"Using requirements.txt: {self.requirements_file.as_posix()}"
+                    if self.requirements_file
+                    else None
                 )
+                packages_line_title = "Additional Packages" if self.requirements_file else "Packages"
+                packages_line = (
+                    f"{packages_line_title}: {self.packages}"
+                    if self.packages
+                    else None
+                )
+                print("\n  ".join([
+                    "Requirements:",
+                    *([requirements_file_line] if requirements_file_line is not None else []),
+                    *([packages_line] if packages_line is not None else []),
+                ]))
+
             if self.docker:
-                print("Base docker image: {}".format(self.docker))
+                print(f"Base docker image: {self.docker}")
 
         if dry_run:
             return task_state
@@ -606,7 +610,7 @@ class CreateAndPopulate:
             try:
                 task.output_uri = self.output_uri
             except ValueError:
-                getLogger().warning('Could not verify permission for output_uri: "{}"'.format(self.output_uri))
+                getLogger().warning(f'Could not verify permission for output_uri: "{self.output_uri}"')
                 # do not verify the output uri (it might not be valid when we are creating the Task)
                 task.storage_uri = self.output_uri
 
@@ -642,7 +646,7 @@ class CreateAndPopulate:
             return
 
         task_params = self.task.get_parameters()
-        args_list = {"Args/{}".format(k): v for k, v in args_list}
+        args_list = {f"Args/{k}": v for k, v in args_list}
         task_params.update(args_list)
         self.task.set_parameters(task_params)
 
@@ -939,8 +943,8 @@ if __name__ == '__main__':
         # verify artifact kwargs:
         if not all(len(v.split(".", 1)) == 2 for v in function_input_artifacts.values()):
             raise ValueError(
-                "function_input_artifacts={}, it must in the format: "
-                '{{"argument": "task_id.artifact_name"}}'.format(function_input_artifacts)
+                f"function_input_artifacts={function_input_artifacts}, it must in the format: "
+                '{"argument": "task_id.artifact_name"}'
             )
         inspect_args = None
         function_kwargs_types = dict()
@@ -958,7 +962,7 @@ if __name__ == '__main__':
                 if inspect_defaults_vals and len(inspect_defaults_vals) != len(inspect_defaults_args):
                     getLogger().warning(
                         "Ignoring default argument values: "
-                        "could not find all default valued for: '{}'".format(function_name)
+                        f"could not find all default valued for: '{function_name}'"
                     )
                     inspect_defaults_vals = []
 
@@ -1025,7 +1029,7 @@ if __name__ == '__main__':
                 add_task_init_call=False,
                 working_directory=working_dir,
             )
-            entry_point = "{}.py".format(function_name)
+            entry_point = f"{function_name}.py"
             task = populate.create_task(dry_run=dry_run)
 
             if dry_run:
@@ -1064,17 +1068,17 @@ if __name__ == '__main__':
                     }
                 )
                 hyper_parameters = (
-                    {"{}/{}".format(cls.kwargs_section, k): str(v) for k, v in function_kwargs}
+                    {f"{cls.kwargs_section}/{k}": str(v) for k, v in function_kwargs}
                     if function_kwargs
                     else {}
                 )
                 hyper_parameters.update(
-                    {"{}/{}".format(cls.input_artifact_section, k): str(v) for k, v in function_input_artifacts}
+                    {f"{cls.input_artifact_section}/{k}": str(v) for k, v in function_input_artifacts}
                     if function_input_artifacts
                     else {}
                 )
                 __function_kwargs_types = (
-                    {"{}/{}".format(cls.kwargs_section, k): v for k, v in function_kwargs_types}
+                    {f"{cls.kwargs_section}/{k}": v for k, v in function_kwargs_types}
                     if function_kwargs_types
                     else None
                 )
@@ -1142,20 +1146,20 @@ if __name__ == '__main__':
                     continue
                 if isinstance(parsed_source_entry, ast.ImportFrom):
                     for sub_entry in parsed_source_entry.names:
-                        import_str = "from {} import {}".format(parsed_source_entry.module, sub_entry.name)
+                        import_str = f"from {parsed_source_entry.module} import {sub_entry.name}"
                         if sub_entry.asname:
-                            import_str += " as {}".format(sub_entry.asname)
+                            import_str += f" as {sub_entry.asname}"
                         imports.append(import_str)
                 elif isinstance(parsed_source_entry, ast.Import):
                     for sub_entry in parsed_source_entry.names:
-                        import_str = "import {}".format(sub_entry.name)
+                        import_str = f"import {sub_entry.name}"
                         if sub_entry.asname:
-                            import_str += " as {}".format(sub_entry.asname)
+                            import_str += f" as {sub_entry.asname}"
                         imports.append(import_str)
             imports = [add_import_guard(import_) for import_ in imports]
             return "\n".join(imports)
         except Exception as e:
-            getLogger().warning("Could not fetch function imports: {}".format(e))
+            getLogger().warning(f"Could not fetch function imports: {e}")
             return ""
 
     @staticmethod
@@ -1195,7 +1199,7 @@ if __name__ == '__main__':
                     result.append(f.name)
         except Exception as e:
             name = getattr(module, "__name__", module)
-            getLogger().warning("Could not fetch function declared in {}: {}".format(name, e))
+            getLogger().warning(f"Could not fetch function declared in {name}: {e}")
         return result
 
     @staticmethod
@@ -1211,7 +1215,7 @@ if __name__ == '__main__':
             func_members_dict = dict(inspect.getmembers(original_module, inspect.isfunction))
         except Exception as e:
             name = getattr(original_module, "__name__", original_module)
-            getLogger().warning("Could not fetch functions from {}: {}".format(name, e))
+            getLogger().warning(f"Could not fetch functions from {name}: {e}")
             func_members_dict = {}
         decorated_func = CreateFromFunction._deep_extract_wrapped(func)
         decorated_func_source = CreateFromFunction.__sanitize(
@@ -1246,7 +1250,7 @@ if __name__ == '__main__':
                     )
                 break
         except Exception as e:
-            getLogger().warning("Could not fetch full definition of function {}: {}".format(func.__name__, e))
+            getLogger().warning(f"Could not fetch full definition of function {func.__name__}: {e}")
         return decorated_func_source
 
     @staticmethod
