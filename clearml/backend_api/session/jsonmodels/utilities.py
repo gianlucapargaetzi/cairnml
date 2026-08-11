@@ -45,9 +45,7 @@ def _compare_lists(one: list, two: list) -> bool:
 
 def _assert_same_types(one: Any, two: Any) -> None:
     if not isinstance(one, type(two)) or not isinstance(two, type(one)):
-        raise RuntimeError(
-            'Types mismatch! "{type1}" and "{type2}".'.format(type1=type(one).__name__, type2=type(two).__name__)
-        )
+        raise RuntimeError(f'Types mismatch! "{type(one).__name__}" and "{type(two).__name__}".')
 
 
 def compare_schemas(one: Any, two: Any) -> bool:
@@ -76,7 +74,7 @@ def compare_schemas(one: Any, two: Any) -> bool:
     elif one is None:
         return one is two
     else:
-        raise RuntimeError('Not allowed type "{type}"'.format(type=type(one).__name__))
+        raise RuntimeError(f'Not allowed type "{type(one).__name__}"')
 
 
 def is_ecma_regex(regex: str) -> bool:
@@ -120,7 +118,7 @@ def convert_ecma_regex_to_python(value: str) -> PythonRegex:
     try:
         result_flags = [ECMA_TO_PYTHON_FLAGS[f] for f in flags]
     except KeyError:
-        raise ValueError('Wrong flags "{}".'.format(flags))
+        raise ValueError(f'Wrong flags "{flags}".')
 
     return PythonRegex("/".join(parts[1:]), result_flags)
 
@@ -142,4 +140,4 @@ def convert_python_regex_to_ecma(value: str, flags: list = []) -> str:
     result_flags = [PYTHON_TO_ECMA_FLAGS[f] for f in flags]
     result_flags = "".join(result_flags)
 
-    return "/{value}/{flags}".format(value=value, flags=result_flags)
+    return f"/{value}/{result_flags}"

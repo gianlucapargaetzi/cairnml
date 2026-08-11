@@ -79,19 +79,19 @@ class BackgroundLogService(BackgroundMonitor):
             if res and not res.ok():
                 # noinspection PyProtectedMember
                 TaskHandler._log_stderr(
-                    "failed logging task to backend ({:d} lines, {})".format(len(a_request.requests), str(res.meta)),
+                    f"failed logging task to backend ({len(a_request.requests):d} lines, {res.meta})",
                     level=WARNING,
                 )
         except MaxRequestSizeError:
             # noinspection PyProtectedMember
             TaskHandler._log_stderr(
-                "failed logging task to backend ({:d} lines) log size exceeded limit".format(len(a_request.requests)),
+                f"failed logging task to backend ({len(a_request.requests):d} lines) log size exceeded limit",
                 level=WARNING,
             )
         except Exception as ex:
             # noinspection PyProtectedMember
             TaskHandler._log_stderr(
-                "Retrying, failed logging task to backend ({:d} lines): {}".format(len(a_request.requests), ex)
+                f"Retrying, failed logging task to backend ({len(a_request.requests):d} lines): {ex}"
             )
             # we should push ourselves back into the thread pool
             if self._queue:
@@ -203,7 +203,7 @@ class BackgroundLogService(BackgroundMonitor):
         except Exception as ex:
             # noinspection PyProtectedMember
             TaskHandler._log_stderr(
-                "{}\nWARNING: clearml.log - Failed logging task to backend ({:d} lines)".format(ex, len(buffer))
+                f"{ex}\nWARNING: clearml.log - Failed logging task to backend ({len(buffer):d} lines)"
             )
 
     def flush(self) -> None:
@@ -312,9 +312,7 @@ class TaskHandler(BufferingHandler):
                         _background_log.wait(timeout=timeout)
                         if not _background_log.empty():
                             self._log_stderr(
-                                "Flush timeout {}s exceeded, dropping last {} lines".format(
-                                    timeout, self._background_log_size
-                                )
+                                f"Flush timeout {timeout}s exceeded, dropping last {self._background_log_size} lines"
                             )
                         # self._log_stderr('Closing {} wait done'.format(os.getpid()))
                     except Exception:
@@ -349,7 +347,7 @@ class TaskHandler(BufferingHandler):
                 except StopIteration:
                     break
                 except Exception as ex:
-                    warning("Failed reporting log, line {} [{}]".format(i, ex))
+                    warning(f"Failed reporting log, line {i} [{ex}]")
                 batch_requests = events.AddBatchRequest(
                     requests=[events.TaskLogEvent(task=task.id, **r) for r in list_requests]
                 )
@@ -357,9 +355,7 @@ class TaskHandler(BufferingHandler):
                     res = task.session.send(batch_requests)
                     if res and not res.ok():
                         warning(
-                            "failed logging task to backend ({:d} lines, {})".format(
-                                len(batch_requests.requests), str(res.meta)
-                            )
+                            f"failed logging task to backend ({len(batch_requests.requests):d} lines, {res.meta})"
                         )
         return True
 
@@ -368,11 +364,5 @@ class TaskHandler(BufferingHandler):
         # output directly to stderr, make sure we do not catch it.
         # noinspection PyProtectedMember
         write = sys.stderr._original_write if hasattr(sys.stderr, "_original_write") else sys.stderr.write
-        write(
-            "{asctime} - {name} - {levelname} - {message}\n".format(
-                asctime=Formatter().formatTime(makeLogRecord({})),
-                name="clearml.log",
-                levelname=getLevelName(level),
-                message=msg,
-            )
-        )
+        asctime = Formatter().formatTime(makeLogRecord({}))
+        write(f"{asctime} - clearml.log - {getLevelName(level)} - {msg}\n")

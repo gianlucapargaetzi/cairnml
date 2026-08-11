@@ -85,16 +85,12 @@ class BaseField:
 
     def _validate_against_types(self, value: Any) -> None:
         if value is not None and not isinstance(value, self.types):
-            raise ValidationError(
-                'Value is wrong, expected type "{types}"'.format(types=", ".join([t.__name__ for t in self.types])),
-                value,
-            )
+            types = ", ".join([t.__name__ for t in self.types])
+            raise ValidationError(f'Value is wrong, expected type "{types}"', value)
 
     def _check_types(self) -> None:
         if self.types is None:
-            raise ValidationError(
-                'Field "{type}" is not usable, try ' "different field type.".format(type=type(self).__name__)
-            )
+            raise ValidationError(f'Field "{type(self).__name__}" is not usable, try ' "different field type.")
 
     def to_struct(self, value: Any) -> Any:
         """Cast value to Python structure."""
@@ -231,13 +227,8 @@ class ListField(BaseField):
             return
 
         if not isinstance(item, self.items_types):
-            raise ValidationError(
-                "All items must be instances "
-                'of "{types}", and not "{type}".'.format(
-                    types=", ".join([t.__name__ for t in self.items_types]),
-                    type=type(item).__name__,
-                )
-            )
+            types = ", ".join([t.__name__ for t in self.items_types])
+            raise ValidationError(f'All items must be instances of "{types}", and not "{type(item).__name__}".')
 
     def parse_value(self, values: Any) -> Any:
         """Cast value to proper collection."""
@@ -333,11 +324,8 @@ class EmbeddedField(BaseField):
 
     def _get_embed_type(self) -> type:
         if len(self.types) != 1:
-            raise ValidationError(
-                'Cannot decide which type to choose from "{types}".'.format(
-                    types=", ".join([t.__name__ for t in self.types])
-                )
-            )
+            types = ", ".join([t.__name__ for t in self.types])
+            raise ValidationError(f'Cannot decide which type to choose from "{types}".')
         return self.types[0]
 
     def to_struct(self, value: Any) -> Any:
@@ -376,7 +364,7 @@ def _get_modules(relative_path: str, base_module: str) -> List[str]:
     parent_modules = base_module.split(".")
     parents_amount = max(0, parents_amount - 1)
     if parents_amount > len(parent_modules):
-        raise ValueError("Can't evaluate path '{}'".format(relative_path))
+        raise ValueError(f"Can't evaluate path '{relative_path}'")
     return parent_modules[: parents_amount * -1] + canonical_modules
 
 
@@ -385,7 +373,7 @@ def _import(module_name: str, type_name: str) -> Any:
     try:
         return getattr(module, type_name)
     except AttributeError:
-        raise ValueError("Can't find type '{}.{}'.".format(module_name, type_name))
+        raise ValueError(f"Can't find type '{module_name}.{type_name}'.")
 
 
 class TimeField(StringField):

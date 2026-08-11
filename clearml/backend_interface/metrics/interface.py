@@ -183,7 +183,7 @@ class Metrics(InterfaceBase):
                     if storage:
                         url = storage._apply_url_substitutions(url)
                 except Exception as err:
-                    self._get_logger().warning("Failed applying URL substitutions on {} ({})".format(orig_url, err))
+                    self._get_logger().warning(f"Failed applying URL substitutions on {orig_url} ({err})")
 
                 kwargs[entry.key_prop] = key
                 kwargs[entry.url_prop] = url
@@ -228,12 +228,8 @@ class Metrics(InterfaceBase):
                         url = storage.upload_from_stream(e.stream, e.url, retries=retries, return_canonized=False)
                     e.event.update(url=url)
                 except Exception as exp:
-                    self._get_logger().warning(
-                        "Failed uploading to {} ({})".format(
-                            upload_uri if upload_uri else "(Could not calculate upload uri)",
-                            exp,
-                        )
-                    )
+                    upload_uri_str = upload_uri if upload_uri else "(Could not calculate upload uri)"
+                    self._get_logger().warning(f"Failed uploading to {upload_uri_str} ({exp})")
 
                     e.set_exception(exp)
                 if not isinstance(e.stream, Path):
@@ -259,7 +255,7 @@ class Metrics(InterfaceBase):
         )
         if t_f and t_u and t_ref and (t_f - t_u) > t_ref:
             self._get_logger().warning(
-                "Possible metrics file upload starvation: files were not uploaded for {} seconds".format(t_ref)
+                f"Possible metrics file upload starvation: files were not uploaded for {t_ref} seconds"
             )
 
         # send the events in a batched request
@@ -371,11 +367,11 @@ class Metrics(InterfaceBase):
                         if r.get("key") and r.get("url"):
                             debug_sample = (Path(folder) / "data").joinpath(*(r["key"].split("/")))
                             r["key"] = r["key"].replace(
-                                ".{}{}".format(org_task_id, os.sep),
-                                ".{}{}".format(task_id, os.sep),
+                                f".{org_task_id}{os.sep}",
+                                f".{task_id}{os.sep}",
                                 1,
                             )
-                            r["url"] = "{}/{}".format(remote_url, r["key"])
+                            r["url"] = f"{remote_url}/{r['key']}"
                             if debug_sample not in uploaded_files and debug_sample.is_file():
                                 uploaded_files.add(debug_sample)
                                 StorageManager.upload_file(
@@ -386,7 +382,7 @@ class Metrics(InterfaceBase):
                             # hack plotly embedded images links
                             # noinspection PyBroadException
                             try:
-                                task_id_sep = ".{}{}".format(org_task_id, os.sep)
+                                task_id_sep = f".{org_task_id}{os.sep}"
                                 plot = json.loads(r["plot_str"])
                                 if plot.get("layout", {}).get("images"):
                                     for image in plot["layout"]["images"]:
@@ -395,12 +391,12 @@ class Metrics(InterfaceBase):
                                         pre, post = image["source"].split(task_id_sep, 1)
                                         pre = os.sep.join(pre.split(os.sep)[-2:])
                                         debug_sample = (Path(folder) / "data").joinpath(
-                                            pre + ".{}".format(org_task_id), post
+                                            pre + f".{org_task_id}", post
                                         )
                                         image["source"] = "/".join(
                                             [
                                                 remote_url,
-                                                pre + ".{}".format(task_id),
+                                                pre + f".{task_id}",
                                                 post,
                                             ]
                                         )
@@ -417,14 +413,13 @@ class Metrics(InterfaceBase):
                 except StopIteration:
                     break
                 except Exception as ex:
-                    warning("Failed reporting metric, line {} [{}]".format(i, ex))
+                    warning(f"Failed reporting metric, line {i} [{ex}]")
                 batch_requests = api_events.AddBatchRequest(requests=list_requests)
                 if batch_requests.requests:
                     res = session.send(batch_requests)
                     if res and not res.ok():
                         warning(
-                            "failed logging metric task to backend ({:d} lines, {})".format(
-                                len(batch_requests.requests), str(res.meta)
-                            )
+                            "failed logging metric task to backend "
+                            f"({len(batch_requests.requests):d} lines, {res.meta})"
                         )
         return True
