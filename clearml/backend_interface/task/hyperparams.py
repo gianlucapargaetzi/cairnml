@@ -110,10 +110,10 @@ class HyperParams:
             if name:
                 a_item.name = str(name)
             if not a_item.name:
-                raise ValueError("Missing hyper-param name for '{}'".format(value))
+                raise ValueError(f"Missing hyper-param name for '{value}'")
             section = force_section or a_item.section or default_section
             if not section:
-                raise ValueError("Missing hyper-param section for '{}'".format(value))
+                raise ValueError(f"Missing hyper-param section for '{value}'")
             # force string value
             if escape_unsafe:
                 a_item.section, a_item.name = self._escape_unsafe_values(section, a_item.name)
@@ -171,7 +171,7 @@ class HyperParams:
             else:
                 key = tuple(map(str, value))[:2]
             if not all(key):
-                raise ValueError("Missing section or name in '{}'".format(value))
+                raise ValueError(f"Missing section or name in '{value}'")
             return key
 
         keys = {get_key(value) for iterable in iterables for value in iterable}
@@ -194,9 +194,7 @@ class HyperParams:
             if value not in UNSAFE_NAMES_2_10:
                 yield value
             else:
-                self.task.log.info(
-                    "Converting unsafe hyper parameter name/section '{}' to '{}'".format(value, "_" + value)
-                )
+                self.task.log.info(f"Converting unsafe hyper parameter name/section '{value}' to '{'_' + value}'")
                 yield "_" + value
 
 

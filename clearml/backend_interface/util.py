@@ -17,7 +17,7 @@ def make_message(s: str, **kwargs: Any) -> str:
         try:
             import os
 
-            user = "{}".format(os.getuid())
+            user = f"{os.getuid()}"
         except Exception:
             user = "unknown"
 
@@ -170,7 +170,7 @@ def get_queue_id(session: Any, queue: str) -> Optional[str]:
     if res and res.response and res.response.queues:
         if len(res.response.queues) > 1:
             LoggerRoot.get_base_logger().info(
-                "Multiple queues with name={}, selecting queue id={}".format(queue, res.response.queues[0].id)
+                f"Multiple queues with name={queue}, selecting queue id={res.response.queues[0].id}"
             )
         return res.response.queues[0].id
 
@@ -204,7 +204,7 @@ def get_single_result(
         if not raise_on_error:
             return None
 
-        raise ValueError("No {entity}s found when searching for `{query}`".format(**locals()))
+        raise ValueError(f"No {entity}s found when searching for `{query}`")
 
     if len(results) > 1:
         if show_results:
@@ -212,11 +212,11 @@ def get_single_result(
                 log = get_logger()
             if show_results > 1:
                 log.warning(
-                    "{num} {entity} found when searching for `{query}`"
-                    " (showing first {show_results} {entity}s follow)".format(num=len(results), **locals())
+                    f"{len(results)} {entity} found when searching for `{query}`"
+                    f" (showing first {show_results} {entity}s follow)"
                 )
             else:
-                log.warning("{num} {entity} found when searching for `{query}`".format(num=len(results), **locals()))
+                log.warning(f"{len(results)} {entity} found when searching for `{query}`")
 
         if sort_by_date:
             relative_time = get_epoch_beginning_of_time()
@@ -237,10 +237,10 @@ def get_single_result(
         if show_results and log:
             for i, obj in enumerate(o if isinstance(o, dict) else o.to_dict() for o in results[:show_results]):
                 selected = "Selected" if i == 0 else "Additionally found"
-                log.warning("{selected} {entity} `{obj[name]}` (id={obj[id]})".format(**locals()))
+                log.warning(f"{selected} {entity} `{obj['name']}` (id={obj['id']})")
 
         if raise_on_error:
-            raise ValueError("More than one {entity}s found when searching for ``{query}`".format(**locals()))
+            raise ValueError(f"More than one {entity}s found when searching for ``{query}`")
 
     return results[0]
 
