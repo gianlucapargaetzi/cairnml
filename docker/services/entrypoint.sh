@@ -1,7 +1,7 @@
 #!/bin/bash +x
 
-if [ -n "$SHUTDOWN_IF_NO_ACCESS_KEY" ] && [ -z "$CLEARML_API_ACCESS_KEY" ] && [ -z "$TRAINS_API_ACCESS_KEY" ]; then
-  echo "CLEARML_API_ACCESS_KEY was not provided, service will not be started"
+if [ -n "$SHUTDOWN_IF_NO_ACCESS_KEY" ] && [ -z "$CLEARML_AUTH_TOKEN" ] && [ ! -f "$HOME/.clearml/device.key" ]; then
+  echo "This agent is not enrolled (no device key and no CLEARML_AUTH_TOKEN), service will not be started"
   exit 0
 fi
 
