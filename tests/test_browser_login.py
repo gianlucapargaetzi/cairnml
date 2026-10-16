@@ -112,3 +112,9 @@ def test_the_reply_comes_back_to_the_registered_port():
     browser_login(ISSUER, "clearml-sdk", session=FakeIdp(), open_browser=open_browser, timeout=20)
     assert seen["redirect_uri"] == f"http://127.0.0.1:{LOGIN_PORT}/callback"
     assert LOGIN_PORT == 8765
+
+
+def test_the_sign_in_always_asks_for_the_credentials():
+    open_browser, seen = browser(approve)
+    browser_login(ISSUER, "clearml-sdk", session=FakeIdp(), open_browser=open_browser, timeout=20)
+    assert seen["prompt"] == "login"

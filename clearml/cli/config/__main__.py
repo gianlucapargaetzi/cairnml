@@ -1,97 +1,17 @@
-""" ClearML configuration wizard"""
-from __future__ import print_function
+""" clearml-init: enrol this machine with the server. Reads the server address from the command line.
 
-import argparse
+The same set as the mlops client: clearml-init (enrol), clearml-whoami and clearml-logout live in
+clearml.cli.enrolment. This module keeps the configuration writer and the host helpers they use.
+"""
 import os
-import urllib
-from typing import Tuple, Optional, Any
-from urllib.parse import ParseResult
+import sys
+from typing import Any, Optional, Tuple
+from urllib.parse import ParseResult, urlparse
 
 from pathlib2 import Path
-from six.moves import input
-from six.moves.urllib.parse import urlparse
-
-from clearml.backend_api.session.defs import ENV_HOST
-from clearml.backend_config.defs import (
-    LOCAL_CONFIG_FILES,
-    LOCAL_CONFIG_FILE_OVERRIDE_VAR,
-)
-from clearml.config import config_obj
-from clearml.idp.enrol import EnrolmentFailed, enrol_device
-
-description = (
-    "\n"
-    "This machine signs in with your identity provider. Your browser opens the sign-in page;\n"
-    "approve the sign-in there, and this machine is enrolled. No access key is needed.\n"
-)
-
-host_description = """
-Editing configuration file: {CONFIG_FILE}
-Enter the url of the clearml-server's Web service, for example: {HOST}
-"""
-
-# noinspection PyBroadException
-try:
-    def_host = ENV_HOST.get(default=config_obj.get("api.web_server")) or "http://localhost:8080"
-except Exception:
-    def_host = "http://localhost:8080"
 
 
-def validate_file(string: str) -> str:
-    if not string:
-        raise argparse.ArgumentTypeError("expected a valid file path")
-    return string
-
-
-def main() -> None:
-    default_config_file = LOCAL_CONFIG_FILE_OVERRIDE_VAR.get()
-    if not default_config_file:
-        for f in LOCAL_CONFIG_FILES:
-            default_config_file = f
-            if os.path.exists(os.path.expanduser(os.path.expandvars(f))):
-                break
-
-    p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument(
-        "--file",
-        "-F",
-        help="Target configuration file path (default is %(default)s)",
-        default=default_config_file,
-        type=validate_file,
-    )
-
-    args = p.parse_args()
-
-    print("ClearML SDK setup process")
-
-    conf_file = Path(os.path.expanduser(args.file)).absolute()
-    if conf_file.exists() and conf_file.is_file() and conf_file.stat().st_size > 0:
-        print(f"Configuration file already exists: {conf_file}")
-        print("Leaving setup, feel free to edit the configuration file.")
-        return
-    print(description, end="")
-
-    print(host_description.format(CONFIG_FILE=args.file, HOST=def_host))
-    host = input_url("WEB Host", def_host)
-
-    parsed_host = verify_url(host)
-    api_host, files_host, web_host = parse_known_host(parsed_host)
-    print(f"\nClearML Hosts configuration:\nWeb App: {web_host}\nAPI: {api_host}\nFile Store: {files_host}\n")
-    if len({web_host, api_host, files_host}) != 3:
-        raise ValueError("All three server URLs should be distinct")
-
-    try:
-        device_id = enrol_device(api_host)
-    except EnrolmentFailed as ex:
-        print(f"Error! This machine was not enrolled: {ex}")
-        return
-
-    write_config(conf_file, api_host, web_host, files_host, device_id)
-    print(f"\nNew configuration stored in {conf_file}")
-    print("ClearML setup completed successfully.")
-
-
-def write_config(conf_file, api_host: str, web_host: str, files_host: str, device_id: str) -> None:
+def write_config(conf_file, api_host: str, web_host: str, files_host: str, device_id: Optional[str]) -> None:
     """Write the SDK configuration. It names the device; it holds no credentials."""
     # noinspection PyBroadException
     try:
@@ -111,13 +31,13 @@ def write_config(conf_file, api_host: str, web_host: str, files_host: str, devic
                 "    api_server: %s\n"
                 "    web_server: %s\n"
                 "    files_server: %s\n"
-                "    # This machine signs in with the device key in ~/.clearml/device.key\n"
+                "    # This machine signs in with the device key in ~/.clearml/device.key (empty when signed out)\n"
                 "    idp {\n"
                 '        device_id: "%s"\n'
                 "    }\n"
                 "}\n"
                 "sdk "
-                % (api_host, web_host, files_host, device_id)
+                % (api_host, web_host, files_host, device_id or "")
             )
             f.write(header)
             f.write(default_sdk)
@@ -190,13 +110,6 @@ def input_url(host_type: str, host: str = None) -> str:
     return host
 
 
-def input_host_port(host_type: str, parsed_host: urllib.parse.ParseResult) -> str:
-    print(f"Enter port for {host_type} host ", end="")
-    replace_port = input().lower()
-    port_if_present = f":{replace_port}" if replace_port else ""
-    return f"{parsed_host.scheme}://{parsed_host.netloc}{port_if_present}{parsed_host.path}"
-
-
 def verify_url(parse_input: str) -> Optional[ParseResult]:
     # noinspection PyBroadException
     try:
@@ -213,6 +126,12 @@ def verify_url(parse_input: str) -> Optional[ParseResult]:
         parsed_host = None
         print(f"Could not parse url {parse_input}\nEnter your clearml-server host: ", end="")
     return parsed_host
+
+
+def main(argv: Optional[list] = None) -> None:
+    from clearml.cli.enrolment import init_main
+
+    sys.exit(init_main(argv))
 
 
 if __name__ == "__main__":

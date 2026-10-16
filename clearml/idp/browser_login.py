@@ -73,6 +73,8 @@ def browser_login(
         "state": state,
         "code_challenge": challenge,
         "code_challenge_method": "S256",
+        # Always ask for the credentials: the browser may still hold an earlier sign-in of another person.
+        "prompt": "login",
     })
     url = f"{meta['authorization_endpoint']}?{query}"
     out(f"Signing in at {issuer}; your browser opens the sign-in page.")

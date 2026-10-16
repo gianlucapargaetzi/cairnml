@@ -105,7 +105,9 @@ setup(
     # pip to create the appropriate form of executable for the target platform.
     entry_points={
         'console_scripts': [
-            'clearml-init = clearml.cli.config.__main__:main',
+            'clearml-init = clearml.cli.enrolment:init_main',
+            'clearml-whoami = clearml.cli.enrolment:whoami_main',
+            'clearml-logout = clearml.cli.enrolment:logout_main',
             'clearml-data = clearml.cli.data.__main__:main',
             'clearml-task = clearml.cli.task.__main__:main',
             'clearml-param-search = clearml.cli.hpo.__main__:main',
