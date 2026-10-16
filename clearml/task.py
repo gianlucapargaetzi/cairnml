@@ -282,7 +282,7 @@ class Task(_Task):
         task_name: Optional[str] = None,
         task_type: "Task.TaskTypes" = TaskTypes.training,
         tags: Optional[Sequence[str]] = None,
-        reuse_last_task_id: Union[bool, str] = True,
+        reuse_last_task_id: Union[bool, str] = False,
         continue_last_task: Union[bool, str, int] = False,
         output_uri: Optional[Union[str, bool]] = None,
         auto_connect_arg_parser: Union[bool, Mapping[str, bool]] = True,
@@ -359,7 +359,7 @@ class Task(_Task):
             - ``TaskTypes.custom``
 
         :param tags: Add a list of tags (``str``) to the created Task. For example: ``tags=['512x512', 'yolov3']``
-        :param bool reuse_last_task_id: Force a new Task (experiment) with a previously used Task ID, and the same project and Task name.
+        :param bool reuse_last_task_id: Continue the previously used Task ID with the same project and Task name. Default False: every run is logged as a new Task.
             If the previously executed Task has artifacts or models, it will not be
             reused (overwritten), and a new Task will be created. When a Task is reused, the previous execution outputs
             are deleted, including console outputs and logs. The values are:
