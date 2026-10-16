@@ -74,18 +74,20 @@ class BaseJob:
         metrics = [metric + v for v in values]
         return metrics, title, series, values
 
-    def launch(self, queue_name: str = None) -> bool:
+    def launch(self, queue_name: str = None, requirements: dict = None, priority: int = None) -> bool:
         """
         Send Job for execution on the requested execution queue
 
         :param str queue_name:
+        :param dict requirements: what the job needs from a machine (see Task.set_requirements)
+        :param int priority: the job's priority (see Task.set_priority)
 
         :return False if Task is not in "created" status (i.e. cannot be enqueued) or cannot be enqueued
         """
         if self._is_cached_task:
             return False
         try:
-            Task.enqueue(task=self.task, queue_name=queue_name)
+            Task.enqueue(task=self.task, queue_name=queue_name, requirements=requirements, priority=priority)
             return True
         except Exception as ex:
             logger.warning(f"Error enqueuing Task {self.task} to {queue_name}: {ex}")
@@ -692,9 +694,9 @@ class LocalClearmlJob(ClearmlJob):
         self._job_process = None
         self._local_temp_file = None
 
-    def launch(self, queue_name: str = None) -> bool:
+    def launch(self, queue_name: str = None, requirements: dict = None, priority: int = None) -> bool:
         """
-        Launch job as a subprocess, ignores "queue_name"
+        Launch job as a subprocess, ignores "queue_name", "requirements" and "priority"
 
         :param queue_name: Ignored
 
@@ -849,7 +851,7 @@ class _JobStub:
         self.iteration = -1
         self.task_started = None
 
-    def launch(self, queue_name: str = None) -> None:
+    def launch(self, queue_name: str = None, requirements: dict = None, priority: int = None) -> None:
         self.iteration = 0
         self.task_started = time()
         print("launching", self.parameter_override, "in", queue_name)
