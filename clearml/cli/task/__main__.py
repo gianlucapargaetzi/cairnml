@@ -108,11 +108,17 @@ def setup_parser(parser: ArgumentParser) -> None:
         "Example: --args lr=0.003 batch_size=64",
     )
     parser.add_argument(
-        "--queue",
-        type=str,
+        "--priority",
+        type=int,
         default=None,
-        help="Select the queue to launch the task. "
-        "If not provided a Task will be created but it will not be launched.",
+        help="Priority of the task, 0 to 100 (higher runs first). Default 50.",
+    )
+    parser.add_argument(
+        "--enqueue",
+        action="store_true",
+        default=False,
+        help="Send the task for execution. The server places it on a machine that fits its requirements. "
+        "Without this option the task is created in draft-mode.",
     )
     parser.add_argument(
         "--requirements",
@@ -324,15 +330,12 @@ def cli() -> None:
 
         entity = "pipeline" if args.pipeline else "task"
         print(f"New {entity} created id={created_task.id}")
-        if not args.queue:
-            print(f"Warning: No queue was provided, leaving {entity} in draft-mode.")
+        if not args.enqueue:
+            print(f"Created {entity} in draft-mode, it is not sent for execution (use --enqueue).")
             exit(0)
 
-        Task.enqueue(created_task, queue_name=args.queue)
-        print(
-            f"{entity.capitalize()} id={created_task.id} "
-            f"sent for execution on queue {args.queue}"
-        )
+        Task.enqueue(created_task, priority=args.priority)
+        print(f"{entity.capitalize()} id={created_task.id} sent for execution")
         print(f"Execution log at: {created_task.get_output_log_web_page()}")
 
 

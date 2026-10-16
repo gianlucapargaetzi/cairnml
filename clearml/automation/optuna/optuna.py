@@ -24,7 +24,6 @@ class OptunaObjective:
     def __init__(
         self,
         base_task_id: str,
-        queue_name: str,
         optimizer: "OptimizerOptuna",
         max_iteration_per_job: int,
         min_iteration_per_job: Optional[int],
@@ -33,7 +32,6 @@ class OptunaObjective:
     ) -> None:
         self.base_task_id = base_task_id
         self.optimizer = optimizer
-        self.queue_name = queue_name
         self.sleep_interval = sleep_interval
         self.max_iteration_per_job = max_iteration_per_job
         self.min_iteration_per_job = min_iteration_per_job
@@ -60,7 +58,7 @@ class OptunaObjective:
         current_job = self.optimizer.helper_create_job(self.base_task_id, parameter_override=parameter_override)
         # noinspection PyProtectedMember
         self.optimizer._current_jobs.append(current_job)
-        if not current_job.launch(self.queue_name):
+        if not current_job.launch():
             # failed launching the job
             return None
         iteration_value = None
@@ -131,7 +129,6 @@ class OptimizerOptuna(SearchStrategy):
         base_task_id: str,
         hyper_parameters: Sequence[Parameter],
         objective_metric: Objective,
-        execution_queue: str,
         num_concurrent_workers: int,
         max_iteration_per_job: Optional[int],
         total_max_jobs: Optional[int],
@@ -152,7 +149,6 @@ class OptimizerOptuna(SearchStrategy):
         :param str base_task_id: Task ID (str)
         :param list hyper_parameters: list of Parameter objects to optimize over
         :param Objective objective_metric: Objective metric to maximize / minimize
-        :param str execution_queue: execution queue to use for launching Tasks (experiments).
         :param int num_concurrent_workers: Limit number of concurrent running Tasks (machines)
         :param int max_iteration_per_job: number of iteration per job
             'iterations' are the reported iterations for the specified objective,
@@ -176,7 +172,6 @@ class OptimizerOptuna(SearchStrategy):
             base_task_id=base_task_id,
             hyper_parameters=hyper_parameters,
             objective_metric=objective_metric,
-            execution_queue=execution_queue,
             num_concurrent_workers=num_concurrent_workers,
             pool_period_min=pool_period_min,
             time_limit_per_job=time_limit_per_job,
@@ -224,7 +219,6 @@ class OptimizerOptuna(SearchStrategy):
         config_space = self._convert_hyper_parameters_to_optuna()
         self._objective = OptunaObjective(
             base_task_id=self._base_task_id,
-            queue_name=self._execution_queue,
             optimizer=self,
             max_iteration_per_job=self.max_iteration_per_job,
             min_iteration_per_job=self.min_iteration_per_job,

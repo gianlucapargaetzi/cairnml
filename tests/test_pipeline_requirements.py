@@ -22,6 +22,5 @@ def test_a_job_launch_passes_requirements_and_priority_to_enqueue():
     job._is_cached_task = False
     job.task = mock.sentinel.task
     with mock.patch("clearml.automation.job.Task.enqueue") as enqueue:
-        assert job.launch(queue_name=None, requirements={"cpus": 2}, priority=70) is True
-    enqueue.assert_called_once_with(task=mock.sentinel.task, queue_name=None,
-                                    requirements={"cpus": 2}, priority=70)
+        assert job.launch(requirements={"cpus": 2}, priority=70) is True
+    enqueue.assert_called_once_with(task=mock.sentinel.task, requirements={"cpus": 2}, priority=70)

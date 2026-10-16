@@ -74,11 +74,10 @@ class BaseJob:
         metrics = [metric + v for v in values]
         return metrics, title, series, values
 
-    def launch(self, queue_name: str = None, requirements: dict = None, priority: int = None) -> bool:
+    def launch(self, requirements: dict = None, priority: int = None) -> bool:
         """
-        Send Job for execution on the requested execution queue
+        Send Job for execution. The server places it on a machine that fits its requirements
 
-        :param str queue_name:
         :param dict requirements: what the job needs from a machine (see Task.set_requirements)
         :param int priority: the job's priority (see Task.set_priority)
 
@@ -87,10 +86,10 @@ class BaseJob:
         if self._is_cached_task:
             return False
         try:
-            Task.enqueue(task=self.task, queue_name=queue_name, requirements=requirements, priority=priority)
+            Task.enqueue(task=self.task, requirements=requirements, priority=priority)
             return True
         except Exception as ex:
-            logger.warning(f"Error enqueuing Task {self.task} to {queue_name}: {ex}")
+            logger.warning(f"Error enqueuing Task {self.task}: {ex}")
         return False
 
     def abort(self) -> None:
@@ -101,7 +100,7 @@ class BaseJob:
             return
 
         if self.task.status == Task.TaskStatusEnum.queued:
-            Task.dequeue(self.task)
+            self.task.stopped()
 
         elif self.task.status == Task.TaskStatusEnum.in_progress:
             try:
@@ -685,7 +684,7 @@ class ClearmlJob(BaseJob):
 
 class LocalClearmlJob(ClearmlJob):
     """
-    Run jobs locally as a sub-process, use only when no agents are available (this will not use queues)
+    Run jobs locally as a sub-process, use only when no agents are available
     or for debug purposes.
     """
 
@@ -694,11 +693,9 @@ class LocalClearmlJob(ClearmlJob):
         self._job_process = None
         self._local_temp_file = None
 
-    def launch(self, queue_name: str = None, requirements: dict = None, priority: int = None) -> bool:
+    def launch(self, requirements: dict = None, priority: int = None) -> bool:
         """
-        Launch job as a subprocess, ignores "queue_name", "requirements" and "priority"
-
-        :param queue_name: Ignored
+        Launch job as a subprocess, ignores "requirements" and "priority"
 
         :return: True if successful
         """
@@ -851,10 +848,10 @@ class _JobStub:
         self.iteration = -1
         self.task_started = None
 
-    def launch(self, queue_name: str = None, requirements: dict = None, priority: int = None) -> None:
+    def launch(self, requirements: dict = None, priority: int = None) -> None:
         self.iteration = 0
         self.task_started = time()
-        print("launching", self.parameter_override, "in", queue_name)
+        print("launching", self.parameter_override)
 
     def abort(self) -> None:
         self.task_started = -1

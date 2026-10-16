@@ -31,8 +31,6 @@ pipe.add_parameter(
     "dataset_url",
 )
 
-pipe.set_default_execution_queue("default")
-
 pipe.add_step(
     name="stage_data",
     base_task_project="examples",

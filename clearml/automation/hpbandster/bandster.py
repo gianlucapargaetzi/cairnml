@@ -51,7 +51,6 @@ class _TrainsBandsterWorker(Worker):
         *args: Any,
         optimizer: "OptimizerBOHB",
         base_task_id: str,
-        queue_name: str,
         objective: Objective,
         sleep_interval: float = 0,
         budget_iteration_scale: float = 1.0,
@@ -60,7 +59,6 @@ class _TrainsBandsterWorker(Worker):
         super(_TrainsBandsterWorker, self).__init__(*args, **kwargs)
         self.optimizer = optimizer
         self.base_task_id = base_task_id
-        self.queue_name = queue_name
         self.objective = objective
         self.sleep_interval = sleep_interval
         self.budget_iteration_scale = budget_iteration_scale
@@ -102,7 +100,7 @@ class _TrainsBandsterWorker(Worker):
         self._current_job = self.optimizer.helper_create_job(self.base_task_id, parameter_override=config)
         # noinspection PyProtectedMember
         self.optimizer._current_jobs.append(self._current_job)
-        if not self._current_job.launch(self.queue_name):
+        if not self._current_job.launch():
             return dict()
         iteration_value = None
         is_pending = True
@@ -167,7 +165,6 @@ class OptimizerBOHB(SearchStrategy, RandomSeed):
         base_task_id: str,
         hyper_parameters: Sequence[Parameter],
         objective_metric: Objective,
-        execution_queue: str,
         num_concurrent_workers: int,
         min_iteration_per_job: Optional[int],
         max_iteration_per_job: Optional[int],
@@ -200,7 +197,6 @@ class OptimizerBOHB(SearchStrategy, RandomSeed):
         :param str base_task_id: Task ID (str)
         :param list hyper_parameters: list of Parameter objects to optimize over
         :param Objective objective_metric: Objective metric to maximize / minimize
-        :param str execution_queue: execution queue to use for launching Tasks (experiments).
         :param int num_concurrent_workers: Limit number of concurrent running Tasks (machines)
         :param int min_iteration_per_job: minimum number of iterations for a job to run.
             'iterations' are the reported iterations for the specified objective,
@@ -241,7 +237,6 @@ class OptimizerBOHB(SearchStrategy, RandomSeed):
             base_task_id=base_task_id,
             hyper_parameters=hyper_parameters,
             objective_metric=objective_metric,
-            execution_queue=execution_queue,
             num_concurrent_workers=num_concurrent_workers,
             pool_period_min=pool_period_min,
             time_limit_per_job=time_limit_per_job,
@@ -371,7 +366,6 @@ class OptimizerBOHB(SearchStrategy, RandomSeed):
                 budget_iteration_scale=budget_iteration_scale,
                 base_task_id=self._base_task_id,
                 objective=self._objective_metric.objectives[0],
-                queue_name=self._execution_queue,
                 nameserver="127.0.0.1",
                 nameserver_port=self._nameserver_port,
                 run_id=fake_run_id,

@@ -37,7 +37,7 @@ import psutil
 from pathlib2 import Path
 
 from .backend_config.defs import get_active_config_file, get_config_file
-from .backend_api.services import tasks, projects, events, queues
+from .backend_api.services import tasks, projects, events
 from .backend_api.session.session import (
     Session,
     CallResult,
@@ -64,9 +64,6 @@ from .backend_interface.util import (
     get_single_result,
     exact_match_regex,
     make_message,
-    mutually_exclusive,
-    get_queue_id,
-    get_num_enqueued_tasks,
     get_or_create_project,
 )
 from .binding.absl_bind import PatchAbsl
@@ -1856,68 +1853,29 @@ class Task(_Task):
     def enqueue(
         cls,
         task: Union["Task", str],
-        queue_name: Optional[str] = None,
-        queue_id: Optional[str] = None,
         force: bool = False,
         requirements: Optional[dict] = None,
         priority: Optional[int] = None,
     ) -> Any:
         """
-        Enqueue a Task for execution, by adding it to an execution queue.
+        Enqueue a Task for execution. The server places the Task on a machine that fits its requirements, in
+        priority order, and the agent of that machine runs it.
 
-        .. note::
-           A worker daemon must be listening at the queue for the worker to fetch the Task and execute it,
-           see "ClearML Agent" in the ClearML Documentation.
+        :param Task/str task: The Task to enqueue. Specify a Task object or Task ID.
+        :param bool force: If the Task is not in a state that can be enqueued, reset it and enqueue it again.
+        :param dict requirements: What the Task needs from a machine (see ``Task.set_requirements``). Defaults to
+            the requirements set on the Task; without any, the Task runs alone on a machine.
+        :param int priority: The priority (0 to 100, higher runs first). Defaults to the priority set on the Task.
 
-        :param Task/str task: The Task to enqueue. Specify a Task object or  Task ID.
-        :param str queue_name: The name of the queue. If not specified, then ``queue_id`` must be specified.
-        :param str queue_id: The ID of the queue. If not specified, then ``queue_name`` must be specified.
-        :param bool force: If ``True``, reset the Task if necessary before enqueuing it
-
-        :return: An enqueue JSON response.
-
-            .. code-block:: javascript
-
-               {
-                    "queued": 1,
-                    "updated": 1,
-                    "fields": {
-                        "status": "queued",
-                        "status_reason": "",
-                        "status_message": "",
-                        "status_changed": "2020-02-24T15:05:35.426770+00:00",
-                        "last_update": "2020-02-24T15:05:35.426770+00:00",
-                        "execution.queue": "2bd96ab2d9e54b578cc2fb195e52c7cf"
-                        }
-                }
-
-            - ``queued``  - The number of Tasks enqueued (an integer or ``null``).
-            - ``updated`` - The number of Tasks updated (an integer or ``null``).
-            - ``fields``
-
-              - ``status`` - The status of the experiment.
-              - ``status_reason`` - The reason for the last status change.
-              - ``status_message`` - Information about the status.
-              - ``status_changed`` - The last status change date and time (ISO 8601 format).
-              - ``last_update`` - The last Task update time, including Task creation, update, change, or events for this task (ISO 8601 format).
-              - ``execution.queue`` - The ID of the queue where the Task is enqueued. ``null`` indicates not enqueued.
-
+        :return: An enqueue JSON response, with ``queued`` (the number of Tasks enqueued) and ``fields`` (the
+            Task's ``status`` and ``status_message``).
         """
         assert isinstance(task, (str, Task))
-        if not Session.check_min_api_version("2.4"):
-            raise ValueError(
-                "ClearML-server does not support DevOps features, upgrade clearml-server to 0.12.0 or above"
-            )
-
-        # make sure we have wither name ot id
-        mutually_exclusive(queue_name=queue_name, queue_id=queue_id)
+        if not Session.check_min_api_version("2.36"):
+            raise ValueError("ClearML-server does not support resource-aware scheduling, upgrade clearml-server")
 
         task_id = task if isinstance(task, str) else task.id
         session = cls._get_default_session()
-        if not queue_id and queue_name:
-            queue_id = get_queue_id(session, queue_name)
-            if not queue_id:
-                raise ValueError(f'Could not find queue named "{queue_name}"')
 
         # the scheduling values set on the task with set_requirements / set_priority, unless given here
         scheduling = {} if isinstance(task, str) else getattr(task, "_scheduling", {})
@@ -1925,114 +1883,29 @@ class Task(_Task):
             requirements = scheduling.get("requirements")
         if priority is None:
             priority = scheduling.get("priority")
-        if requirements is not None or priority is not None or not queue_id:
-            from clearml.backend_interface.task.requirements import enqueue_body
 
+        from clearml.backend_interface.task.requirements import enqueue_body
+
+        res = session.send_request(
+            service="tasks",
+            action="enqueue",
+            version="2.36",
+            json=enqueue_body(task_id, requirements, priority),
+        )
+        if not res.ok:
+            if not force:
+                raise ValueError(res.text)
+            task = cls.get_task(task_id=task) if isinstance(task, str) else task
+            task.reset(set_started_on_success=False, force=True)
             res = session.send_request(
                 service="tasks",
                 action="enqueue",
                 version="2.36",
-                json=enqueue_body(task_id, queue_id, requirements, priority),
+                json=enqueue_body(task_id, requirements, priority),
             )
             if not res.ok:
                 raise ValueError(res.text)
-            return res.json()
-
-        req = tasks.EnqueueRequest(task=task_id, queue=queue_id)
-        exception = None
-        res = None
-        try:
-            res = cls._send(session=session, req=req)
-            ok = res.ok()
-        except Exception as e:
-            exception = e
-            ok = False
-        if not ok:
-            if not force:
-                if res:
-                    raise ValueError(res.response)
-                raise exception
-            task = cls.get_task(task_id=task) if isinstance(task, str) else task
-            task.reset(set_started_on_success=False, force=True)
-            req = tasks.EnqueueRequest(task=task_id, queue=queue_id)
-            res = cls._send(session=session, req=req)
-            if not res.ok():
-                raise ValueError(res.response)
-        resp = res.response
-        return resp
-
-    @classmethod
-    def get_num_enqueued_tasks(cls, queue_name: Optional[str] = None, queue_id: Optional[str] = None) -> int:
-        """
-        Get the number of tasks enqueued in a given queue.
-
-        :param queue_name: The name of the queue. If not specified, then ``queue_id`` must be specified
-        :param queue_id: The ID of the queue. If not specified, then ``queue_name`` must be specified
-
-        :return: The number of tasks enqueued in the given queue
-        """
-        if not Session.check_min_api_server_version("2.20", raise_error=True):
-            raise ValueError("You version of clearml-server does not support the 'queues.get_num_entries' endpoint")
-        mutually_exclusive(queue_name=queue_name, queue_id=queue_id)
-        session = cls._get_default_session()
-        if not queue_id:
-            queue_id = get_queue_id(session, queue_name)
-            if not queue_id:
-                raise ValueError(f'Could not find queue named "{queue_name}"')
-        result = get_num_enqueued_tasks(session, queue_id)
-        if result is None:
-            raise ValueError(f"Could not query the number of enqueued tasks in queue with ID {queue_id}")
-        return result
-
-    @classmethod
-    def dequeue(cls, task: Union["Task", str]) -> Any:
-        """
-        Dequeue (remove) a Task from an execution queue.
-
-        :param Task/str task: The Task to dequeue. Specify a Task object or  Task ID.
-
-        :return: A dequeue JSON response.
-
-        .. code-block:: javascript
-
-           {
-                "dequeued": 1,
-                "updated": 1,
-                "fields": {
-                    "status": "created",
-                    "status_reason": "",
-                    "status_message": "",
-                    "status_changed": "2020-02-24T16:43:43.057320+00:00",
-                    "last_update": "2020-02-24T16:43:43.057320+00:00",
-                    "execution.queue": null
-                    }
-            }
-
-        - ``dequeued``  - The number of Tasks enqueued (an integer or ``null``).
-        - ``fields``
-
-          - ``status`` - The status of the experiment.
-          - ``status_reason`` - The reason for the last status change.
-          - ``status_message`` - Information about the status.
-          - ``status_changed`` - The last status change date and time in ISO 8601 format.
-          - ``last_update`` - The last time the Task was created, updated, changed, or events for this task were reported.
-          - ``execution.queue`` - The ID of the queue where the Task is enqueued. ``null`` indicates not enqueued.
-
-        - ``updated`` - The number of Tasks updated (an integer or ``null``).
-
-        """
-        assert isinstance(task, (str, Task))
-        if not Session.check_min_api_version("2.4"):
-            raise ValueError(
-                "ClearML-server does not support DevOps features, upgrade clearml-server to 0.12.0 or above"
-            )
-
-        task_id = task if isinstance(task, str) else task.id
-        session = cls._get_default_session()
-        req = tasks.DequeueRequest(task=task_id)
-        res = cls._send(session=session, req=req)
-        resp = res.response
-        return resp
+        return res.json()
 
     def set_progress(self, progress: int) -> None:
         """
@@ -2531,14 +2404,13 @@ class Task(_Task):
         self,
         total_num_nodes: int,
         port: Optional[int] = 29500,
-        queue: Optional[str] = None,
         wait: bool = False,
         addr: Optional[str] = None,
         devices: Optional[Union[int, Sequence[int]]] = None,
         hide_children=False,  # bool
     ):
         """
-        Enqueue multiple clones of the current task to a queue, allowing the task
+        Enqueue multiple clones of the current task, allowing the task
         to be run by multiple workers in parallel. Each task running this way is called a node.
         Each node has a rank. The node that initialized the execution of the other nodes
         is called the ``master`` node, and it has a rank equal to 0.
@@ -2547,7 +2419,6 @@ class Task(_Task):
         One can use this dictionary to modify the behaviour of this function when running remotely.
         The contents of this dictionary correspond to the parameters of this function, and they are:
         - ``total_num_nodes`` - the total number of nodes, including the master node
-        - ``queue`` - the queue to enqueue the nodes to
 
         The following environment variables, will be set:
         - ``MASTER_ADDR`` - the address of the machine that the master node is running on
@@ -2579,7 +2450,7 @@ class Task(_Task):
 
             if __name__ == '__main__':
                 task = Task.init('some_name', 'some_name')
-                task.execute_remotely(queue_name='queue')
+                task.execute_remotely()
                 config = task.launch_multi_node(4)
                 dist.init_process_group('gloo')
                 run(config.get('node_rank'), config.get('total_num_nodes'))
@@ -2605,8 +2476,6 @@ class Task(_Task):
             If ``CLEARML_MULTI_NODE_MASTER_DEF_PORT`` doesn't exist, but ``MASTER_PORT`` does, then the value of this
             parameter will be set to the one defined in ``MASTER_PORT``. If neither environment variables exist,
             the value passed to the parameter will be used
-        :param queue: The queue to enqueue the nodes to. Can be different from the queue the master
-            node is enqueued to. If ``None``, the nodes will be enqueued to the same queue as the master node
         :param wait: If ``True``, the master node will wait for the other nodes to start
         :param addr: The address of the master node's worker. If the environment variable
             ``CLEARML_MULTI_NODE_MASTER_DEF_ADDR`` is set, the value of this parameter will be set to
@@ -2640,8 +2509,6 @@ class Task(_Task):
 
         if total_num_nodes < 1:
             raise UsageError("total_num_nodes needs to be at least 1")
-        if running_remotely() and not (self.data.execution and self.data.execution.queue) and not queue:
-            raise UsageError("Master task is not enqueued to any queue and the queue parameter is None")
 
         master_conf = {
             "master_addr": os.environ.get(
@@ -2658,7 +2525,7 @@ class Task(_Task):
             "wait": wait,
             "devices": devices,
         }
-        editable_conf = {"total_num_nodes": total_num_nodes, "queue": queue}
+        editable_conf = {"total_num_nodes": total_num_nodes}
         editable_conf = self.connect(editable_conf, name=self._launch_multi_node_section)
         if not running_remotely():
             return master_conf
@@ -2687,10 +2554,7 @@ class Task(_Task):
                     + [self._launch_multi_node_instance_tag]
                     + ([self.__hidden_tag] if hide_children else [])
                 )
-                if master_conf.get("queue"):
-                    Task.enqueue(node, queue_name=master_conf["queue"])
-                else:
-                    Task.enqueue(node, queue_id=self.data.execution.queue)
+                Task.enqueue(node)
                 if master_conf.get("wait"):
                     nodes_to_wait.append(node)
             for node_to_wait, rank in zip(
@@ -3642,21 +3506,19 @@ class Task(_Task):
 
     def execute_remotely(
         self,
-        queue_name: Optional[str] = None,
         clone: bool = False,
         exit_process: bool = True,
     ) -> Optional["Task"]:
         """
         If task is running locally (i.e., not by ``clearml-agent``), then clone the Task and enqueue it for remote
         execution; or, stop the execution of the current Task, reset its state, and enqueue it. If ``exit_process==True``,
-        *exit* this process.
+        *exit* this process. The Task runs with the requirements and priority set on it (see ``set_requirements``
+        and ``set_priority``).
 
         .. note::
             If the task is running remotely (i.e., ```clearml-agent``` is executing it), this call is a no-op
             (i.e., does nothing).
 
-        :param queue_name: The queue name used for enqueueing the task. If ``None``, this call exits the process
-            without enqueuing the task.
         :param clone: Clone the Task and execute the newly cloned Task
             The values are:
 
@@ -3677,12 +3539,10 @@ class Task(_Task):
         if not self.is_main_task():
             LoggerRoot.get_base_logger().warning(
                 "Calling task.execute_remotely is only supported on main Task (created with Task.init)\n"
-                f"Defaulting to self.enqueue(queue_name={queue_name})"
+                "Defaulting to self.enqueue()"
             )
-            if not queue_name:
-                raise ValueError("queue_name must be provided")
             enqueue_task = Task.clone(source_task=self) if clone else self
-            Task.enqueue(task=enqueue_task, queue_name=queue_name)
+            Task.enqueue(task=enqueue_task)
             return
 
         if not clone and not exit_process:
@@ -3713,18 +3573,11 @@ class Task(_Task):
             else:
                 self.reset()
 
-        # enqueue ourselves
-        if queue_name:
-            Task.enqueue(task, queue_name=queue_name)
-            LoggerRoot.get_base_logger().warning(
-                f"Switching to remote execution, output log page {task.get_output_log_web_page()}"
-            )
-        else:
-            # Remove the development system tag
-            system_tags = [t for t in task.get_system_tags() if t != self._development_tag]
-            self.set_system_tags(system_tags)
-            # if we leave the Task out there, it makes sense to make it editable.
-            self.reset(force=True)
+        # enqueue ourselves: the server places the task on a machine that fits it
+        Task.enqueue(task)
+        LoggerRoot.get_base_logger().warning(
+            f"Switching to remote execution, output log page {task.get_output_log_web_page()}"
+        )
 
         # leave this process.
         if exit_process:
@@ -4306,25 +4159,6 @@ class Task(_Task):
         override_current_task_id(task_id)
         LOG_TO_BACKEND_ENV_VAR.set(True)
         DEBUG_SIMULATE_REMOTE_TASK.set(True)
-
-    def get_executed_queue(self, return_name: bool = False) -> Optional[str]:
-        """
-        Get the queue the task was executed on.
-
-        :param return_name: If ``True``, return the name of the queue. Otherwise, return its ID
-
-        :return: Return the ID or name of the queue the task was executed on.
-            If no queue was found, return ``None``
-        """
-        queue_id = self.data.execution.queue
-        if not return_name or not queue_id:
-            return queue_id
-        try:
-            queue_name_result = Task._send(Task._get_default_session(), queues.GetByIdRequest(queue_id))
-            return queue_name_result.response.queue.name
-        except Exception as e:
-            getLogger().warning(f"Could not get name of queue with ID '{queue_id}': {e}")
-            return None
 
     @classmethod
     def _create(
