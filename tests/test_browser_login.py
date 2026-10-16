@@ -1,0 +1,105 @@
+import base64
+import hashlib
+import threading
+from urllib.parse import parse_qs, urlsplit
+
+import pytest
+import requests
+
+from clearml.idp.browser_login import LoginFailed, browser_login
+
+ISSUER = "https://idp.example/realms/mlops"
+
+
+class Response:
+    def __init__(self, status_code, body):
+        self.status_code = status_code
+        self._body = body
+
+    def json(self):
+        return self._body
+
+
+class FakeIdp:
+    """Discovery and token endpoints. The browser is simulated by `open_browser` below."""
+
+    def __init__(self, token_reply=(200, {"access_token": "idp-token"})):
+        self.token_reply = token_reply
+        self.token_posts = []
+
+    def get(self, url, timeout=None):
+        assert url == ISSUER + "/.well-known/openid-configuration"
+        return Response(200, {
+            "authorization_endpoint": ISSUER + "/auth",
+            "token_endpoint": ISSUER + "/token",
+        })
+
+    def post(self, url, data=None, timeout=None):
+        self.token_posts.append(dict(data))
+        return Response(*self.token_reply)
+
+
+def browser(answer):
+    """Stands in for the person's browser: follows the redirect that the IdP would send."""
+    seen = {}
+
+    def open_browser(url):
+        params = parse_qs(urlsplit(url).query)
+        seen.update({k: v[0] for k, v in params.items()})
+        redirect = params["redirect_uri"][0]
+        query = answer(params)
+        threading.Thread(target=lambda: requests.get(redirect + "?" + query, timeout=10)).start()
+        return True
+
+    return open_browser, seen
+
+
+def approve(params):
+    return f"code=the-code&state={params['state'][0]}"
+
+
+def test_the_person_signs_in_and_the_token_is_returned():
+    idp = FakeIdp()
+    open_browser, seen = browser(approve)
+    token = browser_login(ISSUER, "clearml-sdk", session=idp, open_browser=open_browser, timeout=20)
+    assert token == "idp-token"
+
+    challenge = seen["code_challenge"]
+    verifier = idp.token_posts[0]["code_verifier"]
+    assert challenge == base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).rstrip(b"=").decode()
+    assert seen["response_type"] == "code"
+    assert seen["code_challenge_method"] == "S256"
+    assert seen["client_id"] == "clearml-sdk"
+    assert idp.token_posts[0]["code"] == "the-code"
+    assert idp.token_posts[0]["redirect_uri"] == seen["redirect_uri"]
+    assert idp.token_posts[0]["grant_type"] == "authorization_code"
+
+
+def test_the_redirect_goes_to_the_loopback_address_only():
+    open_browser, seen = browser(approve)
+    browser_login(ISSUER, "clearml-sdk", session=FakeIdp(), open_browser=open_browser, timeout=20)
+    assert seen["redirect_uri"].startswith("http://127.0.0.1:")
+
+
+def test_a_reply_with_another_state_is_refused():
+    open_browser, _ = browser(lambda params: "code=the-code&state=forged")
+    with pytest.raises(LoginFailed, match="state"):
+        browser_login(ISSUER, "clearml-sdk", session=FakeIdp(), open_browser=open_browser, timeout=20)
+
+
+def test_a_refused_sign_in_is_reported():
+    open_browser, _ = browser(lambda params: "error=access_denied&error_description=not+allowed")
+    with pytest.raises(LoginFailed, match="not allowed"):
+        browser_login(ISSUER, "clearml-sdk", session=FakeIdp(), open_browser=open_browser, timeout=20)
+
+
+def test_a_failed_token_exchange_is_reported():
+    idp = FakeIdp(token_reply=(400, {"error": "invalid_grant", "error_description": "code used"}))
+    open_browser, _ = browser(approve)
+    with pytest.raises(LoginFailed, match="code used"):
+        browser_login(ISSUER, "clearml-sdk", session=idp, open_browser=open_browser, timeout=20)
+
+
+def test_no_sign_in_in_time_is_a_timeout():
+    with pytest.raises(LoginFailed, match="timed out"):
+        browser_login(ISSUER, "clearml-sdk", session=FakeIdp(), open_browser=lambda url: True, timeout=1)
