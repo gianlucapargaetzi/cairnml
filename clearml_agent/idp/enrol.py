@@ -37,7 +37,11 @@ def _call(http, url, body, token=None):
     except ValueError:
         reply = {}
     if response.status_code != 200:
-        message = reply.get("meta", {}).get("result_msg", f"error {response.status_code}")
+        message = reply.get("meta", {}).get("result_msg")
+        if not message:
+            message = f"error {response.status_code}"
+            if response.status_code in (404, 405):
+                message += ": this is not the ClearML API address; it is usually port 8008, not 8080"
         raise EnrolmentFailed(message)
     return reply["data"]
 
