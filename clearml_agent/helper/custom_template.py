@@ -7,7 +7,6 @@ from functools import partial
 from string import Template
 from typing import Optional, Callable, Union, List, Tuple, Dict
 
-from clearml_agent.backend_api.services import queues as queues_api
 from clearml_agent.backend_api.session import Request
 from clearml_agent.external.pyhocon import ConfigTree
 from clearml_agent.helper.task_logs import send_logs_to_task
@@ -49,14 +48,10 @@ class CustomTemplate(Template):
     Parse ${CLEARML_<something>:default} values based on Task object and replace with real-time value
     Example: "-e project_id=${CLEARML_TASK.project}" will be replaced with the
              Task actual project ID from the Task object "-e project_id=<task.project>"
-             "-e queue_name=${CLEARML_QUEUE_NAME}"
              "-e user_key=${TASK.hyperparams.properties.user_key.value:default_value}"
 
     Supported:
-
-        ${QUEUE_NAME}
         ${WORKER_ID}
-        ${QUEUE_ID}
         ${PROJECT_NAME}
         ${PROJECT_ID}
 
@@ -82,7 +77,6 @@ class CustomTemplate(Template):
     prefix = "CLEARML_"
     filter_sep = "|"
     filter_re = re.compile(r"^(?P<op>[^(]+)(\((?P<args>[^()]*)\))?")
-    queue_id_to_name_map = {}
 
     remove_newlines_op = "remove_newlines"
     keep_newlines_op = "raw"
@@ -93,20 +87,6 @@ class CustomTemplate(Template):
         remove_newlines_op: lambda s, _: s.replace("\n", ""),
     }
     default_ops = [remove_newlines_op, ]
-
-    @classmethod
-    def get_queue_name(cls, task_session, queue_id):
-        if queue_id in cls.queue_id_to_name_map:
-            return cls.queue_id_to_name_map[queue_id]
-
-        # noinspection PyBroadException
-        try:
-            response = task_session.send_api(queues_api.GetByIdRequest(queue=queue_id))
-            cls.queue_id_to_name_map[queue_id] = response.queue.name
-        except Exception:
-            # if something went wrong start over from the highest priority queue
-            return None
-        return cls.queue_id_to_name_map.get(queue_id)
 
     def __init__(
         self,
@@ -122,8 +102,6 @@ class CustomTemplate(Template):
 
     def default_custom_substitute(
         self,
-        queue_id: str,
-        queue_name: str,
         worker_id: str,
         task_info: Mapping,
         provider_info: Mapping = None,
@@ -136,8 +114,6 @@ class CustomTemplate(Template):
         return self.custom_substitute(
             partial(
                 CustomTemplate.default_resolve_template,
-                queue_id=queue_id,
-                queue_name=queue_name,
                 worker_id=worker_id,
                 task_info=task_info,
                 provider_info=provider_info,
@@ -226,8 +202,6 @@ class CustomTemplate(Template):
         cls,
         key: str,
         default: Optional[str],
-        queue_id: str,
-        queue_name: str,
         worker_id: str,
         task_info: Mapping,
         provider_info: Mapping = None,
@@ -240,13 +214,9 @@ class CustomTemplate(Template):
         default_list_delimiter: str = ',',
     ):
         """
-        Notice CLEARML_ prefix omitted! (i.e. ${QUEUE_ID} is ${QUEUE_ID})
 
         Supported:
-
-        ${QUEUE_NAME}
         ${WORKER_ID}
-        ${QUEUE_ID}
         ${PROJECT_NAME}
         ${PROJECT_ID}
 
@@ -267,8 +237,6 @@ class CustomTemplate(Template):
         :param provider_info: nested dict with provider information collected during user login (configurable in server)
         :param worker_id: agent worker ID (str)
         :param task_info: nested dict with task information
-        :param queue_id: queue_id (str)
-        :param queue_name: queue_name (str)
         :param key: key to be replaced
         :param default: default value, None will raise exception
         :param force_yaml_string_quotes: when resolving a string, add a YAML directive to force string quoting
@@ -276,8 +244,6 @@ class CustomTemplate(Template):
         :return: string value
         """
         single_field_mapping = {
-            "QUEUE_ID": queue_id,
-            "QUEUE_NAME": queue_name,
             "WORKER_ID": worker_id,
             "PROJECT_NAME": project_info.get("name", "unknown") if project_info else "unknown",
             "PROJECT_ID": project_info.get("id", "unknown") if project_info else "unknown",
@@ -369,14 +335,10 @@ class TemplateResolver:
         self,
         task_session,
         task_id: str,
-        queue_id: str,
-        queue_name: str,
         worker_id: str,
         task_info=None,
     ):
         self._task_session = task_session
-        self.queue_id = queue_id
-        self.queue_name = queue_name
         self.task_id = task_id
         self.worker_id = worker_id
         self.user_vaults = LazyDict("user vaults", self._load_user_vaults, self._error)
@@ -444,8 +406,6 @@ class TemplateResolver:
     def resolve_string_from_template(self, template: str, force_yaml_string_quotes=False, additional_mappings=None) -> str:
         tmpl = CustomTemplate(template, force_yaml_string_quotes=force_yaml_string_quotes)
         return tmpl.default_custom_substitute(
-            queue_id=self.queue_id,
-            queue_name=self.queue_name,
             worker_id=self.worker_id,
             task_info=self.task_info,
             provider_info=None,

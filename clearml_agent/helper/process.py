@@ -460,21 +460,6 @@ class WorkerParams(object):
         return Argv(*command_line)
 
 
-class DaemonParams(WorkerParams):
-    def __init__(self, foreground=False, queues=(), *args, **kwargs):
-        super(DaemonParams, self).__init__(*args, **kwargs)
-        self.foreground = foreground
-        self.queues = tuple(queues)
-
-    def get_worker_flags(self):
-        global_args, worker_args = super(DaemonParams, self).get_worker_flags()
-        if self.foreground:
-            worker_args += ("--foreground",)
-        if self.queues:
-            worker_args += ("--queue",) + self.queues
-        return global_args, worker_args
-
-
 DEVNULL = open(devnull, "w+")
 SOURCE_COMMAND = select_for_platform(linux="source", windows="call")
 

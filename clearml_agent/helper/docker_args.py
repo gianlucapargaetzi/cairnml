@@ -298,15 +298,11 @@ class DockerArgsTemplateResolver(TemplateResolver):
             if CustomTemplate.delimiter not in token or CustomTemplate.prefix not in token:
                 continue
 
-            queue_id = self.queue_id or self.task_info.get("execution", {}).get("queue")
-            queue_name = CustomTemplate.get_queue_name(self.task_session, queue_id)
 
             tmpl = CustomTemplate(token)
             # replace it
             try:
                 full_docker_cmd[i] = tmpl.default_custom_substitute(
-                    queue_id=queue_id,
-                    queue_name=queue_name,
                     worker_id=self.worker_id,
                     task_info=self.task_info,
                     provider_info=self.provider_info,

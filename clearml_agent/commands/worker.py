@@ -34,7 +34,6 @@ from .._vendor.six.moves.urllib.parse import quote  # noqa
 
 from clearml_agent.external.pyhocon import ConfigTree, ConfigFactory
 from clearml_agent.backend_api.services import auth as auth_api
-from clearml_agent.backend_api.services import queues as queues_api
 from clearml_agent.backend_api.services import tasks as tasks_api
 from clearml_agent.backend_api.services import workers as workers_api
 from clearml_agent.backend_api.session import CallResult, Request
@@ -154,7 +153,6 @@ from clearml_agent.helper.process import (
 from clearml_agent.helper.repo import clone_repository_cached, RepoInfo, VCS, fix_package_import_diff_patch, \
     patch_add_task_init_call
 from clearml_agent.helper.resource_monitor import ResourceMonitor
-from clearml_agent.helper.runtime_verification import check_runtime, print_uptime_properties
 from clearml_agent.helper.singleton import Singleton
 from clearml_agent.helper.docker_args import DockerArgsSanitizer, DockerArgsTemplateResolver
 from clearml_agent.session import Session
@@ -349,32 +347,6 @@ def get_task(session, task_id, **kwargs):
     return result.response.tasks[0]
 
 
-def get_next_task(session, queue, get_task_info=False):
-    """
-    Returns dict that contains next task and its additional info (company, user)
-    """
-    debug = ENV_AGENT_DEBUG_GET_NEXT_TASK.get()
-    request = {'queue': queue}
-    if get_task_info:
-        request["get_task_info"] = True
-    if debug:
-        print(f"debug> get_next_task: {Request.def_method} payload {request}")
-    result = session.send_request(
-        service='queues',
-        action='get_next_task',
-        version='2.14',
-        json=request,
-        method=Request.def_method,
-        async_enable=False,
-    )
-    if debug:
-        print(f"debug> get_next_task: response {result.status_code} text {result.text}")
-    if not result.ok:
-        raise APIError(result)
-    data = result.json().get('data')
-    if data is None:
-        raise APIError(result, extra_info="Invalid response")
-    return data
 
 
 def get_task_fields(session, task_id, fields: list, log=None) -> dict:
@@ -959,7 +931,6 @@ class Worker(ServiceCommandSection):
         self.parent_worker_id = None  # maybe add os env for overriding
 
         self.temp_config_path = None
-        self.queues = ()
         self.venv_folder = None  # type: Optional[Text]
         self.package_api = None  # type: Optional[PackageManager]
         self.global_package_api = None
@@ -986,8 +957,6 @@ class Worker(ServiceCommandSection):
         self._dynamic_gpus = None  # valid options, True/False, "fractional"
         self._force_current_version = None
         self._redirected_stdout_file_no = None
-        self._uptime_config = self._session.config.get("agent.uptime", None)
-        self._downtime_config = self._session.config.get("agent.downtime", None)
         self._suppress_cr = self._session.config.get("agent.suppress_carriage_return", True)
         self._host_ssh_cache = None
         self._truncate_task_output_files = bool(self._session.config.get("agent.truncate_task_output_files", False))
@@ -1132,11 +1101,10 @@ class Worker(ServiceCommandSection):
         except Exception as ex:
             pass
 
-    def run_one_task(self, queue, task_id, worker_args, docker=None, task_session=None):
+    def run_one_task(self, task_id, worker_args, docker=None, task_session=None):
         # type: (Text, Text, WorkerParams, Optional[Text], Optional[Session]) -> Optional[int]
         """
-        Run one task pulled from queue.
-        :param queue: ID of queue that task was pulled from
+        Run one task of this machine.
         :param task_id: ID of task to run
         :param worker_args: Worker command line arguments
         :param task_session: The session for running operations on the passed task
@@ -1290,9 +1258,6 @@ class Worker(ServiceCommandSection):
             docker_args_template_resolver = DockerArgsTemplateResolver(
                 task_session=self._session,
                 task_id=task_id,
-                queue_id=queue,
-                # todo cache with timout invalidation?!
-                queue_name=self._resolve_id(id=queue, service="queues", search_hidden=True),
                 worker_id=worker_id,
                 task_info=None
             )
@@ -1480,507 +1445,12 @@ class Worker(ServiceCommandSection):
 
         return get_new_session(task_session, headers={"X-Clearml-Tenant": company})
 
-    def run_tasks_loop(self, queues, worker_params, priority_order=True, gpu_indexes=None, gpu_queues=None):
-        """
-        :summary: Pull and run tasks from queues.
-        :description: 1. Go through ``queues`` by order.
-                      2. Try getting the next task for each and run the first one that returns.
-                      3. Go to step 1
-        :param list(str) queues: IDs of queues to pull tasks from
-        :param worker_params worker_params: Worker command line arguments
-        :param bool priority_order: If True pull order in priority manner. always from the first
-            If False, pull from each queue once in a round robin manner
-        :param list gpu_indexes: list of gpu_indexes. Needs special backend support
-        :param list gpu_queues: list of pairs (queue_id, num_gpus). Needs special backend support
-        """
 
-        if not self._daemon_foreground:
-            print('Starting infinite task polling loop...')
 
-        _last_machine_update_ts = 0
-        if self._services_mode:
-            try:
-                max_num_instances = int(self._services_mode) if not isinstance(self._services_mode, bool) else -1
-            except (ValueError, TypeError):
-                max_num_instances = -1
-        else:
-            max_num_instances = None
 
-        # store in runtime configuration,
-        if max_num_instances and not self.set_runtime_properties(key='max_num_instances', value=max_num_instances):
-            warning('Maximum number of service instance not supported, removing limit.')
-            max_num_instances = -1
 
-        # get current running instances
-        available_gpus = None
-        allocated_gpus = {}
-        dynamic_gpus_worker_id = None
-        if gpu_indexes and gpu_queues:
-            available_gpus, gpu_queues = self._setup_dynamic_gpus(gpu_queues, gpu_indexes)
-            # multi instance support
-            self._services_mode = True
-        else:
-            # Send a partial cluster report
-            if not self.monitor:
-                self.new_monitor()
-            self.monitor.setup_daemon_cluster_report(worker_id=self.worker_id, max_workers=1)
 
-        # last 64 tasks
-        dict_task_gpus_ids = {}  # {str(gpu_indexes): task_id}
-        try:
-            while True:
-                queue_tags = None
-                runtime_props = None
 
-                if max_num_instances and max_num_instances > 0:
-                    # make sure we do not have too many instances to run
-                    if self.docker_image_func:
-                        running_count = self._get_child_agents_count_for_worker()
-                    else:
-                        running_count = len(Singleton.get_running_pids())
-                    if running_count >= max_num_instances:
-                        if self._daemon_foreground or worker_params.debug:
-                            print(
-                                "Reached max number of services {}, sleeping for {:.1f} seconds".format(
-                                    max_num_instances, self._polling_interval
-                                )
-                            )
-                        sleep(self._polling_interval)
-                        continue
-
-                # update available gpus
-                if gpu_queues:
-                    available_gpus, allocated_gpus = self._dynamic_gpu_get_available(gpu_indexes)
-                    # if something went wrong, or we have no free gpus
-                    # start over from the highest priority queue
-                    if not available_gpus:
-                        if self._daemon_foreground or worker_params.debug:
-                            print("All GPUs allocated, sleeping for {:.1f} seconds".format(self._polling_interval))
-                        sleep(self._polling_interval)
-                        continue
-
-                # iterate over queues (priority style, queues[0] is highest)
-                for queue in queues:
-
-                    if queue_tags is None or runtime_props is None:
-                        queue_tags, runtime_props = self.get_worker_properties(queues)
-
-                    if not self.should_be_currently_active(queue_tags[queue], runtime_props):
-                        continue
-
-                    if gpu_queues:
-                        # peek into queue
-                        # get next task in queue
-                        try:
-                            response = self._session.send_api(queues_api.GetByIdRequest(queue=queue))
-                        except Exception:
-                            # if something went wrong start over from the highest priority queue
-                            break
-                        if not len(response.queue.entries):
-                            continue
-                        # check if we do not have enough available gpus
-                        # Notice that gpu_queues[queue] is (min_gpu, max_gpu) that we should allocate
-                        # for a Task pulled from that queue, this means
-                        # gpu_queues[queue][0] is the minimum number of GPUs we need
-                        # and min_available_fract_gpu is the maximum number of fraction of GPU
-                        # and max_available_gpus is the maximum number of full GPUs we have
-                        min_available_fract_gpu = max([v for v in available_gpus.values()])
-                        max_available_gpus = sum([v for v in available_gpus.values() if v >= 1])
-                        if gpu_queues[queue][0] > max(float(max_available_gpus), min_available_fract_gpu):
-                            # not enough available_gpus, we should sleep and start over
-                            if self._daemon_foreground or worker_params.debug:
-                                print("Not enough free GPUs {}/{}, sleeping for {:.1f} seconds".format(
-                                    max(float(max_available_gpus), min_available_fract_gpu),
-                                    gpu_queues[queue][0],
-                                    self._polling_interval)
-                                )
-                            sleep(self._polling_interval)
-                            break
-
-                    # get next task in queue
-                    try:
-                        response = get_next_task(
-                            self._session, queue=queue, get_task_info=self._impersonate_as_task_owner
-                        )
-                    except Exception as e:
-                        print(
-                            "Warning: Could not access task queue [{}], error: {}".format(
-                                queue, e
-                            )
-                        )
-                        continue
-                    else:
-                        try:
-                            task_id = response["entry"]["task"]
-                        except (KeyError, TypeError, AttributeError):
-                            if self._daemon_foreground or worker_params.debug:
-                                print("No tasks in queue {}".format(queue))
-                            continue
-
-                        # clear output log if we start a new Task
-                        if not worker_params.debug and self._redirected_stdout_file_no is not None and \
-                                self._redirected_stdout_file_no > 2:
-                            # noinspection PyBroadException
-                            try:
-                                os.lseek(self._redirected_stdout_file_no, 0, 0)
-                                os.ftruncate(self._redirected_stdout_file_no, 0)
-                            except:
-                                pass
-
-                        # set task status to in_progress so we know it was popped from the queue
-                        # next api version we will set the status when pulling from the queue
-                        if not self._get_node_rank():
-                            # noinspection PyBroadException
-                            try:
-                                self._session.send_api(
-                                    tasks_api.StartedRequest(task=task_id, status_message="pulled by agent", force=True))
-                            except Exception:
-                                print("Warning: Could not set status=in_progress task id '{}', retrying in a bit".format(task_id))
-
-                        # check if we need to impersonate
-                        task_session = None
-                        if self._impersonate_as_task_owner:
-                            try:
-                                task_user = response["task_info"]["user"]
-                                task_company = response["task_info"]["company"]
-                            except (KeyError, TypeError, AttributeError):
-                                print("Error: cannot retrieve owner user for the task '{}', skipping".format(task_id))
-                                continue
-
-                            task_session = self.get_task_session(task_user, task_company, self._session)
-                            if not task_session:
-                                print(
-                                    "Error: Could not login as the user '{}' for the task '{}', skipping".format(
-                                        task_user, task_id
-                                    )
-                                )
-                                continue
-
-                        self.report_monitor(ResourceMonitor.StatusReport(queues=queues, queue=queue, task=task_id))
-
-                        org_gpus = Session.get_nvidia_visible_env()
-                        dynamic_gpus_worker_id = self.worker_id
-                        # the following is only executed in dynamic gpus mode
-                        if gpu_queues and gpu_queues.get(queue):
-                            gpus = []
-                            fractions = []
-                            # pick the first available GPUs
-                            # gpu_queues[queue] = (min_gpus, max_gpus)
-                            # first check if the max_gpus is larger equal to 1 (if so, allocate full GPUs)
-                            if float(gpu_queues.get(queue)[1]) >= 1:
-                                gpus = [g for g, v in available_gpus.items() if v >= 1]
-                                if gpus:
-                                    # get as many gpus as possible with max_gpus as limit, the min is covered before
-                                    gpus = gpus[:int(gpu_queues.get(queue)[1])]
-                                    fractions = [1] * len(gpus)
-                                    # update available gpus
-                                    available_gpus = {g: v for g, v in available_gpus.items() if g not in gpus}
-                                else:
-                                    # we assume the minimum was < 1 GPU, otherwise why are we here
-                                    pass
-
-                            # if this is under 1 GPU
-                            if not gpus:
-                                # find the GPU with availability that covers the minimum
-                                _max_req_gpu = min(float(gpu_queues.get(queue)[1]), 1.)
-                                _min_req_gpu = float(gpu_queues.get(queue)[0])
-                                _potential_gpus = {
-                                    g: (v - float(_max_req_gpu)) for g, v in available_gpus.items()
-                                    if v >= float(_min_req_gpu)}
-                                # sort based on the least available that can fit the maximum
-                                # find the first instance that is positive or 0
-                                _potential_gpus = sorted(_potential_gpus.items(), key=lambda a: a[1])
-                                gpus = [(g, v) for g, v in _potential_gpus if v >= 0]
-                                if gpus:
-                                    available_gpus[gpus[0][0]] -= _max_req_gpu
-                                    gpus = [gpus[0][0]]
-                                    fractions = [_max_req_gpu]
-                                else:
-                                    gpus = [_potential_gpus[-1][0]]
-                                    # this is where we need to decide on the actual granularity
-                                    # now it is hardcoded to 1/8th
-                                    _base_fract = 8
-                                    avail_fract = int(float(available_gpus[_potential_gpus[-1][0]]) * _base_fract)
-                                    fractions = [avail_fract/float(avail_fract)]
-                                    available_gpus[_potential_gpus[-1][0]] -= fractions[0]
-
-                                try:
-                                    from clearml_agent_fractional_gpu import patch_docker_cmd_gpu_fraction  # noqa
-                                    # new docker image func
-                                    self._patch_docker_cmd_func = lambda docker_cmd: (
-                                        patch_docker_cmd_gpu_fraction(docker_cmd, gpu_fraction=fractions[0]))
-                                except Exception:
-                                    print("Error! could not load clearml_agent_fractional_gpu module! "
-                                          "failed configuring fractional GPU support")
-                                    raise
-
-                            self.set_runtime_properties(
-                                key='available_gpus',
-                                value=','.join("{}_{}".format(g, str(f)[2:]) for g, f in available_gpus.items()))
-
-                            # this is where we set the fractions as well as gpus
-                            Session.set_nvidia_visible_env(gpus)
-
-                            if fractions and min(fractions) < 1:
-                                # we assume a single gpu in the list
-                                gpu_idx_fract = ["{}.{}".format(g, str(f)[2:]) for g, f in zip(gpus, fractions)]
-                                # check a new available unique name (id) for us
-                                from string import ascii_lowercase
-                                for x in ascii_lowercase:
-                                    if gpu_idx_fract[0]+x not in allocated_gpus:
-                                        gpu_idx_fract[0] = gpu_idx_fract[0]+x
-                                        break
-
-                                # add the new task
-                                allocated_gpus[gpu_idx_fract[0]] = fractions[0]
-                                dict_task_gpus_ids.update({str(g): task_id for g in gpu_idx_fract})
-                                self.worker_id = ':'.join(
-                                    self.worker_id.split(':')[:-1] + ['gpu'+','.join(str(g) for g in gpu_idx_fract)])
-                            else:
-                                # update the task list
-                                dict_task_gpus_ids.update({str(g): task_id for g in gpus})
-                                self.worker_id = ':'.join(
-                                    self.worker_id.split(':')[:-1] + ['gpu'+','.join(str(g) for g in gpus)])
-
-                        self.send_logs(
-                            task_id=task_id,
-                            lines=["task {} pulled from {} by worker {}\n".format(task_id, queue, self.worker_id)],
-                            level="INFO",
-                            session=task_session,
-                        )
-
-                        self.run_one_task(queue, task_id, worker_params, task_session=task_session)
-
-                        # restore back worker_id / GPUs
-                        if gpu_queues:
-                            self.worker_id = dynamic_gpus_worker_id
-                            Session.set_nvidia_visible_env(org_gpus)
-
-                        # clear docker patching function (if exists
-                        self._patch_docker_cmd_func = None
-
-                        self.report_monitor(ResourceMonitor.StatusReport(queues=self.queues))
-
-                        queue_tags = None
-                        runtime_props = None
-
-                        # if we are using priority start pulling from the first always,
-                        # if we are doing roundrobin, pull from the next one
-                        if priority_order:
-                            break
-                else:
-                    # sleep and retry polling
-                    if self._daemon_foreground or worker_params.debug:
-                        print("No tasks in Queues, sleeping for {:.1f} seconds".format(self._polling_interval))
-                    sleep(self._polling_interval)
-
-                if self._session.config.get("agent.reload_config", False):
-                    self.reload_config()
-        finally:
-            # if we are in dynamic gpus mode, shutdown all active runs
-            if self.docker_image_func:
-                for t_id in set(dict_task_gpus_ids.values()):
-                    if shutdown_docker_process(docker_cmd_contains='--id {}\'\"'.format(t_id)):
-                        self.handle_task_termination(task_id=t_id, exit_code=0, stop_reason=TaskStopReason.stopped)
-            else:
-                # if we are in dynamic gpus / services mode,
-                # we should send termination signal to all child processes
-                if self._services_mode:
-                    terminate_all_child_processes(timeout=20, include_parent=False)
-
-                # if we are here, just kill all sub processes
-                kill_all_child_processes(debug=self._session.debug_mode if self._session else False)
-
-            # unregister dynamic GPU worker, if we were terminated while setting up a Task
-            if dynamic_gpus_worker_id:
-                self.worker_id = dynamic_gpus_worker_id
-                self._unregister()
-
-    def _dynamic_gpu_get_available(self, gpu_indexes):
-        # key: cast to string, value: 1 (i.e. gull GPU)
-        gpu_indexes = {str(g): 1 for g in gpu_indexes}
-        worker_name = self._session.config.get("agent.worker_name", "") + ':gpu'
-
-        # only return "Our" workers (requires server API +2, otherwise the selecort pattern is ignored)
-        # noinspection PyBroadException
-        try:
-            response = self._session.send_api(workers_api.GetAllRequest(
-                last_seen=600,
-                worker_pattern="{}*".format(worker_name),
-                _allow_extra_fields_=True
-            ))
-        except Exception:
-            return None
-
-        # filter only our workers, in case the selector pattern above was ignored due to lower version API server
-        our_workers = [
-            w.id for w in response.workers
-            if w.id.startswith(worker_name) and w.id != self.worker_id
-        ]
-        gpus = {}
-        allocated_gpus = {}
-        gpu_pattern = re.compile(r"\d+[.]?\d*[a-z]?")
-        fract_gpu_pattern = re.compile(r"\d+[.]?\d*[a-z]+")
-        for w in our_workers:
-            for g in w.split(':')[-1].lower().replace('gpu', '').split(','):
-                try:
-                    # verify pattern "int.int" or "int.int[a-z]"
-                    gpu_idx_name = g.strip()
-                    if gpu_pattern.fullmatch(gpu_idx_name):
-                        # check if this is a fraction
-                        if fract_gpu_pattern.fullmatch(gpu_idx_name):
-                            gpu_idx = gpu_idx_name.split(".")[0]
-                            gpu_fract = float("0.{}".format(gpu_idx_name.split(".")[-1][:-1]))
-                            # the entire gpu
-                            gpus[gpu_idx] = gpus.get(gpu_idx, 0) + gpu_fract
-                            # the gpu fraction uid eg 0.25a
-                            allocated_gpus[gpu_idx_name] = gpu_fract
-                        else:
-                            # or a static MIG slice
-                            gpus[gpu_idx_name] = 1
-                            allocated_gpus[gpu_idx_name] = 1
-                    else:
-                        print("INFO: failed parsing fractional GPU '{}' - skipping".format(g))
-                except (ValueError, TypeError):
-                    print("INFO: failed parsing GPU int('{}') - skipping".format(g))
-
-        # remove the GPUs we have workers running on
-        available_gpus = {g: (v - gpus.get(g, 0)) for g, v in gpu_indexes.items() if (v - gpus.get(g, 0)) > 0}
-        return available_gpus, allocated_gpus
-
-    def _setup_dynamic_gpus(self, gpu_queues, gpu_indexes):
-        available_gpus = self.get_runtime_properties()
-        if available_gpus is None:
-            raise ValueError("Dynamic GPU allocation is not supported by your ClearML-server")
-        available_gpus = [prop["value"] for prop in available_gpus if prop["key"] == 'available_gpus']
-        if available_gpus:
-            gpus = {}
-            for g_v in available_gpus[-1].split(','):
-                g, v = g_v.split("_")
-                try:
-                    # verify "int.int_float"
-                    if float(g.strip()) >= 0:
-                        gpus[g.strip()] = float("0."+v)
-                except (ValueError, TypeError):
-                    print("INFO: failed parsing GPU int('{}') - skipping".format(g))
-            available_gpus = gpus
-
-        if not isinstance(gpu_queues, dict):
-            gpu_queues = dict(gpu_queues)
-
-        if not self.set_runtime_properties(
-                key='available_gpus', value=','.join("{}_{}".format(g, str(v)[2:]) for g, v in available_gpus.items())):
-            raise ValueError("Dynamic GPU allocation is not supported by your ClearML-server")
-
-        # because it sets the MAX not the actual available (i.e. free) GPUS
-        if not self.monitor:
-            self.new_monitor()
-        self.monitor.setup_dynamic_gpu_cluster_report(
-            worker_id=self.worker_id, available_gpus=gpu_indexes, gpu_queues=gpu_queues
-        )
-
-        return available_gpus, gpu_queues
-
-    def get_worker_properties(self, queue_ids):
-        queue_tags = {
-            q.id: {'name': q.name, 'tags': q.tags}
-            for q in self._session.send_api(
-                queues_api.GetAllRequest(id=queue_ids, only_fields=["id", "tags"])
-            ).queues
-        }
-        runtime_props = self.get_runtime_properties()
-        return queue_tags, runtime_props
-
-    def get_runtime_properties(self):
-        # TODO: refactor to use the Session env State
-        if self._runtime_props_support is not True:
-            # either not supported or never tested
-            if self._runtime_props_support == self._session.api_version:
-                # tested against latest api_version, not supported
-                return None
-            if not self._session.check_min_api_version(UptimeConf.min_api_version):
-                # not supported due to insufficient api_version
-                self._runtime_props_support = self._session.api_version
-                return None
-        try:
-            res = self.get("get_runtime_properties", worker=self.worker_id)["runtime_properties"]
-            # definitely supported
-            self._runtime_props_support = True
-            return res
-        except APIError:
-            self._runtime_props_support = self._session.api_version
-        return None
-
-    def set_runtime_properties(self, key, value):
-        if self._runtime_props_support is not True:
-            # either not supported or never tested
-            if self._runtime_props_support == self._session.api_version:
-                # tested against latest api_version, not supported
-                return False
-            if not self._session.check_min_api_version(UptimeConf.min_api_version):
-                # not supported due to insufficient api_version
-                self._runtime_props_support = self._session.api_version
-                return False
-
-        # noinspection PyBroadException
-        try:
-            self.post("set_runtime_properties",
-                      json={
-                          'runtime_properties': [{'key': key, 'value': str(value)}],
-                          'worker': self.worker_id})
-            # definitely supported
-            self._runtime_props_support = True
-            return True
-        except APIError as ex:
-            self._runtime_props_support = self._session.api_version
-        except Exception as ex:
-            # not sure what happened
-            pass
-
-        return False
-
-    def should_be_currently_active(self, current_queue, runtime_properties):
-        """
-        Checks if a worker is active according to queue tags, worker's runtime properties and uptime schedule.
-        """
-        runtime_properties = runtime_properties or []
-        if UptimeConf.queue_tag_off in current_queue['tags']:
-            self.log.debug("Queue {} is tagged '{}', worker will not pull tasks".format(
-                current_queue['name'], UptimeConf.queue_tag_off)
-            )
-            return False
-        if UptimeConf.queue_tag_on in current_queue['tags']:
-            self.log.debug("Queue {} is tagged '{}', worker will pull tasks".format(
-                current_queue['name'], UptimeConf.queue_tag_on)
-            )
-            return True
-        force_flag = next(
-            (prop for prop in runtime_properties if prop["key"] == UptimeConf.worker_key), None
-        )
-        if force_flag:
-            if force_flag["value"].lower() in UptimeConf.worker_value_off:
-                self.log.debug("worker has the following runtime property: '{}'. worker will not pull tasks".format(
-                    force_flag)
-                )
-                return False
-            elif force_flag["value"].lower() in UptimeConf.worker_value_on:
-                self.log.debug("worker has the following runtime property: '{}'. worker will pull tasks".format(
-                    force_flag)
-                )
-                return True
-            else:
-                print(
-                    "Warning: invalid runtime_property '{}: {}' supported values are: '{}/{}', ignoring".format(
-                        force_flag["key"], force_flag["value"], UptimeConf.worker_value_on, UptimeConf.worker_value_off
-                    )
-                )
-        if self._uptime_config:
-            self.log.debug("following uptime configurations")
-            return check_runtime(self._uptime_config)
-        if self._downtime_config:
-            self.log.debug("following downtime configurations")
-            return check_runtime(self._downtime_config, is_uptime=False)
-        return True
 
     def reload_config(self):
         try:
@@ -2017,8 +1487,6 @@ class Worker(ServiceCommandSection):
 
         self._session.print_configuration()
 
-    def resolve_daemon_queue_names(self, queues, create_if_missing=False):
-        return self._resolve_queue_names(queues=queues, create_if_missing=create_if_missing)
 
     def _server_host_names(self):
         """The names of the ClearML servers, as the job containers must resolve them."""
@@ -2057,101 +1525,59 @@ class Worker(ServiceCommandSection):
             worker, capacity["cpus"], capacity["ram_gb"], len(gpus), reserved["cpus"], reserved["ram_gb"]))
         daemon.run_forever(machine_usage=MachineSampler(workdir))
 
-    def daemon(self, queues, log_level, foreground=False, docker=False, detached=False, order_fairness=False, **kwargs):
-        if kwargs.get("managed"):
-            return self._run_managed_daemon()
+    def _machine_worker_id(self):
+        """The worker of this machine: one per machine, named by the agent's worker name."""
+        worker_name = self._session.config["agent.worker_name"]
+        return self._session.config.get("agent.worker_id", None) or worker_name, worker_name
 
-        use_docker = docker not in (False, None)
+    def _singleton(self):
+        """Make sure only one daemon runs for this machine."""
+        worker_id, worker_name = self._machine_worker_id()
+        self.worker_id, worker_slot = Singleton.register_instance(
+            unique_worker_id=worker_id, worker_name=worker_name, api_client=self._session.api_client,
+            allow_double=bool(ENV_DOCKER_HOST_MOUNT.get()),
+        )
+        if not self.parent_worker_id:
+            self.parent_worker_id = self.worker_id
+        if self.worker_id is None:
+            error("A daemon for this machine ({}) is already running".format(worker_id))
+            sys.exit(1)
+        self._session.create_cache_folders(slot_index=worker_slot)
 
-        podman = kwargs.get("podman", None)
-        self._use_podman = podman not in (False, None)
+    def _kill_daemon(self):
+        """Stop the running daemon of this machine."""
+        worker_id, worker_name = self._machine_worker_id()
+        for pid, uid, slot, file in sorted(Singleton.get_running_pids(), key=lambda x: x[1] or ''):
+            if pid < 0 or uid is None:
+                continue
+            if uid == worker_id or uid.startswith("{}:".format(worker_name)):
+                print("Terminating clearml-agent worker_id={} pid={}".format(uid, pid))
+                if not terminate_process(pid, timeout=10):
+                    error("Could not terminate process pid={}".format(pid))
+                    return False
+                return True
+        print("Could not find a running clearml-agent daemon for worker_name={}".format(worker_name))
+        return False
 
-        if self._use_podman:
-            # We need to potentially turn on docker support
-            if not use_docker:
-                use_docker = True
-                docker = podman
-            elif podman is not True and docker is not True and podman != docker:
-                # both specify container and/or args, raise an error since they might be different
-                raise ValueError(
-                    "Running in docker+podman mode, different containers provided. "
-                    "Please use --docker or --podman with container details, not both."
-                )
+    def daemon(self, log_level=None, foreground=False, detached=False, **kwargs):
+        """
+        Run the managed daemon: this machine is one worker, and the server offers it the jobs that fit it.
+        """
+        if kwargs.get("stop", False):
+            return 0 if self._kill_daemon() else 1
 
-        # We use containers with podman - this is identical to
-        # check that we have docker command if we need it
-        if use_docker and not check_if_command_exists("docker"):
-            raise ValueError("Running in Docker mode, 'docker' command was not found")
+        if not check_if_command_exists("docker"):
+            raise ValueError("Every managed job runs in a container, 'docker' was not found")
 
         self.is_daemon = True
+        self._standalone_mode = kwargs.get("standalone_mode", False)
+        self._polling_interval = ENV_QUEUE_POLL_FREQ_SEC.get() or max(kwargs.get("polling_interval", 10), 5)
 
-        self._worker_tags = kwargs.get('child_report_tags', None)
+        # make sure we only have a single instance of this machine's daemon
+        self._singleton()
 
-        self._use_owner_token(kwargs.get('use_owner_token', False))
-
-        self._standalone_mode = kwargs.get('standalone_mode', False)
-        self._polling_interval = ENV_QUEUE_POLL_FREQ_SEC.get() or max(kwargs.get('polling_interval', 5), 5)
-        self._services_mode = kwargs.get('services_mode', False)
-        # must have docker in services_mode
-        if self._services_mode:
-            kwargs = self._verify_command_states(kwargs)
-        self._uptime_config = kwargs.get('uptime', None) or self._uptime_config
-        self._downtime_config = kwargs.get('downtime', None) or self._downtime_config
-        if self._uptime_config and self._downtime_config:
-            self.log.error(
-                "Both uptime and downtime were specified when only one of them could be used. Both will be ignored."
-            )
-            self._uptime_config = None
-            self._downtime_config = None
-
-        # support --dynamic-gpus
-        dynamic_gpus, gpu_indexes, queues = self._parse_dynamic_gpus(kwargs, queues)
-
-        if self._services_mode and dynamic_gpus:
-            raise ValueError("Combining --dynamic-gpus and --services-mode is not supported")
-
-        if self._dynamic_gpus == "fractional" and not use_docker:
-            raise ValueError("Fractional GPUs are only supported in docker-mode, "
-                             "add --docker to allow docker-mode operation")
-
-        # We are not running a daemon we are killing one.
-        # find the pid send termination signal and leave
-        if kwargs.get('stop', False) is not False:
-            return_code = 0
-            for worker_id in kwargs.get('stop') or [None]:
-                if not self._kill_daemon(dynamic_gpus=dynamic_gpus, worker_id=worker_id):
-                    return_code = 1
-            return return_code
-
-        # if we do not need to create queues, make sure they are valid
-        # match previous behaviour when we validated queue names before everything else
-        queues = self.resolve_daemon_queue_names(queues, create_if_missing=kwargs.get('create_queue', False))
-
-        queues_info = [
-            q.to_dict()
-            for q in self._session.send_api(
-                queues_api.GetAllRequest(id=queues)
-            ).queues
-        ]
-
-        if kwargs.get('status', False):
-            runtime_properties = self.get_runtime_properties()
-            if self._downtime_config:
-                print_uptime_properties(self._downtime_config, queues_info, runtime_properties, is_uptime=False)
-            else:
-                print_uptime_properties(self._uptime_config, queues_info, runtime_properties)
-            return 1
-
-        # make sure we only have a single instance,
-        # also make sure we set worker_id properly and cache folders
-        self._singleton(dynamic_gpus=bool(dynamic_gpus))
-
-        if dynamic_gpus:
-            self._register_dynamic_gpus(gpu_indexes)
-
-        # check if we have bootstrap package installed
         if bootstrap.check_bootstrap_package_install(config=self._session.config):
-            check_latest = kwargs.get('check_bootstrap', False) or self._session.config.get(
+            check_latest = kwargs.get("check_bootstrap", False) or self._session.config.get(
                 "agent.bootstrap.check_for_latest", False
             )
             if check_latest:
@@ -2163,195 +1589,39 @@ class Worker(ServiceCommandSection):
         else:
             bootstrap.print_bootstrap_missing_notice()
 
-        # check if we have the latest agent version
-        if not self._session.config.get('agent.disable_agent_update_check', None):
+        if not self._session.config.get("agent.disable_agent_update_check", None):
             start_check_update_daemon()
 
         self.check(**kwargs)
-        self.log.debug("starting resource monitor thread")
-        print("Worker \"{}\" - ".format(self.worker_id), end='')
-
-        columns = ("id", "name", "tags")
-        print("Listening to queues:")
-        if dynamic_gpus:
-            columns = ("id", "name", "tags", "gpus (min, max)")
-            for q in queues_info:
-                q['gpus'] = str(dict(dynamic_gpus).get(q['id']) or '')
-        print_table(queues_info, columns=columns, titles=columns)
-
-        # register worker
-        self._register(queues)
-
-        # create temp config file with current configuration
-        self.temp_config_path = NamedTemporaryFile(
-            suffix=".cfg", prefix=".clearml_agent.", mode='w+t').name
-
-        # print docker image
-        if use_docker:
-            self._force_current_version = kwargs.get('force_current_version', False)
-            self.set_docker_variables(docker, clean_api_credentials=self._impersonate_as_task_owner)
-        else:
-            self.dump_config(self.temp_config_path, clean_api_credentials=self._impersonate_as_task_owner)
-            # only in none docker we have to make sure we have CUDA setup
-
-            # make sure we have CUDA set if we have --gpus
-            if kwargs.get('gpus') and self._session.config.get('agent.cuda_version', None) in (None, 0, '0'):
-                message = 'Running with GPUs but no CUDA version was detected!\n' \
-                          '\tSet OS environment CUDA_VERSION & CUDNN_VERSION to the correct version\n' \
-                          '\tExample: export CUDA_VERSION=10.1 or (Windows: set CUDA_VERSION=10.1)'
-                if is_conda(self._session.config):
-                    self._unregister(queues)
-                    safe_remove_file(self.temp_config_path)
-                    raise ValueError(message)
-                else:
-                    warning(message+'\n')
-
-        if self._services_mode:
-            print('ClearML-Agent running in services mode')
-
         self._daemon_foreground = foreground
         if not foreground:
             out_file, name = safe_mkstemp(
                 prefix=".clearml_agent_daemon_out",
                 suffix=".txt",
-                open_kwargs={
-                    "buffering": self._session.config.get("agent.log_files_buffering", 1)
-                },
+                open_kwargs={"buffering": self._session.config.get("agent.log_files_buffering", 1)},
                 dir=(ENV_TEMP_STDOUT_FILE_DIR.get() or None),
                 mode="a",
             )
-            print(
-                "Running CLEARML-AGENT daemon in background mode, writing stdout/stderr to {}".format(
-                    name
-                )
-            )
-
+            print("Running CLEARML-AGENT daemon in background mode, writing stdout/stderr to {}".format(name))
             if not self._session.debug_mode:
                 self._temp_cleanup_list.append(name)
-
-            # on widows we do nothing
             if detached and is_windows_platform():
-                print('Detached not supported on Windows, ignoring --detached')
+                print("Detached not supported on Windows, ignoring --detached")
                 detached = False
-
             if not detached:
-                # redirect std out/err to new file
                 sys.stdout = sys.stderr = out_file
             else:
-                # in detached mode
-                # fully detach stdin.stdout/stderr and leave main process, running in the background
+                # fully detach stdin/stdout/stderr and leave the main process running in the background
                 daemonize_process(out_file.fileno())
                 self._redirected_stdout_file_no = out_file.fileno()
-                # make sure we update the singleton lock file to the new pid
                 Singleton.update_pid_file()
-                # reprint headers to std file (we are now inside the daemon process)
                 print("Worker \"{}\" :".format(self.worker_id))
                 self._session.print_configuration()
-                print_table(queues_info, columns=columns, titles=columns)
 
-        try:
-            while True:
-                try:
-                    self.new_monitor(ResourceMonitor.StatusReport(queues=queues))
-                    self.run_tasks_loop(
-                        queues,
-                        worker_params=WorkerParams(
-                            log_level=log_level,
-                            config_file=self.temp_config_path,
-                            debug=self._session.debug_mode,
-                            trace=self._session.trace,
-                        ),
-                        priority_order=not order_fairness,
-                        gpu_indexes=gpu_indexes,
-                        gpu_queues=dynamic_gpus,
-                    )
-                except Exception as e:
-                    tb = six.text_type(traceback.format_exc())
-                    print("FATAL ERROR:")
-                    print(tb)
+        return self._run_managed_daemon()
 
-                    if self._session.config.get("agent.crash_on_exception", False):
-                        raise e
 
-                    crash_file, name = safe_mkstemp(
-                        prefix=".clearml_agent-crash",
-                        suffix=".log",
-                        dir=(ENV_TEMP_STDOUT_FILE_DIR.get() or None)
-                    )
-                    try:
-                        with crash_file:
-                            crash_file.write(tb)
-                    except Exception:
-                        print(
-                            "Could not write crash log to {}\nException:\n{}".format(
-                                name, tb
-                            )
-                        )
-                    sleep(1)
-        finally:
-            self._unregister(queues)
-            safe_remove_file(self.temp_config_path)
 
-    def _parse_dynamic_gpus(self, kwargs, queues):
-        dynamic_gpus = kwargs.get('dynamic_gpus', None)
-        if not dynamic_gpus:
-            return None, None, queues
-
-        has_fractional = False
-        queue_names = [q.name for q in queues]
-        if not all('=' in q for q in queue_names):
-            raise ValueError("using --dynamic-gpus, --queue [{}], "
-                             "queue must be in format <queue_name>=<num_gpus>".format(queue_names))
-
-        gpu_indexes = kwargs.get('gpus')
-
-        # test gpus were passed correctly
-        if not gpu_indexes or len(gpu_indexes.split('-')) > 2 or (',' in gpu_indexes and '-' in gpu_indexes):
-            raise ValueError('--gpus must be provided, in one of two ways: '
-                             'comma separated \'0,1,2,3\' or range \'0-3\'')
-        try:
-            if '-' in gpu_indexes:
-                gpu_indexes = list(range(int(gpu_indexes.split('-')[0]), 1 + int(gpu_indexes.split('-')[1])))
-            else:
-                gpu_indexes = [str(g).replace(":", ".").strip() for g in gpu_indexes.split(',')]
-            # verify (basically numbers with single "." dot)
-            gpu_indexes = [str(g) for g in gpu_indexes if float(g) >= 0]
-        except Exception:
-            raise ValueError(
-                'Failed parsing --gpus "{}". '
-                '--dynamic_gpus must be use with '
-                'specific gpus for example "0-7" or "0,1,2,3" or "0:0,0:1,1:0,1:1"'.format(kwargs.get('gpus')))
-
-        dynamic_gpus = []
-        for s in queue_names:
-            s_p = s.split('=')
-            name = s[:-1 - len(s_p[-1])]
-            min_max_g = float(s_p[-1].split('-')[0] or 1), float(s_p[-1].split('-')[-1])
-            if min(min_max_g) <= 0:
-                raise ValueError("Parsing min/max number of gpus <= 0 is not allowed: \"{}\"".format(s))
-            if any(g for g in min_max_g if 1 < g != int(g)):
-                raise ValueError("Parsing min/max number of gpus, fractional gpu cannot be > 1: \"{}\"".format(s))
-            has_fractional = min(min_max_g) < 1
-            dynamic_gpus.append((name, min_max_g,))
-        queue_names = [q for q, _ in dynamic_gpus]
-        # resolve queue ids
-        dynamic_gpus_q = self._resolve_queue_names(
-            queue_names, create_if_missing=kwargs.get('create_queue', False))
-        dynamic_gpus = list(zip(dynamic_gpus_q, [i for _, i in dynamic_gpus]))
-        # maintain original priority order
-        queues = [q for q, _ in dynamic_gpus]
-
-        self._dynamic_gpus = "fractional" if has_fractional else True
-
-        return dynamic_gpus, gpu_indexes, queues
-
-    def _register_dynamic_gpus(self, gpu_indexes):
-        # test server support
-        available_gpus, allocated_gpus = self._dynamic_gpu_get_available(gpu_indexes)
-        if not self.set_runtime_properties(
-                key='available_gpus',
-                value=','.join("{}_{}".format(g, str(v)[2:]) for g, v in available_gpus.items())):
-            raise ValueError("Dynamic GPU allocation is not supported by your ClearML-server")
 
     def report_monitor(self, report):
         if not self.monitor:
@@ -2360,12 +1630,6 @@ class Worker(ServiceCommandSection):
             self.monitor.set_report(report)
         self.monitor.send_report()
 
-    def cluster_report_monitor(self, available_gpus, gpu_queues):
-        if not self.monitor:
-            self.new_monitor()
-        self.monitor.setup_dynamic_gpu_cluster_report(
-            worker_id=self.worker_id, available_gpus=available_gpus, gpu_queues=gpu_queues
-        )
 
     def stop_monitor(self):
         if self.monitor:
@@ -2893,8 +2157,6 @@ class Worker(ServiceCommandSection):
         docker_args_template_resolver = DockerArgsTemplateResolver(
             task_session=self._session,
             task_id=task_id,
-            queue_id=None,
-            queue_name=None,
             worker_id=None,
             task_info=None
         )
@@ -2993,7 +2255,6 @@ class Worker(ServiceCommandSection):
         optimization=0,
         disable_monitoring=False,
         full_monitoring=False,
-        require_queue=False,
         log_file=None,
         standalone_mode=None,
         docker=False,
@@ -3132,30 +2393,6 @@ class Worker(ServiceCommandSection):
                 print("Task cloned, new task id={}".format(current_task.id))
             except Exception:
                 raise CommandFailedError("Cloning failed")
-        else:
-            # make sure this task is not stuck in an execution queue, it shouldn't have been, but just in case.
-            # noinspection PyBroadException
-            try:
-                res = self._session.send_request(
-                    service="tasks", action="dequeue", method=Request.def_method,
-                    json={"task": current_task.id, "new_status": "in_progress"},
-                )
-                if require_queue and (not res.ok or res.json().get("data", {}).get("updated", 0) < 1):
-                    raise ValueError(
-                        "Execution required enqueued task, but task id={} is not queued.".format(current_task.id)
-                    )
-                # only force set started if we actually dequeued it (which would have changed the state)
-                if res.ok and res.json().get("data", {}).get("updated", 0):
-                    # Set task status to started to prevent any external monitoring from killing it
-                    self._session.api_client.tasks.started(
-                        task=current_task.id,
-                        status_reason="starting execution soon",
-                        status_message="",
-                        force=True,
-                    )
-            except Exception:
-                if require_queue:
-                    raise
 
         if docker is not False and docker is not None:
             self.set_docker_variables(docker)
@@ -3186,7 +2423,7 @@ class Worker(ServiceCommandSection):
             )
             try:
                 self.report_monitor(ResourceMonitor.StatusReport(task=current_task.id))
-                status = self.run_one_task(queue='', task_id=current_task.id, worker_args=worker_params, docker=docker)
+                status = self.run_one_task(task_id=current_task.id, worker_args=worker_params, docker=docker)
             finally:
                 self.stop_monitor()
                 self._unregister()
@@ -4242,27 +3479,7 @@ class Worker(ServiceCommandSection):
         workers = self.get("get_all", last_seen=0)
         print_parameters(workers)
 
-    def _register(self, queues=()):
-        self.queues = queues
-        try:
-            self.get("register", worker=self.worker_id, queues=queues)
-            # If we got here - we've registered
-            self._worker_registered = True
-        # except APIError as error:
-        #     if error.codes != WORKER_ALREADY_REGISTERED:
-        #         raise
-        # except ValueError:
-        #     raise ValueError("Worker cannot register itself with backend service")
-        except Exception as e:
-            self.log("Worker failed registering itself with backend service: {}".format(e))
 
-    def _unregister(self, queues=()):
-        self.queues = ()
-        try:
-            self.get("unregister", worker=self.worker_id, queues=queues)
-            self._worker_registered = False
-        except Exception as e:
-            self.log("Worker failed unregistering itself with backend service: {}".format(e))
 
     def log_traceback(self, err):
         if isinstance(err, APIError):
@@ -4979,23 +4196,6 @@ class Worker(ServiceCommandSection):
         docker_cmd.update(kwargs)
         return self._get_docker_cmd(**docker_cmd)
 
-    def _get_child_agents_count_for_worker(self):
-        """Get the amount of running child agents. In case of any error return 0"""
-        parent_worker_label = self._parent_worker_label.format(self.worker_id)
-
-        default_cmd = 'docker ps --filter label={parent_worker_label} --format {{{{.ID}}}}'
-        child_agents_cmd = ENV_CHILD_AGENTS_COUNT_CMD.get() or default_cmd
-
-        cmd = shlex.split(child_agents_cmd.format(parent_worker_label=parent_worker_label))
-        try:
-            output = Argv(*cmd).get_output(
-                stderr=subprocess.STDOUT
-            )
-        except subprocess.CalledProcessError as ex:
-            self.log.warning("error getting child agents: %s", ex)
-            return 0
-
-        return len(output.splitlines()) if output else 0
 
     @staticmethod
     def _amd_gpu_docker_args(visible=None):
@@ -5579,104 +4779,9 @@ class Worker(ServiceCommandSection):
 
         return command, script_dir
 
-    def _kill_daemon(self, dynamic_gpus=False, worker_id=None):
-        if not worker_id:
-            worker_id, worker_name = self._generate_worker_id_name(dynamic_gpus=dynamic_gpus)
-        else:
-            worker_name = worker_id
 
-        # Iterate over all running process
-        for pid, uid, slot, file in sorted(Singleton.get_running_pids(), key=lambda x: x[1] or ''):
-            if pid < 0 or uid is None:
-                continue
 
-            # if dynamic gpus kill all children
-            if dynamic_gpus and uid == worker_id:
-                print('Terminating clearml-agent worker_id={} pid={}'.format(uid, pid))
-                if not terminate_process(pid, timeout=120):
-                    warning('Could not terminate process pid={}'.format(pid))
-                return True
 
-            # either we have a match for the worker_id or we just pick the first one, and kill it.
-            if (worker_id and uid == worker_id) or (not worker_id and uid.startswith('{}:'.format(worker_name))):
-                # this is us kill it
-                print('Terminating clearml-agent worker_id={} pid={}'.format(uid, pid))
-                timeout = 120 if uid.startswith('{}:dgpu'.format(worker_name)) else 10
-                if not terminate_process(pid, timeout=timeout):
-                    error('Could not terminate process pid={}'.format(pid))
-                return True
-
-        print('Could not find a running clearml-agent instance with worker_name={} worker_id={}'.format(
-            worker_name, worker_id))
-        return False
-
-    def _singleton(self, dynamic_gpus=False):
-        # ensure singleton
-        worker_id, worker_name = self._generate_worker_id_name(dynamic_gpus=dynamic_gpus)
-
-        # if we are running in services mode, we allow double register since
-        # docker-compose will kill instances before they cleanup
-        self.worker_id, worker_slot = Singleton.register_instance(
-            unique_worker_id=worker_id, worker_name=worker_name, api_client=self._session.api_client,
-            allow_double=bool(ENV_DOCKER_HOST_MOUNT.get())  # and bool(self._services_mode),
-        )
-        #  set the parent ID the first time we have a worker ID (it might change for services-mode / dgpus)
-        if not self.parent_worker_id:
-            self.parent_worker_id = self.worker_id
-
-        if self.worker_id is None:
-            error('Instance with the same WORKER_ID [{}] is already running'.format(worker_id))
-            sys.exit(1)
-        # update folders based on free slot
-        self._session.create_cache_folders(slot_index=worker_slot)
-
-    def _generate_worker_id_name(self, dynamic_gpus=False):
-        worker_id = self._session.config["agent.worker_id"]
-        worker_name = self._session.config["agent.worker_name"]
-        if not worker_id and Session.get_nvidia_visible_env() is not None:
-            nvidia_visible_devices = Session.get_nvidia_visible_env()
-            if nvidia_visible_devices and nvidia_visible_devices.lower() != 'none':
-                worker_id = '{}:{}gpu{}'.format(
-                    worker_name, 'd' if dynamic_gpus else '', nvidia_visible_devices)
-            elif nvidia_visible_devices == '':
-                pass
-            else:
-                worker_name = '{}:cpu'.format(worker_name)
-        return worker_id, worker_name
-
-    def _resolve_queue_names(self, queues, create_if_missing=False, create_system_tags=None):
-        if not queues:
-            # try to look for queues with "default" tag
-            try:
-                default_queue = self._session.send_api(queues_api.GetDefaultRequest())
-                return [default_queue.id]
-            except APIError:
-                # if we cannot find one with "default" tag, look for a queue named "default"
-                queues = ["default"]
-
-        queues = return_list(queues)
-        if not create_if_missing:
-            return [
-                self._resolve_name(q if isinstance(q, str) else q.name, service="queues", search_hidden=True)
-                for q in queues
-            ]
-
-        queue_ids = []
-        for q in queues:
-            # noinspection PyBroadException
-            try:
-                q_id = self._resolve_name(
-                    q if isinstance(q, str) else q.name, service="queues", search_hidden=True
-                )
-            except:
-                self._session.send_api(
-                    queues_api.CreateRequest(name=q if isinstance(q, str) else q.name, system_tags=create_system_tags)
-                )
-                q_id = self._resolve_name(
-                    q if isinstance(q, str) else q.name, service="queues", search_hidden=True
-                )
-            queue_ids.append(q_id)
-        return queue_ids
 
     @staticmethod
     def _valid_docker_container_name(name):
