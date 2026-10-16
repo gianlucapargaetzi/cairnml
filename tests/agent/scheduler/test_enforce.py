@@ -37,3 +37,13 @@ def test_the_gpus_of_a_job_come_from_the_environment_so_the_agent_adds_no_gpu_fl
     env = job_env({"cpus": [0], "gpus": [1, 2], "ram_gb": 1, "disk_gb": 1, "exclusive": False}, "t")
     assert env["NVIDIA_VISIBLE_DEVICES"] == "1,2"
     assert job_env({"cpus": [0], "gpus": [], "ram_gb": 1, "disk_gb": 1}, "t")["NVIDIA_VISIBLE_DEVICES"] == "none"
+
+
+def test_the_server_names_are_mapped_into_the_job_container_without_host_networking():
+    args = docker_limit_args({"cpus": [0], "gpus": [], "ram_gb": 1, "disk_gb": 1, "exclusive": False}, "t",
+                             extra_hosts=["mlops-clearml", "mlops-idp"])
+    assert args.count("--add-host") == 2
+    assert "mlops-clearml:host-gateway" in args
+    assert "--network" not in args
+    env = job_env({"cpus": [0], "gpus": [], "ram_gb": 1, "disk_gb": 1}, "t", extra_hosts=["mlops-clearml"])
+    assert "mlops-clearml:host-gateway" in shlex.split(env["CLEARML_AGENT_EXTRA_DOCKER_ARGS"])

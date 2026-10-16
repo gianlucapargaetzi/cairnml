@@ -2020,6 +2020,16 @@ class Worker(ServiceCommandSection):
     def resolve_daemon_queue_names(self, queues, create_if_missing=False):
         return self._resolve_queue_names(queues=queues, create_if_missing=create_if_missing)
 
+    def _server_host_names(self):
+        """The names of the ClearML servers, as the job containers must resolve them."""
+        from urllib.parse import urlparse
+        names = []
+        for key in ("api.api_server", "api.web_server", "api.files_server"):
+            host = urlparse(self._session.config.get(key, "") or "").hostname
+            if host and host not in ("localhost", "127.0.0.1", "::1") and host not in names:
+                names.append(host)
+        return names
+
     def _run_managed_daemon(self):
         """Managed mode (resource-aware scheduling): this machine is one worker; the server offers it jobs."""
         import socket
@@ -2039,7 +2049,7 @@ class Worker(ServiceCommandSection):
         reserved = reserve_for(capacity, self._session.config.get("agent.managed.reserve", None))
         daemon = ManagedDaemon(
             SchedulerClient(self._session), worker, capacity, reserved,
-            can_enforce(docker_ok, bool(gpus), nvidia), JobRunner(),
+            can_enforce(docker_ok, bool(gpus), nvidia), JobRunner(extra_hosts=self._server_host_names()),
             agent_version=__version__,
             sync_interval_sec=float(self._session.config.get("services.scheduler.sync_interval_sec", 10)),
         )

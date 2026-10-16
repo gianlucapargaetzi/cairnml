@@ -31,7 +31,8 @@ def memory_arg(ram_gb: float) -> str:
     return f"{max(1, int(round(float(ram_gb) * 1024)))}m"
 
 
-def docker_limit_args(reservation: dict, task_id: str, pids_limit: int = 1024) -> List[str]:
+def docker_limit_args(reservation: dict, task_id: str, pids_limit: int = 1024,
+                      extra_hosts: Iterable[str] = ()) -> List[str]:
     """The docker run arguments that hold a job to its reservation. Exclusive jobs get no CPU or memory
     limit beyond the machine itself, because they are alone on it."""
     args: List[str] = []
@@ -42,15 +43,19 @@ def docker_limit_args(reservation: dict, task_id: str, pids_limit: int = 1024) -
         mem = memory_arg(reservation["ram_gb"])
         args += ["--memory", mem, "--memory-swap", mem]
     args += ["--pids-limit", str(pids_limit)]
+    # the job reaches the server by name; the container gets the host's address for it, not the host network
+    for host in extra_hosts:
+        args += ["--add-host", f"{host}:host-gateway"]
     return args
 
 
-def job_env(reservation: dict, task_id: str) -> dict:
+def job_env(reservation: dict, task_id: str, extra_hosts: Iterable[str] = ()) -> dict:
     """Environment for `clearml-agent execute`: the limits, the label that finds the container later, and
     the GPUs the job may see (none when it asked for none, so the agent does not add --gpus all)."""
     gpus = reservation.get("gpus") or []
     return {
-        "CLEARML_AGENT_EXTRA_DOCKER_ARGS": " ".join(shlex.quote(a) for a in docker_limit_args(reservation, task_id)),
+        "CLEARML_AGENT_EXTRA_DOCKER_ARGS": " ".join(
+            shlex.quote(a) for a in docker_limit_args(reservation, task_id, extra_hosts=extra_hosts)),
         "CLEARML_AGENT_EXTRA_DOCKER_LABELS": f"{JOB_LABEL}={task_id}",
         "NVIDIA_VISIBLE_DEVICES": ",".join(str(g) for g in gpus) if gpus else "none",
     }

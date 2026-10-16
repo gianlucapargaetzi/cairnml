@@ -22,8 +22,9 @@ def default_command(task: str, reservation: dict) -> Tuple[List[str], dict]:
 
 class JobRunner(object):
     def __init__(self, command_builder: CommandBuilder = default_command, log_dir: Optional[str] = None,
-                 docker: str = "docker", expect_container: bool = True):
+                 docker: str = "docker", expect_container: bool = True, extra_hosts=()):
         self._build = command_builder
+        self._extra_hosts = list(extra_hosts)
         self._expect_container = expect_container
         self._log_dir = log_dir or tempfile.mkdtemp(prefix="clearml-jobs-")
         self._docker = docker
@@ -48,7 +49,7 @@ class JobRunner(object):
     def start(self, task: str, reservation: dict, max_runtime_min: Optional[int] = None):
         # The job's own process requests its job token itself, with its device session (as the agent does).
         argv, extra_env = self._build(task, reservation)
-        env = {**os.environ, **enforce.job_env(reservation, task), **extra_env}
+        env = {**os.environ, **enforce.job_env(reservation, task, extra_hosts=self._extra_hosts), **extra_env}
         log_path = os.path.join(self._log_dir, f"{task}.log")
         log = open(log_path, "wb")
         proc = subprocess.Popen(argv, env=env, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
