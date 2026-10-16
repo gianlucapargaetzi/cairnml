@@ -37,6 +37,9 @@ class FakeRunner:
     def sample(self):
         pass
 
+    def stop_orphans(self):
+        return []
+
     def running_tasks(self):
         return list(self.running)
 
@@ -145,3 +148,26 @@ def test_a_job_that_cannot_start_is_released_as_failed_and_the_daemon_goes_on():
     client = FakeClient(offers=[offer("t1"), offer("t2", cpus=(4, 5))])
     daemon(client, BrokenRunner()).tick()
     assert [r[0:2] for r in client.released] == [("t1", "failed"), ("t2", "failed")]
+
+
+def test_a_daemon_keeps_trying_to_register_until_the_server_accepts_it():
+    class Flaky(FakeClient):
+        attempts = 0
+
+        def register(self, *a):
+            Flaky.attempts += 1
+            if Flaky.attempts < 3:
+                raise SchedulerError("server not ready")
+            return {"id": "w", "state": "active"}
+
+    class Stop(Exception):
+        pass
+
+    client = Flaky()
+    d = daemon(client, FakeRunner())
+    d._sleep = lambda seconds: (_ for _ in ()).throw(Stop()) if Flaky.attempts >= 3 else None
+    try:
+        d.run_forever()
+    except Stop:
+        pass
+    assert Flaky.attempts == 3

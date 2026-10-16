@@ -79,7 +79,14 @@ class ManagedDaemon(object):
         stopped = self.runner.stop_orphans()
         if stopped:
             log.warning("stopped %d job container(s) left by an earlier daemon", len(stopped))
-        self.register()
+        while True:
+            # registration is retried until the server accepts it (it may be down, or the device not yet revoked)
+            try:
+                self.register()
+                break
+            except SchedulerError as ex:
+                log.warning("not registered yet, retrying: %s", ex)
+                self._sleep(self.sync_interval_sec)
         while True:
             try:
                 self.tick(machine_usage())
