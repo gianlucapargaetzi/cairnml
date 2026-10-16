@@ -65,3 +65,10 @@ def test_a_refused_enrolment_leaves_no_key_behind(tmp_path):
     with pytest.raises(EnrolmentFailed, match="admin"):
         enrol_device(API, http=server, login=login, key_path=key_path)
     assert not key_path.exists()
+
+
+def test_an_agent_is_enrolled_as_an_agent(tmp_path):
+    server = FakeServer()
+    enrol_device(API, http=server, login=login, key_path=tmp_path / "device.key", kind="agent")
+    _, body, _ = server.calls[-1]
+    assert body["kind"] == "agent"

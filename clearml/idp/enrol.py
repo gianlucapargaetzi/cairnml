@@ -27,8 +27,14 @@ def _call(http, url, body, token=None):
     return reply["data"]
 
 
-def enrol_device(api_host, *, http=None, login=browser_login, key_path=None, name=None, out=print):
-    """Create this machine's key and register it. Returns the device id the server gave it."""
+def enrol_device(
+    api_host, *, kind="client", http=None, login=browser_login, key_path=None, name=None, out=print
+):
+    """Create this machine's key and register it. Returns the device id the server gave it.
+
+    kind is "client" for a person's machine and "agent" for a machine that runs jobs; the server
+    accepts an agent only from an admin.
+    """
     key_path = Path(key_path or DEVICE_KEY_PATH)
     if key_path.exists():
         raise EnrolmentFailed(
@@ -46,7 +52,7 @@ def enrol_device(api_host, *, http=None, login=browser_login, key_path=None, nam
         device = _call(
             http,
             base + "devices.enroll",
-            {"kind": "client", "name": name or socket.gethostname(), "public_key": public_key_pem(key)},
+            {"kind": kind, "name": name or socket.gethostname(), "public_key": public_key_pem(key)},
             token=token,
         )
     except EnrolmentFailed:
