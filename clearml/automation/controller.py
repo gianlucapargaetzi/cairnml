@@ -101,6 +101,9 @@ class PipelineController:
         task_factory_func = attrib(type=Callable, default=None)
         # execution queue name to use
         queue = attrib(type=str, default=None)
+        # what the step needs from a machine, and its priority (resource-aware scheduling)
+        requirements = attrib(type=dict, default=None)
+        priority = attrib(type=int, default=None)
         # list of parent DAG steps
         parents = attrib(type=list, default=None)
         # execution timeout limit
@@ -492,6 +495,8 @@ class PipelineController:
         configuration_overrides: Optional[Mapping[str, Union[str, Mapping]]] = None,
         task_overrides: Optional[Mapping[str, Any]] = None,
         execution_queue: Optional[str] = None,
+        requirements: Optional[dict] = None,
+        priority: Optional[int] = None,
         monitor_metrics: Optional[List[Union[Tuple[str, str], Tuple]]] = None,
         monitor_artifacts: Optional[List[Union[str, Tuple[str, str]]]] = None,
         monitor_models: Optional[List[Union[str, Tuple[str, str]]]] = None,
@@ -734,6 +739,8 @@ class PipelineController:
             base_task_id=base_task_id,
             parents=parents or [],
             queue=execution_queue,
+            requirements=requirements,
+            priority=priority,
             timeout=time_limit,
             parameters=parameter_override or {},
             recursively_parse_parameters=recursively_parse_parameters,
@@ -792,6 +799,8 @@ class PipelineController:
         docker_bash_setup_script: Optional[str] = None,
         parents: Optional[Sequence[str]] = None,
         execution_queue: Optional[str] = None,
+        requirements: Optional[dict] = None,
+        priority: Optional[int] = None,
         monitor_metrics: Optional[List[Tuple]] = None,
         monitor_artifacts: Optional[List[Union[str, Tuple]]] = None,
         monitor_models: Optional[List[Union[str, Tuple]]] = None,
@@ -2458,6 +2467,8 @@ class PipelineController:
         docker_bash_setup_script: Optional[str] = None,
         parents: Optional[Sequence[str]] = None,
         execution_queue: Optional[str] = None,
+        requirements: Optional[dict] = None,
+        priority: Optional[int] = None,
         monitor_metrics: Optional[List[Union[Tuple[str, str], Tuple]]] = None,
         monitor_artifacts: Optional[List[Union[str, Tuple[str, str]]]] = None,
         monitor_models: Optional[List[Union[str, Tuple[str, str]]]] = None,
@@ -2819,6 +2830,8 @@ class PipelineController:
             base_task_id=None,
             parents=parents or [],
             queue=execution_queue,
+            requirements=requirements,
+            priority=priority,
             timeout=time_limit,
             parameters=parameters,
             clone_task=False,
@@ -2868,7 +2881,11 @@ class PipelineController:
             f"\nNode '{node.name}' failed. Retrying... (this is retry number {self._retries[node.name]})\n"
         )
         parsed_queue_name = self._parse_step_ref(node.queue)
-        node.job.launch(queue_name=parsed_queue_name or self._default_execution_queue)
+        node.job.launch(
+            queue_name=parsed_queue_name or self._default_execution_queue,
+            requirements=node.requirements,
+            priority=node.priority,
+        )
 
     def _launch_node(self, node: "PipelineController.Node") -> bool:
         """
@@ -2966,7 +2983,11 @@ class PipelineController:
             self._running_nodes.append(node.name)
 
             parsed_queue_name = self._parse_step_ref(node.queue)
-            return node.job.launch(queue_name=parsed_queue_name or self._default_execution_queue)
+            return node.job.launch(
+                queue_name=parsed_queue_name or self._default_execution_queue,
+                requirements=node.requirements,
+                priority=node.priority,
+            )
 
         return True
 
