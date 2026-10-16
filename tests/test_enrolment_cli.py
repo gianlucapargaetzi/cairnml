@@ -75,3 +75,11 @@ def test_logout_revokes_then_removes_the_key_and_the_device(tmp_path):
     revoke.assert_called_once()
     assert not key.exists()
     assert 'device_id: ""' in conf.read_text()
+
+
+def test_the_web_address_is_turned_into_the_api_address(tmp_path):
+    conf = tmp_path / "clearml.conf"
+    result = Enrolment(device_id="dev_7", server_url=PUBLIC, web_url="", user="alice")
+    with mock.patch.object(enrolment, "enrol", return_value=result) as enrol:
+        enrolment.init_main(["--server", "http://mlops-clearml:8080", "--file", str(conf)])
+    assert enrol.call_args.args[0] == "http://mlops-clearml:8008"
