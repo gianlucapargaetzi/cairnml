@@ -4,7 +4,7 @@ from __future__ import print_function
 import argparse
 import os
 import urllib
-from typing import Tuple, List, Dict, Optional, Any
+from typing import Tuple, Optional, Any
 from urllib.parse import ParseResult
 
 import six
@@ -12,24 +12,18 @@ from pathlib2 import Path
 from six.moves import input
 from six.moves.urllib.parse import urlparse
 
-from clearml.backend_api.session import Session
 from clearml.backend_api.session.defs import ENV_HOST
-from clearml.backend_config import Config
 from clearml.backend_config.defs import (
     LOCAL_CONFIG_FILES,
     LOCAL_CONFIG_FILE_OVERRIDE_VAR,
 )
 from clearml.config import config_obj
-from clearml.utilities.pyhocon import ConfigFactory, ConfigMissingException
+from clearml.idp.enrol import EnrolmentFailed, enrol_device
 
 description = (
     "\n"
-    "Please create new clearml credentials through the settings page in "
-    "your `clearml-server` web app (e.g. http://localhost:8080//settings/workspace-configuration) \n"
-    "Or create a free account at https://app.clear.ml/settings/workspace-configuration\n\n"
-    'In settings page, press "Create new credentials", then press "Copy to clipboard".\n'
-    "\n"
-    "Paste copied configuration here:\n"
+    "This machine signs in with your identity provider. Your browser opens the sign-in page;\n"
+    "approve the sign-in there, and this machine is enrolled. No access key is needed.\n"
 )
 
 host_description = """
@@ -77,109 +71,29 @@ def main() -> None:
         print("Leaving setup, feel free to edit the configuration file.")
         return
     print(description, end="")
-    sentinel = ""
-    parse_input = ""
 
-    if os.environ.get("JPY_PARENT_PID"):
-        # When running from a colab instance and calling clearml-init
-        # colab will squish the api credentials into a single line
-        # The regex splits this single line based on 2 spaces or more
-        import re
-
-        api_input = input()
-        parse_input = "\n".join(re.split(r" {2,}", api_input))
-    else:
-        for line in iter(input, sentinel):
-            parse_input += line + "\n"
-            if line.rstrip() == "}":
-                break
-
-    credentials = None
-    api_server = None
-    web_server = None
-    files_server = None
-    # noinspection PyBroadException
-    try:
-        parsed = ConfigFactory.parse_string(parse_input)
-        if parsed:
-            # Take the credentials in raw form or from api section
-            credentials = get_parsed_field(parsed, ["credentials"])
-            api_server = get_parsed_field(parsed, ["api_server", "host"])
-            web_server = get_parsed_field(parsed, ["web_server"])  # TODO: if previous fails, this will fail too
-            files_server = get_parsed_field(parsed, ["files_server"])
-    except Exception:
-        credentials = credentials or None
-        api_server = api_server or None
-        web_server = web_server or None
-        files_server = files_server or None
-
-    while not credentials or set(credentials) != {"access_key", "secret_key"}:
-        print("Could not parse credentials, please try entering them manually.")
-        credentials = read_manual_credentials()
-
-    access_key = credentials["access_key"]
-    masked_secret_key = credentials["secret_key"][0:4] + "***"
-    print(f'Detected credentials key="{access_key}" secret="{masked_secret_key}"')
-    web_input = True
-    if web_server:
-        host = web_server
-    elif api_server:
-        web_input = False
-        host = api_server
-    else:
-        print(
-            host_description.format(
-                CONFIG_FILE=args.file,
-                HOST=def_host,
-            )
-        )
-        host = input_url("WEB Host", "")
+    print(host_description.format(CONFIG_FILE=args.file, HOST=def_host))
+    host = input_url("WEB Host", def_host)
 
     parsed_host = verify_url(host)
     api_host, files_host, web_host = parse_known_host(parsed_host)
-
-    hosts_dict = {"API": api_server, "Files": files_server, "Web": web_server}
-
-    infered_hosts_dict = {"API": api_host, "Files": files_host, "Web": web_host}
-
-    for host_type, url in six.iteritems(hosts_dict):
-        if url is None or not (url.startswith("http://") or url.startswith("https://")):
-            infered_host_url = infered_hosts_dict[host_type]
-            if infered_host_url != "":
-                hosts_dict[host_type] = infered_host_url
-            else:
-                hosts_dict[host_type] = input_url(host_type)
-
-    api_host, files_host, web_host = (
-        hosts_dict["API"],
-        hosts_dict["Files"],
-        hosts_dict["Web"],
-    )
-
-    # one of these two we configured
-    if not web_input:
-        web_host = input_url("Web Application Host", web_host)
-    else:
-        if web_input is True and not web_host:
-            web_host = host
-
     print(f"\nClearML Hosts configuration:\nWeb App: {web_host}\nAPI: {api_host}\nFile Store: {files_host}\n")
-
     if len({web_host, api_host, files_host}) != 3:
         raise ValueError("All three server URLs should be distinct")
 
-    retry = 1
-    max_retries = 2
-    while retry <= max_retries:  # Up to 2 tries by the user
-        if verify_credentials(api_host, credentials):
-            break
-        retry += 1
-        if retry < max_retries + 1:
-            credentials = read_manual_credentials()
-    else:
-        print("Exiting setup without creating configuration file")
+    try:
+        device_id = enrol_device(api_host)
+    except EnrolmentFailed as ex:
+        print(f"Error! This machine was not enrolled: {ex}")
         return
 
+    write_config(conf_file, api_host, web_host, files_host, device_id)
+    print(f"\nNew configuration stored in {conf_file}")
+    print("ClearML setup completed successfully.")
+
+
+def write_config(conf_file, api_host: str, web_host: str, files_host: str, device_id: str) -> None:
+    """Write the SDK configuration. It names the device; it holds no credentials."""
     # noinspection PyBroadException
     try:
         default_sdk_conf = Path(__file__).absolute().parents[2] / "config/default/sdk.conf"
@@ -194,32 +108,23 @@ def main() -> None:
             header = (
                 "# ClearML SDK configuration file\n"
                 "api {\n"
-                "    # Notice: 'host' is the api server (default port 8008), not the web server.\n"
+                "    # Notice: 'api_server' is the api server (default port 8008), not the web server.\n"
                 "    api_server: %s\n"
                 "    web_server: %s\n"
                 "    files_server: %s\n"
-                "    # Credentials are generated using the webapp, %s/settings\n"
-                "    # Override with os environment: CLEARML_API_ACCESS_KEY / CLEARML_API_SECRET_KEY\n"
-                '    credentials {"access_key": "%s", "secret_key": "%s"}\n'
+                "    # This machine signs in with the device key in ~/.clearml/device.key\n"
+                "    idp {\n"
+                '        device_id: "%s"\n'
+                "    }\n"
                 "}\n"
                 "sdk "
-                % (
-                    api_host,
-                    web_host,
-                    files_host,
-                    web_host,
-                    credentials["access_key"],
-                    credentials["secret_key"],
-                )
+                % (api_host, web_host, files_host, device_id)
             )
             f.write(header)
             f.write(default_sdk)
     except Exception:
         print(f"Error! Could not write configuration file at: {conf_file}")
         return
-
-    print(f"\nNew configuration stored in {conf_file}")
-    print("ClearML setup completed successfully.")
 
 
 def parse_known_host(parsed_host: Any) -> Tuple[str, str, str]:
@@ -270,59 +175,6 @@ def parse_known_host(parsed_host: Any) -> Tuple[str, str, str]:
         files_host = ""
 
     return api_host, files_host, web_host
-
-
-def verify_credentials(api_host: str, credentials: dict) -> bool:
-    """check if the credentials are valid"""
-    # noinspection PyBroadException
-    try:
-        print("Verifying credentials ...")
-        if api_host:
-            Session(
-                api_key=credentials["access_key"],
-                secret_key=credentials["secret_key"],
-                host=api_host,
-                http_retries_config={"total": 2},
-            )
-            print("Credentials verified!")
-            return True
-        else:
-            print("Can't verify credentials")
-            return False
-    except Exception:
-        print(
-            f"Error: could not verify credentials: key={credentials.get('access_key')} "
-            f"secret={credentials.get('secret_key')}"
-        )
-        return False
-
-
-def get_parsed_field(parsed_config: Config, fields: List[str]) -> Any:
-    """
-    Parsed the value from web profile page, 'copy to clipboard' option
-    :param parsed_config: The parsed value from the web ui
-    :type parsed_config: Config object
-    :param fields: list of values to parse, will parse by the list order
-    :type fields: List[str]
-    :return: parsed value if found, None else
-    """
-    try:
-        return parsed_config.get("api").get(fields[0])
-    except ConfigMissingException:  # fallback - try to parse the field like it was in web older version
-        if len(fields) == 1:
-            return parsed_config.get(fields[0])
-        elif len(fields) == 2:
-            return parsed_config.get(fields[1])
-        else:
-            return None
-
-
-def read_manual_credentials() -> Dict[str, str]:
-    print("Enter user access key: ", end="")
-    access_key = input()
-    print("Enter user secret: ", end="")
-    secret_key = input()
-    return {"access_key": access_key, "secret_key": secret_key}
 
 
 def input_url(host_type: str, host: str = None) -> str:
