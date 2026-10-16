@@ -54,6 +54,9 @@ class FakeRunner:
         self.stopped.append(task)
         self.running.pop(task, None)
 
+    def end(self, task):
+        self.running.pop(task, None)
+
     def finished(self):
         out, self.done = self.done, []
         for r in out:
@@ -171,3 +174,31 @@ def test_a_daemon_keeps_trying_to_register_until_the_server_accepts_it():
     except Stop:
         pass
     assert Flaky.attempts == 3
+
+
+def test_a_job_that_ended_on_its_own_is_killed_without_being_marked_stopped():
+    class Recording(FakeRunner):
+        ended = []
+
+        def end(self, task):
+            Recording.ended.append(task)
+            self.running.pop(task, None)
+
+    runner = Recording()
+    client = FakeClient(offers=[offer("t1")])
+    d = daemon(client, runner)
+    d.tick()
+    client.ended = None
+    client2 = FakeClient()
+    d.client = client2
+    original_sync = client2.sync
+
+    def sync_with_ended(worker, jobs, usage):
+        reply = original_sync(worker, jobs, usage)
+        reply["ended"] = ["t1"]
+        return reply
+
+    client2.sync = sync_with_ended
+    d.tick()
+    assert Recording.ended == ["t1"]
+    assert runner.stopped == []

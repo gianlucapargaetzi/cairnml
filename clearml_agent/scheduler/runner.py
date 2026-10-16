@@ -70,6 +70,15 @@ class JobRunner(object):
                 job["deadline_hit"] = True
         self.kill(task)
 
+    def end(self, task: str):
+        """The job already ended on the server (its own process failed or completed). Its container is
+        removed. The report carries no failure, so the server keeps the status the job really had."""
+        with self._lock:
+            job = self._jobs.get(task)
+            if job:
+                job["ended"] = True
+        self.kill(task)
+
     def stop(self, task: str):
         """Asked by the server: the task was stopped. The job is killed and reported as stopped."""
         with self._lock:
@@ -138,7 +147,8 @@ class JobRunner(object):
         reservation = job["reservation"]
         reserved = {"ram_gb": reservation.get("ram_gb")}
         peak = {"ram_gb": job["peak_ram_gb"]}
-        if job["stop_requested"] and not job["deadline_hit"]:
+        if (job["stop_requested"] or job.get("ended")) and not job["deadline_hit"]:
+            # "stopped" with no failure: the server changes nothing, the status was set when the job ended
             return {"task": task, "outcome": "stopped", "failure": None}
         if self._expect_container and inspect is None and not job["deadline_hit"]:
             # the process ended without a container: the job never ran, whatever its exit code says

@@ -81,3 +81,13 @@ def test_the_limits_and_label_reach_the_job_environment_and_no_token_is_passed(t
     runner.start("job-env", RESERVATION)
     result = wait_for(runner)
     assert result["outcome"] == "completed", result
+
+
+def test_a_job_ended_by_the_server_is_reported_without_a_failure_so_the_real_status_stands(tmp_path):
+    runner = JobRunner(command_builder=python_job("import time; time.sleep(60)"), log_dir=str(tmp_path),
+                       expect_container=False)
+    runner.start("job-ended", RESERVATION)
+    time.sleep(0.5)
+    runner.end("job-ended")
+    result = wait_for(runner)
+    assert result["failure"] is None

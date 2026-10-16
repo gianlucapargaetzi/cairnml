@@ -44,6 +44,12 @@ class ManagedDaemon(object):
             if task in running:
                 self.runner.stop(task)
 
+        # the server already ended these (the job's own process failed or completed): stop the container, but
+        # report how the job really ended, not as a stop
+        for task in reply.get("ended") or []:
+            if task in running:
+                self.runner.end(task)
+
         # finished jobs first, so the capacity they held is free for the offers below
         for result in self.runner.finished():
             task = result["task"]
