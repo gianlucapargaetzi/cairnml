@@ -51,6 +51,6 @@ def test_priority_bounds():
 
 def test_enqueue_body_carries_requirements_and_priority_only_when_given():
     from clearml.backend_interface.task.requirements import enqueue_body
-    assert enqueue_body("t1", None, None, None) == {"task": "t1"}
-    body = enqueue_body("t1", "q1", {"cpus": 2}, 70)
-    assert body == {"task": "t1", "queue": "q1", "requirements": {"cpus": 2}, "priority": 70}
+    assert enqueue_body("t1", None, None) == {"task": "t1"}
+    body = enqueue_body("t1", {"cpus": 2}, 70)
+    assert body == {"task": "t1", "requirements": {"cpus": 2}, "priority": 70}

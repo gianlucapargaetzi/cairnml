@@ -63,11 +63,9 @@ def check_priority(priority: Optional[int]) -> Optional[int]:
     return priority
 
 
-def enqueue_body(task_id: str, queue_id: Optional[str], requirements: Optional[dict], priority: Optional[int]) -> dict:
-    """The body of tasks.enqueue at version 2.36. Without a queue the server uses its default queue."""
+def enqueue_body(task_id: str, requirements: Optional[dict], priority: Optional[int]) -> dict:
+    """The body of tasks.enqueue at version 2.36."""
     body = {"task": task_id}
-    if queue_id:
-        body["queue"] = queue_id
     if requirements is not None:
         body["requirements"] = requirements
     if priority is not None:

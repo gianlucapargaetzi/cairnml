@@ -52,7 +52,6 @@ if not args.template_task_id:
 
 # Set default queue name for the Training tasks themselves.
 # later can be overridden in the UI
-execution_queue = '1xGPU'
 
 # Example use case:
 an_optimizer = HyperParameterOptimizer(
@@ -84,7 +83,6 @@ an_optimizer = HyperParameterOptimizer(
     # more are coming soon...
     optimizer_class=aSearchStrategy,
     # Select an execution queue to schedule the experiments for execution
-    execution_queue=execution_queue,
     # If specified all Tasks created by the HPO process will be created under the `spawned_project` project
     spawn_project=None,  # 'HPO spawn project',
     # If specified only the top K performing Tasks will be kept, the others will be automatically archived
@@ -111,7 +109,7 @@ an_optimizer = HyperParameterOptimizer(
 if args.run_as_service:
     # if this code is executed by `clearml-agent` the function call does nothing.
     # if executed locally, the local process will be terminated, and a remote copy will be executed instead
-    task.execute_remotely(queue_name='services', exit_process=True)
+    task.execute_remotely(exit_process=True)
 
 # report every 12 seconds, this is way too often, but we are testing here 
 an_optimizer.set_report_period(0.2)

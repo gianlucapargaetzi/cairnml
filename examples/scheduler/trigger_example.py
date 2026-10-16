@@ -35,7 +35,6 @@ if __name__ == '__main__':
         name='model quality check',
         # schedule_function=trigger_model_func, # you can also schedule a function to be executed.
         schedule_task_id='add_task_id_here',
-        schedule_queue='default',
         trigger_project='examples',
         trigger_on_tags=['deploy']
     )

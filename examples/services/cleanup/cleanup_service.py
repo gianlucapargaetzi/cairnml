@@ -48,7 +48,7 @@ if args["run_as_service"] and task.running_locally():
 if args["run_as_service"]:
     # if this code is executed by `clearml-agent` the function call does nothing.
     # if executed locally, the local process will be terminated, and a remote copy will be executed instead
-    task.execute_remotely(queue_name="services", exit_process=True)
+    task.execute_remotely(exit_process=True)
 
 print("Cleanup service started")
 

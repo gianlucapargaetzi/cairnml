@@ -342,7 +342,6 @@ class TriggerScheduler(BaseScheduler):
     def add_model_trigger(
         self,
         schedule_task_id: Union[str, Task] = None,
-        schedule_queue: str = None,
         schedule_function: Callable[[str], None] = None,
         trigger_project: str = None,
         trigger_name: Optional[str] = None,
@@ -374,7 +373,6 @@ class TriggerScheduler(BaseScheduler):
 
 
         :param schedule_task_id: Task/task ID to be cloned and scheduled for execution
-        :param schedule_queue: Queue name or ID to put the Task into (i.e. schedule)
         :param schedule_function: Optional, instead of providing Task ID to be scheduled,
             provide a function to be called. Notice the function is called from the scheduler context
             (i.e. running on the same machine as the scheduler)
@@ -400,7 +398,6 @@ class TriggerScheduler(BaseScheduler):
         trigger = ModelTrigger(
             base_task_id=schedule_task_id,
             base_function=schedule_function,
-            queue=schedule_queue,
             name=name,
             target_project=target_project,
             single_instance=single_instance,
@@ -421,7 +418,6 @@ class TriggerScheduler(BaseScheduler):
     def add_dataset_trigger(
         self,
         schedule_task_id: Union[str, Task] = None,
-        schedule_queue: str = None,
         schedule_function: Callable[[str], None] = None,
         trigger_project: str = None,
         trigger_name: Optional[str] = None,
@@ -454,7 +450,6 @@ class TriggerScheduler(BaseScheduler):
 
 
         :param schedule_task_id: Task/task ID to be cloned and scheduled for execution
-        :param schedule_queue: Queue name or ID to put the Task into (i.e. schedule)
         :param schedule_function: Optional, instead of providing Task ID to be scheduled,
             provide a function to be called. Notice the function is called from the scheduler context
             (i.e. running on the same machine as the scheduler)
@@ -488,7 +483,6 @@ class TriggerScheduler(BaseScheduler):
                 trigger = DatasetTrigger(
                     base_task_id=schedule_task_id,
                     base_function=schedule_function,
-                    queue=schedule_queue,
                     name=name,
                     target_project=target_project,
                     single_instance=single_instance,
@@ -509,7 +503,6 @@ class TriggerScheduler(BaseScheduler):
             trigger = DatasetTrigger(
                 base_task_id=schedule_task_id,
                 base_function=schedule_function,
-                queue=schedule_queue,
                 name=name,
                 target_project=target_project,
                 single_instance=single_instance,
@@ -529,7 +522,6 @@ class TriggerScheduler(BaseScheduler):
     def add_task_trigger(
         self,
         schedule_task_id: Union[str, Task] = None,
-        schedule_queue: str = None,
         schedule_function: Callable[[str], None] = None,
         trigger_project: str = None,
         trigger_name: Optional[str] = None,
@@ -564,7 +556,6 @@ class TriggerScheduler(BaseScheduler):
                 pass
 
         :param schedule_task_id: Task/task ID to be cloned and scheduled for execution
-        :param schedule_queue: Queue name or ID to put the Task into (i.e. schedule)
         :param schedule_function: Optional, instead of providing Task ID to be scheduled,
             provide a function to be called. Notice the function is called from the scheduler context
             (i.e. running on the same machine as the scheduler)
@@ -597,7 +588,6 @@ class TriggerScheduler(BaseScheduler):
         trigger = TaskTrigger(
             base_task_id=schedule_task_id,
             base_function=schedule_function,
-            queue=schedule_queue,
             name=name,
             target_project=target_project,
             single_instance=single_instance,

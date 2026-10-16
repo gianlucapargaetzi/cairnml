@@ -33,7 +33,6 @@ space = {
 params["total_number_of_experiments"] = 3
 
 # execution queue to add experiments to
-params["execution_queue_name"] = "default"
 
 # experiment template to optimize with random parameter search
 params["experiment_template_name"] = "Keras HP optimization base"
@@ -67,7 +66,6 @@ for i in range(params["total_number_of_experiments"]):
     # enqueue the task for execution
     Task.enqueue(
         cloned_task.id,
-        queue_name=params["execution_queue_name"],
     )
     print(f"Experiment id={cloned_task.id} enqueue for execution")
 

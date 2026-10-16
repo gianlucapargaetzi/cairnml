@@ -303,7 +303,7 @@ def main():
         task_type=Task.TaskTypes.monitor,
     )
     if not args.local:
-        task.execute_remotely(queue_name=args.service_queue)
+        task.execute_remotely()
         # we will not get here if we are running locally
 
     project_name = args.project or "all"

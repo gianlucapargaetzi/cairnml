@@ -58,7 +58,6 @@ def setup_parser(parser: ArgumentParser) -> None:
         default=None,
         help="Script to run the parameter search on. Required unless '--task-id' is specified",
     )
-    parser.add_argument("--queue", type=str, default=None, help="Queue to run the '--script' from")
     parser.add_argument(
         "--params-search",
         type=str,
@@ -320,7 +319,6 @@ def cli() -> None:
 
     optimizer = HyperParameterOptimizer(
         base_task_id=task_id,
-        execution_queue=args.queue,
         hyper_parameters=eval_params_search(args.params_search, args.params_override),
         objective_metric_title=args.objective_metric_title,
         objective_metric_series=args.objective_metric_series,
