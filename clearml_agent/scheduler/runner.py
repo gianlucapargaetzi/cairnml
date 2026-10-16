@@ -30,6 +30,17 @@ class JobRunner(object):
         self._jobs: Dict[str, dict] = {}
         self._lock = threading.Lock()
 
+    def stop_orphans(self) -> List[str]:
+        """At start-up: stop the job containers a previous daemon left running. This daemon holds no job, and
+        the server requeues the jobs that were claimed here, so a leftover container would run a job twice."""
+        out = subprocess.run([self._docker, "ps", "-q", "--filter", f"label={enforce.JOB_LABEL}"],
+                             capture_output=True, text=True, timeout=60)
+        ids = [c for c in out.stdout.split() if c]
+        for cid in ids:
+            subprocess.run([self._docker, "kill", cid], capture_output=True, timeout=60)
+            subprocess.run([self._docker, "rm", "-f", cid], capture_output=True, timeout=60)
+        return ids
+
     def running_tasks(self) -> List[str]:
         with self._lock:
             return list(self._jobs)

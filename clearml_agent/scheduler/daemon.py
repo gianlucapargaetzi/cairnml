@@ -76,6 +76,9 @@ class ManagedDaemon(object):
         self.ledger.hold(task, offer)
 
     def run_forever(self, machine_usage: Callable[[], dict] = lambda: {}):
+        stopped = self.runner.stop_orphans()
+        if stopped:
+            log.warning("stopped %d job container(s) left by an earlier daemon", len(stopped))
         self.register()
         while True:
             try:
