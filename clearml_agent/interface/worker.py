@@ -44,6 +44,11 @@ WORKER_ARGS = {
 }
 
 DAEMON_ARGS = dict({
+    '--managed': {
+        'help': 'Managed mode: the server offers this machine the jobs that fit it, and each job runs with the '
+                'limits of its reservation. Takes no queues.',
+        'action': 'store_true',
+    },
     '--polling-interval': {
         'help': 'Polling interval in seconds. Minimum is 5 (default 5)',
         'type': int,

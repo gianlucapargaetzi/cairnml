@@ -1398,7 +1398,7 @@ class Worker(ServiceCommandSection):
             if self._impersonate_as_task_owner:
                 env[ENV_AGENT_AUTH_TOKEN.vars[0]] = task_session.token
             else:
-                env[ENV_JOB_TOKEN.vars[0]] = job_token
+                env["CLEARML_JOB_TOKEN"] = job_token
             if self._worker_tags:
                 env[ENV_WORKER_TAGS.vars[0]] = " ".join(shlex.quote(t) for t in self._worker_tags)
 
@@ -2020,7 +2020,37 @@ class Worker(ServiceCommandSection):
     def resolve_daemon_queue_names(self, queues, create_if_missing=False):
         return self._resolve_queue_names(queues=queues, create_if_missing=create_if_missing)
 
+    def _run_managed_daemon(self):
+        """Managed mode (resource-aware scheduling): this machine is one worker; the server offers it jobs."""
+        import socket
+        from clearml_agent.scheduler.capacity import can_enforce, detect, detect_gpus, docker_info_ok, reserve_for
+        from clearml_agent.scheduler.client import SchedulerClient
+        from clearml_agent.scheduler.daemon import ManagedDaemon, MachineSampler
+        from clearml_agent.scheduler.runner import JobRunner
+        from clearml_agent.version import __version__
+
+        worker = self._session.config.get("agent.worker_name", None) or socket.gethostname()
+        workdir = os.path.expanduser("~")
+        with open("/proc/meminfo", encoding="utf-8") as h:
+            meminfo = h.read()
+        gpus = detect_gpus()
+        capacity = detect(workdir=workdir, meminfo=meminfo, gpus=gpus)
+        docker_ok, nvidia = docker_info_ok()
+        reserved = reserve_for(capacity, self._session.config.get("agent.managed.reserve", None))
+        daemon = ManagedDaemon(
+            SchedulerClient(self._session), worker, capacity, reserved,
+            can_enforce(docker_ok, bool(gpus), nvidia), JobRunner(),
+            agent_version=__version__,
+            sync_interval_sec=float(self._session.config.get("services.scheduler.sync_interval_sec", 10)),
+        )
+        print("Managed worker '{}': {} CPUs, {} GB RAM, {} GPUs; host keeps {} CPUs, {} GB RAM".format(
+            worker, capacity["cpus"], capacity["ram_gb"], len(gpus), reserved["cpus"], reserved["ram_gb"]))
+        daemon.run_forever(machine_usage=MachineSampler(workdir))
+
     def daemon(self, queues, log_level, foreground=False, docker=False, detached=False, order_fairness=False, **kwargs):
+        if kwargs.get("managed"):
+            return self._run_managed_daemon()
+
         use_docker = docker not in (False, None)
 
         podman = kwargs.get("podman", None)
