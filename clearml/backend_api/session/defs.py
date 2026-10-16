@@ -9,6 +9,8 @@ ENV_FILES_HOST = EnvEntry("CLEARML_FILES_HOST", "TRAINS_FILES_HOST")
 ENV_ACCESS_KEY = EnvEntry("CLEARML_API_ACCESS_KEY", "TRAINS_API_ACCESS_KEY")
 ENV_SECRET_KEY = EnvEntry("CLEARML_API_SECRET_KEY", "TRAINS_API_SECRET_KEY")
 ENV_AUTH_TOKEN = EnvEntry("CLEARML_AUTH_TOKEN")
+# Set by the agent for one job: the token is used as it is and is never exchanged for another.
+ENV_JOB_TOKEN = EnvEntry("CLEARML_JOB_TOKEN")
 ENV_VERBOSE = EnvEntry(
     "CLEARML_API_VERBOSE",
     "TRAINS_API_VERBOSE",

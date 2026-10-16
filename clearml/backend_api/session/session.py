@@ -30,6 +30,7 @@ from .defs import (
     ENV_FILES_HOST,
     ENV_OFFLINE_MODE,
     ENV_AUTH_TOKEN,
+    ENV_JOB_TOKEN,
     ENV_DISABLE_VAULT_SUPPORT,
     ENV_ENABLE_ENV_CONFIG_SECTION,
     ENV_ENABLE_FILES_CONFIG_SECTION,
@@ -42,6 +43,7 @@ from .defs import (
 from .request import Request, BatchRequest  # noqa: F401
 from .token_manager import TokenManager
 from ..utils import get_http_session_with_retry, urllib_log_warning_setup
+from ...idp.device import device_assertion
 from ...backend_config import ConfigurationError
 from ...backend_config.defs import get_config_file
 from ...debugging import get_logger
@@ -221,6 +223,8 @@ class Session(TokenManager):
         )
 
         self.__auth_token = None
+        self.__device_id = self.config.get("api.idp.device_id", None)
+        self.__job_token = ENV_JOB_TOKEN.get()
         self._update_default_api_method()
         if ENV_AUTH_TOKEN.get():
             self.__access_key = self.__secret_key = None
@@ -236,7 +240,7 @@ class Session(TokenManager):
                 default=(self.config.get("api.credentials.secret_key", None) or self.default_secret)
             )
 
-        if not self.secret_key and not self.access_key and not self.__auth_token:
+        if not (self.secret_key or self.access_key or self.__auth_token or self.__device_id or self.__job_token):
             raise MissingConfigError()
 
         super(Session, self).__init__(
@@ -904,6 +908,12 @@ class Session(TokenManager):
         if verbose:
             self._logger.info(f"Refreshing token from {self.host} (access_key={self.access_key}, exp={exp})")
 
+        if self.__job_token:
+            # A job runs with the token its agent obtained for it; the job never exchanges a key.
+            return self.__job_token
+        if self.__device_id:
+            return self._exchange_device_assertion()
+
         auth = None
         headers = None
 
@@ -970,6 +980,28 @@ class Session(TokenManager):
                 )
         except Exception as ex:
             raise LoginError(f"Unrecognized Authentication Error: {type(ex)} {ex}")
+
+    def _exchange_device_assertion(self) -> str:
+        """Sign an assertion with this device's key and exchange it for a short-lived token."""
+        assertion = device_assertion(self.__device_id, self.host)
+        res = self._send_request(
+            service="devices",
+            action="exchange",
+            version="2.8",
+            method=Request.def_method,
+            json={"assertion": assertion},
+            refresh_token_if_unauthorized=False,
+        )
+        if res is None:
+            raise LoginError(f"Device sign-in failed: no answer from {self.host}")
+        try:
+            resp = res.json()
+        except ValueError:
+            resp = {}
+        if res.status_code != 200:
+            msg = resp.get("meta", {}).get("result_msg", res.reason)
+            raise LoginError(f"Device sign-in refused (error {res.status_code} from {self.host}): {msg}")
+        return resp["data"]["access_token"]
 
     @staticmethod
     def __get_browser_token(webserver: str) -> Optional[str]:
