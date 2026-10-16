@@ -63,7 +63,6 @@ class EnvironmentConfig(object):
         return None
 
 
-ENV_AGENT_SECRET_KEY = EnvironmentConfig("CLEARML_API_SECRET_KEY", "TRAINS_API_SECRET_KEY")
 ENV_AGENT_AUTH_TOKEN = EnvironmentConfig("CLEARML_AUTH_TOKEN")
 ENV_AWS_SECRET_KEY = EnvironmentConfig("AWS_SECRET_ACCESS_KEY")
 ENV_AZURE_ACCOUNT_KEY = EnvironmentConfig("AZURE_STORAGE_KEY")
@@ -81,11 +80,6 @@ ENVIRONMENT_CONFIG = {
         "CLEARML_WEB_HOST",
         "TRAINS_WEB_HOST",
     ),
-    "api.credentials.access_key": EnvironmentConfig(
-        "CLEARML_API_ACCESS_KEY",
-        "TRAINS_API_ACCESS_KEY",
-    ),
-    "api.credentials.secret_key": ENV_AGENT_SECRET_KEY,
     "agent.worker_name": EnvironmentConfig(
         "CLEARML_WORKER_NAME",
         "TRAINS_WORKER_NAME",

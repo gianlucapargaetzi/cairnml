@@ -5,7 +5,6 @@ from urllib.parse import urlunparse, urlparse
 
 from clearml_agent.definitions import (
     ENV_AGENT_GIT_PASS,
-    ENV_AGENT_SECRET_KEY,
     ENV_AWS_SECRET_KEY,
     ENV_AZURE_ACCOUNT_KEY,
     ENV_AGENT_AUTH_TOKEN,
@@ -65,7 +64,6 @@ class DockerArgsSanitizer:
             keys.update(shlex.split(ENV_DOCKER_ARGS_HIDE_ENV.get().strip()))
         keys.update(
             ENV_AGENT_GIT_PASS.vars,
-            ENV_AGENT_SECRET_KEY.vars,
             ENV_AWS_SECRET_KEY.vars,
             ENV_AZURE_ACCOUNT_KEY.vars,
             ENV_AGENT_AUTH_TOKEN.vars,

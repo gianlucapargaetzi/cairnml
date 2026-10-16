@@ -1,24 +1,18 @@
 import logging
 import json as json_lib
-import os
-import sys
 import time
 import types
 from random import SystemRandom
 from socket import gethostname
-from typing import Optional
 
 from ..._vendor import jwt
 import requests
-from ..._vendor import six
-from requests import RequestException
-from requests.auth import HTTPBasicAuth
 from ..._vendor.six.moves.urllib.parse import urlparse, urlunparse
 
 from clearml_agent.external.pyhocon import ConfigTree, ConfigFactory
 from .callresult import CallResult
 from .defs import (
-    ENV_VERBOSE, ENV_HOST, ENV_ACCESS_KEY, ENV_SECRET_KEY, ENV_WEB_HOST, ENV_FILES_HOST, ENV_AUTH_TOKEN,
+    ENV_VERBOSE, ENV_HOST, ENV_WEB_HOST, ENV_FILES_HOST, ENV_AUTH_TOKEN, ENV_JOB_TOKEN,
     ENV_NO_DEFAULT_SERVER, ENV_DISABLE_VAULT_SUPPORT, ENV_INITIAL_CONNECT_RETRY_OVERRIDE, ENV_API_DEFAULT_REQ_METHOD,
     ENV_FORCE_MAX_API_VERSION, ENV_URLLIB3_CONNECT_LEVEL
 )
@@ -28,6 +22,7 @@ from ..config import load
 from ..utils import get_http_session_with_retry, urllib_log_warning_setup
 from ...backend_config.environment import backward_compatibility_support
 from ...helper.dicts import get_dict_leaves
+from ...idp.device import device_assertion
 from ...version import __version__
 
 sys_random = SystemRandom()
@@ -63,8 +58,6 @@ class Session(TokenManager):
     default_host = "https://demoapi.demo.clear.ml"
     default_web = "https://demoapp.demo.clear.ml"
     default_files = "https://demofiles.demo.clear.ml"
-    default_key = "EGRTCO8JMSIGI6S39GTP43NFWXDQOW"
-    default_secret = "x!XTov_G-#vspE*Y(h$Anm&DIc5Ou-F)jsl$PdOyj5wG1&E!Z8"
     force_max_api_version = ENV_FORCE_MAX_API_VERSION.get()
     server_version = "1.0.0"
     user_id = None
@@ -78,12 +71,8 @@ class Session(TokenManager):
     ]
 
     @property
-    def access_key(self):
-        return self.__access_key
-
-    @property
-    def secret_key(self):
-        return self.__secret_key
+    def device_id(self):
+        return self.__device_id
 
     @property
     def host(self):
@@ -96,8 +85,6 @@ class Session(TokenManager):
     def __init__(
         self,
         worker=None,
-        api_key=None,
-        secret_key=None,
         host=None,
         logger=None,
         verbose=None,
@@ -127,31 +114,16 @@ class Session(TokenManager):
 
         self.update_default_api_method()
 
+        self.__device_id = self.config.get("api.idp.device_id", None)
+        self.__job_token = ENV_JOB_TOKEN.get()
         if ENV_AUTH_TOKEN.get(
             value_cb=lambda key, value: print("Using environment access token {}=********".format(key))
         ):
             self.set_auth_token(ENV_AUTH_TOKEN.get())
-        else:
-            self.__access_key = api_key or ENV_ACCESS_KEY.get(
-                default=(self.config.get("api.credentials.access_key", None) or self.default_key),
-                value_cb=lambda key, value: print("Using environment access key {}={}".format(key, value))
+        elif not (self.__device_id or self.__job_token):
+            raise ValueError(
+                "This machine is not enrolled: run clearml-agent init, or set CLEARML_AUTH_TOKEN."
             )
-            if not self.access_key:
-                raise ValueError(
-                    "Missing access_key. Please set in configuration file or pass in session init."
-                )
-
-            self.__secret_key = secret_key or ENV_SECRET_KEY.get(
-                default=(self.config.get("api.credentials.secret_key", None) or self.default_secret),
-                value_cb=lambda key, value: print("Using environment secret key {}=********".format(key))
-            )
-            if not self.secret_key:
-                raise ValueError(
-                    "Missing secret_key. Please set in configuration file or pass in session init."
-                )
-
-        if self.access_key == self.default_key and self.secret_key == self.default_secret:
-            print("Using built-in ClearML default key/secret")
 
         host = host or self.get_api_server_host(config=self.config)
         if not host:
@@ -417,7 +389,6 @@ class Session(TokenManager):
         return headers
 
     def set_auth_token(self, auth_token):
-        self.__access_key = self.__secret_key = None
         self._set_token(auth_token)
 
     def send_request(
@@ -697,72 +668,40 @@ class Session(TokenManager):
         return version_tuple(cls.server_version) >= version_tuple(str(min_server_version))
 
     def _do_refresh_token(self, current_token, exp=None):
-        """ TokenManager abstract method implementation.
-            Here we ignore the old token and simply obtain a new token.
-        """
-        verbose = self._verbose and self._logger
-        if verbose:
-            self._logger.info(
-                "Refreshing token from {} (access_key={}, exp={})".format(
-                    self.host, self.access_key, exp
-                )
-            )
+        """ TokenManager abstract method implementation: obtains a token for this session. """
+        if self.__job_token:
+            # A job runs with the token its agent obtained for it; the job never exchanges a key.
+            return self.__job_token
+        if self.__device_id:
+            return self._exchange_device_assertion()
+        if current_token:
+            return current_token
+        raise LoginError("This machine has no device key or token: run clearml-agent init to enrol it")
 
-        auth = None
-        headers = None
-        if self.access_key and self.secret_key:
-            auth = HTTPBasicAuth(self.access_key, self.secret_key)
-        elif current_token:
-            headers = dict(Authorization="Bearer {}".format(current_token))
-
-        res = None
+    def _exchange_device_assertion(self):
+        """ Sign an assertion with this device's key and exchange it for a short-lived token. """
+        assertion = device_assertion(self.__device_id, self.host)
+        res = self._send_request(
+            service="devices",
+            action="exchange",
+            version="2.8",
+            method=Request.def_method,
+            json={"assertion": assertion},
+            refresh_token_if_unauthorized=False,
+        )
+        if res is None:
+            raise LoginError("Device sign-in failed: no answer from {}".format(self.host))
         try:
-            res = self._send_request(
-                method=Request.def_method,
-                service="auth",
-                action="login",
-                auth=auth,
-                headers=headers,
-                refresh_token_if_unauthorized=False,
-                params={"expiration_sec": exp} if exp else {},
-            )
-            try:
-                resp = res.json()
-            except ValueError:
-                resp = {}
-            if res.status_code != 200:
-                msg = resp.get("meta", {}).get("result_msg", res.reason)
-                raise LoginError(
-                    "Failed getting token (error {} from {}): {}".format(
-                        res.status_code, self.host, msg
-                    )
-                )
-            if verbose:
-                self._logger.info("Received new token")
-            token = resp["data"]["token"]
-            if ENV_AUTH_TOKEN.get():
-                os.environ[ENV_AUTH_TOKEN.key] = token
-            return token
-        except LoginError:
-            six.reraise(*sys.exc_info())
-        except KeyError as ex:
-            # check if this is a misconfigured api server (getting 200 without the data section)
-            if res and res.status_code == 200:
-                raise ValueError('It seems *api_server* is misconfigured. '
-                                 'Is this the ClearML API server {} ?'.format(self.get_api_server_host()))
-            else:
-                raise LoginError("Response data mismatch: No 'token' in 'data' value from res, receive : {}, "
-                                 "exception: {}".format(res, ex))
-        except requests.ConnectionError as ex:
-            raise ValueError('Connection Error: it seems *api_server* is misconfigured. '
-                             'Is this the ClearML API server {} ?'.format('/'.join(ex.request.url.split('/')[:3])))
-        except Exception as ex:
-            raise LoginError('Unrecognized Authentication Error: {} {}'.format(type(ex), ex))
+            resp = res.json()
+        except ValueError:
+            resp = {}
+        if res.status_code != 200:
+            msg = resp.get("meta", {}).get("result_msg", res.reason)
+            raise LoginError("Device sign-in refused (error {} from {}): {}".format(res.status_code, self.host, msg))
+        return resp["data"]["access_token"]
 
     def __str__(self):
-        return "{self.__class__.__name__}[{self.host}, {self.access_key}/{secret_key}]".format(
-            self=self, secret_key=self.secret_key[:5] + "*" * (len(self.secret_key) - 5)
-        )
+        return "{}[{}, device={}]".format(self.__class__.__name__, self.host, self.__device_id)
 
     @property
     def propagate_exceptions_on_send(self):
