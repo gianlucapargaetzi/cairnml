@@ -126,7 +126,7 @@ class JobRunner(object):
         reservation = job["reservation"]
         reserved = {"ram_gb": reservation.get("ram_gb")}
         peak = {"ram_gb": job["peak_ram_gb"]}
-        if job["stop_requested"]:
+        if job["stop_requested"] and not job["deadline_hit"]:
             return {"task": task, "outcome": "stopped", "failure": None}
         if self._expect_container and inspect is None and not job["deadline_hit"]:
             # the process ended without a container: the job never ran, whatever its exit code says
