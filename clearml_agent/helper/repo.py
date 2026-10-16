@@ -28,6 +28,7 @@ from clearml_agent.definitions import (
     ENV_SSH_URL_REPLACEMENT_SCHEME,
 )
 from clearml_agent.helper.console import ensure_text, ensure_binary
+from clearml_agent.backend_api.session.request import Request
 from clearml_agent.errors import CommandFailedError
 from clearml_agent.helper.base import (
     select_for_platform,
@@ -91,6 +92,24 @@ class RepoInfo(object):
 
 
 RType = TypeVar("RType")
+
+
+def github_header(token):
+    """The HTTP header that carries a GitHub installation token (x-access-token), as git expects it."""
+    raw = b64encode("x-access-token:{}".format(token).encode("utf-8")).decode("utf-8")
+    return "AUTHORIZATION: basic {}".format(raw)
+
+
+def scrub_token(output, token):
+    """Remove the token, and every form of the header that carries it, from git output."""
+    if not token:
+        return output
+    binary = isinstance(output, bytes)
+    to_text = ensure_binary if binary else ensure_text
+    raw = b64encode("x-access-token:{}".format(token).encode("utf-8")).decode("utf-8")
+    for secret in (github_header(token), raw, token):
+        output = output.replace(to_text(secret), to_text("***"))
+    return output
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -417,7 +436,7 @@ class VCS(object):
         # if we are on linux no need for the full auth url because we use GIT_ASKPASS
         url = (
             self.url_without_auth
-            if self._use_ask_pass or self._use_ms_entra_token or self._use_azure_pat
+            if self._use_ask_pass or self._use_ms_entra_token or self._use_azure_pat or self._header_token
             else self.url_with_auth
         )
         clone_command = ("clone", url, self.location) + self.clone_flags()
@@ -438,6 +457,8 @@ class VCS(object):
                 self._print_output(e.output)
             raise
 
+    _header_token = None
+
     def _normalize_output(self, result):
         """
         Returns result string without user's password.
@@ -448,10 +469,11 @@ class VCS(object):
             if isinstance(result, six.text_type)
             else ensure_binary
         )
-        return result.replace(
+        result = result.replace(
             string_type(self.url),
             string_type(furl(self.url).remove(password=True).tostr()),
         )
+        return scrub_token(result, self._header_token)
 
     @staticmethod
     def _print_output(output):
@@ -645,6 +667,8 @@ class Git(VCS):
 
     def __init__(self, *args, **kwargs):
         super(Git, self).__init__(*args, **kwargs)
+        # this instance's own environment, so a token given to it is not shared with other repositories
+        self.COMMAND_ENV = dict(self.COMMAND_ENV)
 
         self._use_ask_pass = False if not self.session.config.get('agent.enable_git_ask_pass', True) \
             else sys.platform == "linux"
@@ -702,7 +726,22 @@ class Git(VCS):
             fetch_args = []
         self.call("fetch", *fetch_args, cwd=self.location)
 
+    def use_header_token(self, token):
+        """
+        Authenticate every git command with a short-lived token sent as an HTTP header in the environment
+        (GIT_CONFIG_COUNT). The token is never in the URL, on the command line or in a file, and no askpass
+        helper is used.
+        """
+        self._header_token = token
+        self.COMMAND_ENV.update(
+            GIT_CONFIG_COUNT="1",
+            GIT_CONFIG_KEY_0="http.extraheader",
+            GIT_CONFIG_VALUE_0=github_header(token),
+        )
+
     def _git_pass_auth_wrapper(self, func, *args, **kwargs):
+        if self._header_token:
+            return func(*args, **kwargs)
         try:
             url_with_auth = furl(self.url_with_auth)
             password = url_with_auth.password if url_with_auth else None
@@ -841,13 +880,28 @@ class Hg(VCS):
     )
 
 
-def clone_repository_cached(session, execution, destination):
-    # type: (Session, ExecutionInfo, Path) -> Tuple[VCS, RepoInfo]
+def fetch_git_token(session, task_id):
+    """
+    The read-only token for the task's repository on GitHub, from the server. None when the repository
+    is not on GitHub or no GitHub App is configured, so the agent keeps its configured credentials.
+    """
+    res = session.send_request(
+        service="devices", action="git_token", version="2.8", method=Request.def_method,
+        json={"task": task_id},
+    )
+    if res is None or not res.ok:
+        return None
+    return res.json()["data"]["token"]
+
+
+def clone_repository_cached(session, execution, destination, task_id=None):
+    # type: (Session, ExecutionInfo, Path, Optional[str]) -> Tuple[VCS, RepoInfo]
     """
     Clone a remote repository.
     :param execution: execution info
     :param destination: directory to clone to (in which a directory for the repository will be created)
     :param session: program session
+    :param task_id: the task being run; a GitHub repository is cloned with the server's token for it
     :return: repository information
     :raises: CommandFailedError if git/hg is not installed
     """
@@ -888,6 +942,10 @@ def clone_repository_cached(session, execution, destination):
         )
         if not find_executable(vcs.executable_name):
             raise CommandFailedError(vcs.executable_not_found_error_help())
+        if task_id and parsed_url.host == "github.com" and isinstance(vcs, Git):
+            token = fetch_git_token(session, task_id)
+            if token:
+                vcs.use_header_token(token)
 
         if not standalone_mode:
             if session.config["agent.vcs_cache.enabled"] and cached_repo_path.exists():

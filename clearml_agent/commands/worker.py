@@ -3742,6 +3742,7 @@ class Worker(ServiceCommandSection):
                 session=self._session,
                 execution=execution,
                 destination=Path(venv_folder) / WORKING_REPOSITORY_DIR,
+                task_id=task.id,
             )
         except CommandFailedError:
             raise
