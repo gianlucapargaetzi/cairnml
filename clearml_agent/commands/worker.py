@@ -39,6 +39,7 @@ from clearml_agent.backend_api.services import tasks as tasks_api
 from clearml_agent.backend_api.services import workers as workers_api
 from clearml_agent.backend_api.session import CallResult, Request
 from clearml_agent.backend_api.session.defs import (
+    ENV_JOB_TOKEN,
     ENV_ENABLE_ENV_CONFIG_SECTION, ENV_ENABLE_FILES_CONFIG_SECTION,
     ENV_VENV_CONFIGURED, ENV_PROPAGATE_EXITCODE, ENV_MULTI_NODE_SINGLE_TASK, )
 from clearml_agent.backend_config import Config
@@ -1056,6 +1057,21 @@ class Worker(ServiceCommandSection):
         except Exception:
             pass
 
+    def _get_job_token(self, task_id):
+        """The job's own token, issued by the server to this agent while the task runs here."""
+        # noinspection PyBroadException
+        try:
+            res = self._session.send_request(
+                service='devices', action='job_token', version='2.8', method=Request.def_method,
+                json={'task': task_id},
+            )
+            if res is None or not res.ok:
+                return None
+            return res.json()['data']['access_token']
+        except Exception as ex:
+            print("Warning: failed getting a job token for task '{}': {}".format(task_id, ex))
+            return None
+
     def _get_docker_restart_value(self, task_session, task_id: str):
         try:
             self._session.verify_feature_set('advanced')
@@ -1166,6 +1182,12 @@ class Worker(ServiceCommandSection):
                 print("Warning: Could not set status=in_progress task id '{}', skipping".format(task_id))
                 return
 
+        # the job's own token: the server issues it to the agent device that started the task
+        job_token = self._get_job_token(task_id)
+        if not job_token:
+            print("Warning: could not get a job token for task '{}', skipping".format(task_id))
+            return
+
         # setup console log
         temp_stdout_name = safe_mkstemp(
             suffix=".txt", prefix=".clearml_agent_out.", name_only=True, dir=(ENV_TEMP_STDOUT_FILE_DIR.get() or None)
@@ -1227,9 +1249,8 @@ class Worker(ServiceCommandSection):
             )
             if self._impersonate_as_task_owner:
                 docker_params["auth_token"] = task_session.token
-            elif self._session.access_key is None or self._session.secret_key is None:
-                # We're using a token right now
-                docker_params["auth_token"] = self._session.token
+            else:
+                docker_params["auth_token"] = job_token
             if self._worker_tags:
                 docker_params["worker_tags"] = self._worker_tags
             if self._services_mode:
@@ -1376,6 +1397,8 @@ class Worker(ServiceCommandSection):
             env = os.environ.copy()
             if self._impersonate_as_task_owner:
                 env[ENV_AGENT_AUTH_TOKEN.vars[0]] = task_session.token
+            else:
+                env[ENV_JOB_TOKEN.vars[0]] = job_token
             if self._worker_tags:
                 env[ENV_WORKER_TAGS.vars[0]] = " ".join(shlex.quote(t) for t in self._worker_tags)
 
@@ -2335,8 +2358,11 @@ class Worker(ServiceCommandSection):
             config_data = (
                 self._session.config.as_plain_ordered_dict() if config is None else config.as_plain_ordered_dict()
             )
+            api = config_data.get("api")
+            if api:
+                # the job signs in with its own token, never with the agent's device
+                api.pop("idp", None)
             if clean_api_credentials:
-                api = config_data.get("api")
                 if api:
                     api.pop("credentials", None)
 
