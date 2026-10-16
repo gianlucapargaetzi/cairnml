@@ -41,8 +41,6 @@ from .backend_api.services import tasks, projects, events, queues
 from .backend_api.session.session import (
     Session,
     CallResult,
-    ENV_ACCESS_KEY,
-    ENV_SECRET_KEY,
     ENV_HOST,
     ENV_WEB_HOST,
     ENV_FILES_HOST,
@@ -4163,34 +4161,29 @@ class Task(_Task):
         api_host: Optional[str] = None,
         web_host: Optional[str] = None,
         files_host: Optional[str] = None,
-        key: Optional[str] = None,
-        secret: Optional[str] = None,
         store_conf_file: bool = False,
     ) -> None:
         """
-        Set new default **ClearML Server** (backend) host and credentials.
+        Set new default **ClearML Server** (backend) hosts.
 
-        These credentials will be overridden by either OS environment variables, or the ClearML configuration
+        These hosts will be overridden by either OS environment variables, or the ClearML configuration
         file, ``clearml.conf``.
 
         .. warning::
-           Credentials must be set before initializing a Task object.
+           Hosts must be set before initializing a Task object. Sign-in is by the device key (``clearml-init``).
 
         For example, to set credentials for a remote computer:
 
         .. code-block:: py
 
             Task.set_credentials(
-                api_host='http://localhost:8008', web_host='http://localhost:8080', files_host='http://localhost:8081',
-                key='optional_credentials',  secret='optional_credentials'
+                api_host='http://localhost:8008', web_host='http://localhost:8080', files_host='http://localhost:8081'
             )
             task = Task.init('project name', 'experiment name')
 
         :param str api_host: The API server URL. For example, ``host='http://localhost:8008'``
         :param str web_host: The Web server URL. For example, ``host='http://localhost:8080'``
         :param str files_host: The file server URL. For example, ``host='http://localhost:8081'``
-        :param str key: The user key (in the key/secret pair). For example, ``key='thisisakey123'``
-        :param str secret: The user secret (in the key/secret pair). For example, ``secret='thisisseceret123'``
         :param bool store_conf_file: If ``True``, store the current configuration into the ~/clearml.conf file.
             If the configuration file exists, no change will be made (outputs a warning).
             Not applicable when running remotely (i.e. clearml-agent).
@@ -4207,15 +4200,6 @@ class Task(_Task):
             Session.default_files = files_host
             if not running_remotely() and not ENV_FILES_HOST.get():
                 ENV_FILES_HOST.set(files_host)
-        if key:
-            Session.default_key = key
-            if not running_remotely():
-                ENV_ACCESS_KEY.set(key)
-        if secret:
-            Session.default_secret = secret
-            if not running_remotely():
-                ENV_SECRET_KEY.set(secret)
-
         if store_conf_file and not running_remotely():
             active_conf_file = get_active_config_file()
             if active_conf_file:
@@ -4228,10 +4212,6 @@ class Task(_Task):
                         api_server=Session.default_host,
                         web_server=Session.default_web,
                         files_server=Session.default_files,
-                        credentials=dict(
-                            access_key=Session.default_key,
-                            secret_key=Session.default_secret,
-                        ),
                     )
                 }
                 with open(get_config_file(), "wt") as f:

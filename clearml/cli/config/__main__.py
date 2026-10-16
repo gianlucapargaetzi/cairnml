@@ -7,7 +7,6 @@ import urllib
 from typing import Tuple, Optional, Any
 from urllib.parse import ParseResult
 
-import six
 from pathlib2 import Path
 from six.moves import input
 from six.moves.urllib.parse import urlparse

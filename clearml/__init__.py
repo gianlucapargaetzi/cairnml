@@ -17,7 +17,6 @@ from .hyperdatasets import (
     HyperDatasetQuery,
 )
 
-from .backend_api import browser_login  # noqa: F401
 from .automation.controller import (  # noqa: F401
     PipelineController,  # noqa: F401
     PipelineDecorator,  # noqa: F401
@@ -40,7 +39,6 @@ __all__ = [
     "Dataset",
     "PipelineController",
     "PipelineDecorator",
-    "browser_login",
     "DataEntry",
     "DataSubEntry",
     "DataEntryImage",
