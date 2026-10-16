@@ -19,6 +19,11 @@ class LoginFailed(Exception):
     pass
 
 
+# The sign-in reply comes back to this fixed loopback port. The identity provider registers this exact
+# redirect address for clearml-sdk; a port wildcard is not accepted by Keycloak 26.
+LOGIN_PORT = 8765
+
+
 def pkce_pair():
     verifier = secrets.token_urlsafe(64)
     digest = hashlib.sha256(verifier.encode()).digest()
@@ -34,6 +39,7 @@ def browser_login(
     open_browser=webbrowser.open,
     out=print,
     timeout=300.0,
+    port=LOGIN_PORT,
 ):
     http = session or requests.Session()
     meta = http.get(issuer.rstrip("/") + "/.well-known/openid-configuration", timeout=30).json()
@@ -54,8 +60,11 @@ def browser_login(
         def log_message(self, *args):  # keep the terminal quiet
             pass
 
-    listener = HTTPServer(("127.0.0.1", 0), _Callback)
-    redirect = f"http://127.0.0.1:{listener.server_address[1]}/callback"
+    try:
+        listener = HTTPServer(("127.0.0.1", port), _Callback)
+    except OSError as exc:
+        raise LoginFailed(f"cannot listen on 127.0.0.1:{port} for the sign-in reply: {exc}") from None
+    redirect = f"http://127.0.0.1:{port}/callback"
     query = urlencode({
         "response_type": "code",
         "client_id": client_id,

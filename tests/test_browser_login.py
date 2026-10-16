@@ -103,3 +103,12 @@ def test_a_failed_token_exchange_is_reported():
 def test_no_sign_in_in_time_is_a_timeout():
     with pytest.raises(LoginFailed, match="timed out"):
         browser_login(ISSUER, "clearml-sdk", session=FakeIdp(), open_browser=lambda url: True, timeout=1)
+
+
+def test_the_reply_comes_back_to_the_registered_port():
+    from clearml.idp.browser_login import LOGIN_PORT
+
+    open_browser, seen = browser(approve)
+    browser_login(ISSUER, "clearml-sdk", session=FakeIdp(), open_browser=open_browser, timeout=20)
+    assert seen["redirect_uri"] == f"http://127.0.0.1:{LOGIN_PORT}/callback"
+    assert LOGIN_PORT == 8765
