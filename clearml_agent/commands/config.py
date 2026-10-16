@@ -6,18 +6,13 @@ from .._vendor.pathlib2 import Path
 from .._vendor.six.moves import input
 from .._vendor.six.moves.urllib.parse import urlparse
 
-from clearml_agent.backend_api.session import Session
 from clearml_agent.backend_api.session.defs import ENV_HOST
 from clearml_agent.backend_config.defs import LOCAL_CONFIG_FILES
-from clearml_agent.external.pyhocon import ConfigFactory, ConfigMissingException
+from clearml_agent.idp.enrol import EnrolmentFailed, enrol_device
 
 description = """
-Please create new clearml credentials through the settings page in your `clearml-server` web app, 
-or create a free account at https://app.clear.ml/settings/webapp-configuration
-    
-In the settings > workspace  page, press "Create new credentials", then press "Copy to clipboard".
-
-Paste copied configuration here: 
+This agent signs in with your identity provider. Your browser opens the sign-in page: an admin
+approves the agent there, and this machine is enrolled. No access key is needed.
 """
 
 def_host = 'http://localhost:8080'
@@ -48,68 +43,23 @@ def main():
         return
 
     print(description, end='')
-    sentinel = ''
-    parse_input = ''
-    for line in iter(input, sentinel):
-        parse_input += line+'\n'
-        if line.rstrip() == '}':
-            break
-
-    credentials = None
-    api_server = None
-    web_server = None
-    # noinspection PyBroadException
-    try:
-        parsed = ConfigFactory.parse_string(parse_input)
-        if parsed:
-            # Take the credentials in raw form or from api section
-            credentials = get_parsed_field(parsed, ["credentials"])
-            api_server = get_parsed_field(parsed, ["api_server", "host"])
-            web_server = get_parsed_field(parsed, ["web_server"])
-    except Exception:
-        credentials = credentials or None
-        api_server = api_server or None
-        web_server = web_server or None
-
-    while not credentials or set(credentials) != {"access_key", "secret_key"}:
-        print('Could not parse credentials, please try entering them manually.')
-        credentials = read_manual_credentials()
-
-    print('Detected credentials key=\"{}\" secret=\"{}\"'.format(credentials['access_key'],
-                                                                 credentials['secret_key'][0:4] + "***"))
-    web_input = True
-    if web_server:
-        host = input_url('WEB Host', web_server)
-    elif api_server:
-        web_input = False
-        host = input_url('API Host', api_server)
-    else:
-        print(host_description)
-        host = input_url('WEB Host', 'https://app.clear.ml')
+    print(host_description)
+    host = input_url('WEB Host', 'https://app.clear.ml')
 
     parsed_host = verify_url(host)
     api_host, files_host, web_host = parse_host(parsed_host, allow_input=True)
 
-    # on of these two we configured
-    if not web_input:
-        web_host = input_url('Web Application Host', web_host)
-    else:
-        api_host = input_url('API Host', api_host)
-
+    web_host = input_url('Web Application Host', web_host)
+    api_host = input_url('API Host', api_host)
     files_host = input_url('File Store Host', files_host)
 
     print('\nClearML Hosts configuration:\nWeb App: {}\nAPI: {}\nFile Store: {}\n'.format(
         web_host, api_host, files_host))
 
-    retry = 1
-    max_retries = 2
-    while retry <= max_retries:  # Up to 2 tries by the user
-        if verify_credentials(api_host, credentials):
-            break
-        retry += 1
-        if retry < max_retries + 1:
-            credentials = read_manual_credentials()
-    else:
+    try:
+        device_id = enrol_device(api_host, kind='agent')
+    except EnrolmentFailed as ex:
+        print('Error! This agent was not enrolled: {}'.format(ex))
         print('Exiting setup without creating configuration file')
         return
 
@@ -175,15 +125,15 @@ def main():
         with open(str(conf_file), 'wt') as f:
             header = '# CLEARML-AGENT configuration file\n' \
                      'api {\n' \
-                     '    # Notice: \'host\' is the api server (default port 8008), not the web server.\n' \
+                     '    # Notice: \'api_server\' is the api server (default port 8008), not the web server.\n' \
                      '    api_server: %s\n' \
                      '    web_server: %s\n' \
                      '    files_server: %s\n' \
-                     '    # Credentials are generated using the webapp, %s/settings\n' \
-                     '    # Override with os environment: CLEARML_API_ACCESS_KEY / CLEARML_API_SECRET_KEY\n' \
-                     '    credentials {"access_key": "%s", "secret_key": "%s"}\n' \
-                     '}\n\n' % (api_host, web_host, files_host,
-                                web_host, credentials['access_key'], credentials['secret_key'])
+                     '    # This agent signs in with the device key in ~/.clearml/device.key\n' \
+                     '    idp {\n' \
+                     '        device_id: "%s"\n' \
+                     '    }\n' \
+                     '}\n\n' % (api_host, web_host, files_host, device_id)
             f.write(header)
             git_credentials = '# Set GIT user/pass credentials\n' \
                               '# leave blank for GIT SSH credentials\n' \
@@ -266,53 +216,6 @@ def parse_host(parsed_host, allow_input=True):
         raise ValueError("Could not parse host name")
 
     return api_host, files_host, web_host
-
-
-def verify_credentials(api_host, credentials):
-    """check if the credentials are valid"""
-    # noinspection PyBroadException
-    try:
-        print('Verifying credentials ...')
-        if api_host:
-            Session(api_key=credentials['access_key'], secret_key=credentials['secret_key'], host=api_host,
-                    http_retries_config={"total": 2})
-            print('Credentials verified!')
-            return True
-        else:
-            print("Can't verify credentials")
-            return False
-    except Exception:
-        print('Error: could not verify credentials: key={} secret={}'.format(
-            credentials.get('access_key'), credentials.get('secret_key')))
-        return False
-
-
-def get_parsed_field(parsed_config, fields):
-    """
-    Parsed the value from web profile page, 'copy to clipboard' option
-    :param parsed_config: The parsed value from the web ui
-    :type parsed_config: Config object
-    :param fields: list of values to parse, will parse by the list order
-    :type fields: List[str]
-    :return: parsed value if found, None else
-    """
-    try:
-        return parsed_config.get("api").get(fields[0])
-    except ConfigMissingException:  # fallback - try to parse the field like it was in web older version
-        if len(fields) == 1:
-            return parsed_config.get(fields[0])
-        elif len(fields) == 2:
-            return parsed_config.get(fields[1])
-        else:
-            return None
-
-
-def read_manual_credentials():
-    print('Enter user access key: ', end='')
-    access_key = input()
-    print('Enter user secret: ', end='')
-    secret_key = input()
-    return {"access_key": access_key, "secret_key": secret_key}
 
 
 def input_url(host_type, host=None):
