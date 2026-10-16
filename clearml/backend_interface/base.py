@@ -9,7 +9,7 @@ from ..backend_api import Session, CallResult
 from ..backend_api.session.session import MaxRequestSizeError
 from ..backend_api.session.response import ResponseMeta
 from ..backend_api.session import BatchRequest
-from ..backend_api.session.defs import ENV_ACCESS_KEY, ENV_SECRET_KEY, ENV_OFFLINE_MODE
+from ..backend_api.session.defs import ENV_OFFLINE_MODE
 
 from ..config import config_obj
 from ..config.defs import LOG_LEVEL_ENV_VAR
@@ -160,8 +160,6 @@ class InterfaceBase(SessionInterface):
             InterfaceBase._default_session = Session(
                 initialize_logging=False,
                 config=config_obj,
-                api_key=ENV_ACCESS_KEY.get(),
-                secret_key=ENV_SECRET_KEY.get(),
             )
         return InterfaceBase._default_session
 

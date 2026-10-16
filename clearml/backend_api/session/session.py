@@ -1,7 +1,6 @@
 from __future__ import print_function
 import json as json_lib
 import logging
-import os
 import sys
 import types
 import weakref
@@ -11,7 +10,6 @@ from time import sleep
 
 import jwt
 import requests
-from requests.auth import HTTPBasicAuth
 from requests.exceptions import (
     ChunkedEncodingError,
     ContentDecodingError,
@@ -24,8 +22,6 @@ from .callresult import CallResult
 from .defs import (
     ENV_VERBOSE,
     ENV_HOST,
-    ENV_ACCESS_KEY,
-    ENV_SECRET_KEY,
     ENV_WEB_HOST,
     ENV_FILES_HOST,
     ENV_OFFLINE_MODE,
@@ -45,7 +41,6 @@ from .token_manager import TokenManager
 from ..utils import get_http_session_with_retry, urllib_log_warning_setup
 from ...idp.device import device_assertion
 from ...backend_config import ConfigurationError
-from ...backend_config.defs import get_config_file
 from ...debugging import get_logger
 from ...debugging.log import resolve_logging_level
 from ...utilities.pyhocon import ConfigTree, ConfigFactory
@@ -106,8 +101,6 @@ class Session(TokenManager):
     default_host = "https://api.clear.ml"
     default_web = "https://app.clear.ml"
     default_files = "https://files.clear.ml"
-    default_key = ""  # "EGRTCO8JMSIGI6S39GTP43NFWXDQOW"
-    default_secret = ""  # "x!XTov_G-#vspE*Y(h$Anm&DIc5Ou-F)jsl$PdOyj5wG1&E!Z8"
     force_max_api_version = ENV_FORCE_MAX_API_VERSION.get()
 
     legacy_file_servers = ["https://files.community.clear.ml"]
@@ -121,12 +114,8 @@ class Session(TokenManager):
     ]
 
     @property
-    def access_key(self) -> str:
-        return self.__access_key
-
-    @property
-    def secret_key(self) -> str:
-        return self.__secret_key
+    def device_id(self) -> Optional[str]:
+        return self.__device_id
 
     @property
     def auth_token(self) -> Optional[str]:
@@ -143,8 +132,6 @@ class Session(TokenManager):
     def __init__(
         self,
         worker: Optional[str] = None,
-        api_key: Optional[str] = None,
-        secret_key: Optional[str] = None,
         host: Optional[str] = None,
         logger: Optional[logging.Logger] = None,
         verbose: Optional[bool] = None,
@@ -163,8 +150,6 @@ class Session(TokenManager):
         self.__worker = worker or self.get_worker_host_name()
         self.client = ", ".join(f"{item[0]}-{item[1]}" for item in self._client)
 
-        self.__init_api_key = api_key
-        self.__init_secret_key = secret_key
         self.__init_host = host
         self.__init_http_retries_config = http_retries_config
         self.__token_manager_kwargs = kwargs
@@ -227,20 +212,12 @@ class Session(TokenManager):
         self.__job_token = ENV_JOB_TOKEN.get()
         self._update_default_api_method()
         if ENV_AUTH_TOKEN.get():
-            self.__access_key = self.__secret_key = None
             self.__auth_token = ENV_AUTH_TOKEN.get()
             # if we use a token we override make sure we are at least 3600 seconds (1 hour)
             # away from the token expiration date, ask for a new one.
             token_expiration_threshold_sec = max(token_expiration_threshold_sec, 3600)
-        else:
-            self.__access_key = self.__init_api_key or ENV_ACCESS_KEY.get(
-                default=(self.config.get("api.credentials.access_key", None) or self.default_key)
-            )
-            self.__secret_key = self.__init_secret_key or ENV_SECRET_KEY.get(
-                default=(self.config.get("api.credentials.secret_key", None) or self.default_secret)
-            )
 
-        if not (self.secret_key or self.access_key or self.__auth_token or self.__device_id or self.__job_token):
+        if not (self.__auth_token or self.__device_id or self.__job_token):
             raise MissingConfigError()
 
         super(Session, self).__init__(
@@ -901,85 +878,15 @@ class Session(TokenManager):
         return v + (0,) * max(0, 3 - len(v))
 
     def _do_refresh_token(self, old_token: str, exp: Optional[int] = None) -> str:
-        """TokenManager abstract method implementation.
-        Here we ignore the old token and simply obtain a new token.
-        """
-        verbose = self._verbose and self._logger
-        if verbose:
-            self._logger.info(f"Refreshing token from {self.host} (access_key={self.access_key}, exp={exp})")
-
+        """TokenManager abstract method implementation: obtains a token for this session."""
         if self.__job_token:
             # A job runs with the token its agent obtained for it; the job never exchanges a key.
             return self.__job_token
         if self.__device_id:
             return self._exchange_device_assertion()
-
-        auth = None
-        headers = None
-
-        token = None
-        if self.__auth_token:  # try using initially provided token
-            token = self.__auth_token
-        elif self.access_key and self.secret_key:  # otherwise, try using basic auth (if key/secret exists)
-            auth = HTTPBasicAuth(self.access_key, self.secret_key)
-        else:  # otherwise, use the latest raw token
-            token = self.raw_token
-
-        if token:
-            headers = dict(Authorization=f"Bearer {token}")
-
-        if not auth and not headers:
-            # No authorization info, something went wrong
-            self._logger.warning(
-                "refreshing token with no authorization info (no token or credentials, this might fail "
-                "if session does not have a valid cookie)"
-            )
-
-        res = None
-        try:
-            res = self._send_request(
-                method=Request.def_method,
-                service="auth",
-                action="login",
-                auth=auth,
-                headers=headers,
-                refresh_token_if_unauthorized=False,
-                params={"expiration_sec": exp} if exp else {},
-            )
-            try:
-                resp = res.json()
-            except ValueError:
-                resp = {}
-            if res.status_code != 200:
-                msg = resp.get("meta", {}).get("result_msg", res.reason)
-                raise LoginError(f"Failed getting token (error {res.status_code} from {self.host}): {msg}")
-            if verbose:
-                self._logger.info("Received new token")
-
-            # make sure we keep the token updated on the OS environment, so that child processes will have access.
-            if ENV_AUTH_TOKEN.get():
-                ENV_AUTH_TOKEN.set(resp["data"]["token"])
-
-            # in any case, the initial token should only be used once (but only do it in case we actually managed
-            # to generate a new token in case this failed due to transient reasons)
-            self.__auth_token = None
-
-            return resp["data"]["token"]
-        except LoginError as ex:
-            raise ex
-        except KeyError as ex:
-            # check if this is a misconfigured api server (getting 200 without the data section)
-            if res and res.status_code == 200:
-                raise ValueError(
-                    f"It seems *api_server* is misconfigured. Is this the ClearML API server {self.host} ?"
-                )
-            else:
-                raise LoginError(
-                    f"Response data mismatch: No 'token' in 'data' value from res, receive : {res}, "
-                    f"exception: {ex}"
-                )
-        except Exception as ex:
-            raise LoginError(f"Unrecognized Authentication Error: {type(ex)} {ex}")
+        if self.__auth_token:
+            return self.__auth_token
+        raise LoginError("This machine has no device key or token; run clearml-init to enrol it")
 
     def _exchange_device_assertion(self) -> str:
         """Sign an assertion with this device's key and exchange it for a short-lived token."""
@@ -1003,56 +910,8 @@ class Session(TokenManager):
             raise LoginError(f"Device sign-in refused (error {res.status_code} from {self.host}): {msg}")
         return resp["data"]["access_token"]
 
-    @staticmethod
-    def __get_browser_token(webserver: str) -> Optional[str]:
-        # try to get the token if we are running inside a browser session (i.e. CoLab, Kaggle etc.)
-        if not os.environ.get("JPY_PARENT_PID"):
-            return None
-
-        try:
-            from google.colab import output  # noqa
-            from google.colab._message import MessageError  # noqa
-            from IPython import display  # noqa
-
-            # must have cookie to same-origin: None for this one to work
-            display.display(
-                display.Javascript(
-                    """
-                    window._ApiKey = new Promise((resolve, reject) => {
-                        const timeout = setTimeout(() => reject("Failed authenticating existing browser session"), 5000)
-                        fetch("%s/api/auth.login", {
-                          method: 'GET',
-                          credentials: 'include'
-                        })
-                          .then((response) => resolve(response.json()))
-                          .then((json) => {
-                            clearTimeout(timeout);
-                          }).catch((err) => {
-                            clearTimeout(timeout);
-                            reject(err);
-                        });
-                    });
-                    """
-                    % webserver.rstrip("/")
-                )
-            )
-
-            response = output.eval_js("_ApiKey")
-            if not response:
-                return None
-            result_code = response.get("meta", {}).get("result_code")
-            token = response.get("data", {}).get("token")
-        except:  # noqa
-            return None
-
-        if result_code != 200:
-            raise ValueError(f"Automatic authenticating failed, please login to {webserver} and try again")
-
-        return token
-
     def __str__(self) -> str:
-        secret_key = self.secret_key[:5] + "*" * (len(self.secret_key) - 5)
-        return f"{self.__class__.__name__}[{self.host}, {self.access_key}/{secret_key}]"
+        return f"{self.__class__.__name__}[{self.host}, device={self.__device_id}]"
 
     class _LocalLogger:
         def __init__(self, local_logger: logging.Logger) -> None:
@@ -1063,147 +922,3 @@ class Session(TokenManager):
                 self.logger = get_logger()
             return self.logger
 
-
-def browser_login(clearml_server: Optional[str] = None) -> None:
-    """
-    Alternative authentication / login method, (instead of configuring ~/clearml.conf or Environment variables)
-    ** Only applicable when running inside a browser session,
-    for example Google Colab, Kaggle notebook, Jupyter Notebooks etc. **
-
-    Notice: If called inside a python script, or when running with an agent, this function is ignored
-
-    :param clearml_server: Optional, set the clearml server address, default: https://app.clear.ml
-    """
-
-    # check if we are running inside a Jupyter notebook of a sort
-    if not os.environ.get("JPY_PARENT_PID"):
-        return
-
-    # if we are running remotely or in offline mode, skip login
-    from clearml.config import running_remotely
-
-    # noinspection PyProtectedMember
-    if running_remotely():
-        return
-
-    # if we have working local configuration, nothing to do
-    try:
-        Session()
-        # make sure we set environment variables to point to our api/app/files hosts
-        ENV_WEB_HOST.set(Session.get_app_server_host())
-        ENV_HOST.set(Session.get_api_server_host())
-        ENV_FILES_HOST.set(Session.get_files_server_host())
-        return
-    except:  # noqa
-        pass
-
-    # conform clearml_server address
-    if clearml_server:
-        if not clearml_server.lower().startswith("http"):
-            clearml_server = f"http://{clearml_server}"
-
-        parsed = urlparse(clearml_server)
-        if parsed.port:
-            parsed = parsed._replace(netloc=parsed.netloc.replace(":%d" % parsed.port, ":8008", 1))
-
-        if parsed.netloc.startswith("demoapp."):
-            parsed = parsed._replace(netloc=parsed.netloc.replace("demoapp.", "demoapi.", 1))
-        elif parsed.netloc.startswith("app."):
-            parsed = parsed._replace(netloc=parsed.netloc.replace("app.", "api.", 1))
-        elif parsed.netloc.startswith("api."):
-            pass
-        else:
-            parsed = parsed._replace(netloc="api." + parsed.netloc)
-
-        clearml_server = urlunparse(parsed)
-
-        # set for later usage
-        ENV_HOST.set(clearml_server)
-
-    token = None
-    counter = 0
-    clearml_app_server = Session.get_app_server_host()
-    while not token:
-        # try to get authentication toke
-        try:
-            # noinspection PyProtectedMember
-            token = Session._Session__get_browser_token(clearml_app_server)
-        except ValueError:
-            token = None
-        except Exception:  # noqa
-            token = None
-        # if we could not get a token, instruct the user to login
-        if not token:
-            if not counter:
-                print(
-                    "ClearML automatic browser login failed, please login or create a new account\n"
-                    "To get started with ClearML: setup your own `clearml-server`, "
-                    f"or create a free account at {clearml_app_server}\n"
-                )
-                print(
-                    f"Please login to {clearml_app_server} , then press [Enter] to connect ",
-                    end="",
-                )
-                input()
-            elif counter < 1:
-                print(
-                    "Oh no we failed to connect \N{worried face}, "
-                    "try to logout and login again - Press [Enter] to retry ",
-                    end="",
-                )
-                input()
-            else:
-                print(
-                    "\n"
-                    "We cannot connect automatically (adblocker / incognito?) \N{worried face} \n"
-                    f"Please go to {clearml_app_server.lstrip('/')}/settings/workspace-configuration \n"
-                    "Then press \x1B[1m\x1B[48;2;26;30;44m\x1B[37m + Create new credentials \x1b[0m \n"
-                    "And copy/paste your \x1B[1m\x1B[4mAccess Key\x1b[0m here: ",
-                    end="",
-                )
-
-                creds = input()
-                if creds:
-                    print(" Setting access key ")
-                    ENV_ACCESS_KEY.set(creds.strip())
-
-                print("Now copy/paste your \x1B[1m\x1B[4mSecret Key\x1b[0m here: ", end="")
-                creds = input()
-                if creds:
-                    print(" Setting secret key ")
-                    ENV_SECRET_KEY.set(creds.strip())
-
-                if ENV_ACCESS_KEY.get() and ENV_SECRET_KEY.get():
-                    # store in conf file for persistence in runtime
-                    # noinspection PyBroadException
-                    try:
-                        with open(get_config_file(), "wt") as f:
-                            f.write(
-                                f"api.credentials.access_key={ENV_ACCESS_KEY.get()}\n"
-                                f"api.credentials.secret_key={ENV_SECRET_KEY.get()}\n"
-                            )
-                    except Exception:
-                        pass
-                    break
-
-            counter += 1
-
-    print("")
-    if counter:
-        # these emojis actually requires python 3.6+
-        # print("\nHurrah! \N{face with party horn and party hat} \N{confetti ball} \N{party popper}")
-        print("\nHurrah! \U0001f973 \U0001f38a \U0001f389")
-
-    if token:
-        # set Token
-        ENV_AUTH_TOKEN.set(token)
-
-    if token or (ENV_ACCESS_KEY.get() and ENV_SECRET_KEY.get()):
-        # make sure we set environment variables to point to our api/app/files hosts
-        ENV_WEB_HOST.set(Session.get_app_server_host())
-        ENV_HOST.set(Session.get_api_server_host())
-        ENV_FILES_HOST.set(Session.get_files_server_host())
-        # verify token
-        Session()
-        # success
-        print("\N{robot face} ClearML connected successfully - let's build something! \N{rocket}")

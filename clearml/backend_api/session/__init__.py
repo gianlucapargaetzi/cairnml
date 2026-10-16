@@ -1,4 +1,4 @@
-from .session import Session, browser_login
+from .session import Session
 from .datamodel import DataModel, NonStrictDataModel, schema_property, StringEnum
 from .request import Request, BatchRequest, CompoundRequest
 from .response import Response
@@ -20,5 +20,4 @@ __all__ = [
     "TimeoutExpiredError",
     "ResultNotReadyError",
     "CallResult",
-    "browser_login",
 ]

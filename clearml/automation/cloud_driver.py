@@ -36,8 +36,6 @@ export CLEARML_WEB_HOST={web_server}
 export CLEARML_FILES_HOST={files_server}
 export DYNAMIC_INSTANCE_ID=$({instance_id_command})
 export CLEARML_WORKER_ID={worker_prefix}:$DYNAMIC_INSTANCE_ID
-export CLEARML_API_ACCESS_KEY='{access_key}'
-export CLEARML_API_SECRET_KEY='{secret_key}'
 export CLEARML_AUTH_TOKEN='{auth_token}'
 source ~/.bashrc
 {bash_script}
@@ -70,8 +68,6 @@ class CloudDriver(ABC):
     api_server = attr.ib()
     web_server = attr.ib()
     files_server = attr.ib()
-    access_key = attr.ib()
-    secret_key = attr.ib()
     auth_token = attr.ib()
 
     # Other
@@ -139,11 +135,9 @@ class CloudDriver(ABC):
             queue=queue_name,
             worker_prefix=worker_prefix,
             auth_token=self.auth_token or "",
-            access_key=self.access_key or "",
             api_server=self.api_server,
             clearml_conf=self.clearml_conf(),
             files_server=self.files_server,
-            secret_key=self.secret_key or "",
             web_server=self.web_server,
             bash_script=(
                 f"export NVIDIA_VISIBLE_DEVICES=none; {self.extra_vm_bash_script}"  # ruff-format-hint
@@ -195,8 +189,6 @@ class CloudDriver(ABC):
             "api_server": session.get_api_server_host(),
             "web_server": session.get_app_server_host(),
             "files_server": session.get_files_server_host(),
-            "access_key": session.access_key,
-            "secret_key": session.secret_key,
             "auth_token": ENV_AUTH_TOKEN.get(),
             "extra_vm_bash_script": configurations["extra_vm_bash_script"],
             "docker_image": hyper_params["default_docker_image"],

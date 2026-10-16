@@ -3,7 +3,6 @@ from .session import (
     CallResult,
     TimeoutExpiredError,
     ResultNotReadyError,
-    browser_login,
 )
 from .config import load as load_config
 
@@ -13,5 +12,4 @@ __all__ = [
     "TimeoutExpiredError",
     "ResultNotReadyError",
     "load_config",
-    "browser_login",
 ]

@@ -113,8 +113,6 @@ class AutoScaler:
         defs.ENV_HOST.set(session.get_api_server_host())
         defs.ENV_WEB_HOST.set(session.get_app_server_host())
         defs.ENV_FILES_HOST.set(session.get_files_server_host())
-        defs.ENV_ACCESS_KEY.set(session.access_key)
-        defs.ENV_SECRET_KEY.set(session.secret_key)
         if self.auth_token:
             defs.ENV_AUTH_TOKEN.set(self.auth_token)
 
@@ -123,13 +121,7 @@ class AutoScaler:
         self.state = State.READY
 
     def set_auth(self, session: Session) -> None:
-        if session.access_key and session.secret_key:
-            self.access_key = session.access_key
-            self.secret_key = session.secret_key
-            self.auth_token = None
-            return
-
-        self.access_key = self.secret_key = None
+        # The auto-scaler's own identity is an agent enrolment (Phase 3); until then it uses an auth token.
         self.auth_token = defs.ENV_AUTH_TOKEN.get(default=None)
 
     def sanity_check(self) -> bool:
