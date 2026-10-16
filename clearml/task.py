@@ -1859,6 +1859,8 @@ class Task(_Task):
         queue_name: Optional[str] = None,
         queue_id: Optional[str] = None,
         force: bool = False,
+        requirements: Optional[dict] = None,
+        priority: Optional[int] = None,
     ) -> Any:
         """
         Enqueue a Task for execution, by adding it to an execution queue.
@@ -1912,10 +1914,29 @@ class Task(_Task):
 
         task_id = task if isinstance(task, str) else task.id
         session = cls._get_default_session()
-        if not queue_id:
+        if not queue_id and queue_name:
             queue_id = get_queue_id(session, queue_name)
             if not queue_id:
                 raise ValueError(f'Could not find queue named "{queue_name}"')
+
+        # the scheduling values set on the task with set_requirements / set_priority, unless given here
+        scheduling = {} if isinstance(task, str) else getattr(task, "_scheduling", {})
+        if requirements is None:
+            requirements = scheduling.get("requirements")
+        if priority is None:
+            priority = scheduling.get("priority")
+        if requirements is not None or priority is not None or not queue_id:
+            from clearml.backend_interface.task.requirements import enqueue_body
+
+            res = session.send_request(
+                service="tasks",
+                action="enqueue",
+                version="2.36",
+                json=enqueue_body(task_id, queue_id, requirements, priority),
+            )
+            if not res.ok:
+                raise ValueError(res.text)
+            return res.json()
 
         req = tasks.EnqueueRequest(task=task_id, queue=queue_id)
         exception = None
@@ -3308,6 +3329,42 @@ class Task(_Task):
 
         """
         return naive_nested_from_flat_dictionary(self.get_parameters(cast=cast))
+
+    def set_requirements(
+        self,
+        cpus: Optional[int] = None,
+        ram_gb: Optional[float] = None,
+        gpus: Optional[int] = None,
+        gpu_memory_gb: Optional[float] = None,
+        gpu_model: Optional[str] = None,
+        disk_gb: Optional[float] = None,
+        max_runtime_min: Optional[int] = None,
+    ) -> "Task":
+        """
+        Say what this task needs from a machine. Name all of ``cpus``, ``ram_gb``, ``gpus`` and ``disk_gb``, or
+        none: a task with none runs alone on a machine. The requirements are sent when the task is enqueued.
+
+        :param cpus: CPUs the task needs (at least 1)
+        :param ram_gb: RAM in GB (above 0)
+        :param gpus: GPUs the task needs (0 or more)
+        :param gpu_memory_gb: GPU memory in GB each GPU must have
+        :param gpu_model: the GPU model the task needs (optional)
+        :param disk_gb: disk in GB (0 or more)
+        :param max_runtime_min: the task is stopped after this many minutes
+        """
+        from clearml.backend_interface.task.requirements import build_requirements
+
+        self._scheduling = {**getattr(self, "_scheduling", {}), "requirements": build_requirements(
+            cpus=cpus, ram_gb=ram_gb, gpus=gpus, gpu_memory_gb=gpu_memory_gb, gpu_model=gpu_model,
+            disk_gb=disk_gb, max_runtime_min=max_runtime_min)}
+        return self
+
+    def set_priority(self, priority: int) -> "Task":
+        """Set the priority of this task (0 to 100, higher runs first). Sent when the task is enqueued."""
+        from clearml.backend_interface.task.requirements import check_priority
+
+        self._scheduling = {**getattr(self, "_scheduling", {}), "priority": check_priority(priority)}
+        return self
 
     def set_parameters_as_dict(self, dictionary: Dict) -> None:
         """
