@@ -30,8 +30,11 @@ def test_task_set_credentials_takes_no_keys():
     assert "secret" not in params
 
 
-def test_access_keys_in_the_environment_do_not_sign_a_session_in():
+def test_access_keys_in_the_environment_do_not_sign_a_session_in(tmp_path):
     env = dict(os.environ)
+    # An empty home: the machine's own configuration must not be read by this test.
+    env["HOME"] = str(tmp_path)
+    env["CLEARML_CONFIG_FILE"] = str(tmp_path / "none.conf")
     env.update({
         "CLEARML_API_ACCESS_KEY": "a-key",
         "CLEARML_API_SECRET_KEY": "a-secret",
