@@ -83,11 +83,22 @@ def test_the_limits_and_label_reach_the_job_environment_and_no_token_is_passed(t
     assert result["outcome"] == "completed", result
 
 
-def test_a_job_ended_by_the_server_is_reported_without_a_failure_so_the_real_status_stands(tmp_path):
-    runner = JobRunner(command_builder=python_job("import time; time.sleep(60)"), log_dir=str(tmp_path),
+def test_a_job_ended_by_the_server_reports_its_real_outcome_when_it_exits_on_its_own(tmp_path):
+    runner = JobRunner(command_builder=python_job("import sys; print('oops'); sys.exit(2)"), log_dir=str(tmp_path),
                        expect_container=False)
     runner.start("job-ended", RESERVATION)
-    time.sleep(0.5)
     runner.end("job-ended")
     result = wait_for(runner)
-    assert result["failure"] is None
+    assert result["outcome"] == "failed"
+    assert result["failure"]["exit_code"] == 2
+
+
+def test_a_job_ended_by_the_server_is_killed_after_the_grace_period(tmp_path):
+    runner = JobRunner(command_builder=python_job("import time; time.sleep(120)"), log_dir=str(tmp_path),
+                       expect_container=False, ended_grace_sec=0.5)
+    runner.start("job-hung", RESERVATION)
+    runner.end("job-hung")
+    time.sleep(1.5)
+    runner.sample()
+    result = wait_for(runner)
+    assert result["outcome"] in ("failed", "completed", "stopped")

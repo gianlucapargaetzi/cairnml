@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import tempfile
 import threading
+import time
 from typing import Callable, Dict, List, Optional, Tuple
 
 from clearml_agent.scheduler import enforce, failure, usage
@@ -22,9 +23,11 @@ def default_command(task: str, reservation: dict) -> Tuple[List[str], dict]:
 
 class JobRunner(object):
     def __init__(self, command_builder: CommandBuilder = default_command, log_dir: Optional[str] = None,
-                 docker: str = "docker", expect_container: bool = True, extra_hosts=()):
+                 docker: str = "docker", expect_container: bool = True, extra_hosts=(),
+                 ended_grace_sec: float = 60):
         self._build = command_builder
         self._extra_hosts = list(extra_hosts)
+        self._ended_grace_sec = ended_grace_sec
         self._expect_container = expect_container
         self._log_dir = log_dir or tempfile.mkdtemp(prefix="clearml-jobs-")
         self._docker = docker
@@ -71,13 +74,13 @@ class JobRunner(object):
         self.kill(task)
 
     def end(self, task: str):
-        """The job already ended on the server (its own process failed or completed). Its container is
-        removed. The report carries no failure, so the server keeps the status the job really had."""
+        """The job already ended on the server (its own process failed or completed). It is not killed: it
+        exits on its own and its real outcome is reported. Anything still running after the grace period is killed."""
         with self._lock:
             job = self._jobs.get(task)
             if job:
                 job["ended"] = True
-        self.kill(task)
+                job["ended_at"] = time.time()
 
     def stop(self, task: str):
         """Asked by the server: the task was stopped. The job is killed and reported as stopped."""
@@ -102,6 +105,10 @@ class JobRunner(object):
         """Read every running job's usage. The peak is kept, because the cgroup is gone when the job ends."""
         with self._lock:
             tasks = list(self._jobs)
+            overdue = [t for t, j in self._jobs.items()
+                       if j.get("ended") and time.time() - j["ended_at"] > self._ended_grace_sec]
+        for task in overdue:
+            self.kill(task)
         for task in tasks:
             for cid in self._containers(task):
                 sample = usage.read_container_usage(cid)
@@ -147,8 +154,7 @@ class JobRunner(object):
         reservation = job["reservation"]
         reserved = {"ram_gb": reservation.get("ram_gb")}
         peak = {"ram_gb": job["peak_ram_gb"]}
-        if (job["stop_requested"] or job.get("ended")) and not job["deadline_hit"]:
-            # "stopped" with no failure: the server changes nothing, the status was set when the job ended
+        if job["stop_requested"] and not job["deadline_hit"]:
             return {"task": task, "outcome": "stopped", "failure": None}
         if self._expect_container and inspect is None and not job["deadline_hit"]:
             # the process ended without a container: the job never ran, whatever its exit code says
