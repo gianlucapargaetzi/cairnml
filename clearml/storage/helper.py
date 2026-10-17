@@ -65,7 +65,6 @@ from clearml.utilities.requests_toolbelt import (
 )
 from .callbacks import UploadProgressReport, DownloadProgressReport
 from .url import quote_url
-from ..backend_api.session import Session
 from ..backend_api.utils import get_http_session_with_retry
 from ..backend_config.bucket_config import (
     S3BucketConfigurations,
@@ -109,7 +108,6 @@ class DownloadError(Exception):
 
 class _Driver(ABC):
     _certs_cache_context = "certs"
-    _file_server_hosts = None
 
     @classmethod
     def get_logger(cls) -> logging.Logger:
@@ -192,25 +190,6 @@ class _Driver(ABC):
         pass
 
     @classmethod
-    def get_file_server_hosts(cls) -> List[str]:
-        if cls._file_server_hosts is None:
-            hosts = (
-                [Session.get_files_server_host()] +
-                (Session.legacy_file_servers or []) +
-                (cls._get_extra_file_server_hosts() or [])
-            )
-            for host in hosts[:]:
-                substituted = _StorageHelper._apply_url_substitutions(host)
-                if substituted not in hosts:
-                    hosts.append(substituted)
-            cls._file_server_hosts = hosts
-        return cls._file_server_hosts
-
-    @classmethod
-    def _get_extra_file_server_hosts(cls) -> List[str]:
-        pass
-
-    @classmethod
     def download_cert(cls, cert_url: str) -> str:
         # import here to avoid circular imports
         from .manager import StorageManager
@@ -248,8 +227,6 @@ class _HttpDriver(_Driver):
     schemes = ("http", "https")
 
     class _Container:
-        _default_backend_session = None
-
         def __init__(self, name: str, retries: int = 5, **kwargs: Any) -> None:
             self.name = name
             self.session = get_http_session_with_retry(
@@ -269,22 +246,6 @@ class _HttpDriver(_Driver):
                 ],
                 config=config,
             )
-            self._file_server_hosts = set(_HttpDriver.get_file_server_hosts())
-
-        def _should_attach_auth_header(self) -> bool:
-            return any(
-                (self.name.rstrip("/") == host.rstrip("/") or self.name.startswith(host.rstrip("/") + "/"))
-                for host in self._file_server_hosts
-            )
-
-        def get_headers(self, _: Any) -> Dict[str, str]:
-            if not self._default_backend_session:
-                from ..backend_interface.base import InterfaceBase
-
-                self._default_backend_session = InterfaceBase._get_default_session()
-
-            if self._should_attach_auth_header():
-                return self._default_backend_session.add_auth_headers({})
 
     class _HttpSessionHandle:
         def __init__(
@@ -304,15 +265,6 @@ class _HttpDriver(_Driver):
     def __init__(self, retries: Optional[int] = None) -> None:
         self._retries = retries or int(self.max_retries)
         self._containers = {}
-
-    @classmethod
-    def _get_extra_file_server_hosts(cls) -> Optional[List[str]]:
-        plot_dest = str(config.get("metrics.plot_upload_destination", "") or "").strip()
-        hosts = [
-          *(config.get("storage.http.legacy_fileservers", []) or []),
-          *([plot_dest] if plot_dest else []),
-        ]
-        return hosts or None
 
     def get_container(
         self,
@@ -365,7 +317,6 @@ class _HttpDriver(_Driver):
         headers = {
             "Content-Type": m.content_type,
         }
-        headers.update(container.get_headers(url) or {})
 
         res = container.session.post(url, data=m, timeout=timeout, headers=headers)
         if res.status_code != requests.codes.ok:
@@ -380,7 +331,7 @@ class _HttpDriver(_Driver):
     def delete_object(self, obj: _HttpSessionHandle, *args: Any, **kwargs: Any) -> bool:
         assert isinstance(obj, self._HttpSessionHandle)
         container = self._containers[obj.container_name]
-        res = container.session.delete(obj.url, headers=container.get_headers(obj.url))
+        res = container.session.delete(obj.url)
         if res.status_code != requests.codes.ok:
             if not kwargs.get("silent", False):
                 self.get_logger().warning(
@@ -416,7 +367,6 @@ class _HttpDriver(_Driver):
         res = container.session.get(
             obj.url,
             timeout=(int(self.timeout_connection), int(self.timeout_total)),
-            headers=container.get_headers(obj.url),
         )
         if res.status_code != requests.codes.ok:
             raise ValueError("Failed getting object %s (%d): %s" % (obj.object_name, res.status_code, res.reason))
@@ -485,7 +435,7 @@ class _HttpDriver(_Driver):
         try:
             container = self.get_container(container_name)
             url = container_name + object_name
-            return container.session.head(url, allow_redirects=True, headers=container.get_headers(url)).ok
+            return container.session.head(url, allow_redirects=True).ok
         except Exception:
             return False
 
@@ -3772,9 +3722,6 @@ class _StorageHelper:
             task_id = parsed.path.strip("/").split("/")[0]
             return f"{_DatachunkDriver.scheme}://{parsed.netloc}/{task_id}"
         elif parsed.scheme in _HttpDriver.schemes:
-            for files_server in _HttpDriver.get_file_server_hosts():
-                if base_url.startswith(files_server):
-                    return files_server
             return parsed.scheme + "://"
         else:  # if parsed.scheme == 'file':
             # if we do not know what it is, we assume file

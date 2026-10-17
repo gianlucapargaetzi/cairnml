@@ -140,7 +140,7 @@ class StorageManager:
 
         .. code-block:: py
 
-            upload_file('/tmp/artifact.yaml', 'http://localhost:8081/manual_artifacts/my_artifact.yaml')
+            upload_file('/tmp/artifact.yaml', 'datachunk://artifact/<task id>/manual_artifacts/my_artifact.yaml')
             upload_file('/tmp/artifact.yaml', 's3://a_bucket/artifacts/my_artifact.yaml')
             upload_file('/tmp/artifact.yaml', '/mnt/share/folder/artifacts/my_artifact.yaml')
 
@@ -280,12 +280,6 @@ class StorageManager:
                 pass
             return cached_file.as_posix()
         return target_folder.as_posix()
-
-    @classmethod
-    def get_files_server(cls) -> str:
-        from ..backend_api import Session
-
-        return Session.get_files_server_host()
 
     @classmethod
     def upload_folder(

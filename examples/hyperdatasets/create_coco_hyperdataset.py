@@ -31,7 +31,6 @@ from zipfile import ZipFile
 import requests
 
 from clearml.hyperdatasets import DataEntryImage, DataSubEntryImage, HyperDataset
-from clearml.backend_api.session.session import Session
 
 
 COCO_ANNOTATIONS_URL = "http://images.cocodataset.org/annotations/annotations_trainval2017.zip"
@@ -354,7 +353,7 @@ def main() -> None:
     logging.info("Registering %d entries with HyperDataset %s/%s", len(entries), args.dataset_name, args.version_name)
     errors = dataset.add_data_entries(
         entries,
-        upload_local_files_destination=args.upload_uri or Session.get_files_server_host(),
+        upload_local_files_destination=args.upload_uri,
         force_upload=args.force_upload,
     )
     print(errors)

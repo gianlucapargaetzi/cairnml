@@ -43,7 +43,6 @@ from .backend_api.session.session import (
     CallResult,
     ENV_HOST,
     ENV_WEB_HOST,
-    ENV_FILES_HOST,
 )
 from .backend_api.session.defs import (
     ENV_DEFERRED_TASK_INIT,
@@ -378,7 +377,7 @@ class Task(_Task):
           - An integer - Specify initial iteration offset (override the auto automatic ``last_iteration_offset``). Pass 0, to disable the automatic ``last_iteration_offset`` or specify a different initial offset. You can specify a Task ID to be used with ``reuse_last_task_id='task_id_here'``
 
         :param str output_uri: The default location for output models and other artifacts.
-            If ``True``, the default ``files_server`` will be used for model storage. In the default location, ClearML creates a subfolder for the
+            If ``True``, the ClearML server's object storage will be used for model storage. In the default location, ClearML creates a subfolder for the
             output. If set to ``False``, local runs will not upload output models and artifacts,
             and remote runs will not use any default values provided using ``default_output_uri``.
             The subfolder structure is the following: \\<output destination name\\> / \\<project name\\> / \\<task name\\>.\\<Task ID\\>.
@@ -391,7 +390,7 @@ class Task(_Task):
           - S3: ``s3://bucket/folder``
           - Google Cloud Storage: ``gs://bucket-name/folder``
           - Azure Storage: ``azure://company.blob.core.windows.net/folder/``
-          - Default file server: ``True``
+          - ClearML server object storage: ``True``
 
         :param auto_connect_arg_parser: Automatically connect an argparse object to the Task.
             Supported argument parser packages are: argparse, click, python-fire, jsonargparse. The values are:
@@ -4070,7 +4069,6 @@ class Task(_Task):
         cls,
         api_host: Optional[str] = None,
         web_host: Optional[str] = None,
-        files_host: Optional[str] = None,
         store_conf_file: bool = False,
     ) -> None:
         """
@@ -4087,13 +4085,12 @@ class Task(_Task):
         .. code-block:: py
 
             Task.set_credentials(
-                api_host='http://localhost:8008', web_host='http://localhost:8080', files_host='http://localhost:8081'
+                api_host='http://localhost:8008', web_host='http://localhost:8080'
             )
             task = Task.init('project name', 'experiment name')
 
         :param str api_host: The API server URL. For example, ``host='http://localhost:8008'``
         :param str web_host: The Web server URL. For example, ``host='http://localhost:8080'``
-        :param str files_host: The file server URL. For example, ``host='http://localhost:8081'``
         :param bool store_conf_file: If ``True``, store the current configuration into the ~/clearml.conf file.
             If the configuration file exists, no change will be made (outputs a warning).
             Not applicable when running remotely (i.e. clearml-agent).
@@ -4106,10 +4103,6 @@ class Task(_Task):
             Session.default_web = web_host
             if not running_remotely() and not ENV_WEB_HOST.get():
                 ENV_WEB_HOST.set(web_host)
-        if files_host:
-            Session.default_files = files_host
-            if not running_remotely() and not ENV_FILES_HOST.get():
-                ENV_FILES_HOST.set(files_host)
         if store_conf_file and not running_remotely():
             active_conf_file = get_active_config_file()
             if active_conf_file:
@@ -4121,7 +4114,6 @@ class Task(_Task):
                     "api": dict(
                         api_server=Session.default_host,
                         web_server=Session.default_web,
-                        files_server=Session.default_files,
                     )
                 }
                 with open(get_config_file(), "wt") as f:

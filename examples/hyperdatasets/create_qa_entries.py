@@ -22,7 +22,6 @@ import argparse
 import html
 import json
 import re
-import tempfile
 import textwrap
 import uuid
 from pathlib import Path
@@ -34,8 +33,6 @@ from clearml.hyperdatasets import (
     DataEntry,
     DataSubEntry,
 )
-from clearml import StorageManager
-from clearml.backend_api.session.session import Session
 
 
 # ClearML sub-entry representing a single text snippet within the Q&A pair
@@ -225,13 +222,6 @@ def _resolve_vector_dims(embeddings: Optional[List[List[float]]]) -> Optional[in
     return dims
 
 
-def _build_preview_base_url(app_host: str, version_id: Optional[str]) -> Optional[str]:
-    host = (app_host or "").rstrip("/")
-    if not host or not version_id:
-        return None
-    return f"{host}/files/datasets/{version_id}/clearml-docs/docs/webapp"
-
-
 def _preview_file_name(question: str, index: int) -> str:
     slug = re.sub(r"[^a-z0-9]+", "-", (question or "").lower()).strip("-")
     if slug:
@@ -257,30 +247,6 @@ def _render_preview_html(question: str, answer: str) -> str:
 </body>
 </html>
 """
-
-
-def upload_entry_previews(
-    qa_pairs: List[dict],
-    preview_base_url: Optional[str],
-) -> Optional[List[str]]:
-    if not preview_base_url:
-        return None
-
-    preview_urls: List[str] = []
-    with tempfile.TemporaryDirectory() as preview_dir:
-        preview_dir_path = Path(preview_dir)
-        for idx, item in enumerate(qa_pairs):
-            question = item.get("question", "") or ""
-            answer = item.get("answer", "") or ""
-            preview_name = _preview_file_name(question, idx)
-            local_path = preview_dir_path / f"{preview_name}.html"
-            local_path.write_text(_render_preview_html(question, answer), encoding="utf-8")
-            remote_url = StorageManager.upload_file(
-                local_file=local_path.as_posix(),
-                remote_url=f"{preview_base_url}/{preview_name}.html",
-            )
-            preview_urls.append(remote_url)
-    return preview_urls
 
 
 def main():
@@ -324,11 +290,7 @@ def main():
         field_mappings=field_mappings,
     )
 
-    app_host = Session.get_files_server_host()
-    preview_base_url = _build_preview_base_url(app_host, dataset.version_id)
-    preview_sources = upload_entry_previews(qa_pairs, preview_base_url)
-
-    entries, _ = build_entries(qa_pairs, embeddings, vector_field, preview_sources=preview_sources)
+    entries, _ = build_entries(qa_pairs, embeddings, vector_field)
 
     # Upload entries so ClearML handles storage and indexing
     errors = dataset.add_data_entries(entries, upload_local_files_destination=None, force_upload=True)

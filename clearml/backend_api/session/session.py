@@ -15,7 +15,7 @@ from requests.exceptions import (
     ContentDecodingError,
     StreamConsumedError,
 )
-from six.moves.urllib.parse import urlparse, urlunparse
+from six.moves.urllib.parse import urlparse
 from typing import List, Optional, Union, Dict, Iterable, Tuple, Any
 
 from .callresult import CallResult
@@ -23,7 +23,6 @@ from .defs import (
     ENV_VERBOSE,
     ENV_HOST,
     ENV_WEB_HOST,
-    ENV_FILES_HOST,
     ENV_OFFLINE_MODE,
     ENV_AUTH_TOKEN,
     ENV_JOB_TOKEN,
@@ -100,10 +99,8 @@ class Session(TokenManager):
     default_demo_host = "https://demoapi.demo.clear.ml"
     default_host = "https://api.clear.ml"
     default_web = "https://app.clear.ml"
-    default_files = "https://files.clear.ml"
     force_max_api_version = ENV_FORCE_MAX_API_VERSION.get()
 
-    legacy_file_servers = ["https://files.community.clear.ml"]
 
     # TODO: add requests.codes.gateway_timeout once we support async commits
     _retry_codes = [
@@ -750,42 +747,6 @@ class Session(TokenManager):
             return host.replace(":8008", ":8080", 1)
 
         raise ValueError("Could not detect ClearML web application server")
-
-    @classmethod
-    def get_files_server_host(cls, config: Optional[ConfigTree] = None) -> str:
-        """
-        Get the files server host name for the current configuration, either using the configuration value or by
-        parsing the other api or app host names
-        :param config: configuration object to use instead of the default configuration (ConfigTree)
-        :return: files server host name (str)
-        """
-        if not config:
-            from ...config import config_obj
-
-            config = config_obj
-        # get from config/environment
-        files_host = ENV_FILES_HOST.get(default=(config.get("api.files_server", ""))).rstrip("/")
-        if files_host:
-            return files_host
-
-        # return default
-        host = cls.get_api_server_host(config)
-        if host == cls.default_host and cls.default_files:
-            return cls.default_files
-
-        # compose ourselves
-        app_host = cls.get_app_server_host(config)
-        parsed = urlparse(app_host)
-        if parsed.port:
-            parsed = parsed._replace(netloc=parsed.netloc.replace(":%d" % parsed.port, ":8081", 1))
-        elif parsed.netloc.startswith("demoapp."):
-            parsed = parsed._replace(netloc=parsed.netloc.replace("demoapp.", "demofiles.", 1))
-        elif parsed.netloc.startswith("app."):
-            parsed = parsed._replace(netloc=parsed.netloc.replace("app.", "files.", 1))
-        else:
-            parsed = parsed._replace(netloc=parsed.netloc + ":8081")
-
-        return urlunparse(parsed)
 
     @classmethod
     def check_min_server_version(cls, min_server_version: str) -> bool:
