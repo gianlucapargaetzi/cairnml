@@ -2452,8 +2452,9 @@ class OutputModel(BaseModel):
             else None
         )
 
-        # if we have no output destination, just register the local model file
-        if weights_filename and not self.upload_storage_uri and not self._task.storage_uri:
+        # offline, with no output destination, just register the local model file. Online, the default
+        # destination is the API server's object storage, so the weights are uploaded.
+        if weights_filename and not self.upload_storage_uri and not self._task.storage_uri and self._task.is_offline():
             register_uri = weights_filename
             weights_filename = None
             auto_delete_file = False
@@ -2462,7 +2463,14 @@ class OutputModel(BaseModel):
         # start the upload
         if weights_filename:
             if not model.upload_storage_uri:
-                self.set_upload_destination(self.upload_storage_uri or self._task.storage_uri)
+                from .storage.helper import datachunk_location, with_datachunk_kind
+
+                self.set_upload_destination(
+                    with_datachunk_kind(
+                        self.upload_storage_uri or self._task.storage_uri or datachunk_location("model", self._task.id),
+                        "model",
+                    )
+                )
 
             output_uri = model.update_and_upload(
                 model_file=weights_filename,

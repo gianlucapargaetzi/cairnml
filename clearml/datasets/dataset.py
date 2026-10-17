@@ -34,7 +34,7 @@ from ..config import deferred_config, running_remotely, get_remote_task_id
 from ..debugging.log import LoggerRoot
 from ..storage.archive import flag_path_traversal_vulnerability
 from ..storage.cache import CacheManager
-from ..storage.helper import StorageHelper, cloud_driver_schemes
+from ..storage.helper import StorageHelper, cloud_driver_schemes, is_datachunk_location
 from ..storage.util import is_windows
 from ..storage.size import format_size
 from ..storage.hashing import sha256sum, md5text
@@ -1427,7 +1427,11 @@ class Dataset:
         """
         if not self._task:
             return None
-        return self._task.output_uri or self._task.get_logger().get_default_upload_destination()
+        from ..storage.helper import with_datachunk_kind
+
+        return with_datachunk_kind(
+            self._task.output_uri or self._task.get_logger().get_default_upload_destination(), "dataset"
+        )
 
     @classmethod
     def create(
@@ -3705,7 +3709,7 @@ class Dataset:
                     # use report_media instead to not leak data
                     if (
                         isinstance(artifact, pd.DataFrame)
-                        and self._task.get_logger().get_default_upload_destination() == Session.get_files_server_host()
+                        and is_datachunk_location(self._task.get_logger().get_default_upload_destination())
                     ):
                         self._task.get_logger().report_table("Tables", "summary", table_plot=artifact)
                     else:
