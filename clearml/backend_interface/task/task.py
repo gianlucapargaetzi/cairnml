@@ -205,7 +205,6 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         self._raise_on_validation_errors = raise_on_validation_errors
         self._parameters_allowed_types = (str, int, float, list, tuple, dict, type(None), Enum)
         self._app_server = None
-        self._files_server = None
         self._initial_iteration_offset = 0
         self._reload_skip_flag = False
         self._calling_filename = None
@@ -2616,9 +2615,9 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         if self._offline_mode:
             return str(self.get_offline_mode_folder() / "data")
 
-        if not self._files_server:
-            self._files_server = Session.get_files_server_host()
-        return self._files_server
+        from ...storage.helper import datachunk_location
+
+        return datachunk_location("debug", self.id)
 
     def get_status_message(self) -> (Optional[str], Optional[str]):
         """

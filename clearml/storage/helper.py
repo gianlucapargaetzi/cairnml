@@ -2,6 +2,7 @@ from __future__ import with_statement
 
 import errno
 import getpass
+import hashlib
 import itertools
 import json
 import logging
@@ -52,7 +53,7 @@ from requests import codes as requests_codes
 from requests.exceptions import ConnectionError
 from io import StringIO, BytesIO, FileIO
 from queue import Queue, Empty
-from urllib.parse import urlparse, urlunparse, quote
+from urllib.parse import urlparse, urlunparse, quote, unquote
 from os.path import expandvars, expanduser
 from heapq import heapify, heappush, heappop
 from psutil import disk_usage
@@ -1791,6 +1792,234 @@ class _AzureBlobServiceStorageDriver(_Driver):
         return container.exists(container_name, blob_name=object_name)
 
 
+def _remove_quietly(path: Path) -> None:
+    try:
+        path.unlink()
+    except OSError:
+        pass
+
+
+DATACHUNK_SCHEME = "datachunk"
+
+
+def datachunk_location(kind: str, task_id: str) -> str:
+    """The default place for a task's data of one kind, stored by the API server."""
+    return f"{DATACHUNK_SCHEME}://{kind}/{task_id}"
+
+
+def is_datachunk_location(uri: Optional[str]) -> bool:
+    return bool(uri) and str(uri).startswith(f"{DATACHUNK_SCHEME}://")
+
+
+def with_datachunk_kind(uri: Optional[str], kind: str) -> Optional[str]:
+    """Sets the kind of a datachunk location. Other destinations (a bucket, a local folder) are returned unchanged."""
+    if not is_datachunk_location(uri):
+        return uri
+    parsed = urlparse(str(uri))
+    return urlunparse(parsed._replace(netloc=kind))
+
+
+class _DatachunkDriver(_Driver):
+    """Objects kept by the API server: the server signs one upload or download, the bytes go straight to the store.
+
+    A location is datachunk://<kind>/<task id>/<name>. The server decides where the bytes live and checks them
+    on commit. This driver asks for the URL, moves the bytes and checks the digest on download.
+    """
+
+    scheme = DATACHUNK_SCHEME
+    _CHUNK = 1024 * 1024
+    KINDS = ("artifact", "dataset", "model", "debug")
+    API_SERVICE = "datachunks"
+    API_VERSION = "2.8"
+    TIMEOUT = (60, 3600)
+
+    class _Container:
+        def __init__(self, name: str) -> None:
+            parsed = urlparse(name)
+            task_id = parsed.path.strip("/")
+            if parsed.scheme != _DatachunkDriver.scheme or parsed.netloc not in _DatachunkDriver.KINDS or not task_id or "/" in task_id:
+                raise StorageError(f"invalid datachunk location: {name}")
+            self.name = f"{_DatachunkDriver.scheme}://{parsed.netloc}/{task_id}"
+            self.kind = parsed.netloc
+            self.task_id = task_id
+
+    class _Object:
+        def __init__(self, container: Any, name: str, size: int = None, sha256: str = None, url: str = None) -> None:
+            self.container = container
+            self.name = name
+            self.size = size
+            self.sha256 = sha256
+            self.url = url
+
+    def __init__(self, retries: int = 3) -> None:
+        self._retries = max(1, int(retries or 1))
+        self._containers = {}
+
+    @classmethod
+    def _api(cls, action: str, body: dict) -> dict:
+        from ..backend_interface.base import InterfaceBase
+
+        response = InterfaceBase._get_default_session().send_request(
+            service=cls.API_SERVICE, action=action, version=cls.API_VERSION, method="post", json=body
+        )
+        if response.status_code != requests_codes.ok:
+            raise StorageError(f"datachunks.{action} failed ({response.status_code}): {response.text[:300]}")
+        return response.json()["data"]
+
+    @staticmethod
+    def _name(object_name: str) -> str:
+        name = unquote(object_name).lstrip("/")
+        if not name:
+            raise StorageError("datachunk name is empty")
+        return name
+
+    def get_container(self, container_name: str, config: Optional[Any] = None, **kwargs: Any) -> Any:
+        if container_name not in self._containers:
+            self._containers[container_name] = self._Container(container_name)
+        return self._containers[container_name]
+
+    def test_upload(self, test_path: str, config: Any, **kwargs: Any) -> bool:
+        return True
+
+    def get_direct_access(self, remote_path: str, **_: Any) -> None:
+        return None
+
+    def list_container_objects(self, container: Any, ex_prefix: Optional[str] = None, **kwargs: Any) -> list:
+        # Listing is not offered by the server yet.
+        return []
+
+    def upload_object(
+        self,
+        file_path: str,
+        container: Any,
+        object_name: str,
+        extra: dict,
+        callback: Optional[Callable] = None,
+        **kwargs: Any,
+    ) -> Any:
+        name = self._name(object_name)
+        size = os.path.getsize(file_path)
+        digest = hashlib.sha256()
+        with open(file_path, "rb") as stream:
+            for block in iter(lambda: stream.read(self._CHUNK), b""):
+                digest.update(block)
+        sha256 = digest.hexdigest()
+        content_type = (extra or {}).get("content_type") or mimetypes.guess_type(name)[0] or "application/octet-stream"
+
+        grant = self._api(
+            "prepare_upload",
+            {
+                "task": container.task_id,
+                "kind": container.kind,
+                "name": name,
+                "size": size,
+                "sha256": sha256,
+                "content_type": content_type,
+            },
+        )
+        for attempt in range(1, self._retries + 1):
+            try:
+                with open(file_path, "rb") as stream:
+                    response = requests.put(grant["url"], data=stream, headers=grant["headers"], timeout=self.TIMEOUT)
+            except ConnectionError:
+                if attempt == self._retries:
+                    raise
+                continue
+            if response.status_code == requests_codes.ok:
+                break
+            if response.status_code < 500 or attempt == self._retries:
+                raise StorageError(f"upload of {name} failed ({response.status_code}): {response.text[:300]}")
+
+        self._api("commit", {"id": grant["id"]})
+        if callback:
+            callback(size)
+        return self._Object(container, name, size=size, sha256=sha256)
+
+    def upload_object_via_stream(
+        self,
+        iterator: Any,
+        container: Any,
+        object_name: str,
+        extra: dict,
+        callback: Optional[Callable] = None,
+        **kwargs: Any,
+    ) -> Any:
+        # The size and digest must be known before the upload is requested, so the stream is spooled first.
+        fd, spool = mkstemp()
+        try:
+            with os.fdopen(fd, "wb") as out:
+                if hasattr(iterator, "read"):
+                    for block in iter(lambda: iterator.read(self._CHUNK), b""):
+                        out.write(block)
+                else:
+                    for block in iterator:
+                        out.write(block.encode() if isinstance(block, str) else block)
+            return self.upload_object(spool, container, object_name, extra, callback=callback)
+        finally:
+            _remove_quietly(Path(spool))
+
+    def get_object(self, container_name: str, object_name: str, *args: Any, **kwargs: Any) -> Any:
+        container = self.get_container(container_name)
+        name = self._name(object_name)
+        info = self._api("prepare_download", {"task": container.task_id, "kind": container.kind, "name": name})
+        return self._Object(container, name, size=info["size"], sha256=info["sha256"], url=info["url"])
+
+    def exists_file(self, container_name: str, object_name: str) -> bool:
+        try:
+            self.get_object(container_name, object_name)
+        except StorageError:
+            return False
+        return True
+
+    def download_object_as_stream(self, obj: Any, chunk_size: int = 64 * 1024, **_: Any) -> Iterable[bytes]:
+        response = requests.get(obj.url, stream=True, timeout=self.TIMEOUT)
+        if response.status_code != requests_codes.ok:
+            raise StorageError(f"download of {obj.name} failed ({response.status_code})")
+        return response.iter_content(chunk_size=chunk_size)
+
+    def download_object(
+        self,
+        obj: Any,
+        local_path: str,
+        overwrite_existing: bool = True,
+        delete_on_failure: bool = True,
+        callback: Optional[Callable[[int], None]] = None,
+        **_: Any,
+    ) -> int:
+        path = Path(local_path)
+        if not overwrite_existing and path.is_file():
+            self.get_logger().warning("failed saving after download: overwrite=False and file exists (%s)" % str(path))
+            return 0
+        digest = hashlib.sha256()
+        length = 0
+        response = requests.get(obj.url, stream=True, timeout=self.TIMEOUT)
+        if response.status_code != requests_codes.ok:
+            raise StorageError(f"download of {obj.name} failed ({response.status_code})")
+        try:
+            with path.open("wb") as out:
+                for block in response.iter_content(chunk_size=self._CHUNK):
+                    if not block:
+                        continue
+                    out.write(block)
+                    digest.update(block)
+                    length += len(block)
+                    if callback:
+                        callback(len(block))
+        except Exception:
+            if delete_on_failure:
+                _remove_quietly(path)
+            raise
+        if obj.sha256 and digest.hexdigest() != obj.sha256:
+            _remove_quietly(path)
+            raise StorageError(f"downloaded {obj.name} does not match its recorded sha256")
+        return length
+
+    def delete_object(self, obj: Any, **kwargs: Any) -> bool:
+        self._api("delete", {"task": obj.container.task_id, "kind": obj.container.kind, "name": obj.name})
+        return True
+
+
+
 class _FileStorageDriver(_Driver):
     """
     A base StorageDriver to derive from.
@@ -2660,6 +2889,9 @@ class _StorageHelper:
         elif self._scheme in _HttpDriver.schemes:
             self._driver = _HttpDriver(retries=retries)
             self._container = self._driver.get_container(container_name=self._base_url)
+        elif self._scheme == _DatachunkDriver.scheme:
+            self._driver = _DatachunkDriver(retries=retries)
+            self._container = self._driver.get_container(container_name=self._base_url)
         else:  # elif self._scheme == 'file':
             # if this is not a known scheme assume local file
             # url2pathname is specifically intended to operate on (urlparse result).path
@@ -3502,6 +3734,10 @@ class _StorageHelper:
         elif parsed.scheme == _GoogleCloudStorageDriver.scheme:
             conf = cls._gs_configurations.get_config_by_uri(base_url)
             return str(furl(scheme=parsed.scheme, netloc=conf.bucket))
+        elif parsed.scheme == _DatachunkDriver.scheme:
+            # the container is one task's data of one kind: datachunk://<kind>/<task id>
+            task_id = parsed.path.strip("/").split("/")[0]
+            return f"{_DatachunkDriver.scheme}://{parsed.netloc}/{task_id}"
         elif parsed.scheme in _HttpDriver.schemes:
             for files_server in _HttpDriver.get_file_server_hosts():
                 if base_url.startswith(files_server):

@@ -1132,7 +1132,11 @@ class Artifacts:
 
         local_file = self._pop_temp_file(local_file)
 
-        upload_uri = self._task.output_uri or self._task.get_logger().get_default_upload_destination()
+        from clearml.storage.helper import with_datachunk_kind
+
+        upload_uri = with_datachunk_kind(
+            self._task.output_uri or self._task.get_logger().get_default_upload_destination(), "artifact"
+        )
         if not isinstance(local_file, Path):
             local_file = Path(local_file)
         ev = UploadEvent(
