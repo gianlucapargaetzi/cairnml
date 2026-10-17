@@ -60,7 +60,7 @@ def init_main(argv=None) -> int:
     conf = Path(os.path.expanduser(args.file)).absolute()
     _, previous, _ = read_enrolment(conf)
     # The web address (port 8080) is accepted: the API address (port 8008) is derived from it.
-    api_server, _, _ = parse_known_host(urlparse(args.server))
+    api_server, _ = parse_known_host(urlparse(args.server))
     try:
         result = enrol(api_server or args.server, name=args.name, force=args.force, previous_device_id=previous)
     except EnrolmentFailed as exc:
