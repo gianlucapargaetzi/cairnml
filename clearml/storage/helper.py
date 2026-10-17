@@ -1917,6 +1917,11 @@ class _DatachunkDriver(_Driver):
                 "content_type": content_type,
             },
         )
+        if grant.get("multipart"):
+            etags = self._upload_parts(grant, file_path, name, size, callback)
+            self._api("commit", {"id": grant["id"], "parts": etags})
+            return self._Object(container, name, size=size, sha256=sha256)
+
         for attempt in range(1, self._retries + 1):
             try:
                 with open(file_path, "rb") as stream:
@@ -1934,6 +1939,34 @@ class _DatachunkDriver(_Driver):
         if callback:
             callback(size)
         return self._Object(container, name, size=size, sha256=sha256)
+
+    def _upload_parts(self, grant: dict, file_path: str, name: str, size: int, callback: Optional[Callable]) -> list:
+        """Uploads a large object part by part. Each part gets its own presigned URL when it is due, so the URLs
+        never expire mid-upload. Returns the parts for the commit: number and the ETag the store returned."""
+        part_bytes, count = grant["multipart"]["part_bytes"], grant["multipart"]["parts"]
+        etags = []
+        with open(file_path, "rb") as stream:
+            for number in range(1, count + 1):
+                length = min(part_bytes, size - (number - 1) * part_bytes)
+                block = stream.read(length)
+                for attempt in range(1, self._retries + 1):
+                    part = self._api("prepare_part", {"id": grant["id"], "part": number})
+                    try:
+                        response = requests.put(part["url"], data=block, headers=part["headers"], timeout=self.TIMEOUT)
+                    except ConnectionError:
+                        if attempt == self._retries:
+                            raise
+                        continue
+                    if response.status_code == requests_codes.ok:
+                        break
+                    if response.status_code < 500 or attempt == self._retries:
+                        raise StorageError(
+                            f"upload of part {number} of {name} failed ({response.status_code}): {response.text[:300]}"
+                        )
+                etags.append({"number": number, "etag": response.headers["ETag"]})
+                if callback:
+                    callback(length)
+        return etags
 
     def upload_object_via_stream(
         self,
