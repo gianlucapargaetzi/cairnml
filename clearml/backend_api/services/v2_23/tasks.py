@@ -6410,7 +6410,7 @@ class DeleteRequest(Request):
         task that are not referenced by other tasks. Default value is 'true'
     :type delete_output_models: bool
     :param delete_external_artifacts: If set to 'true' then BE will try to delete
-        the extenal artifacts associated with the task from the fileserver (if
+        the external artifacts associated with the task from storage (if
         configured to do so)
     :type delete_external_artifacts: bool
     """
@@ -6424,8 +6424,8 @@ class DeleteRequest(Request):
             "delete_external_artifacts": {
                 "default": True,
                 "description": (
-                    "If set to 'true' then BE will try to delete the extenal artifacts associated with the task from"
-                    " the fileserver (if configured to do so)"
+                    "If set to 'true' then BE will try to delete the external artifacts associated with the task from"
+                    " storage (if configured to do so)"
                 ),
                 "type": "boolean",
             },
@@ -7260,7 +7260,7 @@ class DeleteManyRequest(Request):
         tasks that are not referenced by other tasks. Default value is 'true'
     :type delete_output_models: bool
     :param delete_external_artifacts: If set to 'true' then BE will try to delete
-        the extenal artifacts associated with the tasks from the fileserver (if
+        the external artifacts associated with the tasks from storage (if
         configured to do so)
     :type delete_external_artifacts: bool
     """
@@ -7274,8 +7274,8 @@ class DeleteManyRequest(Request):
             "delete_external_artifacts": {
                 "default": True,
                 "description": (
-                    "If set to 'true' then BE will try to delete the extenal artifacts associated with the tasks from"
-                    " the fileserver (if configured to do so)"
+                    "If set to 'true' then BE will try to delete the external artifacts associated with the tasks from"
+                    " storage (if configured to do so)"
                 ),
                 "type": "boolean",
             },
@@ -13859,7 +13859,7 @@ class ResetRequest(Request):
         task that are not referenced by other tasks. Default value is 'true'
     :type delete_output_models: bool
     :param delete_external_artifacts: If set to 'true' then BE will try to delete
-        the extenal artifacts associated with the task from the fileserver (if
+        the external artifacts associated with the task from storage (if
         configured to do so)
     :type delete_external_artifacts: bool
     """
@@ -13878,8 +13878,8 @@ class ResetRequest(Request):
             "delete_external_artifacts": {
                 "default": True,
                 "description": (
-                    "If set to 'true' then BE will try to delete the extenal artifacts associated with the task from"
-                    " the fileserver (if configured to do so)"
+                    "If set to 'true' then BE will try to delete the external artifacts associated with the task from"
+                    " storage (if configured to do so)"
                 ),
                 "type": "boolean",
             },
@@ -14291,7 +14291,7 @@ class ResetManyRequest(Request):
         tasks that are not referenced by other tasks. Default value is 'true'
     :type delete_output_models: bool
     :param delete_external_artifacts: If set to 'true' then BE will try to delete
-        the extenal artifacts associated with the tasks from the fileserver (if
+        the external artifacts associated with the tasks from storage (if
         configured to do so)
     :type delete_external_artifacts: bool
     """
@@ -14310,8 +14310,8 @@ class ResetManyRequest(Request):
             "delete_external_artifacts": {
                 "default": True,
                 "description": (
-                    "If set to 'true' then BE will try to delete the extenal artifacts associated with the tasks from"
-                    " the fileserver (if configured to do so)"
+                    "If set to 'true' then BE will try to delete the external artifacts associated with the tasks from"
+                    " storage (if configured to do so)"
                 ),
                 "type": "boolean",
             },

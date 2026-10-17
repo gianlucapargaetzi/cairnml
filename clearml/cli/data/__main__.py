@@ -101,7 +101,7 @@ def cli() -> int:
         "--storage",
         type=str,
         default=None,
-        help="Remote storage to use for the dataset files (default: files_server). "
+        help="Remote storage to use for the dataset files (default: the ClearML server). "
         "Examples: 's3://bucket/data', 'gs://bucket/data', 'azure://bucket/data', "
         "'/mnt/shared/folder/data'",
     )
@@ -226,7 +226,7 @@ def cli() -> int:
         "--storage",
         type=str,
         default=None,
-        help="Remote storage to use for the dataset files (default: files_server). "
+        help="Remote storage to use for the dataset files (default: the ClearML server). "
         "Examples: 's3://bucket/data', 'gs://bucket/data', 'azure://bucket/data', "
         "'/mnt/shared/folder/data'",
     )
@@ -282,7 +282,7 @@ def cli() -> int:
         "--storage",
         type=str,
         default=None,
-        help="Remote storage to use for the dataset files (default: files_server). "
+        help="Remote storage to use for the dataset files (default: the ClearML server). "
         "Examples: 's3://bucket/data', 'gs://bucket/data', 'azure://bucket/data', "
         "'/mnt/shared/folder/data'",
     )
@@ -313,7 +313,7 @@ def cli() -> int:
         "--storage",
         type=str,
         default=None,
-        help="Remote storage to use for the dataset files (default: files_server). "
+        help="Remote storage to use for the dataset files (default: the ClearML server). "
         "Examples: 's3://bucket/data', 'gs://bucket/data', 'azure://bucket/data', "
         "'/mnt/shared/folder/data'",
     )

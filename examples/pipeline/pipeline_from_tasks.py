@@ -27,7 +27,7 @@ pipe = PipelineController(
 
 pipe.add_parameter(
     "url",
-    "https://files.community.clear.ml/examples%252F.pipelines%252FPipeline%20demo/stage_data.8f17b6316ce442ce8904f6fccb1763de/artifacts/dataset/f6d08388e9bc44c86cab497ad31403c4.iris_dataset.pkl",
+    "https://storage.example.test/path/to/iris_dataset.pkl",
     "dataset_url",
 )
 

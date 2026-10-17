@@ -40,7 +40,6 @@ def read_enrolment(conf: Path) -> Tuple[Optional[str], Optional[str], dict]:
         return None, None, {}
     addresses = {
         "web": parsed.get("api.web_server", None),
-        "files": parsed.get("api.files_server", None),
     }
     return parsed.get("api.api_server", None), parsed.get("api.idp.device_id", None) or None, addresses
 
@@ -72,8 +71,8 @@ def init_main(argv=None) -> int:
         return 1
 
     parsed = urlparse(result.server_url)
-    _, files_host, derived_web = parse_known_host(parsed)
-    write_config(conf, result.server_url, result.web_url or derived_web, files_host, result.device_id)
+    _, derived_web = parse_known_host(parsed)
+    write_config(conf, result.server_url, result.web_url or derived_web, result.device_id)
     print(f"enrolled as {result.user or 'unknown user'} on {result.server_url} (device {result.device_id})")
     return 0
 
@@ -112,6 +111,6 @@ def logout_main(argv=None) -> int:
         print(f"error: the device was not revoked, so nothing was removed: {exc}", file=sys.stderr)
         return 1
     DEVICE_KEY_PATH.unlink(missing_ok=True)
-    write_config(conf, server, addresses.get("web") or "", addresses.get("files") or "", None)
+    write_config(conf, server, addresses.get("web") or "", None)
     print(f"signed out: device {device} is revoked and its key removed from this machine")
     return 0
