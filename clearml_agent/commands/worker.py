@@ -1492,7 +1492,7 @@ class Worker(ServiceCommandSection):
         """The names of the ClearML servers, as the job containers must resolve them."""
         from urllib.parse import urlparse
         names = []
-        for key in ("api.api_server", "api.web_server", "api.files_server"):
+        for key in ("api.api_server", "api.web_server"):
             host = urlparse(self._session.config.get(key, "") or "").hostname
             if host and host not in ("localhost", "127.0.0.1", "::1") and host not in names:
                 names.append(host)

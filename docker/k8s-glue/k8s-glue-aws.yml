@@ -21,8 +21,6 @@ spec:
           value: ""
         - name: CLEARML_WEB_HOST
           value: ""
-        - name: CLEARML_FILES_HOST
-          value: ""
 #        - name: K8S_GLUE_MAX_PODS
 #          value: "2"
         - name: K8S_GLUE_QUEUE

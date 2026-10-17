@@ -47,14 +47,12 @@ def main():
     host = input_url('WEB Host', 'https://app.clear.ml')
 
     parsed_host = verify_url(host)
-    api_host, files_host, web_host = parse_host(parsed_host, allow_input=True)
+    api_host, web_host = parse_host(parsed_host, allow_input=True)
 
     web_host = input_url('Web Application Host', web_host)
     api_host = input_url('API Host', api_host)
-    files_host = input_url('File Store Host', files_host)
 
-    print('\nClearML Hosts configuration:\nWeb App: {}\nAPI: {}\nFile Store: {}\n'.format(
-        web_host, api_host, files_host))
+    print('\nClearML Hosts configuration:\nWeb App: {}\nAPI: {}\n'.format(web_host, api_host))
 
     try:
         device_id = enrol_device(api_host, kind='agent')
@@ -65,14 +63,12 @@ def main():
 
     selection = input_options(
         'Default Output URI (used to automatically store models and artifacts)',
-        {'N': 'None', 'S': 'ClearML Server', 'C': 'Custom'},
+        {'N': 'None (the ClearML server stores them)', 'C': 'Custom'},
         default='None'
     )
     if selection == 'Custom':
         print('Custom Default Output URI: ', end='')
         default_output_uri = input().strip()
-    elif selection == "ClearML Server":
-        default_output_uri = files_host
     else:
         default_output_uri = None
 
@@ -128,12 +124,11 @@ def main():
                      '    # Notice: \'api_server\' is the api server (default port 8008), not the web server.\n' \
                      '    api_server: %s\n' \
                      '    web_server: %s\n' \
-                     '    files_server: %s\n' \
                      '    # This agent signs in with the device key in ~/.clearml/device.key\n' \
                      '    idp {\n' \
                      '        device_id: "%s"\n' \
                      '    }\n' \
-                     '}\n\n' % (api_host, web_host, files_host, device_id)
+                     '}\n\n' % (api_host, web_host, device_id)
             f.write(header)
             git_credentials = '# Set GIT user/pass credentials\n' \
                               '# leave blank for GIT SSH credentials\n' \
@@ -166,56 +161,45 @@ def parse_host(parsed_host, allow_input=True):
         # this is our demo server
         api_host = parsed_host.scheme + "://" + parsed_host.netloc.replace('demoapp.', 'demoapi.', 1) + parsed_host.path
         web_host = parsed_host.scheme + "://" + parsed_host.netloc + parsed_host.path
-        files_host = parsed_host.scheme + "://" + parsed_host.netloc.replace('demoapp.', 'demofiles.',
-                                                                             1) + parsed_host.path
     elif parsed_host.netloc.startswith('app.'):
         # this is our application server
         api_host = parsed_host.scheme + "://" + parsed_host.netloc.replace('app.', 'api.', 1) + parsed_host.path
         web_host = parsed_host.scheme + "://" + parsed_host.netloc + parsed_host.path
-        files_host = parsed_host.scheme + "://" + parsed_host.netloc.replace('app.', 'files.', 1) + parsed_host.path
     elif parsed_host.netloc.startswith('demoapi.'):
         print('{} is the api server, we need the web server. Replacing \'demoapi.\' with \'demoapp.\''.format(
             parsed_host.netloc))
         api_host = parsed_host.scheme + "://" + parsed_host.netloc + parsed_host.path
         web_host = parsed_host.scheme + "://" + parsed_host.netloc.replace('demoapi.', 'demoapp.', 1) + parsed_host.path
-        files_host = parsed_host.scheme + "://" + parsed_host.netloc.replace('demoapi.', 'demofiles.',
-                                                                             1) + parsed_host.path
     elif parsed_host.netloc.startswith('api.'):
         print('{} is the api server, we need the web server. Replacing \'api.\' with \'app.\''.format(
             parsed_host.netloc))
         api_host = parsed_host.scheme + "://" + parsed_host.netloc + parsed_host.path
         web_host = parsed_host.scheme + "://" + parsed_host.netloc.replace('api.', 'app.', 1) + parsed_host.path
-        files_host = parsed_host.scheme + "://" + parsed_host.netloc.replace('api.', 'files.', 1) + parsed_host.path
     elif parsed_host.port == 8008:
         print('Port 8008 is the api port. Replacing 8080 with 8008 for Web application')
         api_host = parsed_host.scheme + "://" + parsed_host.netloc + parsed_host.path
         web_host = parsed_host.scheme + "://" + parsed_host.netloc.replace(':8008', ':8080', 1) + parsed_host.path
-        files_host = parsed_host.scheme + "://" + parsed_host.netloc.replace(':8008', ':8081', 1) + parsed_host.path
     elif parsed_host.port == 8080:
         api_host = parsed_host.scheme + "://" + parsed_host.netloc.replace(':8080', ':8008', 1) + parsed_host.path
         web_host = parsed_host.scheme + "://" + parsed_host.netloc + parsed_host.path
-        files_host = parsed_host.scheme + "://" + parsed_host.netloc.replace(':8080', ':8081', 1) + parsed_host.path
     elif allow_input:
         api_host = ''
         web_host = ''
-        files_host = ''
         if not parsed_host.port:
             print('Host port not detected, do you wish to use the default 8080 port n/[y]? ', end='')
             replace_port = input().lower()
             if not replace_port or replace_port == 'y' or replace_port == 'yes':
                 api_host = parsed_host.scheme + "://" + parsed_host.netloc + ':8008' + parsed_host.path
                 web_host = parsed_host.scheme + "://" + parsed_host.netloc + ':8080' + parsed_host.path
-                files_host = parsed_host.scheme + "://" + parsed_host.netloc + ':8081' + parsed_host.path
             elif not replace_port or replace_port.lower() == 'n' or replace_port.lower() == 'no':
                 web_host = input_host_port("Web", parsed_host)
                 api_host = input_host_port("API", parsed_host)
-                files_host = input_host_port("Files", parsed_host)
         if not api_host:
             api_host = parsed_host.scheme + "://" + parsed_host.netloc + parsed_host.path
     else:
         raise ValueError("Could not parse host name")
 
-    return api_host, files_host, web_host
+    return api_host, web_host
 
 
 def input_url(host_type, host=None):

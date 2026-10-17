@@ -7,12 +7,12 @@ from socket import gethostname
 
 from ..._vendor import jwt
 import requests
-from ..._vendor.six.moves.urllib.parse import urlparse, urlunparse
+from ..._vendor.six.moves.urllib.parse import urlparse
 
 from clearml_agent.external.pyhocon import ConfigTree, ConfigFactory
 from .callresult import CallResult
 from .defs import (
-    ENV_VERBOSE, ENV_HOST, ENV_WEB_HOST, ENV_FILES_HOST, ENV_AUTH_TOKEN, ENV_JOB_TOKEN,
+    ENV_VERBOSE, ENV_HOST, ENV_WEB_HOST, ENV_AUTH_TOKEN, ENV_JOB_TOKEN,
     ENV_NO_DEFAULT_SERVER, ENV_DISABLE_VAULT_SUPPORT, ENV_INITIAL_CONNECT_RETRY_OVERRIDE, ENV_API_DEFAULT_REQ_METHOD,
     ENV_FORCE_MAX_API_VERSION, ENV_URLLIB3_CONNECT_LEVEL
 )
@@ -57,7 +57,6 @@ class Session(TokenManager):
     feature_set = 'basic'
     default_host = "https://demoapi.demo.clear.ml"
     default_web = "https://demoapp.demo.clear.ml"
-    default_files = "https://demofiles.demo.clear.ml"
     force_max_api_version = ENV_FORCE_MAX_API_VERSION.get()
     server_version = "1.0.0"
     user_id = None
@@ -623,35 +622,6 @@ class Session(TokenManager):
             return host.replace(':8008', ':8080', 1)
 
         raise ValueError('Could not detect ClearML web application server')
-
-    @classmethod
-    def get_files_server_host(cls, config=None):
-        if not config:
-            return None
-
-        # get from config/environment
-        files_host = ENV_FILES_HOST.get(default=(config.get("api.files_server", None)))
-        if files_host:
-            return files_host
-
-        # return default
-        host = cls.get_api_server_host(config)
-        if host == cls.default_host:
-            return cls.default_files
-
-        # compose ourselves
-        app_host = cls.get_app_server_host(config)
-        parsed = urlparse(app_host)
-        if parsed.port:
-            parsed = parsed._replace(netloc=parsed.netloc.replace(':%d' % parsed.port, ':8081', 1))
-        elif parsed.netloc.startswith('demoapp.'):
-            parsed = parsed._replace(netloc=parsed.netloc.replace('demoapp.', 'demofiles.', 1))
-        elif parsed.netloc.startswith('app.'):
-            parsed = parsed._replace(netloc=parsed.netloc.replace('app.', 'files.', 1))
-        else:
-            parsed = parsed._replace(netloc=parsed.netloc + ':8081')
-
-        return urlunparse(parsed)
 
     @classmethod
     def check_min_api_version(cls, min_api_version):
