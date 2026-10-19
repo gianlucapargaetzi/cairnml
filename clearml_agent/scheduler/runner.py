@@ -110,7 +110,14 @@ class JobRunner(object):
         for task in overdue:
             self.kill(task)
         for task in tasks:
-            for cid in self._containers(task):
+            containers = self._containers(task)
+            if containers:
+                with self._lock:
+                    job = self._jobs.get(task)
+                    if job:
+                        # the container is removed when the job ends (docker run --rm), so note that it ran
+                        job["container_seen"] = True
+            for cid in containers:
                 sample = usage.read_container_usage(cid)
                 if sample:
                     with self._lock:
@@ -147,16 +154,22 @@ class JobRunner(object):
         inspect = None
         for cid in self._containers(task, include_stopped=True):
             inspect = self._inspect(cid)
-            subprocess.run([self._docker, "rm", "-f", cid], capture_output=True, timeout=60)
+            # A container started with --rm removes itself; removing it here as well races with that, and makes
+            # `docker run` fail with its own exit code. Remove only the containers that do not remove themselves.
+            if not ((inspect or {}).get("HostConfig") or {}).get("AutoRemove"):
+                subprocess.run([self._docker, "rm", "-f", cid], capture_output=True, timeout=60)
             break
         with open(job["log_path"], "r", encoding="utf-8", errors="replace") as h:
-            log_tail = "\n".join(h.read().splitlines()[-200:])
+            full_log = h.read()
+        log_tail = "\n".join(full_log.splitlines()[-200:])
+        # the agent inside the job's container prints this line as soon as it starts; it proves the container ran
+        container_ran = job.get("container_seen") or "Starting Task Execution" in full_log
         reservation = job["reservation"]
         reserved = {"ram_gb": reservation.get("ram_gb")}
         peak = {"ram_gb": job["peak_ram_gb"]}
         if job["stop_requested"] and not job["deadline_hit"]:
             return {"task": task, "outcome": "stopped", "failure": None}
-        if self._expect_container and inspect is None and not job["deadline_hit"]:
+        if self._expect_container and inspect is None and not container_ran and not job["deadline_hit"]:
             # the process ended without a container: the job never ran, whatever its exit code says
             return {"task": task, "outcome": "failed", "log_tail": log_tail,
                     "failure": {"reason": "error", "exit_code": exit_code,
