@@ -1870,7 +1870,10 @@ class Task(_Task):
             Task's ``status`` and ``status_message``).
         """
         assert isinstance(task, (str, Task))
-        if not Session.check_min_api_version("2.36"):
+        # the server's level, not the level this process is using: after any service call the session uses the newest
+        # service version the SDK has (2.23), which is below the scheduling endpoint (2.36), so checking the used level
+        # refused every enqueue after the first call (clearml #2, E2E D6)
+        if not Session.check_min_api_server_version("2.36"):
             raise ValueError("ClearML-server does not support resource-aware scheduling, upgrade clearml-server")
 
         task_id = task if isinstance(task, str) else task.id
