@@ -1530,6 +1530,12 @@ class Worker(ServiceCommandSection):
         self._session.print_configuration()
 
 
+    def _server_is_loopback(self):
+        """True when the API server is on this machine's loopback address (127.0.0.1, ::1 or localhost)."""
+        from urllib.parse import urlparse
+        host = urlparse(self._session.config.get("api.api_server", "") or "").hostname
+        return host in ("localhost", "127.0.0.1", "::1")
+
     def _server_host_names(self):
         """The names of the ClearML servers, as the job containers must resolve them."""
         from urllib.parse import urlparse
@@ -4505,6 +4511,11 @@ class Worker(ServiceCommandSection):
             base_cmd += ['-l', label]
 
         self.debug("Command: {}".format(base_cmd), context="docker")
+
+        # A server on this machine's loopback address is reachable only from the host's network, so the job container
+        # shares it. The rule follows from the address; there is no setting for it.
+        if self._server_is_loopback() and not any(a.strip().startswith('--network') for a in base_cmd):
+            base_cmd += ['--network', 'host']
 
         # check if running inside a kubernetes
         if ENV_DOCKER_HOST_MOUNT.get() or (os.environ.get('KUBERNETES_SERVICE_HOST') and
