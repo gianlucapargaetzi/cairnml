@@ -74,7 +74,6 @@ from clearml_agent.definitions import (
     ENV_FORCE_SYSTEM_SITE_PACKAGES,
     ENV_SERVICES_DOCKER_RESTART,
     ENV_CONFIG_BC_IN_STANDALONE,
-    ENV_FORCE_DOCKER_AGENT_REPO,
     ENV_EXTRA_DOCKER_LABELS,
     ENV_AGENT_FORCE_CODE_DIR,
     ENV_AGENT_FORCE_EXEC_SCRIPT,
@@ -131,7 +130,7 @@ from clearml_agent.helper.package.poetry_api import PoetryConfig, PoetryAPI
 from clearml_agent.helper.package.uv_api import UvConfig, UvAPI
 from clearml_agent.helper.package.post_req import PostRequirement
 from clearml_agent.helper.package.priority_req import PriorityPackageRequirement, PackageCollectorRequirement, \
-    CachedPackageRequirement
+    CachedPackageRequirement, LocalSdkRequirement, LOCAL_SDK_WHEEL_ENV
 from clearml_agent.helper.package.pytorch import PytorchRequirement
 from clearml_agent.helper.package.requirements import (
     RequirementsManager, )
@@ -281,6 +280,48 @@ class LiteralScriptManager(object):
         return (Text(location),
                 execution.entry_point if target_file_name_module_call else target_file,
                 target_file)
+
+
+_LOCAL_WHEELS = {}
+
+
+def build_local_wheel(source: Path) -> str:
+    """The path of a wheel built from a source tree of this machine, built once per process.
+
+    Job containers install from these wheels and never from PyPI (KNOWN DEFECT D1, clearml-agent issue #1).
+    """
+    key = str(source)
+    if key not in _LOCAL_WHEELS:
+        if not (source / "setup.py").is_file():
+            raise CommandFailedError("{} is not a source tree (no setup.py): the job containers need the local "
+                                     "wheel built from it".format(source))
+        out = Path(mkdtemp(prefix="clearml-wheel-"))
+        subprocess.run([sys.executable, "-m", "pip", "wheel", "--no-deps", "-q", "-w", str(out), str(source)],
+                       check=True, timeout=900)
+        wheels = sorted(out.glob("*.whl"))
+        if not wheels:
+            raise CommandFailedError("building the wheel of {} produced no file".format(source))
+        _LOCAL_WHEELS[key] = str(wheels[-1])
+    return _LOCAL_WHEELS[key]
+
+
+def local_agent_wheel() -> str:
+    """The wheel of this clearml-agent, built from the source tree it runs from."""
+    return build_local_wheel(Path(__file__).resolve().parents[2])
+
+
+def local_sdk_wheel() -> str:
+    """The wheel of the ClearML SDK this machine has, built from its source tree.
+
+    The SDK is found through its package path (it can be a namespace package, with no __file__); its source tree is
+    the first folder above the package that has a setup.py.
+    """
+    import clearml
+    for package_dir in clearml.__path__:
+        for folder in [Path(package_dir).resolve(), *Path(package_dir).resolve().parents]:
+            if (folder / "setup.py").is_file():
+                return build_local_wheel(folder)
+    raise CommandFailedError("no source tree with a setup.py above the ClearML SDK package: cannot build its wheel")
 
 
 def get_repo_auth_string(user, password):
@@ -845,6 +886,7 @@ class Worker(ServiceCommandSection):
     _default_pip = tuple()
 
     _requirement_substitutions = (
+        LocalSdkRequirement,
         PytorchRequirement,
         PriorityPackageRequirement,
         PostRequirement,
@@ -1409,6 +1451,12 @@ class Worker(ServiceCommandSection):
 
         return status
 
+    def _unregister(self, queues=()):
+        """Nothing to unregister: the worker belongs to the managed daemon (the scheduler), and a job's process must not
+        change it. The method went with the queues (commit 6dd4291), and its callers stayed; without this method a job
+        that ends raised AttributeError after its status was reported."""
+        return
+
     @staticmethod
     def get_task_session(user, company, main_session):
         """
@@ -1487,6 +1535,12 @@ class Worker(ServiceCommandSection):
 
         self._session.print_configuration()
 
+
+    def _server_is_loopback(self):
+        """True when the API server is on this machine's loopback address (127.0.0.1, ::1 or localhost)."""
+        from urllib.parse import urlparse
+        host = urlparse(self._session.config.get("api.api_server", "") or "").hostname
+        return host in ("localhost", "127.0.0.1", "::1")
 
     def _server_host_names(self):
         """The names of the ClearML servers, as the job containers must resolve them."""
@@ -2066,7 +2120,7 @@ class Worker(ServiceCommandSection):
             OnlyExternalRequirements.cwd = package_api.cwd = cwd
             package_api.requirements_manager = self._get_requirements_manager(
                 base_interpreter=package_api.requirements_manager.get_interpreter(),
-                requirement_substitutions=[CachedPackageRequirement, OnlyExternalRequirements],
+                requirement_substitutions=[LocalSdkRequirement, CachedPackageRequirement, OnlyExternalRequirements],
             )
             # manually update the current state,
             # for the external git reference chance (in the replace callback)
@@ -2591,7 +2645,7 @@ class Worker(ServiceCommandSection):
                     OnlyExternalRequirements.cwd = package_api.cwd = cwd
                     package_api.requirements_manager = self._get_requirements_manager(
                         base_interpreter=package_api.requirements_manager.get_interpreter(),
-                        requirement_substitutions=[CachedPackageRequirement, OnlyExternalRequirements]
+                        requirement_substitutions=[LocalSdkRequirement, CachedPackageRequirement, OnlyExternalRequirements]
                     )
                     # manually update the current state,
                     # for the external git reference chance (in the replaced callback)
@@ -4464,6 +4518,11 @@ class Worker(ServiceCommandSection):
 
         self.debug("Command: {}".format(base_cmd), context="docker")
 
+        # A server on this machine's loopback address is reachable only from the host's network, so the job container
+        # shares it. The rule follows from the address; there is no setting for it.
+        if self._server_is_loopback() and not any(a.strip().startswith('--network') for a in base_cmd):
+            base_cmd += ['--network', 'host']
+
         # check if running inside a kubernetes
         if ENV_DOCKER_HOST_MOUNT.get() or (os.environ.get('KUBERNETES_SERVICE_HOST') and
                                            os.environ.get('KUBERNETES_PORT')):
@@ -4549,28 +4608,15 @@ class Worker(ServiceCommandSection):
 
         # if we are running a RC version, install the same version in the docker
         # because the default latest, will be a release version (not RC)
-        specify_version = ''
-        # noinspection PyBroadException
-        try:
-            from clearml_agent.version import __version__
-            _version_parts = __version__.split('.')
-            if force_current_version or 'rc' in _version_parts[-1].lower() or 'rc' in _version_parts[-2].lower():
-                specify_version = '=={}'.format(__version__)
-        except:
-            pass
-
-        force_agent_repo = ENV_FORCE_DOCKER_AGENT_REPO.get()
-
-        if os.environ.get('FORCE_LOCAL_CLEARML_AGENT_WHEEL'):
-            local_wheel = os.path.expanduser(os.environ.get('FORCE_LOCAL_CLEARML_AGENT_WHEEL'))
-            docker_wheel = '/tmp/{}'.format(basename(local_wheel))
-            base_cmd += ['-v', local_wheel + ':' + docker_wheel]
-            clearml_agent_wheel = docker_wheel if self._bootstrap else '\"{}\"'.format(docker_wheel)
-        elif force_agent_repo:
-            clearml_agent_wheel = force_agent_repo
-        else:
-            # clearml-agent{specify_version}
-            clearml_agent_wheel = 'clearml-agent{specify_version}'.format(specify_version=specify_version)
+        # The job container installs this agent from a wheel of its own source tree, and never from PyPI.
+        # There is no setting for it: the container runs the same agent as the one that starts it.
+        local_wheel = local_agent_wheel()
+        docker_wheel = '/tmp/{}'.format(basename(local_wheel))
+        base_cmd += ['-v', local_wheel + ':' + docker_wheel]
+        clearml_agent_wheel = docker_wheel if self._bootstrap else '\"{}\"'.format(docker_wheel)
+        sdk_wheel = local_sdk_wheel()
+        docker_sdk_wheel = '/tmp/{}'.format(basename(sdk_wheel))
+        base_cmd += ['-v', sdk_wheel + ':' + docker_sdk_wheel, '-e', '{}={}'.format(LOCAL_SDK_WHEEL_ENV, docker_sdk_wheel)]
 
         mount_ssh = mount_ssh or '/root/.ssh'
         mount_ssh_ro = mount_ssh_ro or "{}_ro".format(mount_ssh.rstrip("/"))

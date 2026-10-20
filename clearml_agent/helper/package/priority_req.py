@@ -1,3 +1,4 @@
+import os
 import re
 from typing import Text
 
@@ -140,3 +141,21 @@ class PackageCollectorRequirement(SimpleSubstitution):
         last_req = self._last_req
         self._last_req = None
         return last_req
+
+
+LOCAL_SDK_WHEEL_ENV = "CLEARML_AGENT_LOCAL_SDK_WHEEL"
+
+
+class LocalSdkRequirement(SimpleSubstitution):
+    """A job installs the ClearML SDK of this machine, from the wheel the agent mounts into the job container.
+
+    The job never installs the SDK from PyPI: the PyPI SDK cannot sign in to a server that serves device sign-in
+    (KNOWN DEFECT D1). The agent sets LOCAL_SDK_WHEEL_ENV in every job container it starts.
+    """
+    name = "clearml"
+
+    def replace(self, req):
+        wheel = os.environ.get(LOCAL_SDK_WHEEL_ENV)
+        if not wheel:
+            raise ValueError("the job has no local ClearML SDK wheel: it must run in a container the agent started")
+        return Text(wheel)
