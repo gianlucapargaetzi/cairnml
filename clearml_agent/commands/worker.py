@@ -38,7 +38,7 @@ from clearml_agent.backend_api.services import tasks as tasks_api
 from clearml_agent.backend_api.services import workers as workers_api
 from clearml_agent.backend_api.session import CallResult, Request
 from clearml_agent.backend_api.session.defs import (
-    ENV_JOB_TOKEN, ENV_JOB_TOKEN_FILE,
+    ENV_JOB_TOKEN,
     ENV_ENABLE_ENV_CONFIG_SECTION, ENV_ENABLE_FILES_CONFIG_SECTION,
     ENV_VENV_CONFIGURED, ENV_PROPAGATE_EXITCODE, ENV_MULTI_NODE_SINGLE_TASK, )
 from clearml_agent.backend_config import Config
@@ -1409,7 +1409,7 @@ class Worker(ServiceCommandSection):
                 env[ENV_AGENT_AUTH_TOKEN.vars[0]] = task_session.token
             else:
                 env["CLEARML_JOB_TOKEN"] = job_token
-                env[ENV_JOB_TOKEN_FILE.vars[0]] = str(job_token_file)
+                env["CLEARML_JOB_TOKEN_FILE"] = str(job_token_file)
             if self._worker_tags:
                 env[ENV_WORKER_TAGS.vars[0]] = " ".join(shlex.quote(t) for t in self._worker_tags)
 
@@ -4616,7 +4616,7 @@ class Worker(ServiceCommandSection):
         if job_token_dir:
             # the job's token file, renewed by the agent while the job runs; the container reads it from its folder
             base_cmd += ['-v', '{}:{}'.format(job_token_dir, CONTAINER_DIR),
-                         '-e', '{}={}/{}'.format(ENV_JOB_TOKEN_FILE.vars[0], CONTAINER_DIR, TOKEN_FILE_NAME)]
+                         '-e', 'CLEARML_JOB_TOKEN_FILE={}/{}'.format(CONTAINER_DIR, TOKEN_FILE_NAME)]
 
         if worker_tags:
             base_cmd += ['-e', '{}={}'.format(ENV_WORKER_TAGS.vars[0], " ".join(shlex.quote(t) for t in worker_tags))]
