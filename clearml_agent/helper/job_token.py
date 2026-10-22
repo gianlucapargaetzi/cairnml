@@ -59,17 +59,20 @@ class TokenRenewer(threading.Thread):
         return max(expires_in * RENEW_AT_FRACTION, 1.0)
 
     def run(self):
+        print("Job token of task {} renews in {:.0f} s".format(self._label, self._wait), flush=True)
         while not self._stopped.wait(self._wait):
             try:
                 renewed = self._fetch()
-            except Exception:
+            except Exception as ex:
+                print("Job token renewal failed for task {}, trying again: {}".format(self._label, ex), flush=True)
                 self._wait = self._retry_sec
                 continue
             if renewed is None:
+                print("Job token renewal refused for task {}; the job's token is not renewed".format(self._label), flush=True)
                 return
             token, expires_in = renewed
             write_job_token(self._path, token)
-            print("Job token renewed for task {}".format(self._label))
+            print("Job token renewed for task {}".format(self._label), flush=True)
             self._wait = self._wait_for(expires_in)
 
     def stop(self) -> None:
