@@ -12,10 +12,11 @@ from ..._vendor.six.moves.urllib.parse import urlparse
 from clearml_agent.external.pyhocon import ConfigTree, ConfigFactory
 from .callresult import CallResult
 from .defs import (
-    ENV_VERBOSE, ENV_HOST, ENV_WEB_HOST, ENV_AUTH_TOKEN, ENV_JOB_TOKEN,
+    ENV_VERBOSE, ENV_HOST, ENV_WEB_HOST, ENV_AUTH_TOKEN, ENV_JOB_TOKEN, ENV_JOB_TOKEN_FILE,
     ENV_NO_DEFAULT_SERVER, ENV_DISABLE_VAULT_SUPPORT, ENV_INITIAL_CONNECT_RETRY_OVERRIDE, ENV_API_DEFAULT_REQ_METHOD,
     ENV_FORCE_MAX_API_VERSION, ENV_URLLIB3_CONNECT_LEVEL
 )
+from .job_token_file import read_job_token_file
 from .request import Request, BatchRequest
 from .token_manager import TokenManager
 from ..config import load
@@ -115,6 +116,7 @@ class Session(TokenManager):
 
         self.__device_id = self.config.get("api.idp.device_id", None)
         self.__job_token = ENV_JOB_TOKEN.get()
+        self.__job_token_file = ENV_JOB_TOKEN_FILE.get()
         if ENV_AUTH_TOKEN.get(
             value_cb=lambda key, value: print("Using environment access token {}=********".format(key))
         ):
@@ -639,6 +641,10 @@ class Session(TokenManager):
 
     def _do_refresh_token(self, current_token, exp=None):
         """ TokenManager abstract method implementation: obtains a token for this session. """
+        token_from_file = read_job_token_file(self.__job_token_file)
+        if token_from_file:
+            # The agent renews the job's token in this file, so a refresh takes the newest one.
+            return token_from_file
         if self.__job_token:
             # A job runs with the token its agent obtained for it; the job never exchanges a key.
             return self.__job_token
