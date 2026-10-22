@@ -656,7 +656,10 @@ class Session(TokenManager):
 
     def _exchange_device_assertion(self):
         """ Sign an assertion with this device's key and exchange it for a short-lived token. """
-        assertion = device_assertion(self.__device_id, self.host)
+        try:
+            assertion = device_assertion(self.__device_id, self.host)
+        except FileNotFoundError:
+            raise LoginError("This machine has no device key: run clearml-agent init to enrol it") from None
         res = self._send_request(
             service="devices",
             action="exchange",
