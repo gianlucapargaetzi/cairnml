@@ -470,6 +470,7 @@ class Dataset:
         :param max_workers: The number of threads to add the files with. Defaults to the number of logical cores.
         :return: Number of files added.
         """
+        self._refuse_if_final("add_files")
         max_workers = max_workers or psutil.cpu_count()
         self._dirty = True
         log_payload = {
@@ -558,6 +559,7 @@ class Dataset:
 
         :return: Number of file links added
         """
+        self._refuse_if_final("add_external_files")
         self._dirty = True
         num_added = 0
         num_modified = 0
@@ -1111,6 +1113,11 @@ class Dataset:
 
         self._task.publish(ignore_errors=raise_on_error)
         return True
+
+    def _refuse_if_final(self, action: str) -> None:
+        """Raise if the dataset was finalized: a finalized dataset is immutable, so no files can be added to it."""
+        if self.is_final():
+            raise ValueError(f"Cannot {action}: the dataset is finalized and immutable. Create a new dataset instead.")
 
     def is_final(self) -> bool:
         """
