@@ -511,6 +511,7 @@ class Version(Entity):
 
 class APIClient:
     auth: Any = None
+    queues: Any = None
     tasks: Any = None
     workers: Any = None
     events: Any = None
