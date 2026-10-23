@@ -463,14 +463,14 @@ def main() -> None:
 
     if args.num_nodes > 1 and args.queue:
         if not args.multi_node_agent: 
-            task.execute_remotely()
+            task.execute_remotely(queue_name=args.queue)
             task.launch_multi_node(args.num_nodes, port=args.dist_port, devices=args.devices_per_node, wait=True)
         else:
             task.set_user_properties(
                 {"name": "multi_node_request", "value": "[" + (f"{args.devices_per_node}," * args.num_nodes).rstrip(",") + "]"},
                 {"name": "multi_node_type", "value": args.multi_node_type},
             )
-            task.execute_remotely()
+            task.execute_remotely(queue_name=args.queue)
 
     node_rank = int(os.environ.get("NODE_RANK", "0"))
 

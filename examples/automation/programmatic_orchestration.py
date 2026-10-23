@@ -18,6 +18,7 @@ param["param_name"] = "Example_Param"
 # This is the parameter value in the next task we want to change
 param["param_name_new_value"] = 3
 # The queue where we want the template task (clone) to be sent to
+param["execution_queue_name"] = "default"
 
 # Simulate the work of a Task
 print("Processing....")
@@ -40,9 +41,9 @@ cloned_task.set_parameters(cloned_task_parameters)
 
 # Enqueue the Task for execution. The enqueued Task must already exist in the clearml platform
 print(
-    "Enqueue next step in pipeline"
+    f"Enqueue next step in pipeline to queue: {param['execution_queue_name']}"
 )
-Task.enqueue(cloned_task.id)
+Task.enqueue(cloned_task.id, queue_name=param["execution_queue_name"])
 
 # We are done. The next step in the pipe line is in charge of the pipeline now.
 print("Done")
