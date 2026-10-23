@@ -7,10 +7,11 @@ the revision that was used is always recorded.
 """
 
 import importlib.util
+import json
 import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, Iterator, List, Optional
+from typing import Any, Dict, Iterator, List, Optional, Tuple
 
 from ._shared import git_token, mirror, record, resolve_commit
 from .adapter import Adapter, SampleWriter
@@ -25,12 +26,14 @@ class Pin:
     name: str
     source: str
     link: str
-    adapter: str
+    adapter: Optional[str] = None
     revision: Optional[str] = None
     overrides: List[Dict[str, Any]] = field(default_factory=list)
 
     def adapter_for(self, revision: str) -> str:
         """An override whose revisions include this one (by prefix) wins; otherwise the default adapter."""
+        if self.adapter is None:
+            return None
         for override in self.overrides:
             if any(revision.startswith(str(prefix)) for prefix in override.get("revisions", [])):
                 return override["adapter"]
@@ -45,14 +48,15 @@ def read_pin(tree: Path, name: str) -> Pin:
         known = sorted(p.stem for p in (tree / "datasets").glob("*.yaml"))
         raise DatasetError(f"no dataset {name!r} in the external-datasets repository; known: {', '.join(known) or 'none'}")
     data = yaml.safe_load(path.read_text()) or {}
-    for key in ("source", "link", "adapter"):
+    # A dataset of our own (source: repo) says in its own repository how it is read; the others need an adapter here.
+    for key in ("source", "link") + (() if data.get("source") == "repo" else ("adapter",)):
         if not data.get(key):
             raise DatasetError(f"{path.name} must set {key!r}")
     return Pin(
         name=name,
         source=data["source"],
         link=data["link"],
-        adapter=data["adapter"],
+        adapter=data.get("adapter"),
         revision=data.get("revision"),
         overrides=data.get("overrides") or [],
     )
@@ -143,6 +147,24 @@ def _default_repo() -> str:
     return repo
 
 
+def registry_tree(cache: DatasetCache, repo: str, commit: Optional[str] = None) -> Tuple[Path, str]:
+    """The files of the registry repository at a commit (the latest of its default branch if None), and the commit."""
+    git = mirror(cache, repo, git_token(repo))
+    if commit is None:
+        git.fetch_all()
+        sha = git.resolve("HEAD")
+    else:
+        sha = resolve_commit(git, repo, commit)
+    tree = cache.checkout_dir(repo, sha)
+    if not cache.is_ready(tree):
+        with cache.downloading():
+            if tree.exists():
+                shutil.rmtree(tree)
+            git.archive_to(sha, tree)
+            cache.mark_ready(tree)
+    return tree, sha
+
+
 def get_external(
     name: str,
     commit: Optional[str] = None,
@@ -164,22 +186,11 @@ def get_external(
     """
     cache = cache or DatasetCache.default()
     repo = repo or _default_repo()
-    git = mirror(cache, repo, git_token(repo))
-    if commit is None:
-        git.fetch_all()
-        sha = git.resolve("HEAD")
-    else:
-        sha = resolve_commit(git, repo, commit)
-
-    tree = cache.checkout_dir(repo, sha)
-    if not cache.is_ready(tree):
-        with cache.downloading():
-            if tree.exists():
-                shutil.rmtree(tree)
-            git.archive_to(sha, tree)
-            cache.mark_ready(tree)
+    tree, sha = registry_tree(cache, repo, commit)
 
     pin = read_pin(tree, name)
+    if pin.source == "repo":
+        return _get_own_dataset(cache, tree, sha, repo, pin, revision, alias)
     source = source_for(pin.source)
     link = pin.link
     if pin.source == "local" and not Path(link.replace("file://", "", 1)).expanduser().is_absolute():
@@ -207,6 +218,48 @@ def get_external(
     cache.evict()
     record(alias or name, {"kind": "external", **info})
     return ExternalDataset(info, output, source_root)
+
+
+def _get_own_dataset(cache, tree, sha, repo, pin, revision, alias) -> ExternalDataset:
+    """A dataset of our own: its repository says how it is read, and its footprint says it was checked."""
+    from . import footprint
+    from .dataset import Dataset
+
+    git = mirror(cache, pin.link, git_token(pin.link))
+    wanted = revision or pin.revision
+    if wanted is None:
+        git.fetch_all()
+        resolved = git.resolve("HEAD")
+    else:
+        resolved = resolve_commit(git, pin.link, wanted)
+    dataset = Dataset.get(pin.link, resolved, cache=cache, record=False)
+    checkout = dataset.path.parent
+    problems = footprint.verify(str(checkout))
+    if problems:
+        raise DatasetError(
+            f"{pin.link}@{resolved[:10]} does not pass its footprint check:\n  - " + "\n  - ".join(problems)
+        )
+    lock = json.loads((checkout / footprint.LOCK_FILE).read_text())
+    fmt = lock["format"]
+    adapter_name = fmt.get("name") if fmt["kind"] == "adapter" else None
+    if adapter_name is None:
+        output = dataset.path  # native: the standard sample table is in data/ itself
+    else:
+        output = cache.root / "checkouts" / f"own__{pin.name}" / f"{sha[:12]}-{resolved[:12]}"
+        if not cache.is_ready(output):
+            _build(cache, tree, adapter_name, dataset.path, output, pin, resolved, sha, repo)
+        cache.touch(output)
+    info = {
+        "name": pin.name,
+        "external_repo": repo,
+        "repo_commit": sha,
+        "source": "repo",
+        "link": pin.link,
+        "revision": resolved,
+        "adapter": adapter_name or "native",
+    }
+    record(alias or pin.name, {"kind": "own", **info, "content_hash": lock["dvc"]["hash"]})
+    return ExternalDataset(info, output, dataset.path)
 
 
 def _ensure_source(cache: DatasetCache, source, link: str, revision: str) -> Path:
