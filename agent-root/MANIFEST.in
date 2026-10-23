@@ -1,0 +1,3 @@
+include requirements.txt LICENSE NOTICE DISCLAIMER.md README.md
+recursive-include cairnml_agent *.conf *.json
+prune tests

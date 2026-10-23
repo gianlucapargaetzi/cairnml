@@ -1,7 +1,7 @@
 """
 ClearML Inc.
 CAIRNML-AGENT DevOps for machine/deep learning
-https://github.com/cairnml/cairnml-agent
+https://github.com/gianlucapargaetzi/cairnml-agent
 """
 
 import os.path
@@ -33,18 +33,18 @@ version = read_version_string("cairnml_agent/version.py")
 requirements = read_text(os.path.join(here, 'requirements.txt')).splitlines()
 
 setup(
-    name='cairnml_agent',
+    name='cairnml-agent',
     version=version,
-    description='CairnML Agent - Auto-Magical DevOps for Deep Learning',
+    description='CairnML agent - runs queued CairnML jobs (an unofficial fork of ClearML Agent)',
     long_description=long_description,
     long_description_content_type='text/markdown',
     # The project's main homepage.
-    url='https://github.com/cairnml/cairnml-agent',
-    author='cairnml',
-    author_email='cairnml@cairnml.ai',
+    url='https://github.com/gianlucapargaetzi/cairnml-agent',
+    author='Gianluca Pargaetzi',
+    author_email='121188387+gianlucapargaetzi@users.noreply.github.com',
     license='Apache License 2.0',
     classifiers=[
-        'Development Status :: 5 - Production/Stable',
+        'Development Status :: 4 - Beta',
 
         'Intended Audience :: Developers',
         'Intended Audience :: System Administrators',
@@ -67,7 +67,7 @@ setup(
         'License :: OSI Approved :: Apache Software License',
     ],
 
-    keywords='cairnml trains devops machine deep learning agent automation hpc cluster',
+    keywords='cairnml clearml devops machine deep learning agent automation hpc cluster',
 
     packages=find_packages(exclude=['contrib', 'docs', 'data', 'examples', 'tests*']),
 

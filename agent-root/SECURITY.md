@@ -2,4 +2,4 @@
 
 Thanks for taking the time to make CairnML more secure!
 
-To carry on the discussion more securely - Please send your report to [security@cairnml.ai](mailto:security@cairnml.ai).
+Please report vulnerabilities privately through GitHub: open the repository's **Security** tab and choose **Report a vulnerability**. Do not open a public issue for a security problem.
