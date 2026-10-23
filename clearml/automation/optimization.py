@@ -28,6 +28,7 @@ from ..backend_api import Session
 from ..backend_interface.util import get_or_create_project, datetime_from_isoformat
 from ..logger import Logger
 from ..backend_api.services import (
+    workers as workers_service,
     tasks as tasks_service,
     events as events_service,
 )
@@ -363,6 +364,7 @@ class SearchStrategy:
         base_task_id: str,
         hyper_parameters: Sequence[Parameter],
         objective_metric: Objective,
+        execution_queue: str,
         num_concurrent_workers: int,
         pool_period_min: float = 2.0,
         time_limit_per_job: Optional[float] = None,
@@ -378,6 +380,7 @@ class SearchStrategy:
         :param str base_task_id: The Task ID (str)
         :param list hyper_parameters: The list of parameter objects to optimize over.
         :param Objective objective_metric: The Objective metric to maximize / minimize.
+        :param str execution_queue: The execution queue to use for launching Tasks (experiments).
         :param int num_concurrent_workers: The maximum number of concurrent running machines.
         :param float pool_period_min: The time between two consecutive pools (minutes).
         :param float time_limit_per_job: The maximum execution time per single job in minutes. When time limit is
@@ -394,6 +397,7 @@ class SearchStrategy:
         self._base_task_id = base_task_id
         self._hyper_parameters = hyper_parameters
         self._objective_metric = objective_metric
+        self._execution_queue = execution_queue
         self._num_concurrent_workers = num_concurrent_workers
         self.pool_period_minutes = pool_period_min
         self.time_limit_per_job = time_limit_per_job
@@ -487,7 +491,7 @@ class SearchStrategy:
             new_job = self.create_job()
             if not new_job:
                 break
-            if not new_job.launch():
+            if not new_job.launch(self._execution_queue):
                 # error enqueuing Job, something wrong here
                 continue
             self._num_jobs += 1
@@ -1265,6 +1269,7 @@ class GridSearch(SearchStrategy):
         base_task_id: str,
         hyper_parameters: Sequence[Parameter],
         objective_metric: Objective,
+        execution_queue: str,
         num_concurrent_workers: int,
         pool_period_min: float = 2.0,
         time_limit_per_job: Optional[float] = None,
@@ -1279,6 +1284,7 @@ class GridSearch(SearchStrategy):
         :param str base_task_id: The Task ID.
         :param list hyper_parameters: The list of parameter objects to optimize over.
         :param Objective objective_metric: The Objective metric to maximize / minimize.
+        :param str execution_queue: The execution queue to use for launching Tasks (experiments).
         :param int num_concurrent_workers: The maximum number of concurrent running machines.
         :param float pool_period_min: The time between two consecutive pools (minutes).
         :param float time_limit_per_job: The maximum execution time per single job in minutes. When the time limit is
@@ -1294,6 +1300,7 @@ class GridSearch(SearchStrategy):
             base_task_id=base_task_id,
             hyper_parameters=hyper_parameters,
             objective_metric=objective_metric,
+            execution_queue=execution_queue,
             num_concurrent_workers=num_concurrent_workers,
             pool_period_min=pool_period_min,
             time_limit_per_job=time_limit_per_job,
@@ -1341,6 +1348,7 @@ class RandomSearch(SearchStrategy):
         base_task_id: str,
         hyper_parameters: Sequence[Parameter],
         objective_metric: Objective,
+        execution_queue: str,
         num_concurrent_workers: int,
         pool_period_min: float = 2.0,
         time_limit_per_job: Optional[float] = None,
@@ -1355,6 +1363,7 @@ class RandomSearch(SearchStrategy):
         :param str base_task_id: The Task ID.
         :param list hyper_parameters: The list of Parameter objects to optimize over.
         :param Objective objective_metric: The Objective metric to maximize / minimize.
+        :param str execution_queue: The execution queue to use for launching Tasks (experiments).
         :param int num_concurrent_workers: The maximum umber of concurrent running machines.
         :param float pool_period_min: The time between two consecutive pools (minutes).
         :param float time_limit_per_job: The maximum execution time per single job in minutes,
@@ -1370,6 +1379,7 @@ class RandomSearch(SearchStrategy):
             base_task_id=base_task_id,
             hyper_parameters=hyper_parameters,
             objective_metric=objective_metric,
+            execution_queue=execution_queue,
             num_concurrent_workers=num_concurrent_workers,
             pool_period_min=pool_period_min,
             time_limit_per_job=time_limit_per_job,
@@ -1426,6 +1436,7 @@ class HyperParameterOptimizer:
         objective_metric_sign: Union[str, Sequence[str]] = "min",
         optimizer_class: Union[SearchStrategy, type(SearchStrategy)] = RandomSearch,
         max_number_of_concurrent_tasks: int = 10,
+        execution_queue: str = "default",
         optimization_time_limit: Optional[float] = None,
         compute_time_limit: Optional[float] = None,
         auto_connect_task: Union[bool, Task] = True,
@@ -1457,6 +1468,7 @@ class HyperParameterOptimizer:
         :param class.SearchStrategy optimizer_class: The SearchStrategy optimizer to use for the hyperparameter search
         :param int max_number_of_concurrent_tasks: The maximum number of concurrent Tasks (experiments) running at the
             same time.
+        :param str execution_queue: The execution queue to use for launching Tasks (experiments).
         :param float optimization_time_limit: The maximum time (minutes) for the entire optimization process. The
             default is ``None``, indicating no time limit.
         :param float compute_time_limit: The maximum compute time in minutes. When time limit is exceeded,
@@ -1508,7 +1520,7 @@ class HyperParameterOptimizer:
                     objective_metric_sign='min',
                     max_number_of_concurrent_tasks=5,
                     optimizer_class=RandomSearch,
-                    time_limit_per_job=120, pool_period_min=0.2)
+                    execution_queue='workers', time_limit_per_job=120, pool_period_min=0.2)
 
                 # This will automatically create and print the optimizer new task id
                 # for later use. if a Task was already created, it will use it.
@@ -1562,6 +1574,7 @@ class HyperParameterOptimizer:
             objective_metric_series=objective_metric_series,
             objective_metric_sign=objective_metric_sign,
             max_number_of_concurrent_tasks=max_number_of_concurrent_tasks,
+            execution_queue=execution_queue,
             optimization_time_limit=optimization_time_limit,
             compute_time_limit=compute_time_limit,
             optimizer_kwargs=optimizer_kwargs,
@@ -1577,6 +1590,7 @@ class HyperParameterOptimizer:
         self.base_task_id = opts["base_task_id"]
         self.hyper_parameters = hyper_parameters
         self.max_number_of_concurrent_tasks = opts["max_number_of_concurrent_tasks"]
+        self.execution_queue = opts["execution_queue"]
         self._objective_metric = MultiObjective(
             title=opts["objective_metric_title"],
             series=opts["objective_metric_series"],
@@ -1603,6 +1617,7 @@ class HyperParameterOptimizer:
                 base_task_id=opts["base_task_id"],
                 hyper_parameters=hyper_parameters,
                 objective_metric=self._objective_metric,
+                execution_queue=opts["execution_queue"],
                 num_concurrent_workers=opts["max_number_of_concurrent_tasks"],
                 compute_time_limit=opts["compute_time_limit"],
                 **opts.get("optimizer_kwargs", {}),
@@ -2575,7 +2590,28 @@ class HyperParameterOptimizer:
                 )
 
     def _report_resources(self, task_logger: Logger, iteration: int) -> None:
+        self._report_active_workers(task_logger, iteration)
         self._report_tasks_status(task_logger, iteration)
+
+    def _report_active_workers(self, task_logger: Logger, iteration: int) -> None:
+        res = self.__get_session().send(workers_service.GetAllRequest())
+        response = res.wait()
+        if response.ok():
+            all_workers = response
+            queue_workers = len(
+                [
+                    worker.get("id")
+                    for worker in all_workers.response_data.get("workers")
+                    for q in worker.get("queues")
+                    if q.get("name") == self.execution_queue
+                ]
+            )
+            task_logger.report_scalar(
+                title="resources",
+                series="queue workers",
+                iteration=iteration,
+                value=queue_workers,
+            )
 
     def _report_tasks_status(self, task_logger: Logger, iteration: int) -> None:
         tasks_status = {"running tasks": 0, "pending tasks": 0}

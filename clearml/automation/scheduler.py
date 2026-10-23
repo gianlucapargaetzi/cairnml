@@ -13,6 +13,7 @@ from .job import ClearmlJob
 from ..backend_interface.util import (
     datetime_from_isoformat,
     datetime_to_isoformat,
+    get_queue_id,
     mutually_exclusive,
 )
 from ..task import Task
@@ -35,6 +36,7 @@ class BaseScheduleJob:
     name = attrib(type=str, default=None)
     base_task_id = attrib(type=str, default=None)
     base_function = attrib(type=Callable, default=None)
+    queue = attrib(type=str, default=None)
     target_project = attrib(type=str, default=None)
     single_instance = attrib(type=bool, default=False)
     task_parameters = attrib(type=dict, default={})
@@ -55,6 +57,8 @@ class BaseScheduleJob:
     def verify(self) -> None:
         if self.base_function and not self.name:
             raise ValueError("Entry 'name' must be supplied for function scheduling")
+        if self.base_task_id and not self.queue:
+            raise ValueError("Target 'queue' must be provided for function scheduling")
         if not self.base_function and not self.base_task_id:
             raise ValueError("Either schedule function or task-id must be provided")
 
@@ -407,16 +411,18 @@ class BaseScheduler:
                 self._log(f"Sleeping until the next pool in {self._pooling_frequency_minutes} minutes")
                 sleep(self._pooling_frequency_minutes * 60.0)
 
-    def start_remotely(self) -> None:
+    def start_remotely(self, queue: str = "services") -> None:
         """
         Start the Task TaskScheduler loop (notice this function does not return)
+
+        :param queue: Remote queue to run the scheduler on, default 'services' queue.
         """
         # make sure we serialize the current state if we are running locally
         if self._task.running_locally():
             self._serialize_state()
             self._serialize()
         # launch on the remote agent
-        self._task.execute_remotely(exit_process=True)
+        self._task.execute_remotely(queue_name=queue, exit_process=True)
         # we will be deserializing the state inside `start`
         self.start()
 
@@ -484,6 +490,16 @@ class BaseScheduler:
                 job.run(None)
                 return None
 
+        # noinspection PyProtectedMember
+        queue_id = get_queue_id(Task._get_default_session(), job.queue)
+        if not queue_id:
+            self._log(
+                f"Skipping Task {job.name} scheduling, queue '{job.queue}' was not found or is inaccessible.",
+                level=logging.WARNING,
+            )
+            job.run(None)
+            return None
+
         # actually run the job
         task_job = ClearmlJob(
             base_task_id=job.base_task_id,
@@ -494,12 +510,12 @@ class BaseScheduler:
             target_project=job.get_resolved_target_project(),
             tags=[add_tags] if add_tags and isinstance(add_tags, str) else add_tags,
         )
-        self._log(f"Scheduling Job {job.name}, Task {task_job.task_id()}.")
-        if not task_job.launch():
+        self._log(f"Scheduling Job {job.name}, Task {task_job.task_id()} on queue {job.queue}.")
+        if not task_job.launch(queue_name=queue_id):
             self._log(
                 (
                     f"Skipping Task {job.name} scheduling, "
-                    f"failed enqueuing Task {task_job.task_id()}."
+                    f"failed enqueuing Task {task_job.task_id()} on queue '{job.queue}'."
                 ),
                 level=logging.WARNING,
             )
@@ -555,7 +571,7 @@ class BaseScheduler:
         if status in ("in_progress",):
             t.stopped(force=True)
         elif status in ("queued",):
-            t.stopped(force=True)
+            Task.dequeue(t)
 
 
 class TaskScheduler(BaseScheduler):
@@ -595,6 +611,7 @@ class TaskScheduler(BaseScheduler):
         self,
         schedule_task_id: Union[str, Task] = None,
         schedule_function: Callable = None,
+        queue: str = None,
         name: Optional[str] = None,
         target_project: Optional[str] = None,
         minute: Optional[int] = None,
@@ -627,60 +644,61 @@ class TaskScheduler(BaseScheduler):
 
         .. code-block:: py
 
-            add_task(schedule_task_id='1235', minute=15)
+            add_task(schedule_task_id='1235', queue='default', minute=15)
 
         Launch every 1 hour:
 
         .. code-block:: py
 
-            add_task(schedule_task_id='1235', hour=1)
+            add_task(schedule_task_id='1235', queue='default', hour=1)
 
         Launch every 1 hour at hour:30 minutes (i.e. 1:30, 2:30 etc.):
 
         .. code-block:: py
 
-            add_task(schedule_task_id='1235', hour=1, minute=30)
+            add_task(schedule_task_id='1235', queue='default', hour=1, minute=30)
 
         Launch every day at 22:30 (10:30 pm):
 
         .. code-block:: py
 
-            add_task(schedule_task_id='1235', minute=30, hour=22, day=1)
+            add_task(schedule_task_id='1235', queue='default', minute=30, hour=22, day=1)
 
         Launch every other day at 7:30 (7:30 am):
 
         .. code-block:: py
 
-            add_task(schedule_task_id='1235', minute=30, hour=7, day=2)
+            add_task(schedule_task_id='1235', queue='default', minute=30, hour=7, day=2)
 
         Launch every Saturday at 8:30am (notice `day=0`):
 
         .. code-block:: py
 
-            add_task(schedule_task_id='1235', minute=30, hour=8, day=0, weekdays=['saturday'])
+            add_task(schedule_task_id='1235', queue='default', minute=30, hour=8, day=0, weekdays=['saturday'])
 
         Launch every 2 hours on the weekends Saturday/Sunday (notice `day` is not passed):
 
         .. code-block:: py
 
-            add_task(schedule_task_id='1235', hour=2, weekdays=['saturday', 'sunday'])
+            add_task(schedule_task_id='1235', queue='default', hour=2, weekdays=['saturday', 'sunday'])
 
         Launch once a month at the 5th of each month:
 
         .. code-block:: py
 
-            add_task(schedule_task_id='1235', month=1, day=5)
+            add_task(schedule_task_id='1235', queue='default', month=1, day=5)
 
         Launch once a year on March 4th:
 
         .. code-block:: py
 
-            add_task(schedule_task_id='1235', year=1, month=3, day=4)
+            add_task(schedule_task_id='1235', queue='default', year=1, month=3, day=4)
 
         :param schedule_task_id: ID of Task to be cloned and scheduled for execution
         :param schedule_function: Optional, instead of providing Task ID to be scheduled,
             provide a function to be called. Notice the function is called from the scheduler context
             (i.e. running on the same machine as the scheduler)
+        :param queue: Name or ID of queue to put the Task into (i.e. schedule)
         :param name: Name or description for the cron Task (should be unique if provided, otherwise randomly generated)
         :param target_project: Specify target project to put the cloned scheduled Task in.
         :param minute: Time (in minutes) between task launches. If specified together with `hour`, `day`, `month`,
@@ -716,6 +734,7 @@ class TaskScheduler(BaseScheduler):
             name=name or task_id,
             base_task_id=task_id,
             base_function=schedule_function,
+            queue=queue,
             target_project=target_project,
             execution_limit_hours=limit_execution_time,
             recurring=bool(recurring),
@@ -853,11 +872,13 @@ class TaskScheduler(BaseScheduler):
 
         return True
 
-    def start_remotely(self) -> None:
+    def start_remotely(self, queue: str = "services") -> None:
         """
         Start the Task TaskScheduler loop (notice this function does not return)
+
+        :param queue: Remote queue to run the scheduler on, default 'services' queue.
         """
-        super(TaskScheduler, self).start_remotely()
+        super(TaskScheduler, self).start_remotely(queue=queue)
 
     def _serialize(self) -> None:
         """
@@ -965,6 +986,7 @@ class TaskScheduler(BaseScheduler):
             "base_function",
             "next_run",
             "target_project",
+            "queue",
             "minute",
             "hour",
             "day",

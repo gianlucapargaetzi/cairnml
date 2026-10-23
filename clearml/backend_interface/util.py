@@ -4,7 +4,7 @@ from _socket import gethostname
 from datetime import datetime, timezone
 from typing import Optional, Any, Tuple, Union
 
-from ..backend_api.services import projects
+from ..backend_api.services import projects, queues
 from ..debugging.log import get_logger, LoggerRoot
 
 
@@ -156,6 +156,34 @@ def _get_or_create_project(
             if res
             else None
         )
+
+
+def get_queue_id(session: Any, queue: str) -> Optional[str]:
+    # noqa: F821
+    if not queue:
+        return None
+
+    res = session.send(queues.GetByIdRequest(queue=queue))
+    if res and res.response.queue:
+        return queue
+    res = session.send(queues.GetAllRequest(name=exact_match_regex(queue), only_fields=["id"]))
+    if res and res.response and res.response.queues:
+        if len(res.response.queues) > 1:
+            LoggerRoot.get_base_logger().info(
+                f"Multiple queues with name={queue}, selecting queue id={res.response.queues[0].id}"
+            )
+        return res.response.queues[0].id
+
+    return None
+
+
+def get_num_enqueued_tasks(session: Any, queue_id: str) -> Optional[int]:
+    """Get the number of enqueued tasks for a queue"""
+    # noqa: F821
+    res = session.send(queues.GetNumEntriesRequest(queue=queue_id))
+    if res and res.response and res.response.num is not None:
+        return res.response.num
+    return None
 
 
 # Hack for supporting windows
