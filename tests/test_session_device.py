@@ -30,6 +30,7 @@ def device_session(device_id=DEVICE, job_token=None):
     session._Session__host = HOST
     session._Session__device_id = device_id
     session._Session__job_token = job_token
+    session._Session__job_token_file = None
     session._Session__auth_token = None
     session._Session__access_key = None
     session._Session__secret_key = None

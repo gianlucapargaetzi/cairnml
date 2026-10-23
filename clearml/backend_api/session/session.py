@@ -19,6 +19,7 @@ from six.moves.urllib.parse import urlparse
 from typing import List, Optional, Union, Dict, Iterable, Tuple, Any
 
 from .callresult import CallResult
+from .job_token_file import read_job_token_file
 from .defs import (
     ENV_VERBOSE,
     ENV_HOST,
@@ -26,6 +27,7 @@ from .defs import (
     ENV_OFFLINE_MODE,
     ENV_AUTH_TOKEN,
     ENV_JOB_TOKEN,
+    ENV_JOB_TOKEN_FILE,
     ENV_DISABLE_VAULT_SUPPORT,
     ENV_ENABLE_ENV_CONFIG_SECTION,
     ENV_ENABLE_FILES_CONFIG_SECTION,
@@ -207,12 +209,14 @@ class Session(TokenManager):
         self.__auth_token = None
         self.__device_id = self.config.get("api.idp.device_id", None)
         self.__job_token = ENV_JOB_TOKEN.get()
+        self.__job_token_file = ENV_JOB_TOKEN_FILE.get()
         self._update_default_api_method()
         if ENV_AUTH_TOKEN.get():
             self.__auth_token = ENV_AUTH_TOKEN.get()
             # if we use a token we override make sure we are at least 3600 seconds (1 hour)
             # away from the token expiration date, ask for a new one.
-            token_expiration_threshold_sec = max(token_expiration_threshold_sec, 3600)
+            if not self.__job_token_file:
+                token_expiration_threshold_sec = max(token_expiration_threshold_sec, 3600)
 
         if not (self.__auth_token or self.__device_id or self.__job_token):
             raise MissingConfigError()
@@ -840,6 +844,10 @@ class Session(TokenManager):
 
     def _do_refresh_token(self, old_token: str, exp: Optional[int] = None) -> str:
         """TokenManager abstract method implementation: obtains a token for this session."""
+        token_from_file = read_job_token_file(self.__job_token_file)
+        if token_from_file:
+            # The agent renews the job's token in this file, so a refresh takes the newest one.
+            return token_from_file
         if self.__job_token:
             # A job runs with the token its agent obtained for it; the job never exchanges a key.
             return self.__job_token
