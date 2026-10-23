@@ -2,7 +2,7 @@ import os.path
 from pathlib import Path
 
 
-BOOTSTRAP_REPO_URL = "https://github.com/cairnml/cairnml-agent-bootstrap"
+BOOTSTRAP_REPO_URL = "https://github.com/clearml/clearml-agent-bootstrap"
 
 
 def check_bootstrap_package_install(config):
