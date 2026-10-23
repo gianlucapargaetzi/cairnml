@@ -155,9 +155,19 @@ class ResourceMonitor(object):
         self._exit_event.set()
         self.send_report()
 
+    @staticmethod
+    def _machine_capacity() -> dict:
+        """What the machine has in total: CPUs, RAM and disk in GB. Sent with each report, for the monitor."""
+        return {
+            "cpus": psutil.cpu_count() or 0,
+            "ram_gb": round(psutil.virtual_memory().total / 1024 ** 3, 2),
+            "disk_gb": round(psutil.disk_usage(os.path.expanduser("~")).total / 1024 ** 3, 2),
+        }
+
     def send_report(self, stats=None):
         report = dict(
             machine_stats=stats,
+            machine_capacity=self._machine_capacity(),
             timestamp=(int(time()) * 1000),
             worker=self._worker_id,
             tags=self._worker_tags,
