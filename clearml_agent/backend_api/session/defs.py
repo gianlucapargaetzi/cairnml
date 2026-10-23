@@ -6,6 +6,8 @@ ENV_HOST = EnvEntry("CLEARML_API_HOST", "TRAINS_API_HOST")
 ENV_WEB_HOST = EnvEntry("CLEARML_WEB_HOST", "TRAINS_WEB_HOST")
 # Set by the agent for one job: the token is used as it is and is never exchanged for another.
 ENV_JOB_TOKEN = EnvEntry("CLEARML_JOB_TOKEN")
+# The file the agent keeps the job's current token in, renewed while the job runs; read again on every refresh.
+ENV_JOB_TOKEN_FILE = EnvEntry("CLEARML_JOB_TOKEN_FILE")
 ENV_AUTH_TOKEN = EnvEntry("CLEARML_AUTH_TOKEN")
 ENV_VERBOSE = EnvEntry("CLEARML_API_VERBOSE", "TRAINS_API_VERBOSE", type=bool, default=False)
 ENV_HOST_VERIFY_CERT = EnvEntry("CLEARML_API_HOST_VERIFY_CERT", "TRAINS_API_HOST_VERIFY_CERT", type=bool, default=True)

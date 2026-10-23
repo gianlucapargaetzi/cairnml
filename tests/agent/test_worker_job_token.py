@@ -31,8 +31,8 @@ def agent_worker(session):
 
 
 def test_the_agent_asks_for_the_job_token_of_the_task_with_its_own_session():
-    session = FakeSession(Reply(True, {"data": {"access_token": "job-1"}}))
-    assert Worker._get_job_token(agent_worker(session), "task-1") == "job-1"
+    session = FakeSession(Reply(True, {"data": {"access_token": "job-1", "expires_in": 3600}}))
+    assert Worker._get_job_token(agent_worker(session), "task-1") == ("job-1", 3600)
     call = session.calls[0]
     assert (call["service"], call["action"], call["version"]) == ("devices", "job_token", "2.8")
     assert call["json"] == {"task": "task-1"}
@@ -40,12 +40,12 @@ def test_the_agent_asks_for_the_job_token_of_the_task_with_its_own_session():
 
 def test_a_refused_job_token_is_none_so_the_job_does_not_start():
     session = FakeSession(Reply(False, {"meta": {"result_msg": "task is stopped"}}))
-    assert Worker._get_job_token(agent_worker(session), "task-1") is None
+    assert Worker._get_job_token(agent_worker(session), "task-1") == (None, None)
 
 
 def test_a_failed_request_is_none_so_the_job_does_not_start():
     session = FakeSession(error=ConnectionError("server down"))
-    assert Worker._get_job_token(agent_worker(session), "task-1") is None
+    assert Worker._get_job_token(agent_worker(session), "task-1") == (None, None)
 
 
 def test_the_job_configuration_names_no_device(tmp_path):

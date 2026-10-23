@@ -149,6 +149,9 @@ from clearml_agent.helper.process import (
     check_if_command_exists,
     terminate_all_child_processes, find_executable,
 )
+from clearml_agent.helper.job_token import (
+    CONTAINER_DIR, TOKEN_FILE_NAME, TokenRenewer, request_job_token, write_job_token,
+)
 from clearml_agent.helper.repo import clone_repository_cached, RepoInfo, VCS, fix_package_import_diff_patch, \
     patch_add_task_init_call
 from clearml_agent.helper.resource_monitor import ResourceMonitor
@@ -1069,19 +1072,13 @@ class Worker(ServiceCommandSection):
             pass
 
     def _get_job_token(self, task_id):
-        """The job's own token, issued by the server to this agent while the task runs here."""
+        """The job's token and its lifetime, or (None, None) when it cannot be issued."""
         # noinspection PyBroadException
         try:
-            res = self._session.send_request(
-                service='devices', action='job_token', version='2.8', method=Request.def_method,
-                json={'task': task_id},
-            )
-            if res is None or not res.ok:
-                return None
-            return res.json()['data']['access_token']
+            return request_job_token(self._session, task_id) or (None, None)
         except Exception as ex:
             print("Warning: failed getting a job token for task '{}': {}".format(task_id, ex))
-            return None
+            return None, None
 
     def _get_docker_restart_value(self, task_session, task_id: str):
         try:
@@ -1193,10 +1190,14 @@ class Worker(ServiceCommandSection):
                 return
 
         # the job's own token: the server issues it to the agent device that started the task
-        job_token = self._get_job_token(task_id)
+        job_token, job_token_lifetime = self._get_job_token(task_id)
         if not job_token:
             print("Warning: could not get a job token for task '{}', skipping".format(task_id))
             return
+        # the token lives in a file the job reads, and the agent renews it while the job runs
+        job_token_dir = Path(mkdtemp(prefix="clearml_job_token_"))
+        job_token_file = job_token_dir / TOKEN_FILE_NAME
+        write_job_token(job_token_file, job_token)
 
         # setup console log
         temp_stdout_name = safe_mkstemp(
@@ -1261,6 +1262,7 @@ class Worker(ServiceCommandSection):
                 docker_params["auth_token"] = task_session.token
             else:
                 docker_params["auth_token"] = job_token
+                docker_params["job_token_dir"] = str(job_token_dir)
             if self._worker_tags:
                 docker_params["worker_tags"] = self._worker_tags
             if self._services_mode:
@@ -1384,6 +1386,7 @@ class Worker(ServiceCommandSection):
         )
         stop_signal_status = TaskStopSignal.default
         status = ExitStatus.interrupted
+        renewer = None
         try:
             # set WORKER ID
             ENV_WORKER_ID.set(worker_id)
@@ -1406,9 +1409,16 @@ class Worker(ServiceCommandSection):
                 env[ENV_AGENT_AUTH_TOKEN.vars[0]] = task_session.token
             else:
                 env["CLEARML_JOB_TOKEN"] = job_token
+                env["CLEARML_JOB_TOKEN_FILE"] = str(job_token_file)
             if self._worker_tags:
                 env[ENV_WORKER_TAGS.vars[0]] = " ".join(shlex.quote(t) for t in self._worker_tags)
 
+            if not self._impersonate_as_task_owner:
+                # keep the job's token current for as long as the job runs
+                renewer = TokenRenewer(
+                    job_token_file, lambda: request_job_token(self._session, task_id), job_token_lifetime, label=task_id,
+                )
+                renewer.start()
             status, stop_signal_status = self._log_command_output(
                 task_id=task_id,
                 cmd=cmd,
@@ -1436,6 +1446,12 @@ class Worker(ServiceCommandSection):
             self.handle_user_abort(task_id, session=task_session)
             status = ExitStatus.interrupted
         finally:
+            # a service keeps running in the background after this call, with its token file and its renewal
+            keep_token = self._services_mode and stop_signal_status is None
+            if renewer and not keep_token:
+                renewer.stop()
+            if not keep_token:
+                shutil.rmtree(job_token_dir, ignore_errors=True)
             if self._services_mode and stop_signal_status is None:
                 print('Service started, docker running in the background')
             else:
@@ -4417,6 +4433,7 @@ class Worker(ServiceCommandSection):
             install_opencv_libs=None,
             docker_bash_setup_script=None,
             auth_token=None,
+            job_token_dir=None,
             worker_tags=None,
             name=None,
             mount_ssh=None, mount_ssh_ro=None, mount_apt_cache=None, mount_pip_cache=None, mount_poetry_cache=None,
@@ -4595,6 +4612,11 @@ class Worker(ServiceCommandSection):
         if auth_token:
             # if auth token is passed then put it in the env var
             base_cmd += ['-e', '{}={}'.format(ENV_AGENT_AUTH_TOKEN.vars[0], auth_token)]
+
+        if job_token_dir:
+            # the job's token file, renewed by the agent while the job runs; the container reads it from its folder
+            base_cmd += ['-v', '{}:{}'.format(job_token_dir, CONTAINER_DIR),
+                         '-e', 'CLEARML_JOB_TOKEN_FILE={}/{}'.format(CONTAINER_DIR, TOKEN_FILE_NAME)]
 
         if worker_tags:
             base_cmd += ['-e', '{}={}'.format(ENV_WORKER_TAGS.vars[0], " ".join(shlex.quote(t) for t in worker_tags))]
