@@ -1,6 +1,6 @@
 """
 ClearML Inc
-https://github.com/cairnml/cairnml
+https://github.com/gianlucapargaetzi/cairnml
 """
 
 import os.path
@@ -19,10 +19,6 @@ here = os.path.dirname(__file__)
 long_description = read_text(os.path.join(here, 'README.md'))
 
 # fix github, dark logo hack.
-long_description = long_description.replace(
-    """<img align="center" src="docs/cairnml-logo.svg#gh-light-mode-only" alt="Clear|ML"><img align="center" src="docs/cairnml-logo-dark.svg#gh-dark-mode-only" alt="Clear|ML">""",  # noqa
-    """<a href="https://clear.ml"><img src="https://raw.githubusercontent.com/cairnml/cairnml/refs/heads/master/docs/cairnml-logo.svg" width="250px"></a>""",  # noqa
-)
 
 
 def read_version_string(version_file):
@@ -41,16 +37,16 @@ requirements = read_text(os.path.join(here, 'requirements.txt')).splitlines()
 setup(
     name='cairnml',
     version=version,
-    description='CairnML - Auto-Magical Experiment Manager, Version Control, and MLOps for AI',
+    description='CairnML - experiment tracking, remote jobs and git-based datasets (an unofficial fork of ClearML)',
     long_description=long_description,
     long_description_content_type='text/markdown',
     # The project's main homepage.
-    url='https://github.com/cairnml/cairnml',
-    author='CairnML',
-    author_email='support@clear.ml',
+    url='https://github.com/gianlucapargaetzi/cairnml',
+    author='Gianluca Pargaetzi',
+    author_email='121188387+gianlucapargaetzi@users.noreply.github.com',
     license='Apache License 2.0',
     classifiers=[
-        'Development Status :: 5 - Production/Stable',
+        'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
         'Intended Audience :: Science/Research',
         'Operating System :: POSIX :: Linux',
@@ -72,7 +68,7 @@ setup(
         'Programming Language :: Python :: 3.14',
         'License :: OSI Approved :: Apache Software License',
     ],
-    keywords='cairnml trains development machine deep learning version control machine-learning machinelearning '
+    keywords='cairnml clearml development machine deep learning version control machine-learning machinelearning '
              'deeplearning deep-learning experiment-manager experimentmanager',
     packages=find_packages(exclude=['contrib', 'docs', 'data', 'examples', 'tests']),
     install_requires=requirements,

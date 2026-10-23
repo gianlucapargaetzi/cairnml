@@ -79,11 +79,11 @@ def parse_args() -> argparse.Namespace:
 
 
 DEFAULT_DOC_URLS = [
-    "https://github.com/cairnml/cairnml-docs/blob/main/docs/build_interactive_models.md",
-    "https://github.com/cairnml/cairnml-docs/blob/main/docs/cairnml_agent.md",
-    "https://github.com/cairnml/cairnml-docs/blob/main/docs/community.md",
-    "https://github.com/cairnml/cairnml-docs/blob/main/docs/custom_apps.md",
-    "https://github.com/cairnml/cairnml-docs/blob/main/docs/deploying_models.md",
+    "https://github.com/clearml/clearml-docs/blob/main/docs/build_interactive_models.md",
+    "https://github.com/clearml/clearml-docs/blob/main/docs/clearml_agent.md",
+    "https://github.com/clearml/clearml-docs/blob/main/docs/community.md",
+    "https://github.com/clearml/clearml-docs/blob/main/docs/custom_apps.md",
+    "https://github.com/clearml/clearml-docs/blob/main/docs/deploying_models.md",
 ]
 
 
