@@ -27,7 +27,7 @@ jobs:
         if: github.event_name == 'release'
         env:
           TAG: ${{ github.event.release.tag_name }}
-        run: test "v$(python setup.py --version)" = "$TAG"
+        run: test "v$(python -c "import re; print(re.search(r'__version__ = .(.+).', open('cairnml_agent/version.py').read()).group(1))")" = "$TAG"
       - run: python -m build
       - run: twine check dist/*
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
