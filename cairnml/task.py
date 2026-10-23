@@ -2192,7 +2192,7 @@ class Task(_Task):
 
         :param repo: Optional, remote URL for the repository to use, OR path to local copy of the git repository.
             Use an empty string to clear the repo.
-            Example: ``"https://github.com/cairnml/cairnml.git"`` or ``"~/project/repo"`` or ``""``
+            Example: ``"https://github.com/gianlucapargaetzi/cairnml.git"`` or ``"~/project/repo"`` or ``""``
         :param branch: Optional, specify the remote repository branch (Ignored, if local repo path is used).
             Use an empty string to clear the branch.
         :param commit: Optional, specify the repository commit ID (Ignored, if local repo path is used).

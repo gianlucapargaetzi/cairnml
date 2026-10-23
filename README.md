@@ -1,235 +1,53 @@
-<div align="center" style="text-align: center">
+# CairnML
 
-<p style="text-align: center">
-  <img align="center" src="docs/cairnml-logo.svg#gh-light-mode-only" alt="Clear|ML"><img align="center" src="docs/cairnml-logo-dark.svg#gh-dark-mode-only" alt="Clear|ML">
-</p>
+CairnML records what your training scripts do (parameters, metrics, logs, artifacts), runs them on remote machines through job queues, and versions datasets with git and DVC so every run records the exact data it used.
 
-**[CairnML](https://clear.ml) - Auto-Magical Suite of tools to streamline your AI workflow
-</br>Experiment Manager, MLOps/LLMOps and Data-Management**
+This is the Python SDK. It needs a CairnML server (see [cairnml-server](https://github.com/gianlucapargaetzi/cairnml-server) and the [deployment files](https://github.com/gianlucapargaetzi/cairnml-stack)).
 
-[![GitHub license](https://img.shields.io/github/license/cairnml/cairnml.svg)](https://img.shields.io/github/license/cairnml/cairnml.svg) [![PyPI pyversions](https://img.shields.io/pypi/pyversions/cairnml.svg)](https://img.shields.io/pypi/pyversions/cairnml.svg) [![PyPI version shields.io](https://img.shields.io/pypi/v/cairnml.svg)](https://pypi.org/project/cairnml/) [![Conda version shields.io](https://img.shields.io/conda/v/cairnml/cairnml)](https://anaconda.org/cairnml/cairnml) [![Optuna](https://img.shields.io/badge/Optuna-integrated-blue)](https://optuna.org)<br>
-[![PyPI Downloads](https://static.pepy.tech/badge/cairnml/month)](https://pypi.org/project/cairnml/) [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/cairnml)](https://artifacthub.io/packages/search?repo=cairnml) [![Youtube](https://img.shields.io/badge/CairnML-DD0000?logo=youtube&logoColor=white)](https://www.youtube.com/c/cairnml) [![Slack Channel](https://img.shields.io/badge/slack-%23cairnml--community-blueviolet?logo=slack)](https://joinslack.clear.ml) [![Signup](https://img.shields.io/badge/Clear%7CML-Signup-brightgreen)](https://app.clear.ml)
+CairnML is an unofficial, modified version of [ClearML](https://github.com/clearml/clearml). It is not created, sponsored, endorsed or supported by ClearML, Inc. See [DISCLAIMER.md](DISCLAIMER.md) and [NOTICE](NOTICE).
 
+## Install
 
-`🌟 CairnML is open-source - Leave a star to support the project! 🌟`
+```bash
+pip install cairnml
+pip install "cairnml[dataset]"   # adds the dataset tools (DVC, Parquet)
+```
 
-</div>
+## Use
 
----
-### CairnML
+Sign this machine in to your server once:
 
-CairnML is a ML/DL development and production suite. It contains FIVE main modules:
+```bash
+cairnml-init --server https://your-server:8008
+```
 
-- [Experiment Manager](#cairnml-experiment-manager) - Automagical experiment tracking, environments and results
-- [MLOps / LLMOps](https://github.com/cairnml/cairnml-agent) - Orchestration, Automation & Pipelines solution for ML/DL/GenAI jobs (Kubernetes / Cloud / bare-metal)  
-- [Data-Management](docs/datasets.md) - Versioned datasets on git and DVC, with a per-user cache and adapters for outside datasets
-  (S3 / GS / Azure / NAS)  
-- [Model-Serving](https://github.com/cairnml/cairnml-serving) - *cloud-ready* Scalable model serving solution! 
-  - **Deploy new model endpoints in under 5 minutes** 
-  - Includes optimized GPU serving support backed by Nvidia-Triton 
-  - **with out-of-the-box  Model Monitoring** 
-- [Reports](https://clear.ml/docs/latest/docs/webapp/webapp_reports) - Create and share rich MarkDown documents supporting embeddable online content 
-- :fire: [Orchestration Dashboard](https://clear.ml/docs/latest/docs/webapp/webapp_orchestration_dash/) - Live rich dashboard for your entire compute cluster (Cloud / Kubernetes / On-Prem)
-- 🔥 💥 [Fractional GPUs](https://github.com/cairnml/cairnml-fractional-gpu) - Container based, driver level GPU memory limitation 🙀 !!!
-  
+Track a script:
 
-Instrumenting these components is the **CairnML-server**, see [Self-Hosting](https://clear.ml/docs/latest/docs/deploying_clearml/clearml_server) & [Free tier Hosting](https://app.clear.ml)  
+```python
+from cairnml import Task
 
+task = Task.init(project_name="demo", task_name="first run")
+task.connect({"lr": 0.001})
+task.get_logger().report_scalar("loss", "train", value=0.5, iteration=1)
+```
 
----
-<div align="center">
+Run a recorded task on an agent ([cairnml-agent](https://pypi.org/project/cairnml-agent/)):
 
-**[Sign up](https://app.clear.ml)  &  [Start using](https://clear.ml/docs/) in under 2 minutes**
+```python
+Task.enqueue(task, queue_name="default")
+```
 
----
-**Friendly tutorials to get you started**
+Version a dataset (a dataset is a git repository, its commit is its version):
 
-<table>
-<tbody>
-  <tr>
-    <td><a href="https://github.com/cairnml/cairnml/blob/master/docs/tutorials/Getting_Started_1_Experiment_Management.ipynb"><b>Step 1</b></a> - Experiment Management</td>
-    <td><a target="_blank" href="https://colab.research.google.com/github/cairnml/cairnml/blob/master/docs/tutorials/Getting_Started_1_Experiment_Management.ipynb">
-  <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
-</a></td>
-  </tr>
-  <tr>
-    <td><a href="https://github.com/cairnml/cairnml/blob/master/docs/tutorials/Getting_Started_2_Setting_Up_Agent.ipynb"><b>Step 2</b></a> - Remote Execution Agent Setup</td>
-    <td><a target="_blank" href="https://colab.research.google.com/github/cairnml/cairnml/blob/master/docs/tutorials/Getting_Started_2_Setting_Up_Agent.ipynb">
-  <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
-</a></td>
-  </tr>
-  <tr>
-    <td><a href="https://github.com/cairnml/cairnml/blob/master/docs/tutorials/Getting_Started_3_Remote_Execution.ipynb"><b>Step 3</b></a> - Remotely Execute Tasks</td>
-    <td><a target="_blank" href="https://colab.research.google.com/github/cairnml/cairnml/blob/master/docs/tutorials/Getting_Started_3_Remote_Execution.ipynb">
-  <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
-</a></td>
-  </tr>
-</tbody>
-</table>
+```bash
+cairnml-dataset init
+cairnml-dataset add
+cairnml-dataset commit -m "March measurements"
+cairnml-dataset push
+```
 
-</div>
-
----
-
-<table>
-<tbody>
-  <tr>
-    <td colspan="2">Experiment Management</td>
-  </tr>
-  <tr>
-    <td colspan="2"><a href="https://app.clear.ml"><img src="https://github.com/cairnml/cairnml/blob/master/docs/experiment_manager.gif?raw=true" width="100%"></a></td>
-  </tr>
-  <tr>
-    <td colspan="2" height="24px"></td>
-  </tr>
-  <tr>
-    <td>Orchestration</td>
-    <td>Pipelines</td>
-  </tr>
-  <tr>
-    <td><a href="https://app.clear.ml/workers-and-queues/autoscalers"><img src="https://github.com/cairnml/cairnml/blob/master/docs/orchestration.gif?raw=true" width="100%"></a></td>
-    <td><a href="https://app.clear.ml/pipelines"><img src="https://github.com/cairnml/cairnml/blob/master/docs/pipelines.gif?raw=true" width="100%"></a></td>
-  </tr>
-</tbody>
-</table>
-
-
-## CairnML Experiment Manager
-
-**Adding only 2 lines to your code gets you the following**
-
-* Complete experiment setup log
-    * Full source control info, including non-committed local changes
-    * Execution environment (including specific packages & versions)
-    * Hyper-parameters
-        * [`argparse`](https://docs.python.org/3/library/argparse.html)/[Click](https://github.com/pallets/click/)/[PythonFire](https://github.com/google/python-fire) for command line parameters with currently used values
-        * Explicit parameters dictionary
-        * Tensorflow Defines (absl-py)
-        * [Hydra](https://github.com/facebookresearch/hydra) configuration and overrides
-    * Initial model weights file
-* Full experiment output automatic capture
-    * stdout and stderr
-    * Resource Monitoring (CPU/GPU utilization, temperature, IO, network, etc.)
-    * Model snapshots (With optional automatic upload to central storage: Shared folder, S3, GS, Azure, Http)
-    * Artifacts log & store (Shared folder, S3, GS, Azure, Http)
-    * Tensorboard/[TensorboardX](https://github.com/cairnml/cairnml/tree/master/examples/frameworks/tensorboardx) scalars, metrics, histograms, **images, audio and video samples**
-    * [Matplotlib & Seaborn](https://github.com/cairnml/cairnml/tree/master/examples/frameworks/matplotlib)
-    * [CairnML Logger](https://clear.ml/docs/latest/docs/fundamentals/logger) interface for complete flexibility.
-* Extensive platform support and integrations
-    * Supported ML/DL frameworks: [PyTorch](https://github.com/cairnml/cairnml/tree/master/examples/frameworks/pytorch) (incl' [ignite](https://github.com/cairnml/cairnml/tree/master/examples/frameworks/ignite) / [lightning](https://github.com/cairnml/cairnml/tree/master/examples/frameworks/pytorch-lightning)), [Tensorflow](https://github.com/cairnml/cairnml/tree/master/examples/frameworks/tensorflow), [Keras](https://github.com/cairnml/cairnml/tree/master/examples/frameworks/keras), [AutoKeras](https://github.com/cairnml/cairnml/tree/master/examples/frameworks/autokeras), [FastAI](https://github.com/cairnml/cairnml/tree/master/examples/frameworks/fastai), [XGBoost](https://github.com/cairnml/cairnml/tree/master/examples/frameworks/xgboost), [LightGBM](https://github.com/cairnml/cairnml/tree/master/examples/frameworks/lightgbm), [MegEngine](https://github.com/cairnml/cairnml/tree/master/examples/frameworks/megengine) and [Scikit-Learn](https://github.com/cairnml/cairnml/tree/master/examples/frameworks/scikit-learn)
-    * Seamless integration (including version control) with [**Jupyter Notebook**](https://jupyter.org/)
-    and [*PyCharm* remote debugging](https://github.com/cairnml/trains-pycharm-plugin)
-      
-#### [Start using CairnML](https://clear.ml/docs/latest/docs/getting_started/ds/ds_first_steps) 
-
-
-1. Sign up for free to the [CairnML Hosted Service](https://app.clear.ml) (alternatively, you can set up your own server, see [here](https://clear.ml/docs/latest/docs/deploying_clearml/clearml_server)).
-
-    > **_CairnML Demo Server:_** CairnML no longer uses the demo server by default. To enable the demo server, set the `CAIRNML_NO_DEFAULT_SERVER=0`
-    > environment variable. Credentials aren't needed, but experiments launched to the demo server are public, so make sure not 
-    > to launch sensitive experiments if using the demo server.
-
-1. Install the `cairnml` python package:
-
-    ```bash
-    pip install cairnml
-    ```
-
-1. Connect the CairnML SDK to the server by [creating credentials](https://app.clear.ml/settings/workspace-configuration), then execute the command
-below and follow the instructions: 
-
-    ```bash
-    cairnml-init
-    ```
-
-1. Add two lines to your code:
-    ```python
-    from cairnml import Task
-    task = Task.init(project_name='examples', task_name='hello world')
-    ```
-
-And you are done! Everything your process outputs is now automagically logged into CairnML.
-
-Next step, automation! **Learn more about CairnML's two-click automation [here](https://clear.ml/docs/latest/docs/getting_started/mlops/mlops_first_steps)**. 
-
-## CairnML Architecture
-
-The CairnML run-time components:
-
-* The CairnML Python Package - for integrating CairnML into your existing scripts by adding just two lines of code, and optionally extending your experiments and other workflows with CairnML's powerful and versatile set of classes and methods.
-* The CairnML Server - for storing experiment, model, and workflow data; supporting the Web UI experiment manager and MLOps automation for reproducibility and tuning. It is available as a hosted service and open source for you to deploy your own CairnML Server.
-* The CairnML Agent - for MLOps orchestration, experiment and workflow reproducibility, and scalability.
-
-<img src="https://raw.githubusercontent.com/cairnml/cairnml-docs/main/docs/img/cairnml_architecture.png" width="100%" alt="cairnml-architecture">
-
-## Additional Modules 
-
-- [cairnml-session](https://github.com/cairnml/cairnml-session) - **Launch remote JupyterLab / VSCode-server inside any docker, on Cloud/On-Prem machines**
-- [cairnml-task](https://github.com/cairnml/cairnml/blob/master/docs/cairnml-task.md) - Run any codebase on remote machines with full remote logging of Tensorboard, Matplotlib & Console outputs 
-- [cairnml-dataset](docs/datasets.md) - **CLI for versioned datasets on git and DVC: init / status / add / commit / push, with a per-user cache and adapters for outside datasets**
-- [AWS Auto-Scaler](https://clear.ml/docs/latest/docs/guides/services/aws_autoscaler) - Automatically spin EC2 instances based on your workloads with preconfigured budget! No need for AKE!
-- [Hyper-Parameter Optimization](https://clear.ml/docs/latest/docs/guides/optimization/hyper-parameter-optimization/examples_hyperparam_opt) - Optimize any code with black-box approach and state-of-the-art Bayesian optimization algorithms
-- [Automation Pipeline](https://clear.ml/docs/latest/docs/guides/pipeline/pipeline_controller) - Build pipelines based on existing experiments / jobs, supports building pipelines of pipelines!  
-- [Slack Integration](https://clear.ml/docs/latest/docs/guides/services/slack_alerts) - Report experiments progress / failure directly to Slack (fully customizable!)  
-
-## Why CairnML?
-
-CairnML is our solution to a problem we share with countless other researchers and developers in the machine
-learning/deep learning universe: Training production-grade deep learning models is a glorious but messy process.
-CairnML tracks and controls the process by associating code version control, research projects,
-performance metrics, and model provenance.
-
-We designed CairnML specifically to require effortless integration so that teams can preserve their existing methods
-and practices. 
-
-  - Use it on a daily basis to boost collaboration and visibility in your team 
-  - Create a remote job from any experiment with a click of a button
-  - Automate processes and create pipelines to collect your experimentation logs, outputs, and data
-  - Store all your data on any object-storage solution, with the most straightforward interface possible
-  - Make your data transparent by cataloging it all on the CairnML platform
-
-We believe CairnML is ground-breaking. We wish to establish new standards of true seamless integration between
-experiment management, MLOps, and data management.
-
-## Who We Are
-
-CairnML is supported by you and the [clear.ml](https://clear.ml) team, which helps enterprise companies build scalable MLOps. 
-
-We built CairnML to track and control the glorious but messy process of training production-grade deep learning models.
-We are committed to vigorously supporting and expanding the capabilities of CairnML.
-
-We promise to always be backwardly compatible, making sure all your logs, data, and pipelines will always upgrade with you.
+See [docs/datasets.md](docs/datasets.md) for datasets, adapters and the cache.
 
 ## License
 
-Apache License, Version 2.0 (see the [LICENSE](https://www.apache.org/licenses/LICENSE-2.0.html) for more information)
-
-If CairnML is part of your development process / project / publication, please cite us :heart: : 
-```
-@misc{cairnml,
-title = {CairnML - Your entire MLOps stack in one open-source tool},
-year = {2024},
-note = {Software available from http://github.com/cairnml/cairnml},
-url={https://clear.ml/},
-author = {CairnML},
-}
-```
-
-## Documentation, Community & Support
-
-For more information, see the [official documentation](https://clear.ml/docs) and [on YouTube](https://www.youtube.com/c/CairnML).
-
-For examples and use cases, check the [examples folder](https://github.com/cairnml/cairnml/tree/master/examples) and [corresponding documentation](https://clear.ml/docs/latest/docs/guides).
-
-If you have any questions: post on our [Slack Channel](https://joinslack.clear.ml), or tag your questions on [stackoverflow](https://stackoverflow.com/questions/tagged/cairnml) with '**[cairnml](https://stackoverflow.com/questions/tagged/cairnml)**' tag.
-
-For feature requests or bug reports, please use [GitHub issues](https://github.com/cairnml/cairnml/issues).
-
-Additionally, you can always find us at *info@clear.ml*
-
-## Contributing
-
-**PRs are always welcome** :heart: See more details in the CairnML [Guidelines for Contributing](https://github.com/cairnml/cairnml/blob/master/CONTRIBUTING.md).
-
-
-_May the force (and the goddess of learning rates) be with you!_
+Apache License 2.0, see [LICENSE](LICENSE). Based on ClearML, Copyright 2025 ClearML Inc.
