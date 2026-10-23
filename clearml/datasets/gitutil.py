@@ -94,6 +94,16 @@ class Git:
                 skip = True
         return rows
 
+    def tracked_sizes(self) -> dict:
+        """Size in bytes of every file tracked by git (as in the working tree), by path."""
+        out = self.run("ls-files", "-z")
+        sizes = {}
+        for path in [p for p in out.split("\0") if p]:
+            full = self.path / path
+            if full.is_file():
+                sizes[path] = full.stat().st_size
+        return sizes
+
     def add(self, paths: Sequence[str], force: bool = False) -> None:
         self.run("add", *(["-f"] if force else []), "--", *paths)
 
@@ -110,6 +120,30 @@ class Git:
             self.run("push", "-q")
         else:
             self.run("push", "-q", "--set-upstream", "origin", branch)
+
+    def push_to(self, branch: str, source: str = "HEAD") -> None:
+        """Push a commit to a branch of origin, creating it."""
+        self.run("push", "-q", "origin", f"{source}:refs/heads/{branch}")
+
+    def remote_heads(self) -> List[str]:
+        """Branch names that exist on origin."""
+        out = self.run("ls-remote", "--heads", "origin", check=False)
+        return [line.split("refs/heads/", 1)[1] for line in out.splitlines() if "refs/heads/" in line]
+
+    def default_branch(self) -> str:
+        """The branch origin treats as its default; main if that cannot be told."""
+        out = self.run("ls-remote", "--symref", "origin", "HEAD", check=False)
+        for line in out.splitlines():
+            if line.startswith("ref:"):
+                return line.split("refs/heads/", 1)[1].split()[0]
+        return "main"
+
+    def remote_contains(self, commit: str, branch: str) -> bool:
+        """True when origin/<branch>, as last fetched, holds the commit."""
+        return self.ok("merge-base", "--is-ancestor", commit, f"origin/{branch}")
+
+    def fetch_origin(self) -> None:
+        self.run("fetch", "-q", "origin", check=False)
 
     def is_pushed(self, commit: str = "HEAD") -> bool:
         return bool(self.run("branch", "-r", "--contains", commit, check=False))
