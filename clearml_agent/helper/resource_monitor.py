@@ -46,6 +46,8 @@ class ResourceMonitor(object):
     @attr.s
     class StatusReport(object):
         task = attr.ib(default=None, type=str)
+        queue = attr.ib(default=None, type=str)
+        queues = attr.ib(default=None, type=Sequence[str])
 
         def to_dict(self):
             return {
