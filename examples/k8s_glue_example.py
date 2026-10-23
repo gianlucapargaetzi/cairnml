@@ -1,11 +1,11 @@
 """
 This example assumes you have preconfigured services with selectors in the form of
- "ai.clearml.agent.serial=pod-<number>" and a targetPort of 10022.
+ "ai.cairnml.agent.serial=pod-<number>" and a targetPort of 10022.
 The K8sIntegration component will label each pod accordingly.
 """
 from argparse import ArgumentParser
 
-from clearml_agent.glue.k8s import K8sIntegration
+from cairnml_agent.glue.k8s import K8sIntegration
 
 
 def parse_args():
@@ -61,7 +61,7 @@ def parse_args():
         help="Used in conjunction with ports-mode, specify the external address of the k8s ingress / ELB",
     )
     parser.add_argument(
-        "--pod-clearml-conf",
+        "--pod-cairnml-conf",
         type=str,
         help="Configuration file to be used by the pod itself (if not provided, current configuration is used)",
     )
@@ -84,7 +84,7 @@ def parse_args():
         "--namespace",
         type=str,
         help="Specify the namespace in which pods will be created (default: %(default)s)",
-        default="clearml",
+        default="cairnml",
     )
     group.add_argument(
         "--max-pods",
@@ -94,7 +94,7 @@ def parse_args():
     )
     parser.add_argument(
         "--pod-name-prefix", type=str,
-        help="Define pod name prefix for k8s (default: %(default)s)", default="clearml-id-"
+        help="Define pod name prefix for k8s (default: %(default)s)", default="cairnml-id-"
     )
     parser.add_argument(
         "--limit-pod-label", type=str,
@@ -109,7 +109,7 @@ def parse_args():
         action="store_true",
         default=False,
         help="Run tasks under the identity of each task's owner: all calls made by the task code during execution will "
-        "use the owner's credentials instead of the agent's. This features requires the agent to use a ClearML "
+        "use the owner's credentials instead of the agent's. This features requires the agent to use a CairnML "
         "Enterprise Server.",
     )
     parser.add_argument(
@@ -149,7 +149,7 @@ def main():
         base_pod_num=args.base_pod_num,
         user_props_cb=user_props_cb,
         overrides_yaml=args.overrides_yaml,
-        clearml_conf_file=args.pod_clearml_conf,
+        cairnml_conf_file=args.pod_cairnml_conf,
         template_yaml=args.template_yaml,
         extra_bash_init_script=K8sIntegration.get_ssh_server_bash(ssh_port_number=args.ssh_server_port)
         if args.ssh_server_port

@@ -11,7 +11,7 @@ RUN python3 \
     --prefix=/install \
     --no-cache-dir \
     -U \
-    clearml-agent \
+    cairnml-agent \
     cryptography>=2.9
 
 FROM python:3.14-rc-alpine3.21 as target

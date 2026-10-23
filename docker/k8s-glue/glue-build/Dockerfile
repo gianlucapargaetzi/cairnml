@@ -19,6 +19,6 @@ RUN /root/setup_provider.sh
 
 COPY ./glue-build-multi/providers/${PROVIDER}/provider_entrypoint.sh /root/provider_entrypoint.sh
 COPY ./build-resources/k8s_glue_example.py /root/k8s_glue_example.py
-COPY ./build-resources/clearml.conf /root/clearml.conf
+COPY ./build-resources/cairnml.conf /root/cairnml.conf
 
 ENTRYPOINT ["/root/entrypoint.sh"]

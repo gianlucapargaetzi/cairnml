@@ -4,9 +4,9 @@ import threading
 from pathlib import Path
 from unittest import mock
 
-from clearml_agent.backend_api.session.job_token_file import read_job_token_file
-from clearml_agent.backend_api.session.session import Session
-from clearml_agent.helper.job_token import TokenRenewer, write_job_token
+from cairnml_agent.backend_api.session.job_token_file import read_job_token_file
+from cairnml_agent.backend_api.session.session import Session
+from cairnml_agent.helper.job_token import TokenRenewer, write_job_token
 
 
 def test_the_token_file_is_replaced_and_readable_by_its_owner_only(tmp_path):

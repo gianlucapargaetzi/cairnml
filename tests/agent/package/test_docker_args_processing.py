@@ -3,7 +3,7 @@ Test docker args processing
 """
 import logging
 
-from clearml_agent.helper.docker_args import DockerArgsSanitizer
+from cairnml_agent.helper.docker_args import DockerArgsSanitizer
 
 
 logging.getLogger("urllib3").setLevel(logging.CRITICAL)
@@ -45,7 +45,7 @@ class _DummyConfig:
         return self._overrides.get(key, default)
 
 
-# Mirrors the value shipped in agent.conf / docs/clearml.conf so tests reflect real usage.
+# Mirrors the value shipped in agent.conf / docs/cairnml.conf so tests reflect real usage.
 _SHIPPED_CONF = {"agent.forbidden_docker_args": ["entrypoint"]}
 
 

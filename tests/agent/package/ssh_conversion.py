@@ -1,6 +1,6 @@
 import pytest
 
-from clearml_agent.helper.repo import VCS
+from cairnml_agent.helper.repo import VCS
 
 
 @pytest.mark.parametrize(

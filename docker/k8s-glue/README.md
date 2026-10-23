@@ -1,10 +1,10 @@
-# ClearML k8s-glue
+# CairnML k8s-glue
 
-Example Docker image and Kubernetes templates for running the ClearML k8s glue
+Example Docker image and Kubernetes templates for running the CairnML k8s glue
 as a pod inside a Kubernetes cluster.
 
-ClearML credentials and server addresses should either be filled into the
-`clearml.conf` file before building the glue Docker image, or provided in the
+CairnML credentials and server addresses should either be filled into the
+`cairnml.conf` file before building the glue Docker image, or provided in the
 `k8s-glue.yml` template.
 
 ## Building the Docker image
@@ -33,7 +33,7 @@ Base image:
 ```bash
 docker build \
   --build-arg PROVIDER=base \
-  -t clearml-agent-k8s-base:dev \
+  -t cairnml-agent-k8s-base:dev \
   -f docker/k8s-glue/glue-build-multi/Dockerfile \
   docker/k8s-glue/
 ```
@@ -43,7 +43,7 @@ EKS image:
 ```bash
 docker build \
   --build-arg PROVIDER=eks \
-  -t clearml-agent-k8s-eks:dev \
+  -t cairnml-agent-k8s-eks:dev \
   -f docker/k8s-glue/glue-build-multi/Dockerfile \
   docker/k8s-glue/
 ```
@@ -53,7 +53,7 @@ GKE image:
 ```bash
 docker build \
   --build-arg PROVIDER=gke \
-  -t clearml-agent-k8s-gke:dev \
+  -t cairnml-agent-k8s-gke:dev \
   -f docker/k8s-glue/glue-build-multi/Dockerfile \
   docker/k8s-glue/
 ```
@@ -63,11 +63,11 @@ docker build \
 1. Create a secret from `pod_template.yml`:
 
    ```bash
-   kubectl -n clearml create secret generic k8s-glue-pod-template --from-file=pod_template.yml
+   kubectl -n cairnml create secret generic k8s-glue-pod-template --from-file=pod_template.yml
    ```
 
 2. Apply the k8s glue template:
 
    ```bash
-   kubectl -n clearml apply -f k8s-glue.yml
+   kubectl -n cairnml apply -f k8s-glue.yml
    ```

@@ -1,6 +1,6 @@
 import pytest
 
-from clearml_agent.helper.repo import Git
+from cairnml_agent.helper.repo import Git
 
 NO_CHANGE = object()
 
@@ -75,9 +75,9 @@ def param(url, expected, user=False, password=False):
 # git+ssh://git@bitbucket.org/seematics/trains-internal.git@main#subdirectory=a
 # git+git://git@bitbucket.org/seematics/trains-internal.git@master#subdirectory=b
 #
-# git+https://github.com/clearml/clearml.git@master#subdirectory=.
-# git+ssh://git@github.com/clearml/clearml.git@main#subdirectory=a
-# git+git://git@github.com/clearml/clearml.git@master#subdirectory=b
+# git+https://github.com/cairnml/cairnml.git@master#subdirectory=.
+# git+ssh://git@github.com/cairnml/cairnml.git@main#subdirectory=a
+# git+git://git@github.com/cairnml/cairnml.git@master#subdirectory=b
 
 
 def test(url, user, password, expected):

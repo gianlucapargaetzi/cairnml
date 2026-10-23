@@ -9,7 +9,7 @@ RUN python3 \
     install \
     --no-cache-dir \
     -U \
-    clearml-agent \
+    cairnml-agent \
     cryptography>=2.9
 
 # Not sure about these ENV vars

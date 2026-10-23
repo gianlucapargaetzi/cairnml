@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 
-from clearml_agent.commands.worker import Worker
-from clearml_agent.external.pyhocon import ConfigFactory
+from cairnml_agent.commands.worker import Worker
+from cairnml_agent.external.pyhocon import ConfigFactory
 
 
 class Reply:

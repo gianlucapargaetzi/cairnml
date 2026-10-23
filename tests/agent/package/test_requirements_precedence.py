@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 from unittest.mock import Mock
 
-from clearml_agent.commands.worker import Worker
+from cairnml_agent.commands.worker import Worker
 
 
 class _Config(object):

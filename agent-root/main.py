@@ -1,5 +1,5 @@
 import sys
-from clearml_agent import __main__
+from cairnml_agent import __main__
 
 
 if __name__ == "__main__":

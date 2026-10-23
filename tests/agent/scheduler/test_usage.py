@@ -1,7 +1,7 @@
 import os
 import tempfile
 
-from clearml_agent.scheduler.usage import (
+from cairnml_agent.scheduler.usage import (
     container_cgroup_dirs,
     cpu_percent,
     parse_cpu_times,

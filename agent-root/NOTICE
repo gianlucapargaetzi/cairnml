@@ -1,0 +1,9 @@
+cairnml-agent
+Modifications Copyright 2026 Gianluca Pargaetzi
+
+This product is based on the ClearML Agent (https://github.com/allegroai/clearml-agent),
+Copyright 2025 ClearML Inc., licensed under the Apache License 2.0. See LICENSE.
+
+It is an unofficial, modified version. It is not created, sponsored, endorsed or supported by
+ClearML, Inc. "ClearML" is a trademark of ClearML, Inc. The changes made to the original code are
+recorded in this repository's history.

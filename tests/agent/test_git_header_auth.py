@@ -7,7 +7,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from clearml_agent.helper.repo import Git, fetch_git_token, github_header, scrub_token
+from cairnml_agent.helper.repo import Git, fetch_git_token, github_header, scrub_token
 
 TOKEN = "ghs_exampletoken123"
 

@@ -14,5 +14,5 @@ rm -rf /var/lib/apt/lists/*
 apt clean
 
 python3 -m pip install -U pip
-python3 -m pip install --no-cache-dir clearml-agent
+python3 -m pip install --no-cache-dir cairnml-agent
 python3 -m pip install -U --no-cache-dir "cryptography>=2.9"

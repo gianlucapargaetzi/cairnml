@@ -1,8 +1,8 @@
 from pathlib import Path
 from unittest import mock
 
-from clearml_agent.commands import config as init
-from clearml_agent.idp.enrol import EnrolmentFailed
+from cairnml_agent.commands import config as init
+from cairnml_agent.idp.enrol import EnrolmentFailed
 
 
 def answers(*values):
@@ -18,7 +18,7 @@ SCRIPT = ("https://app.example", "", "", "", "", "", "")
 
 
 def run_init(tmp_path, enrol):
-    conf = tmp_path / "clearml-agent.conf"
+    conf = tmp_path / "cairnml-agent.conf"
     with mock.patch.object(init, "LOCAL_CONFIG_FILES", [str(conf)]), \
             mock.patch.object(init, "input", answers(*SCRIPT), create=True), \
             mock.patch.object(init, "enrol_device", side_effect=enrol) as enrol_mock:

@@ -1,7 +1,7 @@
 import pytest
 from furl import furl
 
-from clearml_agent.helper.package.translator import RequirementsTranslator
+from cairnml_agent.helper.package.translator import RequirementsTranslator
 
 
 @pytest.mark.parametrize(

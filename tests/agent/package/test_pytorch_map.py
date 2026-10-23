@@ -4,7 +4,7 @@ import requests
 from furl import furl
 
 import six
-from clearml_agent.helper.package.pytorch import PytorchRequirement
+from cairnml_agent.helper.package.pytorch import PytorchRequirement
 
 
 @attr.s

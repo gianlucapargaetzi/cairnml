@@ -1,6 +1,6 @@
 """
 Test handling of jupyter notebook tasks.
-Logging is enabled in `clearml_agent/tests/pytest.ini`. Search for `pytest live logging` for more info.
+Logging is enabled in `cairnml_agent/tests/pytest.ini`. Search for `pytest live logging` for more info.
 """
 import logging
 import re
@@ -11,12 +11,12 @@ from contextlib import contextmanager
 from typing import Iterator, ContextManager, Sequence, IO, Text
 from uuid import uuid4
 
-from clearml_agent.backend_api.services import tasks
-from clearml_agent.backend_api.session.client import APIClient
+from cairnml_agent.backend_api.services import tasks
+from cairnml_agent.backend_api.session.client import APIClient
 from pathlib2 import Path
 from pytest import fixture
 
-from clearml_agent.helper.process import Argv
+from cairnml_agent.helper.process import Argv
 
 logging.getLogger("urllib3").setLevel(logging.CRITICAL)
 log = logging.getLogger(__name__)
@@ -51,7 +51,7 @@ def select_read(file_obj, timeout):
 
 
 def run_task(task):
-    return Argv("clearml_agent", "--debug", "worker", "execute", "--id", task.id)
+    return Argv("cairnml_agent", "--debug", "worker", "execute", "--id", task.id)
 
 
 @contextmanager

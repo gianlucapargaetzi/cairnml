@@ -6,7 +6,7 @@ spec:
   serviceAccountName: ""
   containers:
     - name: k8s-glue-container
-      image: clearml/clearml-agent-k8s:gcp-latest-1.21
+      image: cairnml/cairnml-agent-k8s:gcp-latest-1.21
       imagePullPolicy: Always
       command: [
           "/bin/bash",
@@ -19,9 +19,9 @@ spec:
         - name: service-acc-key
           mountPath: /root/keys
       env:
-        - name: CLEARML_API_HOST
+        - name: CAIRNML_API_HOST
           value: ""
-        - name: CLEARML_WEB_HOST
+        - name: CAIRNML_WEB_HOST
           value: ""
 #        - name: K8S_GLUE_MAX_PODS
 #          value: "2"
@@ -29,19 +29,19 @@ spec:
           value: "k8s-glue"
         - name: K8S_GLUE_EXTRA_ARGS
           value: "--template-yaml /root/template/pod_template.yml"
-        - name: CLEARML_API_ACCESS_KEY
+        - name: CAIRNML_API_ACCESS_KEY
           value: ""
-        - name: CLEARML_API_SECRET_KEY
+        - name: CAIRNML_API_SECRET_KEY
           value: ""
-        - name: CLEARML_WORKER_ID
+        - name: CAIRNML_WORKER_ID
           value: "k8s-glue-agent"
-        - name: CLEARML_AGENT_UPDATE_REPO
+        - name: CAIRNML_AGENT_UPDATE_REPO
           value: ""
-        - name: FORCE_CLEARML_AGENT_REPO
+        - name: FORCE_CAIRNML_AGENT_REPO
           value: ""
-        - name: CLEARML_DOCKER_IMAGE
+        - name: CAIRNML_DOCKER_IMAGE
           value: "ubuntu:18.04"
-        - name: CLEARML_SERVICE_ACC
+        - name: CAIRNML_SERVICE_ACC
           value: ""
         - name: SERVICE_ACC_KEY_JSON
           value: service-account-key.json

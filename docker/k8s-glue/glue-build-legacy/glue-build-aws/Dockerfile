@@ -18,6 +18,6 @@ COPY ./entrypoint.sh /root/entrypoint.sh
 COPY ./provider_entrypoint.sh /root/provider_entrypoint.sh
 RUN chmod +x /root/provider_entrypoint.sh
 COPY ./k8s_glue_example.py /root/k8s_glue_example.py
-COPY ./clearml.conf /root/clearml.conf
+COPY ./cairnml.conf /root/cairnml.conf
 
 ENTRYPOINT ["/root/entrypoint.sh"]

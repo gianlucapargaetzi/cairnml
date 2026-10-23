@@ -12,8 +12,8 @@ dockerfile_path=$2
 build_context=$3
 
 if [ $build_context == "glue-build-aws" ] || [ $build_context == "glue-build-gcp" ]; then
-    if [ ! -f $build_context/clearml.conf ]; then
-        cp build-resources/clearml.conf $build_context
+    if [ ! -f $build_context/cairnml.conf ]; then
+        cp build-resources/cairnml.conf $build_context
     fi
     if [ ! -f $build_context/entrypoint.sh ]; then
         cp build-resources/entrypoint.sh $build_context
@@ -30,7 +30,7 @@ docker build -f $dockerfile_path -t $image_name $build_context
 
 # cleanup
 if [ $build_context == "glue-build-aws" ] || [ $build_context == "glue-build-gcp" ]; then
-    rm $build_context/clearml.conf
+    rm $build_context/cairnml.conf
     rm $build_context/entrypoint.sh
     rm $build_context/setup.sh
 fi
