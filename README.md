@@ -22,7 +22,7 @@ ClearML is a ML/DL development and production suite. It contains FIVE main modul
 
 - [Experiment Manager](#clearml-experiment-manager) - Automagical experiment tracking, environments and results
 - [MLOps / LLMOps](https://github.com/clearml/clearml-agent) - Orchestration, Automation & Pipelines solution for ML/DL/GenAI jobs (Kubernetes / Cloud / bare-metal)  
-- [Data-Management](https://github.com/clearml/clearml/blob/master/docs/datasets.md) - Fully differentiable data management & version control solution on top of object-storage 
+- [Data-Management](docs/datasets.md) - Versioned datasets on git and DVC, with a per-user cache and adapters for outside datasets
   (S3 / GS / Azure / NAS)  
 - [Model-Serving](https://github.com/clearml/clearml-serving) - *cloud-ready* Scalable model serving solution! 
   - **Deploy new model endpoints in under 5 minutes** 
@@ -74,12 +74,10 @@ Instrumenting these components is the **ClearML-server**, see [Self-Hosting](htt
 <table>
 <tbody>
   <tr>
-    <td>Experiment Management</td>
-    <td>Datasets</td>
+    <td colspan="2">Experiment Management</td>
   </tr>
   <tr>
-    <td><a href="https://app.clear.ml"><img src="https://github.com/clearml/clearml/blob/master/docs/experiment_manager.gif?raw=true" width="100%"></a></td>
-    <td><a href="https://app.clear.ml/datasets"><img src="https://github.com/clearml/clearml/blob/master/docs/datasets.gif?raw=true" width="100%"></a></td>
+    <td colspan="2"><a href="https://app.clear.ml"><img src="https://github.com/clearml/clearml/blob/master/docs/experiment_manager.gif?raw=true" width="100%"></a></td>
   </tr>
   <tr>
     <td colspan="2" height="24px"></td>
@@ -168,7 +166,7 @@ The ClearML run-time components:
 
 - [clearml-session](https://github.com/clearml/clearml-session) - **Launch remote JupyterLab / VSCode-server inside any docker, on Cloud/On-Prem machines**
 - [clearml-task](https://github.com/clearml/clearml/blob/master/docs/clearml-task.md) - Run any codebase on remote machines with full remote logging of Tensorboard, Matplotlib & Console outputs 
-- [clearml-data](https://github.com/clearml/clearml/blob/master/docs/datasets.md) - **CLI for managing and versioning your datasets, including creating / uploading / downloading of data from S3/GS/Azure/NAS** 
+- [clearml-dataset](docs/datasets.md) - **CLI for versioned datasets on git and DVC: init / status / add / commit / push, with a per-user cache and adapters for outside datasets**
 - [AWS Auto-Scaler](https://clear.ml/docs/latest/docs/guides/services/aws_autoscaler) - Automatically spin EC2 instances based on your workloads with preconfigured budget! No need for AKE!
 - [Hyper-Parameter Optimization](https://clear.ml/docs/latest/docs/guides/optimization/hyper-parameter-optimization/examples_hyperparam_opt) - Optimize any code with black-box approach and state-of-the-art Bayesian optimization algorithms
 - [Automation Pipeline](https://clear.ml/docs/latest/docs/guides/pipeline/pipeline_controller) - Build pipelines based on existing experiments / jobs, supports building pipelines of pipelines!  
