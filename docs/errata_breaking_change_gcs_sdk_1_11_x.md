@@ -2,7 +2,7 @@
 
 ## Rationale
 
-Due to an issue with ClearML SDK versions 1.11.x, URLs of objects uploaded to the Google Cloud Storage were stored in the ClearML backend as a quoted string. This behavior causes issues accessing registered objects using the ClearML SDK. The issue affects the URLs of models, datasets, artifacts, and media files/debug samples. In case you have such objects uploaded with the affected ClearML SDK versions and wish to be able to access them programmatically using the ClearML SDK using version 1.12 and above (note that access from the ClearML UI is still possible), you should perform the actions listed in the section below.
+Due to an issue with CairnML SDK versions 1.11.x, URLs of objects uploaded to the Google Cloud Storage were stored in the CairnML backend as a quoted string. This behavior causes issues accessing registered objects using the CairnML SDK. The issue affects the URLs of models, datasets, artifacts, and media files/debug samples. In case you have such objects uploaded with the affected CairnML SDK versions and wish to be able to access them programmatically using the CairnML SDK using version 1.12 and above (note that access from the CairnML UI is still possible), you should perform the actions listed in the section below.
 
 ## Recommended Steps
 
@@ -14,7 +14,7 @@ The general flow is that you will first need to download these files by a custom
 
 1. You need to be able to download objects (models, datasets, media, artifacts) registered by affected versions. See the code snippet below and adjust it according to your use case to be able to get a local copy of the object
 ```python
-from clearml import Task, ImportModel
+from cairnml import Task, ImportModel
 from urllib.parse import unquote # <- you will need this
 
 
@@ -43,7 +43,7 @@ local_path = StorageManager.get_local_copy(url)
 
 2. Once the object is downloaded locally, you can re-register it with the new version. See the snipped below and adjust according to your use case
 ```python
-from clearml import Task, Dataset, OutputModel
+from cairnml import Task, Dataset, OutputModel
 import os
 
 
@@ -71,7 +71,7 @@ The methods described next are more advanced (read "more likely to mess up"). If
 
 **Method 1**: You can try to alter the existing unpublished experiments/models using the lower-level `APIClient`
 ```python
-from clearml.backend_api.session.client import APIClient
+from cairnml.backend_api.session.client import APIClient
 
 
 client = APIClient()
@@ -84,4 +84,4 @@ client.tasks.add_or_update_artifacts(task=task.id, force=True, artifacts=[{"uri"
 client.models.edit(model=model.id, force=True, uri=url) # For any unpublished Model
 ```
 
-**Method 2**: There's an option available only to those who self-host their ClearML server. It is possible to manually update the values registered in MongoDB, but beware - this advanced procedure should be performed with extreme care, as it can lead to an inconsistent state if mishandled.
+**Method 2**: There's an option available only to those who self-host their CairnML server. It is possible to manually update the values registered in MongoDB, but beware - this advanced procedure should be performed with extreme care, as it can lead to an inconsistent state if mishandled.

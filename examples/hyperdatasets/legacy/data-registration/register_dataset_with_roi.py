@@ -15,7 +15,7 @@ import json
 import os
 from allegroai import DatasetVersion, SingleFrame, Task
 from argparse import ArgumentParser
-from clearml import StorageManager
+from cairnml import StorageManager
 
 def get_json_file(filename):
     """
@@ -121,7 +121,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # this folder contains the images and json files for the data
-    example_dataset_path = 's3://clearml-public/datasets/hyperdataset_example/ds_with_rois'
+    example_dataset_path = 's3://cairnml-public/datasets/hyperdataset_example/ds_with_rois'
     local_img_path = StorageManager.download_folder(example_dataset_path)
 
     # this folder contains the images and json files for the data

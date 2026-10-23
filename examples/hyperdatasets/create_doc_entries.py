@@ -19,9 +19,9 @@ import textwrap
 from pathlib import Path
 from typing import List, Optional, Tuple
 
-# ClearML helpers for storage and HyperDataset primitives
-from clearml import StorageManager
-from clearml.hyperdatasets import (
+# CairnML helpers for storage and HyperDataset primitives
+from cairnml import StorageManager
+from cairnml.hyperdatasets import (
     HyperDataset,
     DataEntry,
     DataSubEntry,
@@ -29,7 +29,7 @@ from clearml.hyperdatasets import (
 
 
 # TODO: make sure you document on how this is used -> the user needs to make sure the class is in python space when fetching the frames so they are properly casted
-# ClearML sub-entry capturing the document blob and metadata
+# CairnML sub-entry capturing the document blob and metadata
 class MarkdownDataSubEntry(DataSubEntry):
     def __init__(self, name: str, text: str, path: str, url: str):
         super().__init__(
@@ -45,7 +45,7 @@ def parse_args() -> argparse.Namespace:
         description=description or None,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument("--project", default="HyperDatasets Examples", help="ClearML project name")
+    parser.add_argument("--project", default="HyperDatasets Examples", help="CairnML project name")
     parser.add_argument("--dataset-name", required=True, help="HyperDataset collection name")
     parser.add_argument("--version-name", required=True, help="HyperDataset version name")
     parser.add_argument("--description", default="Documentation HyperDataset", help="Dataset description")
@@ -79,11 +79,11 @@ def parse_args() -> argparse.Namespace:
 
 
 DEFAULT_DOC_URLS = [
-    "https://github.com/clearml/clearml-docs/blob/main/docs/build_interactive_models.md",
-    "https://github.com/clearml/clearml-docs/blob/main/docs/clearml_agent.md",
-    "https://github.com/clearml/clearml-docs/blob/main/docs/community.md",
-    "https://github.com/clearml/clearml-docs/blob/main/docs/custom_apps.md",
-    "https://github.com/clearml/clearml-docs/blob/main/docs/deploying_models.md",
+    "https://github.com/cairnml/cairnml-docs/blob/main/docs/build_interactive_models.md",
+    "https://github.com/cairnml/cairnml-docs/blob/main/docs/cairnml_agent.md",
+    "https://github.com/cairnml/cairnml-docs/blob/main/docs/community.md",
+    "https://github.com/cairnml/cairnml-docs/blob/main/docs/custom_apps.md",
+    "https://github.com/cairnml/cairnml-docs/blob/main/docs/deploying_models.md",
 ]
 
 
@@ -200,7 +200,7 @@ def main() -> None:
     field_mappings = None
     if vector_dims:
         field_path = args.vector_field if args.vector_field.startswith("meta.") else f"meta.{args.vector_field}"
-        # ClearML vector field mapping so the backend knows about the dense embedding metadata
+        # CairnML vector field mapping so the backend knows about the dense embedding metadata
         field_mappings = {
             field_path: {
                 "type": "dense_vector",
@@ -209,7 +209,7 @@ def main() -> None:
             }
         }
 
-    # ClearML HyperDataset version handle (creates the version if needed)
+    # CairnML HyperDataset version handle (creates the version if needed)
     dataset = HyperDataset(
         project_name=args.project,
         dataset_name=args.dataset_name,
@@ -218,7 +218,7 @@ def main() -> None:
         field_mappings=field_mappings,
     )
 
-    # Upload the assembled entries so ClearML manages storage/indexing
+    # Upload the assembled entries so CairnML manages storage/indexing
     errors = dataset.add_data_entries(entries, upload_local_files_destination=None, force_upload=True)
     if errors.get("register"):
         raise RuntimeError(f"Failed registering entries: {errors['register']}")

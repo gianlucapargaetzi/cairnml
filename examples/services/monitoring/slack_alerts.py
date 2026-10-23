@@ -1,13 +1,13 @@
 """
-Create a ClearML Monitoring Service that posts alerts on Slack Channel groups based on some logic
+Create a CairnML Monitoring Service that posts alerts on Slack Channel groups based on some logic
 
-Creating a new Slack Bot (ClearML Bot):
+Creating a new Slack Bot (CairnML Bot):
 1. Login to your Slack account
 2. Go to https://api.slack.com/apps/new
-3. Give the new App a name (For example "ClearML Bot") and select your workspace
+3. Give the new App a name (For example "CairnML Bot") and select your workspace
 4. Press Create App
 5. In "Basic Information" under "Display Information" fill in the following fields
-    - In "Short description" insert "ClearML Bot"
+    - In "Short description" insert "CairnML Bot"
     - In "Background color" insert #202432
 6. Press Save Changes
 7. In "OAuth & Permissions" under "Scopes" click on "Add an OAuth Scope" and
@@ -18,7 +18,7 @@ Creating a new Slack Bot (ClearML Bot):
 8. Now under "OAuth Tokens & Redirect URLs" press on "Install App to Workspace",
    then hit "Allow" on the confirmation dialog
 9. Under "OAuth Tokens & Redirect URLs" copy the "Bot User OAuth Access Token" by clicking on "Copy" button
-10. To use the copied API Token in the ClearML Slack service,
+10. To use the copied API Token in the CairnML Slack service,
     execute the script with --slack_api "<api_token_here>"  (notice the use of double quotes around the token)
 
 We are done!
@@ -33,8 +33,8 @@ from typing import Optional, Callable, List, Union
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 
-from clearml import Task
-from clearml.automation.monitor import Monitor
+from cairnml import Task
+from cairnml.automation.monitor import Monitor
 
 
 class UserFilter:
@@ -191,10 +191,10 @@ class SlackMonitor(Monitor):
 
 
 def main():
-    print("ClearML experiment monitor Slack service\n")
+    print("CairnML experiment monitor Slack service\n")
 
     # Slack Monitor arguments
-    parser = argparse.ArgumentParser(description="ClearML monitor experiments and post Slack Alerts")
+    parser = argparse.ArgumentParser(description="CairnML monitor experiments and post Slack Alerts")
     parser.add_argument("--channel", type=str, help="Set the channel to post the Slack alerts")
     parser.add_argument(
         "--slack_api",
@@ -225,7 +225,7 @@ def main():
         "--include_manual_experiments",
         action="store_true",
         default=False,
-        help="Include experiments running manually (i.e. not by clearml-agent)",
+        help="Include experiments running manually (i.e. not by cairnml-agent)",
     )
     parser.add_argument(
         "--include_completed_experiments",
@@ -295,7 +295,7 @@ def main():
         slack_monitor.status_alerts += ["completed"]
 
     # start the monitoring Task
-    # Connecting ClearML with the current process,
+    # Connecting CairnML with the current process,
     # from here on everything is logged automatically
     task = Task.init(
         project_name="DevOps",
@@ -311,7 +311,7 @@ def main():
 
     # Let everyone know we are up and running
     message_prefix = f"{args.message_prefix} " if args.message_prefix else ''
-    start_message = f"{message_prefix}ClearML Slack monitoring service started\nMonitoring project '{project_name}'"
+    start_message = f"{message_prefix}CairnML Slack monitoring service started\nMonitoring project '{project_name}'"
     slack_monitor.post_message(start_message)
 
     # Start the monitor service, this function will never end

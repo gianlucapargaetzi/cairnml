@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader, random_split
 from torchvision import transforms
 from torchvision.datasets.mnist import MNIST
 
-from clearml import Task
+from cairnml import Task
 
 
 class LitClassifier(pl.LightningModule):

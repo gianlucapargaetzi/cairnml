@@ -1,14 +1,14 @@
 import argparse
-from clearml import OutputModel, Task
+from cairnml import OutputModel, Task
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--model-path", type=str, help="Path to the model to be uploaded to ClearML"
+        "--model-path", type=str, help="Path to the model to be uploaded to CairnML"
     )
     parser.add_argument(
-        "--model-name", type=str, help="Model name - to be displayed in the ClearML UI"
+        "--model-name", type=str, help="Model name - to be displayed in the CairnML UI"
     )
     return parser.parse_args()
 

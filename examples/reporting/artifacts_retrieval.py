@@ -1,9 +1,9 @@
-# ClearML - example code, retrieve other task artifacts and print the artifacts
+# CairnML - example code, retrieve other task artifacts and print the artifacts
 # Please run examples/reporting/artifacts.py example before running this example
 #
 from pprint import pprint
 
-from clearml import Task
+from cairnml import Task
 
 
 def main():

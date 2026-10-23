@@ -1,4 +1,4 @@
 absl-py>=0.7.1
 tensorboard>=2.0
 tensorflow>=2.0
-clearml>=1.14.4
+cairnml>=1.14.4

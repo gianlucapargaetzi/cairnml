@@ -1,39 +1,39 @@
 <div align="center" style="text-align: center">
 
 <p style="text-align: center">
-  <img align="center" src="docs/clearml-logo.svg#gh-light-mode-only" alt="Clear|ML"><img align="center" src="docs/clearml-logo-dark.svg#gh-dark-mode-only" alt="Clear|ML">
+  <img align="center" src="docs/cairnml-logo.svg#gh-light-mode-only" alt="Clear|ML"><img align="center" src="docs/cairnml-logo-dark.svg#gh-dark-mode-only" alt="Clear|ML">
 </p>
 
-**[ClearML](https://clear.ml) - Auto-Magical Suite of tools to streamline your AI workflow
+**[CairnML](https://clear.ml) - Auto-Magical Suite of tools to streamline your AI workflow
 </br>Experiment Manager, MLOps/LLMOps and Data-Management**
 
-[![GitHub license](https://img.shields.io/github/license/clearml/clearml.svg)](https://img.shields.io/github/license/clearml/clearml.svg) [![PyPI pyversions](https://img.shields.io/pypi/pyversions/clearml.svg)](https://img.shields.io/pypi/pyversions/clearml.svg) [![PyPI version shields.io](https://img.shields.io/pypi/v/clearml.svg)](https://pypi.org/project/clearml/) [![Conda version shields.io](https://img.shields.io/conda/v/clearml/clearml)](https://anaconda.org/clearml/clearml) [![Optuna](https://img.shields.io/badge/Optuna-integrated-blue)](https://optuna.org)<br>
-[![PyPI Downloads](https://static.pepy.tech/badge/clearml/month)](https://pypi.org/project/clearml/) [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/clearml)](https://artifacthub.io/packages/search?repo=clearml) [![Youtube](https://img.shields.io/badge/ClearML-DD0000?logo=youtube&logoColor=white)](https://www.youtube.com/c/clearml) [![Slack Channel](https://img.shields.io/badge/slack-%23clearml--community-blueviolet?logo=slack)](https://joinslack.clear.ml) [![Signup](https://img.shields.io/badge/Clear%7CML-Signup-brightgreen)](https://app.clear.ml)
+[![GitHub license](https://img.shields.io/github/license/cairnml/cairnml.svg)](https://img.shields.io/github/license/cairnml/cairnml.svg) [![PyPI pyversions](https://img.shields.io/pypi/pyversions/cairnml.svg)](https://img.shields.io/pypi/pyversions/cairnml.svg) [![PyPI version shields.io](https://img.shields.io/pypi/v/cairnml.svg)](https://pypi.org/project/cairnml/) [![Conda version shields.io](https://img.shields.io/conda/v/cairnml/cairnml)](https://anaconda.org/cairnml/cairnml) [![Optuna](https://img.shields.io/badge/Optuna-integrated-blue)](https://optuna.org)<br>
+[![PyPI Downloads](https://static.pepy.tech/badge/cairnml/month)](https://pypi.org/project/cairnml/) [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/cairnml)](https://artifacthub.io/packages/search?repo=cairnml) [![Youtube](https://img.shields.io/badge/CairnML-DD0000?logo=youtube&logoColor=white)](https://www.youtube.com/c/cairnml) [![Slack Channel](https://img.shields.io/badge/slack-%23cairnml--community-blueviolet?logo=slack)](https://joinslack.clear.ml) [![Signup](https://img.shields.io/badge/Clear%7CML-Signup-brightgreen)](https://app.clear.ml)
 
 
-`🌟 ClearML is open-source - Leave a star to support the project! 🌟`
+`🌟 CairnML is open-source - Leave a star to support the project! 🌟`
 
 </div>
 
 ---
-### ClearML
+### CairnML
 
-ClearML is a ML/DL development and production suite. It contains FIVE main modules:
+CairnML is a ML/DL development and production suite. It contains FIVE main modules:
 
-- [Experiment Manager](#clearml-experiment-manager) - Automagical experiment tracking, environments and results
-- [MLOps / LLMOps](https://github.com/clearml/clearml-agent) - Orchestration, Automation & Pipelines solution for ML/DL/GenAI jobs (Kubernetes / Cloud / bare-metal)  
+- [Experiment Manager](#cairnml-experiment-manager) - Automagical experiment tracking, environments and results
+- [MLOps / LLMOps](https://github.com/cairnml/cairnml-agent) - Orchestration, Automation & Pipelines solution for ML/DL/GenAI jobs (Kubernetes / Cloud / bare-metal)  
 - [Data-Management](docs/datasets.md) - Versioned datasets on git and DVC, with a per-user cache and adapters for outside datasets
   (S3 / GS / Azure / NAS)  
-- [Model-Serving](https://github.com/clearml/clearml-serving) - *cloud-ready* Scalable model serving solution! 
+- [Model-Serving](https://github.com/cairnml/cairnml-serving) - *cloud-ready* Scalable model serving solution! 
   - **Deploy new model endpoints in under 5 minutes** 
   - Includes optimized GPU serving support backed by Nvidia-Triton 
   - **with out-of-the-box  Model Monitoring** 
 - [Reports](https://clear.ml/docs/latest/docs/webapp/webapp_reports) - Create and share rich MarkDown documents supporting embeddable online content 
 - :fire: [Orchestration Dashboard](https://clear.ml/docs/latest/docs/webapp/webapp_orchestration_dash/) - Live rich dashboard for your entire compute cluster (Cloud / Kubernetes / On-Prem)
-- 🔥 💥 [Fractional GPUs](https://github.com/clearml/clearml-fractional-gpu) - Container based, driver level GPU memory limitation 🙀 !!!
+- 🔥 💥 [Fractional GPUs](https://github.com/cairnml/cairnml-fractional-gpu) - Container based, driver level GPU memory limitation 🙀 !!!
   
 
-Instrumenting these components is the **ClearML-server**, see [Self-Hosting](https://clear.ml/docs/latest/docs/deploying_clearml/clearml_server) & [Free tier Hosting](https://app.clear.ml)  
+Instrumenting these components is the **CairnML-server**, see [Self-Hosting](https://clear.ml/docs/latest/docs/deploying_clearml/clearml_server) & [Free tier Hosting](https://app.clear.ml)  
 
 
 ---
@@ -47,20 +47,20 @@ Instrumenting these components is the **ClearML-server**, see [Self-Hosting](htt
 <table>
 <tbody>
   <tr>
-    <td><a href="https://github.com/clearml/clearml/blob/master/docs/tutorials/Getting_Started_1_Experiment_Management.ipynb"><b>Step 1</b></a> - Experiment Management</td>
-    <td><a target="_blank" href="https://colab.research.google.com/github/clearml/clearml/blob/master/docs/tutorials/Getting_Started_1_Experiment_Management.ipynb">
+    <td><a href="https://github.com/cairnml/cairnml/blob/master/docs/tutorials/Getting_Started_1_Experiment_Management.ipynb"><b>Step 1</b></a> - Experiment Management</td>
+    <td><a target="_blank" href="https://colab.research.google.com/github/cairnml/cairnml/blob/master/docs/tutorials/Getting_Started_1_Experiment_Management.ipynb">
   <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
 </a></td>
   </tr>
   <tr>
-    <td><a href="https://github.com/clearml/clearml/blob/master/docs/tutorials/Getting_Started_2_Setting_Up_Agent.ipynb"><b>Step 2</b></a> - Remote Execution Agent Setup</td>
-    <td><a target="_blank" href="https://colab.research.google.com/github/clearml/clearml/blob/master/docs/tutorials/Getting_Started_2_Setting_Up_Agent.ipynb">
+    <td><a href="https://github.com/cairnml/cairnml/blob/master/docs/tutorials/Getting_Started_2_Setting_Up_Agent.ipynb"><b>Step 2</b></a> - Remote Execution Agent Setup</td>
+    <td><a target="_blank" href="https://colab.research.google.com/github/cairnml/cairnml/blob/master/docs/tutorials/Getting_Started_2_Setting_Up_Agent.ipynb">
   <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
 </a></td>
   </tr>
   <tr>
-    <td><a href="https://github.com/clearml/clearml/blob/master/docs/tutorials/Getting_Started_3_Remote_Execution.ipynb"><b>Step 3</b></a> - Remotely Execute Tasks</td>
-    <td><a target="_blank" href="https://colab.research.google.com/github/clearml/clearml/blob/master/docs/tutorials/Getting_Started_3_Remote_Execution.ipynb">
+    <td><a href="https://github.com/cairnml/cairnml/blob/master/docs/tutorials/Getting_Started_3_Remote_Execution.ipynb"><b>Step 3</b></a> - Remotely Execute Tasks</td>
+    <td><a target="_blank" href="https://colab.research.google.com/github/cairnml/cairnml/blob/master/docs/tutorials/Getting_Started_3_Remote_Execution.ipynb">
   <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
 </a></td>
   </tr>
@@ -77,7 +77,7 @@ Instrumenting these components is the **ClearML-server**, see [Self-Hosting](htt
     <td colspan="2">Experiment Management</td>
   </tr>
   <tr>
-    <td colspan="2"><a href="https://app.clear.ml"><img src="https://github.com/clearml/clearml/blob/master/docs/experiment_manager.gif?raw=true" width="100%"></a></td>
+    <td colspan="2"><a href="https://app.clear.ml"><img src="https://github.com/cairnml/cairnml/blob/master/docs/experiment_manager.gif?raw=true" width="100%"></a></td>
   </tr>
   <tr>
     <td colspan="2" height="24px"></td>
@@ -87,14 +87,14 @@ Instrumenting these components is the **ClearML-server**, see [Self-Hosting](htt
     <td>Pipelines</td>
   </tr>
   <tr>
-    <td><a href="https://app.clear.ml/workers-and-queues/autoscalers"><img src="https://github.com/clearml/clearml/blob/master/docs/orchestration.gif?raw=true" width="100%"></a></td>
-    <td><a href="https://app.clear.ml/pipelines"><img src="https://github.com/clearml/clearml/blob/master/docs/pipelines.gif?raw=true" width="100%"></a></td>
+    <td><a href="https://app.clear.ml/workers-and-queues/autoscalers"><img src="https://github.com/cairnml/cairnml/blob/master/docs/orchestration.gif?raw=true" width="100%"></a></td>
+    <td><a href="https://app.clear.ml/pipelines"><img src="https://github.com/cairnml/cairnml/blob/master/docs/pipelines.gif?raw=true" width="100%"></a></td>
   </tr>
 </tbody>
 </table>
 
 
-## ClearML Experiment Manager
+## CairnML Experiment Manager
 
 **Adding only 2 lines to your code gets you the following**
 
@@ -112,91 +112,91 @@ Instrumenting these components is the **ClearML-server**, see [Self-Hosting](htt
     * Resource Monitoring (CPU/GPU utilization, temperature, IO, network, etc.)
     * Model snapshots (With optional automatic upload to central storage: Shared folder, S3, GS, Azure, Http)
     * Artifacts log & store (Shared folder, S3, GS, Azure, Http)
-    * Tensorboard/[TensorboardX](https://github.com/clearml/clearml/tree/master/examples/frameworks/tensorboardx) scalars, metrics, histograms, **images, audio and video samples**
-    * [Matplotlib & Seaborn](https://github.com/clearml/clearml/tree/master/examples/frameworks/matplotlib)
-    * [ClearML Logger](https://clear.ml/docs/latest/docs/fundamentals/logger) interface for complete flexibility.
+    * Tensorboard/[TensorboardX](https://github.com/cairnml/cairnml/tree/master/examples/frameworks/tensorboardx) scalars, metrics, histograms, **images, audio and video samples**
+    * [Matplotlib & Seaborn](https://github.com/cairnml/cairnml/tree/master/examples/frameworks/matplotlib)
+    * [CairnML Logger](https://clear.ml/docs/latest/docs/fundamentals/logger) interface for complete flexibility.
 * Extensive platform support and integrations
-    * Supported ML/DL frameworks: [PyTorch](https://github.com/clearml/clearml/tree/master/examples/frameworks/pytorch) (incl' [ignite](https://github.com/clearml/clearml/tree/master/examples/frameworks/ignite) / [lightning](https://github.com/clearml/clearml/tree/master/examples/frameworks/pytorch-lightning)), [Tensorflow](https://github.com/clearml/clearml/tree/master/examples/frameworks/tensorflow), [Keras](https://github.com/clearml/clearml/tree/master/examples/frameworks/keras), [AutoKeras](https://github.com/clearml/clearml/tree/master/examples/frameworks/autokeras), [FastAI](https://github.com/clearml/clearml/tree/master/examples/frameworks/fastai), [XGBoost](https://github.com/clearml/clearml/tree/master/examples/frameworks/xgboost), [LightGBM](https://github.com/clearml/clearml/tree/master/examples/frameworks/lightgbm), [MegEngine](https://github.com/clearml/clearml/tree/master/examples/frameworks/megengine) and [Scikit-Learn](https://github.com/clearml/clearml/tree/master/examples/frameworks/scikit-learn)
+    * Supported ML/DL frameworks: [PyTorch](https://github.com/cairnml/cairnml/tree/master/examples/frameworks/pytorch) (incl' [ignite](https://github.com/cairnml/cairnml/tree/master/examples/frameworks/ignite) / [lightning](https://github.com/cairnml/cairnml/tree/master/examples/frameworks/pytorch-lightning)), [Tensorflow](https://github.com/cairnml/cairnml/tree/master/examples/frameworks/tensorflow), [Keras](https://github.com/cairnml/cairnml/tree/master/examples/frameworks/keras), [AutoKeras](https://github.com/cairnml/cairnml/tree/master/examples/frameworks/autokeras), [FastAI](https://github.com/cairnml/cairnml/tree/master/examples/frameworks/fastai), [XGBoost](https://github.com/cairnml/cairnml/tree/master/examples/frameworks/xgboost), [LightGBM](https://github.com/cairnml/cairnml/tree/master/examples/frameworks/lightgbm), [MegEngine](https://github.com/cairnml/cairnml/tree/master/examples/frameworks/megengine) and [Scikit-Learn](https://github.com/cairnml/cairnml/tree/master/examples/frameworks/scikit-learn)
     * Seamless integration (including version control) with [**Jupyter Notebook**](https://jupyter.org/)
-    and [*PyCharm* remote debugging](https://github.com/clearml/trains-pycharm-plugin)
+    and [*PyCharm* remote debugging](https://github.com/cairnml/trains-pycharm-plugin)
       
-#### [Start using ClearML](https://clear.ml/docs/latest/docs/getting_started/ds/ds_first_steps) 
+#### [Start using CairnML](https://clear.ml/docs/latest/docs/getting_started/ds/ds_first_steps) 
 
 
-1. Sign up for free to the [ClearML Hosted Service](https://app.clear.ml) (alternatively, you can set up your own server, see [here](https://clear.ml/docs/latest/docs/deploying_clearml/clearml_server)).
+1. Sign up for free to the [CairnML Hosted Service](https://app.clear.ml) (alternatively, you can set up your own server, see [here](https://clear.ml/docs/latest/docs/deploying_clearml/clearml_server)).
 
-    > **_ClearML Demo Server:_** ClearML no longer uses the demo server by default. To enable the demo server, set the `CLEARML_NO_DEFAULT_SERVER=0`
+    > **_CairnML Demo Server:_** CairnML no longer uses the demo server by default. To enable the demo server, set the `CAIRNML_NO_DEFAULT_SERVER=0`
     > environment variable. Credentials aren't needed, but experiments launched to the demo server are public, so make sure not 
     > to launch sensitive experiments if using the demo server.
 
-1. Install the `clearml` python package:
+1. Install the `cairnml` python package:
 
     ```bash
-    pip install clearml
+    pip install cairnml
     ```
 
-1. Connect the ClearML SDK to the server by [creating credentials](https://app.clear.ml/settings/workspace-configuration), then execute the command
+1. Connect the CairnML SDK to the server by [creating credentials](https://app.clear.ml/settings/workspace-configuration), then execute the command
 below and follow the instructions: 
 
     ```bash
-    clearml-init
+    cairnml-init
     ```
 
 1. Add two lines to your code:
     ```python
-    from clearml import Task
+    from cairnml import Task
     task = Task.init(project_name='examples', task_name='hello world')
     ```
 
-And you are done! Everything your process outputs is now automagically logged into ClearML.
+And you are done! Everything your process outputs is now automagically logged into CairnML.
 
-Next step, automation! **Learn more about ClearML's two-click automation [here](https://clear.ml/docs/latest/docs/getting_started/mlops/mlops_first_steps)**. 
+Next step, automation! **Learn more about CairnML's two-click automation [here](https://clear.ml/docs/latest/docs/getting_started/mlops/mlops_first_steps)**. 
 
-## ClearML Architecture
+## CairnML Architecture
 
-The ClearML run-time components:
+The CairnML run-time components:
 
-* The ClearML Python Package - for integrating ClearML into your existing scripts by adding just two lines of code, and optionally extending your experiments and other workflows with ClearML's powerful and versatile set of classes and methods.
-* The ClearML Server - for storing experiment, model, and workflow data; supporting the Web UI experiment manager and MLOps automation for reproducibility and tuning. It is available as a hosted service and open source for you to deploy your own ClearML Server.
-* The ClearML Agent - for MLOps orchestration, experiment and workflow reproducibility, and scalability.
+* The CairnML Python Package - for integrating CairnML into your existing scripts by adding just two lines of code, and optionally extending your experiments and other workflows with CairnML's powerful and versatile set of classes and methods.
+* The CairnML Server - for storing experiment, model, and workflow data; supporting the Web UI experiment manager and MLOps automation for reproducibility and tuning. It is available as a hosted service and open source for you to deploy your own CairnML Server.
+* The CairnML Agent - for MLOps orchestration, experiment and workflow reproducibility, and scalability.
 
-<img src="https://raw.githubusercontent.com/clearml/clearml-docs/main/docs/img/clearml_architecture.png" width="100%" alt="clearml-architecture">
+<img src="https://raw.githubusercontent.com/cairnml/cairnml-docs/main/docs/img/cairnml_architecture.png" width="100%" alt="cairnml-architecture">
 
 ## Additional Modules 
 
-- [clearml-session](https://github.com/clearml/clearml-session) - **Launch remote JupyterLab / VSCode-server inside any docker, on Cloud/On-Prem machines**
-- [clearml-task](https://github.com/clearml/clearml/blob/master/docs/clearml-task.md) - Run any codebase on remote machines with full remote logging of Tensorboard, Matplotlib & Console outputs 
-- [clearml-dataset](docs/datasets.md) - **CLI for versioned datasets on git and DVC: init / status / add / commit / push, with a per-user cache and adapters for outside datasets**
+- [cairnml-session](https://github.com/cairnml/cairnml-session) - **Launch remote JupyterLab / VSCode-server inside any docker, on Cloud/On-Prem machines**
+- [cairnml-task](https://github.com/cairnml/cairnml/blob/master/docs/cairnml-task.md) - Run any codebase on remote machines with full remote logging of Tensorboard, Matplotlib & Console outputs 
+- [cairnml-dataset](docs/datasets.md) - **CLI for versioned datasets on git and DVC: init / status / add / commit / push, with a per-user cache and adapters for outside datasets**
 - [AWS Auto-Scaler](https://clear.ml/docs/latest/docs/guides/services/aws_autoscaler) - Automatically spin EC2 instances based on your workloads with preconfigured budget! No need for AKE!
 - [Hyper-Parameter Optimization](https://clear.ml/docs/latest/docs/guides/optimization/hyper-parameter-optimization/examples_hyperparam_opt) - Optimize any code with black-box approach and state-of-the-art Bayesian optimization algorithms
 - [Automation Pipeline](https://clear.ml/docs/latest/docs/guides/pipeline/pipeline_controller) - Build pipelines based on existing experiments / jobs, supports building pipelines of pipelines!  
 - [Slack Integration](https://clear.ml/docs/latest/docs/guides/services/slack_alerts) - Report experiments progress / failure directly to Slack (fully customizable!)  
 
-## Why ClearML?
+## Why CairnML?
 
-ClearML is our solution to a problem we share with countless other researchers and developers in the machine
+CairnML is our solution to a problem we share with countless other researchers and developers in the machine
 learning/deep learning universe: Training production-grade deep learning models is a glorious but messy process.
-ClearML tracks and controls the process by associating code version control, research projects,
+CairnML tracks and controls the process by associating code version control, research projects,
 performance metrics, and model provenance.
 
-We designed ClearML specifically to require effortless integration so that teams can preserve their existing methods
+We designed CairnML specifically to require effortless integration so that teams can preserve their existing methods
 and practices. 
 
   - Use it on a daily basis to boost collaboration and visibility in your team 
   - Create a remote job from any experiment with a click of a button
   - Automate processes and create pipelines to collect your experimentation logs, outputs, and data
   - Store all your data on any object-storage solution, with the most straightforward interface possible
-  - Make your data transparent by cataloging it all on the ClearML platform
+  - Make your data transparent by cataloging it all on the CairnML platform
 
-We believe ClearML is ground-breaking. We wish to establish new standards of true seamless integration between
+We believe CairnML is ground-breaking. We wish to establish new standards of true seamless integration between
 experiment management, MLOps, and data management.
 
 ## Who We Are
 
-ClearML is supported by you and the [clear.ml](https://clear.ml) team, which helps enterprise companies build scalable MLOps. 
+CairnML is supported by you and the [clear.ml](https://clear.ml) team, which helps enterprise companies build scalable MLOps. 
 
-We built ClearML to track and control the glorious but messy process of training production-grade deep learning models.
-We are committed to vigorously supporting and expanding the capabilities of ClearML.
+We built CairnML to track and control the glorious but messy process of training production-grade deep learning models.
+We are committed to vigorously supporting and expanding the capabilities of CairnML.
 
 We promise to always be backwardly compatible, making sure all your logs, data, and pipelines will always upgrade with you.
 
@@ -204,32 +204,32 @@ We promise to always be backwardly compatible, making sure all your logs, data, 
 
 Apache License, Version 2.0 (see the [LICENSE](https://www.apache.org/licenses/LICENSE-2.0.html) for more information)
 
-If ClearML is part of your development process / project / publication, please cite us :heart: : 
+If CairnML is part of your development process / project / publication, please cite us :heart: : 
 ```
-@misc{clearml,
-title = {ClearML - Your entire MLOps stack in one open-source tool},
+@misc{cairnml,
+title = {CairnML - Your entire MLOps stack in one open-source tool},
 year = {2024},
-note = {Software available from http://github.com/clearml/clearml},
+note = {Software available from http://github.com/cairnml/cairnml},
 url={https://clear.ml/},
-author = {ClearML},
+author = {CairnML},
 }
 ```
 
 ## Documentation, Community & Support
 
-For more information, see the [official documentation](https://clear.ml/docs) and [on YouTube](https://www.youtube.com/c/ClearML).
+For more information, see the [official documentation](https://clear.ml/docs) and [on YouTube](https://www.youtube.com/c/CairnML).
 
-For examples and use cases, check the [examples folder](https://github.com/clearml/clearml/tree/master/examples) and [corresponding documentation](https://clear.ml/docs/latest/docs/guides).
+For examples and use cases, check the [examples folder](https://github.com/cairnml/cairnml/tree/master/examples) and [corresponding documentation](https://clear.ml/docs/latest/docs/guides).
 
-If you have any questions: post on our [Slack Channel](https://joinslack.clear.ml), or tag your questions on [stackoverflow](https://stackoverflow.com/questions/tagged/clearml) with '**[clearml](https://stackoverflow.com/questions/tagged/clearml)**' tag.
+If you have any questions: post on our [Slack Channel](https://joinslack.clear.ml), or tag your questions on [stackoverflow](https://stackoverflow.com/questions/tagged/cairnml) with '**[cairnml](https://stackoverflow.com/questions/tagged/cairnml)**' tag.
 
-For feature requests or bug reports, please use [GitHub issues](https://github.com/clearml/clearml/issues).
+For feature requests or bug reports, please use [GitHub issues](https://github.com/cairnml/cairnml/issues).
 
 Additionally, you can always find us at *info@clear.ml*
 
 ## Contributing
 
-**PRs are always welcome** :heart: See more details in the ClearML [Guidelines for Contributing](https://github.com/clearml/clearml/blob/master/CONTRIBUTING.md).
+**PRs are always welcome** :heart: See more details in the CairnML [Guidelines for Contributing](https://github.com/cairnml/cairnml/blob/master/CONTRIBUTING.md).
 
 
 _May the force (and the goddess of learning rates) be with you!_

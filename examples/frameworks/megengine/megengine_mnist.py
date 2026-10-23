@@ -21,7 +21,7 @@ except ImportError:
         else "MegEngine does not support python version >= 3.9"
     )
 
-from clearml import Task
+from cairnml import Task
 from tensorboardX import SummaryWriter
 
 

@@ -1,9 +1,9 @@
 import argparse
 
-from clearml import Task
+from cairnml import Task
 from tqdm import tqdm
-# ClearML HyperDataset helpers for dataset resolution and dataview streaming
-from clearml.hyperdatasets import (
+# CairnML HyperDataset helpers for dataset resolution and dataview streaming
+from cairnml.hyperdatasets import (
     HyperDatasetManagement,
     DataView,
 )
@@ -16,16 +16,16 @@ def main():
     ap.add_argument("--limit", type=int, default=None, help="Max frames to print")
     args = ap.parse_args()
 
-    # Track the run inside ClearML
+    # Track the run inside CairnML
     Task.init(project_name="HyperDatasets Examples", task_name="dataview_iterate")
 
-    # Resolve the dataset/version identifiers from ClearML
+    # Resolve the dataset/version identifiers from CairnML
     hd = HyperDatasetManagement.get(dataset_name=args.dataset, version_name=args.version)
-    project_id = hd.project_id      # ClearML Project id
+    project_id = hd.project_id      # CairnML Project id
     dataset_id = hd.dataset_id      # Dataset (collection) id
     version_id = hd.version_id      # Version id
 
-    # Build and register a ClearML DataView query
+    # Build and register a CairnML DataView query
     dv = DataView(iteration_order="sequential", iteration_infinite=False)
     dv.add_query(project_id=project_id, dataset_id=dataset_id, version_id=version_id)
     print(f"Created dataview: {dv.id}")

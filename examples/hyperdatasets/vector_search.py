@@ -32,8 +32,8 @@ from typing import Any, Dict, Optional, Sequence, Tuple
 import numpy as np
 from PIL import Image
 
-# ClearML helper for resolving dataset versions and running vector search
-from clearml.hyperdatasets import HyperDatasetManagement
+# CairnML helper for resolving dataset versions and running vector search
+from cairnml.hyperdatasets import HyperDatasetManagement
 
 
 def parse_args() -> argparse.Namespace:
@@ -42,7 +42,7 @@ def parse_args() -> argparse.Namespace:
         description=description or None,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument("--project", help="ClearML project name used when resolving the dataset")
+    parser.add_argument("--project", help="CairnML project name used when resolving the dataset")
     parser.add_argument("--dataset-name", required=True, help="HyperDataset collection name")
     parser.add_argument("--version-name", required=True, help="HyperDataset version name")
     parser.add_argument(
@@ -229,14 +229,14 @@ def main() -> None:
 
     embedding, query_kind = build_embedding(args)
 
-    # Resolve the HyperDataset version to query within ClearML
+    # Resolve the HyperDataset version to query within CairnML
     dataset = HyperDatasetManagement.get(
         dataset_name=args.dataset_name,
         version_name=args.version_name,
         project_name=args.project,
     )
 
-    # Execute ClearML's vector search against the stored embeddings
+    # Execute CairnML's vector search against the stored embeddings
     results = dataset.vector_search(
         reference_vector=embedding,
         vector_field=args.vector_field,

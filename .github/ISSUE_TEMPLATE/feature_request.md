@@ -1,6 +1,6 @@
 ---
 name: Feature Request
-about: Suggest an idea for ClearML
+about: Suggest an idea for CairnML
 title: ''
 assignees: ''
 

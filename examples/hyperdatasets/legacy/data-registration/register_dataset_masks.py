@@ -17,7 +17,7 @@ import os
 from argparse import ArgumentParser
 
 from allegroai import DatasetVersion, FrameGroup, SingleFrame, Task
-from clearml import StorageManager
+from cairnml import StorageManager
 
 def get_frames_with_masks(data_path, ext="png", mask_ext="_mask.png"):
     frame_groups = {}
@@ -116,7 +116,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    example_dataset_path = 's3://clearml-public/datasets/hyperdataset_example/ds_with_masks'
+    example_dataset_path = 's3://cairnml-public/datasets/hyperdataset_example/ds_with_masks'
     local_img_path = StorageManager.download_folder(example_dataset_path)
     # this folder contains the images and json files for the data
     base_path = os.path.abspath(f"{local_img_path}/datasets/hyperdataset_example/ds_with_masks")

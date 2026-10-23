@@ -15,11 +15,11 @@ from ignite.utils import setup_logger
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
-from clearml import Task, StorageManager, OutputModel
+from cairnml import Task, StorageManager, OutputModel
 
 
 def main():
-    # Connecting ClearML with the current process,
+    # Connecting CairnML with the current process,
     # from here on everything is logged automatically
     task = Task.init(
         project_name="examples",
@@ -35,7 +35,7 @@ def main():
         "loss_report": 100,
     }
 
-    params = task.connect(params)  # enabling configuration override by clearml
+    params = task.connect(params)  # enabling configuration override by cairnml
     print(params)  # printing actual configuration (after override in remote mode)
 
     model = OutputModel(task=task, framework="pytorch")
@@ -226,7 +226,7 @@ def run(epochs, lr, momentum, log_interval, params, trainloader, testloader, mod
 
     PATH = "./cifar_net.pth"
 
-    # CONDITION depicts a custom condition for when to save the model. The model is saved and then updated in ClearML
+    # CONDITION depicts a custom condition for when to save the model. The model is saved and then updated in CairnML
     CONDITION = True
 
     if CONDITION:

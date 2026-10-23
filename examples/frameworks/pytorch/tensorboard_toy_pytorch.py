@@ -5,10 +5,10 @@ import numpy as np
 from PIL import Image
 from torch.utils.tensorboard import SummaryWriter
 
-from clearml import Task
+from cairnml import Task
 
 
-# Connecting ClearML with the current process,
+# Connecting CairnML with the current process,
 # from here on everything is logged automatically
 task = Task.init(project_name='examples', task_name='PyTorch TensorBoard toy example')
 

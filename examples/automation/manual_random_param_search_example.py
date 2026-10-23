@@ -1,8 +1,8 @@
 from random import sample
 
-from clearml import Task
+from cairnml import Task
 
-# Connecting ClearML with the current process,
+# Connecting CairnML with the current process,
 # from here on everything is logged automatically
 task = Task.init(
     project_name="examples",

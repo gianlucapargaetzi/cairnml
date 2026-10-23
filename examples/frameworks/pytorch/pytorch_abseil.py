@@ -12,7 +12,7 @@ import torch.optim as optim
 from absl import app, flags
 from torchvision import datasets, transforms
 
-from clearml import Task, Logger
+from cairnml import Task, Logger
 
 # Training settings
 FLAGS = flags.FLAGS
@@ -118,7 +118,7 @@ def test(
 
 
 def main(_):
-    # Connecting ClearML with the current process,
+    # Connecting CairnML with the current process,
     # from here on everything is logged automatically
     Task.init(
         project_name="examples",

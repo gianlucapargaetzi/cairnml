@@ -4,11 +4,11 @@ from time import sleep
 import pandas as pd
 import numpy as np
 from PIL import Image
-from clearml import Task
+from cairnml import Task
 
 
 def main():
-    # Connecting ClearML with the current process,
+    # Connecting CairnML with the current process,
     # from here on everything is logged automatically
     task = Task.init(project_name='examples', task_name='Artifacts example')
 

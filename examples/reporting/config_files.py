@@ -1,13 +1,13 @@
-# ClearML - example code for logging configuration files to Task":
+# CairnML - example code for logging configuration files to Task":
 #
 import json
 from pathlib import Path
 import yaml
 
-from clearml import Task
+from cairnml import Task
 
 
-# Connecting ClearML with the current process,
+# Connecting CairnML with the current process,
 # from here on everything is logged automatically
 task = Task.init(project_name='FirstTrial', task_name='config_files_example')
 

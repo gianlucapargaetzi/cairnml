@@ -1,4 +1,4 @@
 fastai < 2.0.0
 tensorboard
 tensorboardX
-clearml>=1.14.4
+cairnml>=1.14.4

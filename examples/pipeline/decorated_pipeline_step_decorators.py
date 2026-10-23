@@ -1,4 +1,4 @@
-from clearml import PipelineDecorator
+from cairnml import PipelineDecorator
 
 
 def our_decorator(func):

@@ -1,4 +1,4 @@
-from clearml import Task
+from cairnml import Task
 
 
 for i in range(3):

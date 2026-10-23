@@ -1,6 +1,6 @@
-# ClearML - Example of Python Fire integration, with commands grouped inside classes
+# CairnML - Example of Python Fire integration, with commands grouped inside classes
 #
-from clearml import Task
+from cairnml import Task
 
 import fire
 

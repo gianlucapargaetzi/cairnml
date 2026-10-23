@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # Notice that this file has been modified to examplify the use of
-# ClearML when used with PyTorch Lightning
+# CairnML when used with PyTorch Lightning
 import sys
 
 import torch
@@ -24,7 +24,7 @@ from torchmetrics import Accuracy
 
 from torchvision.datasets.mnist import MNIST
 from pytorch_lightning import LightningModule
-from clearml import Task
+from cairnml import Task
 try:
     from pytorch_lightning.cli import LightningCLI
 except ImportError:

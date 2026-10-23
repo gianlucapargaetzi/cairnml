@@ -1,7 +1,7 @@
-"""This is a dummy ClearML task. This should be replaced by your own experiment code."""
+"""This is a dummy CairnML task. This should be replaced by your own experiment code."""
 import time
 import random
-from clearml import Task
+from cairnml import Task
 from tqdm import tqdm
 
 

@@ -1,6 +1,6 @@
 """
 ClearML Inc
-https://github.com/clearml/clearml
+https://github.com/cairnml/cairnml
 """
 
 import os.path
@@ -20,8 +20,8 @@ long_description = read_text(os.path.join(here, 'README.md'))
 
 # fix github, dark logo hack.
 long_description = long_description.replace(
-    """<img align="center" src="docs/clearml-logo.svg#gh-light-mode-only" alt="Clear|ML"><img align="center" src="docs/clearml-logo-dark.svg#gh-dark-mode-only" alt="Clear|ML">""",  # noqa
-    """<a href="https://clear.ml"><img src="https://raw.githubusercontent.com/clearml/clearml/refs/heads/master/docs/clearml-logo.svg" width="250px"></a>""",  # noqa
+    """<img align="center" src="docs/cairnml-logo.svg#gh-light-mode-only" alt="Clear|ML"><img align="center" src="docs/cairnml-logo-dark.svg#gh-dark-mode-only" alt="Clear|ML">""",  # noqa
+    """<a href="https://clear.ml"><img src="https://raw.githubusercontent.com/cairnml/cairnml/refs/heads/master/docs/cairnml-logo.svg" width="250px"></a>""",  # noqa
 )
 
 
@@ -34,19 +34,19 @@ def read_version_string(version_file):
         raise RuntimeError("Unable to find version string.")
 
 
-version = read_version_string("clearml/version.py")
+version = read_version_string("cairnml/version.py")
 
 requirements = read_text(os.path.join(here, 'requirements.txt')).splitlines()
 
 setup(
-    name='clearml',
+    name='cairnml',
     version=version,
-    description='ClearML - Auto-Magical Experiment Manager, Version Control, and MLOps for AI',
+    description='CairnML - Auto-Magical Experiment Manager, Version Control, and MLOps for AI',
     long_description=long_description,
     long_description_content_type='text/markdown',
     # The project's main homepage.
-    url='https://github.com/clearml/clearml',
-    author='ClearML',
+    url='https://github.com/cairnml/cairnml',
+    author='CairnML',
     author_email='support@clear.ml',
     license='Apache License 2.0',
     classifiers=[
@@ -72,7 +72,7 @@ setup(
         'Programming Language :: Python :: 3.14',
         'License :: OSI Approved :: Apache Software License',
     ],
-    keywords='clearml trains development machine deep learning version control machine-learning machinelearning '
+    keywords='cairnml trains development machine deep learning version control machine-learning machinelearning '
              'deeplearning deep-learning experiment-manager experimentmanager',
     packages=find_packages(exclude=['contrib', 'docs', 'data', 'examples', 'tests']),
     install_requires=requirements,
@@ -97,7 +97,7 @@ setup(
         ]
     },
     package_data={
-        "clearml": [
+        "cairnml": [
             "config/default/*.conf",
             "backend_api/config/default/*.conf",
             "py.typed",
@@ -109,13 +109,13 @@ setup(
     # pip to create the appropriate form of executable for the target platform.
     entry_points={
         'console_scripts': [
-            'clearml-init = clearml.cli.enrolment:init_main',
-            'clearml-whoami = clearml.cli.enrolment:whoami_main',
-            'clearml-logout = clearml.cli.enrolment:logout_main',
-            'clearml-dataset = clearml.cli.dataset.__main__:main',
-            'clearml-task = clearml.cli.task.__main__:main',
-            'clearml-param-search = clearml.cli.hpo.__main__:main',
-            'clearml-debug = clearml.cli.debug.__main__:main'
+            'cairnml-init = cairnml.cli.enrolment:init_main',
+            'cairnml-whoami = cairnml.cli.enrolment:whoami_main',
+            'cairnml-logout = cairnml.cli.enrolment:logout_main',
+            'cairnml-dataset = cairnml.cli.dataset.__main__:main',
+            'cairnml-task = cairnml.cli.task.__main__:main',
+            'cairnml-param-search = cairnml.cli.hpo.__main__:main',
+            'cairnml-debug = cairnml.cli.debug.__main__:main'
         ],
     },
 )

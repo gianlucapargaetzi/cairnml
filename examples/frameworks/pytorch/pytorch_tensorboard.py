@@ -1,4 +1,4 @@
-# ClearML - Example of pytorch with tensorboard>=v1.14
+# CairnML - Example of pytorch with tensorboard>=v1.14
 #
 from __future__ import print_function
 
@@ -14,7 +14,7 @@ from torchvision import datasets, transforms
 from torch.autograd import Variable
 from torch.utils.tensorboard import SummaryWriter
 
-from clearml import Task
+from cairnml import Task
 
 
 class Net(nn.Module):
@@ -98,7 +98,7 @@ def main():
                         help='how many batches to wait before logging training status')
     args = parser.parse_args()
 
-    # Connecting ClearML with the current process,
+    # Connecting CairnML with the current process,
     # from here on everything is logged automatically
     task = Task.init(project_name='examples', task_name='PyTorch with TensorBoard')  # noqa: F841
 

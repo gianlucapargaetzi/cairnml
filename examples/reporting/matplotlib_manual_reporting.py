@@ -1,11 +1,11 @@
-# ClearML - Example of Matplotlib and Seaborn integration and reporting
+# CairnML - Example of Matplotlib and Seaborn integration and reporting
 #
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-from clearml import Task
+from cairnml import Task
 
-# Connecting ClearML with the current process,
+# Connecting CairnML with the current process,
 # from here on everything is logged automatically
 # Create a new task, disable automatic matplotlib connect
 task = Task.init(

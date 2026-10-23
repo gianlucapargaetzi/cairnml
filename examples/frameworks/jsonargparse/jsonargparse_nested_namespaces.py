@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from jsonargparse import ArgumentParser
-from clearml import Task
+from cairnml import Task
 
 
 @dataclass

@@ -1,16 +1,16 @@
-# ClearML - Example of pytorch with tensorboardX add_video.
+# CairnML - Example of pytorch with tensorboardX add_video.
 #
 from __future__ import print_function
 
 import torch
 from tensorboardX import SummaryWriter
 
-from clearml import Task
+from cairnml import Task
 
 
 def main():
 
-    # Connecting ClearML with the current process,
+    # Connecting CairnML with the current process,
     # from here on everything is logged automatically
     task = Task.init(project_name="examples", task_name="pytorch with video tensorboardX")
 

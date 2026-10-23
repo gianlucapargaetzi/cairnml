@@ -1,4 +1,4 @@
-from clearml import Task, StorageManager
+from cairnml import Task, StorageManager
 
 # create an dataset experiment
 task = Task.init(project_name="examples", task_name="Pipeline step 1 dataset artifact")

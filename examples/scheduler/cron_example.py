@@ -1,5 +1,5 @@
-from clearml import Task
-from clearml.automation import TaskScheduler
+from cairnml import Task
+from cairnml.automation import TaskScheduler
 
 
 def simple_function():

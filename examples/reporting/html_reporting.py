@@ -1,4 +1,4 @@
-# ClearML - Example of manual graphs and  statistics reporting
+# CairnML - Example of manual graphs and  statistics reporting
 #
 import math
 
@@ -10,7 +10,7 @@ from bokeh.sampledata.autompg import autompg_clean as bokeh_df
 from bokeh.sampledata.periodic_table import elements
 from bokeh.transform import dodge, factor_cmap
 
-from clearml import Task, Logger
+from cairnml import Task, Logger
 
 
 def report_html_url(logger, iteration=0):
@@ -217,7 +217,7 @@ def report_html_image(logger, iteration=0):
 
 
 def main():
-    # Connecting ClearML with the current process,
+    # Connecting CairnML with the current process,
     # from here on everything is logged automatically
     task = Task.init(project_name="examples", task_name="HTML samples reporting")
 

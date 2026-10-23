@@ -1,6 +1,6 @@
 import numpy as np
 import keras
-from clearml import Task
+from cairnml import Task
 
 
 def get_model():

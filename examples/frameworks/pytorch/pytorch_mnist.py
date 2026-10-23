@@ -1,4 +1,4 @@
-# ClearML - Example of Pytorch mnist training integration
+# CairnML - Example of Pytorch mnist training integration
 #
 from __future__ import print_function
 
@@ -12,7 +12,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torchvision import datasets, transforms
 
-from clearml import Task, Logger
+from cairnml import Task, Logger
 
 
 class Net(nn.Module):
@@ -96,7 +96,7 @@ def test(
     )
 
 def main():
-    # Connecting ClearML with the current process,
+    # Connecting CairnML with the current process,
     # from here on everything is logged automatically
     Task.init(project_name="examples", task_name="PyTorch MNIST train")
 

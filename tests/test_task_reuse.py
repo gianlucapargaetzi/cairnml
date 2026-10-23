@@ -1,6 +1,6 @@
 import inspect
 
-from clearml import Task
+from cairnml import Task
 
 
 def test_every_run_creates_a_new_task_by_default():

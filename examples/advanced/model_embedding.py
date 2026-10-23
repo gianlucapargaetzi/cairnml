@@ -34,10 +34,10 @@ class EmbeddingService:
     """
 
     def __init__(self, api_url: str, model: str):
-        if "CLEARML_AUTH_TOKEN" not in os.environ:
-            print("Please set the `CLEARML_AUTH_TOKEN` env var")
+        if "CAIRNML_AUTH_TOKEN" not in os.environ:
+            print("Please set the `CAIRNML_AUTH_TOKEN` env var")
             sys.exit(1)
-        self.api_key = os.environ["CLEARML_AUTH_TOKEN"]
+        self.api_key = os.environ["CAIRNML_AUTH_TOKEN"]
         self.api_url = api_url
         self.model = model
         self.headers = {
@@ -154,10 +154,10 @@ def main():
     parser.add_argument(
         "--api-url",
         required=True,
-        help="Embedding service URL endpoint as seen in ClearML UI",
+        help="Embedding service URL endpoint as seen in CairnML UI",
     )
     parser.add_argument(
-        "--model", required=True, help="Embedding model name as seen in ClearML UI"
+        "--model", required=True, help="Embedding model name as seen in CairnML UI"
     )
     parser.add_argument(
         "--store-file",

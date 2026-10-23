@@ -5,7 +5,7 @@ except ImportError:
     import sys
     print("Module 'lightning' not installed (only available for Python 3.8+)")
     sys.exit(0)
-from clearml import Task
+from cairnml import Task
 
 
 if __name__ == "__main__":

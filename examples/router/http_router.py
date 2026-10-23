@@ -1,5 +1,5 @@
 """
-Example on how to use the ClearML HTTP router.
+Example on how to use the CairnML HTTP router.
 For this example, you would first need a webserver to route the traffic to:
 `simple_webserver.py` launches such a server. Running the script will start a
 webserver, bound to localhost:8000.
@@ -11,12 +11,12 @@ A local route is then created, which will proxy all traffic from
 Traffic can be intercepted both on request and response via callbacks. See
 `request_callback` and `response_callback`.
 
-By default, the route traffic is monitored and telemetry is sent to the ClearML
+By default, the route traffic is monitored and telemetry is sent to the CairnML
 server. To disable this, pass `endpoint_telemetry=False` when creating the route
 """
 
 import time
-from clearml import Task
+from cairnml import Task
 
 
 def request_callback(request, persistent_state):

@@ -1,5 +1,5 @@
-from clearml.automation.controller import PipelineDecorator
-from clearml import TaskTypes
+from cairnml.automation.controller import PipelineDecorator
+from cairnml import TaskTypes
 
 
 # Make the following function an independent pipeline component step
@@ -12,7 +12,7 @@ def step_one(pickle_data_url: str, extra: int = 43):
     import sklearn  # noqa
     import pickle
     import pandas as pd
-    from clearml import StorageManager
+    from cairnml import StorageManager
 
     local_iris_pkl = StorageManager.get_local_copy(remote_url=pickle_data_url)
     with open(local_iris_pkl, "rb") as f:

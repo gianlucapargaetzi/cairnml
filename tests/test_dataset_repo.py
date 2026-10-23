@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from clearml.datasets import Dataset, DatasetCache, DatasetError, DatasetRepo, SampleWriter
-from clearml.datasets.dvcutil import Dvc
+from cairnml.datasets import Dataset, DatasetCache, DatasetError, DatasetRepo, SampleWriter
+from cairnml.datasets.dvcutil import Dvc
 
 
 @pytest.fixture(autouse=True)
@@ -210,12 +210,12 @@ def test_check_wants_the_data_added_first(work, storage):
 
 
 def test_a_commit_carries_a_footprint_that_verifies_from_git_alone(first):
-    from clearml.datasets import footprint
+    from cairnml.datasets import footprint
 
     repo, _sha = first
     assert footprint.verify(str(repo.path)) == []
     assert repo.problems() == []
-    assert (repo.path / ".clearml" / "verify.py").is_file()
+    assert (repo.path / ".cairnml" / "verify.py").is_file()
     assert (repo.path / ".github" / "workflows" / "dataset.yml").is_file()
     lock = json.loads((repo.path / "dataset.lock.json").read_text())
     assert lock["format"] == {"kind": "native"} and lock["samples"] == 2
@@ -257,7 +257,7 @@ def test_a_dataset_with_an_adapter_is_checked_through_it(tmp_path, work, storage
     subprocess.run(["git", "clone", "-q", str(registry), str(clone)], check=True, capture_output=True)
     (clone / "adapters").mkdir()
     (clone / "adapters" / "text_files.py").write_text(
-        "from clearml.datasets import Adapter\n"
+        "from cairnml.datasets import Adapter\n"
         "class TextFiles(Adapter):\n"
         "    modalities = {'file': 'file'}\n"
         "    labels = {}\n"
@@ -287,7 +287,7 @@ def test_an_adapter_that_finds_nothing_blocks_the_check(tmp_path, work, storage,
     subprocess.run(["git", "clone", "-q", str(registry), str(clone)], check=True, capture_output=True)
     (clone / "adapters").mkdir()
     (clone / "adapters" / "text_files.py").write_text(
-        "from clearml.datasets import Adapter\n"
+        "from cairnml.datasets import Adapter\n"
         "class TextFiles(Adapter):\n"
         "    modalities = {'file': 'file'}\n"
         "    labels = {}\n"
@@ -307,7 +307,7 @@ def test_an_adapter_that_finds_nothing_blocks_the_check(tmp_path, work, storage,
 
 
 def test_register_needs_the_commit_to_be_on_the_default_branch(first, work, monkeypatch):
-    from clearml.datasets import repo as repo_module
+    from cairnml.datasets import repo as repo_module
 
     repo, _sha = first
     calls = []

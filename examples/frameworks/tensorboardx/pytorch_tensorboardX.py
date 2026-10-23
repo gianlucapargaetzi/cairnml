@@ -1,4 +1,4 @@
-# ClearML - Example of pytorch with tensorboardX
+# CairnML - Example of pytorch with tensorboardX
 #
 from __future__ import print_function
 
@@ -14,7 +14,7 @@ from tensorboardX import SummaryWriter
 from torch.autograd import Variable
 from torchvision import datasets, transforms
 
-from clearml import Task
+from cairnml import Task
 
 
 class Net(nn.Module):
@@ -143,7 +143,7 @@ def main():
     args = parser.parse_args()
     args.cuda = not args.no_cuda and torch.cuda.is_available()
 
-    # Connecting ClearML with the current process,
+    # Connecting CairnML with the current process,
     # from here on everything is logged automatically
     Task.init(
         project_name="examples",

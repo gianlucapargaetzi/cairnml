@@ -2,13 +2,13 @@ import json
 import os
 
 import pandas as pd
-from clearml import Task
+from cairnml import Task
 from github3 import login
 from tabulate import tabulate
 
 
 def create_output_tables(retrieve_scalars_dict):
-    """Extract data from ClearML into format for tabulation."""
+    """Extract data from CairnML into format for tabulation."""
     data = []
     for graph_title, graph_values in retrieve_scalars_dict.items():
         graph_data = []
@@ -19,7 +19,7 @@ def create_output_tables(retrieve_scalars_dict):
 
 
 def create_comment_output(task, status):
-    """Create a markdown table from a ClearML task's output scalars."""
+    """Create a markdown table from a CairnML task's output scalars."""
     retrieve_scalars_dict = task.get_last_scalar_metrics()
     if retrieve_scalars_dict:
         scalars_tables = create_output_tables(retrieve_scalars_dict)
@@ -30,7 +30,7 @@ def create_comment_output(task, status):
 
 
 def create_stats_comment(project_stats):
-    """Create a comment on the current PR containing the ClearML task stats."""
+    """Create a comment on the current PR containing the CairnML task stats."""
     payload_fname = os.getenv('GITHUB_EVENT_PATH')
     with open(payload_fname, 'r') as f:
         payload = json.load(f)
@@ -65,8 +65,8 @@ def get_task_stats(task):
         return f"Task is in {task_status} status, this should not happen!"
 
 
-def get_clearml_task_of_current_commit(commit_id):
-    """Find the ClearML task that correspond to the exact codebase in the commit ID."""
+def get_cairnml_task_of_current_commit(commit_id):
+    """Find the CairnML task that correspond to the exact codebase in the commit ID."""
     # Get the ID and Diff of all tasks based on the current commit hash, order by newest
     tasks = Task.query_tasks(
         task_filter={
@@ -87,14 +87,14 @@ def get_clearml_task_of_current_commit(commit_id):
                 return Task.get_task(task_id=task['id'])
 
     # If no task was run yet with the exact PR code, raise an error and block the PR.
-    raise ValueError("No task based on this code was found in ClearML."
+    raise ValueError("No task based on this code was found in CairnML."
                      "Make sure to run it at least once before merging.")
 
 
 if __name__ == '__main__':
-    # Main check: Does a ClearML task exist for this specific commit?
+    # Main check: Does a CairnML task exist for this specific commit?
     print(f"Running on commit hash: {os.getenv('COMMIT_ID')}")
-    task_obj = get_clearml_task_of_current_commit(os.getenv('COMMIT_ID'))
+    task_obj = get_cairnml_task_of_current_commit(os.getenv('COMMIT_ID'))
 
     # If the task exists, we can tag it as such, so we know in the interface which one it is.
     task_obj.add_tags(['main_branch'])

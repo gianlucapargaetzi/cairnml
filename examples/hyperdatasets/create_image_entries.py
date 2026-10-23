@@ -25,8 +25,8 @@ from typing import Iterable, List, Optional, Tuple
 import numpy as np
 from PIL import Image
 
-# ClearML HyperDataset image primitives
-from clearml.hyperdatasets import HyperDataset, DataEntryImage, DataSubEntryImage
+# CairnML HyperDataset image primitives
+from cairnml.hyperdatasets import HyperDataset, DataEntryImage, DataSubEntryImage
 
 
 def parse_args() -> argparse.Namespace:
@@ -35,7 +35,7 @@ def parse_args() -> argparse.Namespace:
         description=description or None,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument("--project", default="HyperDatasets Examples", help="ClearML project name")
+    parser.add_argument("--project", default="HyperDatasets Examples", help="CairnML project name")
     parser.add_argument("--dataset-name", required=True, help="HyperDataset collection name")
     parser.add_argument("--version-name", required=True, help="HyperDataset version name")
     parser.add_argument("--description", default="Image demo HyperDataset", help="Version description")
@@ -60,7 +60,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--upload-uri",
         default=None,
-        help="Optional ClearML storage URI for uploading the local image files",
+        help="Optional CairnML storage URI for uploading the local image files",
     )
     parser.add_argument(
         "--force-upload",
@@ -119,10 +119,10 @@ def build_entries(
     for idx, image_path in enumerate(image_paths, 1):
         with Image.open(image_path) as img:
             width, height = img.size
-            # ClearML image entry holding metadata for this frame
+            # CairnML image entry holding metadata for this frame
             entry = DataEntryImage(metadata={"index": idx, "filename": image_path.name})
             entry.add_sub_entries(
-                # ClearML image sub-entry pointing to the local file on disk
+                # CairnML image sub-entry pointing to the local file on disk
                 [DataSubEntryImage(name="image", source=str(image_path), width=width, height=height)]
             )
 
@@ -167,7 +167,7 @@ def main() -> None:
     field_mappings = None
     if vector_dims:
         field_path = vector_field if vector_field.startswith("meta.") else f"meta.{vector_field}"
-        # ClearML field mapping describing the embedding metadata schema
+        # CairnML field mapping describing the embedding metadata schema
         field_mappings = {
             field_path: {
                 "type": "dense_vector",
@@ -176,7 +176,7 @@ def main() -> None:
             }
         }
 
-    # ClearML HyperDataset version handle (creates version if missing)
+    # CairnML HyperDataset version handle (creates version if missing)
     dataset = HyperDataset(
         project_name=args.project,
         dataset_name=args.dataset_name,
@@ -185,7 +185,7 @@ def main() -> None:
         field_mappings=field_mappings,
     )
 
-    # Upload entries so ClearML manages storage, hashing, and indexing
+    # Upload entries so CairnML manages storage, hashing, and indexing
     errors = dataset.add_data_entries(
         entries,
         upload_local_files_destination=args.upload_uri,

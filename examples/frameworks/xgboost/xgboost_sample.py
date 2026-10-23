@@ -5,10 +5,10 @@ from sklearn.metrics import accuracy_score
 from sklearn.model_selection import train_test_split
 from xgboost import plot_tree
 
-from clearml import Task
+from cairnml import Task
 
 
-# Connecting ClearML with the current process,
+# Connecting CairnML with the current process,
 # from here on everything is logged automatically
 task = Task.init(project_name='examples', task_name='XGBoost simple example')
 

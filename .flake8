@@ -4,11 +4,11 @@ statistics = True
 show-source = True
 extend-ignore = B, E203, E501, W605
 exclude = 
-    clearml/utilities/gpu/pynvml.py,
-    clearml/utilities/gpu/pyrsmi.py,
-    clearml/utilities/lowlevel/astor_unparse.py,
-    clearml/utilities/pigar,
-    clearml/utilities/plotlympl,
-    clearml/utilities/pyhocon,
-    clearml/utilities/requests_toolbelt,
-    clearml/backend_api/services
+    cairnml/utilities/gpu/pynvml.py,
+    cairnml/utilities/gpu/pyrsmi.py,
+    cairnml/utilities/lowlevel/astor_unparse.py,
+    cairnml/utilities/pigar,
+    cairnml/utilities/plotlympl,
+    cairnml/utilities/pyhocon,
+    cairnml/utilities/requests_toolbelt,
+    cairnml/backend_api/services

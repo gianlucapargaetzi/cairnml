@@ -1,5 +1,5 @@
 """
-Download a subset of COCO and convert it into a ClearML HyperDataset.
+Download a subset of COCO and convert it into a CairnML HyperDataset.
 
 The script fetches the COCO 2017 annotations JSON and downloads image files on
 an as-needed basis (defaulting to the validation split). Each COCO record is
@@ -30,7 +30,7 @@ from zipfile import ZipFile
 
 import requests
 
-from clearml.hyperdatasets import DataEntryImage, DataSubEntryImage, HyperDataset
+from cairnml.hyperdatasets import DataEntryImage, DataSubEntryImage, HyperDataset
 
 
 COCO_ANNOTATIONS_URL = "http://images.cocodataset.org/annotations/annotations_trainval2017.zip"
@@ -43,7 +43,7 @@ def parse_args() -> argparse.Namespace:
         description=description or None,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument("--project", default="HyperDatasets Examples", help="ClearML project name")
+    parser.add_argument("--project", default="HyperDatasets Examples", help="CairnML project name")
     parser.add_argument("--dataset-name", required=True, help="HyperDataset collection name")
     parser.add_argument("--version-name", required=True, help="HyperDataset version name")
     parser.add_argument(
@@ -77,7 +77,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--upload-uri",
         default=None,
-        help="Optional ClearML storage URI for uploading downloaded image files",
+        help="Optional CairnML storage URI for uploading downloaded image files",
     )
     parser.add_argument(
         "--force-upload",
