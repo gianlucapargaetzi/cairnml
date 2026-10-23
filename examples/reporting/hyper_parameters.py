@@ -1,4 +1,4 @@
-# ClearML - example code for logging into "CONFIGURATION":
+# CairnML - example code for logging into "CONFIGURATION":
 # - ArgumentParser parameter logging
 # - user properties logging
 # - logging of hyperparameters via dictionary
@@ -14,11 +14,11 @@ from argparse import ArgumentParser
 from enum import Enum
 
 
-from clearml import Task
-from clearml.task_parameters import TaskParameters, param, percent_param
+from cairnml import Task
+from cairnml.task_parameters import TaskParameters, param, percent_param
 
 
-# Connecting ClearML with the current process,
+# Connecting CairnML with the current process,
 # from here on everything is logged automatically
 task = Task.init(project_name='FirstTrial', task_name='first_trial')
 

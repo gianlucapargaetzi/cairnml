@@ -1,8 +1,8 @@
-# ClearML - Fastai with Tensorboard example code, automatic logging the model and Tensorboard outputs
+# CairnML - Fastai with Tensorboard example code, automatic logging the model and Tensorboard outputs
 #
 import argparse
 
-from clearml import Task
+from cairnml import Task
 
 import fastai
 

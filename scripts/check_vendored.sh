@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 # Checks that the vendored identity helpers are byte-identical in the server and the agent.
-# The other checkouts are found next to this repository unless CLEARML_SERVER_IDP or
-# CLEARML_AGENT_IDP are set.
+# The other checkouts are found next to this repository unless CAIRNML_SERVER_IDP or
+# CAIRNML_AGENT_IDP are set.
 set -euo pipefail
 
 here="$(cd "$(dirname "$0")/.." && pwd)"
-server="${CLEARML_SERVER_IDP:-$here/../clearml-server/apiserver/idp}"
-agent="${CLEARML_AGENT_IDP:-$here/../clearml-agent/clearml_agent/idp}"
+server="${CAIRNML_SERVER_IDP:-$here/../cairnml-server/apiserver/idp}"
+agent="${CAIRNML_AGENT_IDP:-$here/../cairnml-agent/cairnml_agent/idp}"
 status=0
 
 check() {
   local name="$1" dir="$2"
   local ours theirs
-  ours=$(sha256sum "$here/clearml/idp/$name" | cut -d' ' -f1)
+  ours=$(sha256sum "$here/cairnml/idp/$name" | cut -d' ' -f1)
   if [ ! -f "$dir/$name" ]; then
     echo "MISSING $dir/$name"
     status=1

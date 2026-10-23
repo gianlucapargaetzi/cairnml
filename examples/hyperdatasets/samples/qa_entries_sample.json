@@ -1,7 +1,7 @@
 [
   {
-    "question": "What is ClearML? (variant 1)",
-    "answer": "ClearML is an open-source platform for experiment management and MLOps.",
+    "question": "What is CairnML? (variant 1)",
+    "answer": "CairnML is an open-source platform for experiment management and MLOps.",
     "reference": "https://clear.ml/docs",
     "tags": [
       "demo",
@@ -10,7 +10,7 @@
   },
   {
     "question": "What is a HyperDataset? (variant 2)",
-    "answer": "A HyperDataset is a ClearML construct for versioned structured data entries.",
+    "answer": "A HyperDataset is a CairnML construct for versioned structured data entries.",
     "reference": "https://clear.ml/docs",
     "tags": [
       "demo",
@@ -90,8 +90,8 @@
     ]
   },
   {
-    "question": "What is ClearML? (variant 11)",
-    "answer": "ClearML is an open-source platform for experiment management and MLOps.",
+    "question": "What is CairnML? (variant 11)",
+    "answer": "CairnML is an open-source platform for experiment management and MLOps.",
     "reference": "https://clear.ml/docs",
     "tags": [
       "demo",
@@ -100,7 +100,7 @@
   },
   {
     "question": "What is a HyperDataset? (variant 12)",
-    "answer": "A HyperDataset is a ClearML construct for versioned structured data entries.",
+    "answer": "A HyperDataset is a CairnML construct for versioned structured data entries.",
     "reference": "https://clear.ml/docs",
     "tags": [
       "demo",
@@ -180,8 +180,8 @@
     ]
   },
   {
-    "question": "What is ClearML? (variant 21)",
-    "answer": "ClearML is an open-source platform for experiment management and MLOps.",
+    "question": "What is CairnML? (variant 21)",
+    "answer": "CairnML is an open-source platform for experiment management and MLOps.",
     "reference": "https://clear.ml/docs",
     "tags": [
       "demo",
@@ -190,7 +190,7 @@
   },
   {
     "question": "What is a HyperDataset? (variant 22)",
-    "answer": "A HyperDataset is a ClearML construct for versioned structured data entries.",
+    "answer": "A HyperDataset is a CairnML construct for versioned structured data entries.",
     "reference": "https://clear.ml/docs",
     "tags": [
       "demo",
@@ -270,8 +270,8 @@
     ]
   },
   {
-    "question": "What is ClearML? (variant 31)",
-    "answer": "ClearML is an open-source platform for experiment management and MLOps.",
+    "question": "What is CairnML? (variant 31)",
+    "answer": "CairnML is an open-source platform for experiment management and MLOps.",
     "reference": "https://clear.ml/docs",
     "tags": [
       "demo",
@@ -280,7 +280,7 @@
   },
   {
     "question": "What is a HyperDataset? (variant 32)",
-    "answer": "A HyperDataset is a ClearML construct for versioned structured data entries.",
+    "answer": "A HyperDataset is a CairnML construct for versioned structured data entries.",
     "reference": "https://clear.ml/docs",
     "tags": [
       "demo",
@@ -360,8 +360,8 @@
     ]
   },
   {
-    "question": "What is ClearML? (variant 41)",
-    "answer": "ClearML is an open-source platform for experiment management and MLOps.",
+    "question": "What is CairnML? (variant 41)",
+    "answer": "CairnML is an open-source platform for experiment management and MLOps.",
     "reference": "https://clear.ml/docs",
     "tags": [
       "demo",
@@ -370,7 +370,7 @@
   },
   {
     "question": "What is a HyperDataset? (variant 42)",
-    "answer": "A HyperDataset is a ClearML construct for versioned structured data entries.",
+    "answer": "A HyperDataset is a CairnML construct for versioned structured data entries.",
     "reference": "https://clear.ml/docs",
     "tags": [
       "demo",
@@ -450,8 +450,8 @@
     ]
   },
   {
-    "question": "What is ClearML? (variant 51)",
-    "answer": "ClearML is an open-source platform for experiment management and MLOps.",
+    "question": "What is CairnML? (variant 51)",
+    "answer": "CairnML is an open-source platform for experiment management and MLOps.",
     "reference": "https://clear.ml/docs",
     "tags": [
       "demo",
@@ -460,7 +460,7 @@
   },
   {
     "question": "What is a HyperDataset? (variant 52)",
-    "answer": "A HyperDataset is a ClearML construct for versioned structured data entries.",
+    "answer": "A HyperDataset is a CairnML construct for versioned structured data entries.",
     "reference": "https://clear.ml/docs",
     "tags": [
       "demo",
@@ -540,8 +540,8 @@
     ]
   },
   {
-    "question": "What is ClearML? (variant 61)",
-    "answer": "ClearML is an open-source platform for experiment management and MLOps.",
+    "question": "What is CairnML? (variant 61)",
+    "answer": "CairnML is an open-source platform for experiment management and MLOps.",
     "reference": "https://clear.ml/docs",
     "tags": [
       "demo",
@@ -550,7 +550,7 @@
   },
   {
     "question": "What is a HyperDataset? (variant 62)",
-    "answer": "A HyperDataset is a ClearML construct for versioned structured data entries.",
+    "answer": "A HyperDataset is a CairnML construct for versioned structured data entries.",
     "reference": "https://clear.ml/docs",
     "tags": [
       "demo",
@@ -630,8 +630,8 @@
     ]
   },
   {
-    "question": "What is ClearML? (variant 71)",
-    "answer": "ClearML is an open-source platform for experiment management and MLOps.",
+    "question": "What is CairnML? (variant 71)",
+    "answer": "CairnML is an open-source platform for experiment management and MLOps.",
     "reference": "https://clear.ml/docs",
     "tags": [
       "demo",
@@ -640,7 +640,7 @@
   },
   {
     "question": "What is a HyperDataset? (variant 72)",
-    "answer": "A HyperDataset is a ClearML construct for versioned structured data entries.",
+    "answer": "A HyperDataset is a CairnML construct for versioned structured data entries.",
     "reference": "https://clear.ml/docs",
     "tags": [
       "demo",
@@ -720,8 +720,8 @@
     ]
   },
   {
-    "question": "What is ClearML? (variant 81)",
-    "answer": "ClearML is an open-source platform for experiment management and MLOps.",
+    "question": "What is CairnML? (variant 81)",
+    "answer": "CairnML is an open-source platform for experiment management and MLOps.",
     "reference": "https://clear.ml/docs",
     "tags": [
       "demo",
@@ -730,7 +730,7 @@
   },
   {
     "question": "What is a HyperDataset? (variant 82)",
-    "answer": "A HyperDataset is a ClearML construct for versioned structured data entries.",
+    "answer": "A HyperDataset is a CairnML construct for versioned structured data entries.",
     "reference": "https://clear.ml/docs",
     "tags": [
       "demo",
@@ -810,8 +810,8 @@
     ]
   },
   {
-    "question": "What is ClearML? (variant 91)",
-    "answer": "ClearML is an open-source platform for experiment management and MLOps.",
+    "question": "What is CairnML? (variant 91)",
+    "answer": "CairnML is an open-source platform for experiment management and MLOps.",
     "reference": "https://clear.ml/docs",
     "tags": [
       "demo",
@@ -820,7 +820,7 @@
   },
   {
     "question": "What is a HyperDataset? (variant 92)",
-    "answer": "A HyperDataset is a ClearML construct for versioned structured data entries.",
+    "answer": "A HyperDataset is a CairnML construct for versioned structured data entries.",
     "reference": "https://clear.ml/docs",
     "tags": [
       "demo",

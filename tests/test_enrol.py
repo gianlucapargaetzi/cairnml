@@ -5,13 +5,13 @@ import jwt
 import pytest
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
-from clearml.idp import enrol as enrol_module
-from clearml.idp.enrol import EnrolmentFailed, enrol, enrol_device, revoke_device
-from clearml.idp.device import save_device_key
-from clearml.idp.keys import load_public_key
+from cairnml.idp import enrol as enrol_module
+from cairnml.idp.enrol import EnrolmentFailed, enrol, enrol_device, revoke_device
+from cairnml.idp.device import save_device_key
+from cairnml.idp.keys import load_public_key
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
-PUBLIC = "http://mlops-clearml:8008"
+PUBLIC = "http://mlops-cairnml:8008"
 API = "http://localhost:8008"  # the address typed on the command line; the server's own address wins
 
 
@@ -38,8 +38,8 @@ class FakeServer:
         self.calls.append((url, json, headers))
         if url.endswith("devices.idp_settings"):
             return Response(200, {"data": {"issuer": "https://idp.example/realms/mlops",
-                                           "sdk_client_id": "clearml-sdk",
-                                           "public_url": PUBLIC, "web_url": "http://mlops-clearml:8080"}})
+                                           "sdk_client_id": "cairnml-sdk",
+                                           "public_url": PUBLIC, "web_url": "http://mlops-cairnml:8080"}})
         if url.endswith("devices.exchange"):
             return Response(200, {"data": {"access_token": "device-token"}})
         if url.endswith("devices.revoke"):
@@ -48,7 +48,7 @@ class FakeServer:
 
 
 def login(issuer, client_id, **kwargs):
-    assert (issuer, client_id) == ("https://idp.example/realms/mlops", "clearml-sdk")
+    assert (issuer, client_id) == ("https://idp.example/realms/mlops", "cairnml-sdk")
     return token_for("alice")
 
 
@@ -59,7 +59,7 @@ def test_enrolment_uses_the_servers_public_address_and_registers_the_key(tmp_pat
 
     assert result.device_id == "dev_1"
     assert result.server_url == PUBLIC
-    assert result.web_url == "http://mlops-clearml:8080"
+    assert result.web_url == "http://mlops-cairnml:8080"
     assert result.user == "alice"
     url, body, headers = server.calls[-1]
     assert url == PUBLIC + "/v2.8/devices.enroll"

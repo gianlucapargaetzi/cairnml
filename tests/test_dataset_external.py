@@ -6,13 +6,13 @@ import subprocess
 
 import pytest
 
-from clearml.datasets import Dataset, DatasetCache, DatasetError
-from clearml.datasets.schema import SchemaError, validate_rows
-from clearml.datasets.sources import HuggingFace, LocalFolder
+from cairnml.datasets import Dataset, DatasetCache, DatasetError
+from cairnml.datasets.schema import SchemaError, validate_rows
+from cairnml.datasets.sources import HuggingFace, LocalFolder
 
 ADAPTER_V1 = '''
 import json
-from clearml.datasets import Adapter
+from cairnml.datasets import Adapter
 
 class Toy(Adapter):
     modalities = {"image": "image"}
@@ -27,7 +27,7 @@ class Toy(Adapter):
 # The source changed its layout: boxes became [x, y, width, height].
 ADAPTER_V2 = '''
 import json
-from clearml.datasets import Adapter
+from cairnml.datasets import Adapter
 
 class ToyXywh(Adapter):
     modalities = {"image": "image"}
@@ -106,7 +106,7 @@ def test_an_external_dataset_is_read_in_the_canonical_format(external, cache, so
 
 def test_the_same_revision_is_not_read_again(external, cache, monkeypatch):
     Dataset.get_external("toy", external["commit"], repo=external["url"], cache=cache)
-    from clearml.datasets import external as module
+    from cairnml.datasets import external as module
 
     def fail(*_a, **_k):
         raise AssertionError("adapter ran again")

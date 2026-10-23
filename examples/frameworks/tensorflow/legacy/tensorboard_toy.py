@@ -1,4 +1,4 @@
-# ClearML - Example of tensorboard with tensorflow (without any actual training)
+# CairnML - Example of tensorboard with tensorflow (without any actual training)
 #
 import os
 from tempfile import gettempdir
@@ -7,10 +7,10 @@ import tensorflow as tf
 import numpy as np
 from PIL import Image
 
-from clearml import Task
+from cairnml import Task
 
 
-# Connecting ClearML with the current process,
+# Connecting CairnML with the current process,
 # from here on everything is logged automatically
 task = Task.init(project_name='examples', task_name='TensorBoard toy example')
 

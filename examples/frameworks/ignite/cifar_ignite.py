@@ -15,13 +15,13 @@ from ignite.utils import setup_logger
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
-from clearml import Task, StorageManager
+from cairnml import Task, StorageManager
 
-# Connecting ClearML with the current process,
+# Connecting CairnML with the current process,
 # from here on everything is logged automatically
 task = Task.init(project_name='examples', task_name='Image classification CIFAR10')
 params = {'number_of_epochs': 20, 'batch_size': 64, 'dropout': 0.25, 'base_lr': 0.001, 'momentum': 0.9, 'loss_report': 100}
-params = task.connect(params)  # enabling configuration override by clearml
+params = task.connect(params)  # enabling configuration override by cairnml
 print(params)  # printing actual configuration (after override in remote mode)
 
 manager = StorageManager()

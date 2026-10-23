@@ -4,21 +4,21 @@ from unittest import mock
 import pytest
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
-from clearml.cli import enrolment
-from clearml.idp.device import save_device_key
-from clearml.idp.enrol import Enrolment, EnrolmentFailed
+from cairnml.cli import enrolment
+from cairnml.idp.device import save_device_key
+from cairnml.idp.enrol import Enrolment, EnrolmentFailed
 
-PUBLIC = "http://mlops-clearml:8008"
+PUBLIC = "http://mlops-cairnml:8008"
 
 
 def test_init_needs_the_server_on_the_command_line(tmp_path):
     with pytest.raises(SystemExit):
-        enrolment.init_main(["--file", str(tmp_path / "clearml.conf")])
+        enrolment.init_main(["--file", str(tmp_path / "cairnml.conf")])
 
 
 def test_init_writes_the_servers_own_address_and_the_device(tmp_path, capsys):
-    conf = tmp_path / "clearml.conf"
-    result = Enrolment(device_id="dev_9", server_url=PUBLIC, web_url="http://mlops-clearml:8080", user="alice")
+    conf = tmp_path / "cairnml.conf"
+    result = Enrolment(device_id="dev_9", server_url=PUBLIC, web_url="http://mlops-cairnml:8080", user="alice")
     with mock.patch.object(enrolment, "enrol", return_value=result) as enrol:
         code = enrolment.init_main(["--server", "http://localhost:8008", "--file", str(conf)])
     assert code == 0
@@ -30,7 +30,7 @@ def test_init_writes_the_servers_own_address_and_the_device(tmp_path, capsys):
 
 
 def test_init_refuses_when_enrolled_and_passes_the_previous_device_on_force(tmp_path):
-    conf = tmp_path / "clearml.conf"
+    conf = tmp_path / "cairnml.conf"
     conf.write_text(f'api {{ api_server: "{PUBLIC}"\n idp {{ device_id: "dev_old" }} }}\n')
     result = Enrolment(device_id="dev_new", server_url=PUBLIC, web_url="", user="bob")
     with mock.patch.object(enrolment, "enrol", return_value=result) as enrol:
@@ -40,7 +40,7 @@ def test_init_refuses_when_enrolled_and_passes_the_previous_device_on_force(tmp_
 
 
 def test_init_reports_a_refusal_and_writes_nothing(tmp_path, capsys):
-    conf = tmp_path / "clearml.conf"
+    conf = tmp_path / "cairnml.conf"
     with mock.patch.object(enrolment, "enrol", side_effect=EnrolmentFailed("only an admin may enrol an agent")):
         assert enrolment.init_main(["--server", PUBLIC, "--file", str(conf)]) == 1
     assert not conf.exists()
@@ -48,12 +48,12 @@ def test_init_reports_a_refusal_and_writes_nothing(tmp_path, capsys):
 
 
 def test_whoami_says_so_when_not_enrolled(tmp_path, capsys):
-    assert enrolment.whoami_main(["--file", str(tmp_path / "clearml.conf")]) == 1
+    assert enrolment.whoami_main(["--file", str(tmp_path / "cairnml.conf")]) == 1
     assert "not enrolled" in capsys.readouterr().err
 
 
 def test_logout_keeps_the_key_when_the_device_cannot_be_revoked(tmp_path, capsys):
-    conf = tmp_path / "clearml.conf"
+    conf = tmp_path / "cairnml.conf"
     conf.write_text(f'api {{ api_server: "{PUBLIC}"\n idp {{ device_id: "dev_1" }} }}\n')
     key = tmp_path / "device.key"
     save_device_key(key, Ed25519PrivateKey.generate())
@@ -65,7 +65,7 @@ def test_logout_keeps_the_key_when_the_device_cannot_be_revoked(tmp_path, capsys
 
 
 def test_logout_revokes_then_removes_the_key_and_the_device(tmp_path):
-    conf = tmp_path / "clearml.conf"
+    conf = tmp_path / "cairnml.conf"
     conf.write_text(f'api {{ api_server: "{PUBLIC}"\n idp {{ device_id: "dev_1" }} }}\n')
     key = tmp_path / "device.key"
     save_device_key(key, Ed25519PrivateKey.generate())
@@ -78,8 +78,8 @@ def test_logout_revokes_then_removes_the_key_and_the_device(tmp_path):
 
 
 def test_the_web_address_is_turned_into_the_api_address(tmp_path):
-    conf = tmp_path / "clearml.conf"
+    conf = tmp_path / "cairnml.conf"
     result = Enrolment(device_id="dev_7", server_url=PUBLIC, web_url="", user="alice")
     with mock.patch.object(enrolment, "enrol", return_value=result) as enrol:
-        enrolment.init_main(["--server", "http://mlops-clearml:8080", "--file", str(conf)])
-    assert enrol.call_args.args[0] == "http://mlops-clearml:8008"
+        enrolment.init_main(["--server", "http://mlops-cairnml:8080", "--file", str(conf)])
+    assert enrol.call_args.args[0] == "http://mlops-cairnml:8008"

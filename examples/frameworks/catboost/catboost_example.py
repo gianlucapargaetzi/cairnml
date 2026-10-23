@@ -1,11 +1,11 @@
-# ClearML - Example of CatBoost training, saving model and loading model
+# CairnML - Example of CatBoost training, saving model and loading model
 #
 import argparse
 
 from catboost import CatBoostRegressor, Pool
 from catboost.datasets import msrank
 
-from clearml import Task
+from cairnml import Task
 
 import numpy as np
 

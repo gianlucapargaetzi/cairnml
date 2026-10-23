@@ -1,4 +1,4 @@
-# ClearML - Keras with Tensorboard example code, automatic logging model and Tensorboard outputs
+# CairnML - Keras with Tensorboard example code, automatic logging model and Tensorboard outputs
 #
 # Train a simple deep NN on the MNIST dataset.
 # Gets to 98.40% test accuracy after 20 epochs
@@ -17,10 +17,10 @@ from tensorflow.keras.layers import Activation, Dense
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.optimizers import RMSprop
 
-from clearml import Task, Logger
+from cairnml import Task, Logger
 
 
-# Connecting ClearML with the current process,
+# Connecting CairnML with the current process,
 # from here on everything is logged automatically
 task = Task.init(project_name='examples', task_name='Keras HP optimization base')
 

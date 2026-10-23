@@ -1,6 +1,6 @@
-# ClearML - Example of manual graphs and statistics reporting
+# CairnML - Example of manual graphs and statistics reporting
 #
-from clearml import Task, Logger
+from cairnml import Task, Logger
 
 
 def report_scalars(logger):
@@ -25,7 +25,7 @@ def report_scalars(logger):
 
 
 def main():
-    # Connecting ClearML with the current process,
+    # Connecting CairnML with the current process,
     # from here on everything is logged automatically
     task = Task.init(project_name="examples", task_name="Scalar reporting")
 

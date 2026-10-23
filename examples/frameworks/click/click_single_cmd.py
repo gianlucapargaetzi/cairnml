@@ -1,5 +1,5 @@
 import click
-from clearml import Task
+from cairnml import Task
 
 
 @click.command()

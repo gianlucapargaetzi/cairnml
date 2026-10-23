@@ -6,7 +6,7 @@ You can reuse `simple_webserver.py` for the primary endpoint and launch any othe
 service on the secondary port before running this example.
 """
 
-from clearml import Task
+from cairnml import Task
 
 
 if __name__ == "__main__":

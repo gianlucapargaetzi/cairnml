@@ -1,18 +1,18 @@
 import logging
 import argparse
 
-from clearml import Task
-from clearml.automation import (
+from cairnml import Task
+from cairnml.automation import (
     DiscreteParameterRange, HyperParameterOptimizer, RandomSearch,
     UniformIntegerParameterRange)
 
 # trying to load Bayesian optimizer package
 try:
-    from clearml.automation.optuna import OptimizerOptuna  # noqa
+    from cairnml.automation.optuna import OptimizerOptuna  # noqa
     aSearchStrategy = OptimizerOptuna
 except ImportError as ex:
     try:
-        from clearml.automation.hpbandster import OptimizerBOHB  # noqa
+        from cairnml.automation.hpbandster import OptimizerBOHB  # noqa
         aSearchStrategy = OptimizerBOHB
     except ImportError as ex:
         logging.getLogger().warning(
@@ -38,7 +38,7 @@ parser.add_argument("--template_task_id", default=None, help="Task to optimize")
 parser.add_argument("--run_as_service", action="store_true", help="If set, run remotely as a service")
 args = parser.parse_args()
 
-# Connecting ClearML with the current process,
+# Connecting CairnML with the current process,
 # from here on everything is logged automatically
 task = Task.init(project_name='Hyper-Parameter Optimization',
                  task_name='Automatic Hyper-Parameter Optimization',
@@ -109,7 +109,7 @@ an_optimizer = HyperParameterOptimizer(
 
 # if we are running as a service, just enqueue ourselves into the services queue and let it run the optimization
 if args.run_as_service:
-    # if this code is executed by `clearml-agent` the function call does nothing.
+    # if this code is executed by `cairnml-agent` the function call does nothing.
     # if executed locally, the local process will be terminated, and a remote copy will be executed instead
     task.execute_remotely(queue_name='services', exit_process=True)
 

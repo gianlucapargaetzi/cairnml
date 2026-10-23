@@ -10,18 +10,18 @@ You can configure the run by changing the `args` dictionary:
 - force_delete (bool): Allows forcing the task deletion (for every task status). Default: False.
 
 Requirements:
-- clearml_agent installed -> pip install clearml-agent
+- cairnml_agent installed -> pip install cairnml-agent
 
 """
 import logging
 from datetime import datetime
 from time import sleep, time
 
-from clearml.backend_api.session.client import APIClient
+from cairnml.backend_api.session.client import APIClient
 
-from clearml import Task
+from cairnml import Task
 
-# Connecting ClearML with the current process,
+# Connecting CairnML with the current process,
 # from here on everything is logged automatically
 task = Task.init(
     project_name="DevOps",
@@ -46,7 +46,7 @@ if args["run_as_service"] and task.running_locally():
     args["run_as_service"] = not verify or verify.startswith('y')
 
 if args["run_as_service"]:
-    # if this code is executed by `clearml-agent` the function call does nothing.
+    # if this code is executed by `cairnml-agent` the function call does nothing.
     # if executed locally, the local process will be terminated, and a remote copy will be executed instead
     task.execute_remotely(queue_name="services", exit_process=True)
 

@@ -1,7 +1,7 @@
-# ClearML - Example of manual model reporting
-from clearml import Task, OutputModel
+# CairnML - Example of manual model reporting
+from cairnml import Task, OutputModel
 
-# Connecting ClearML with the current process,
+# Connecting CairnML with the current process,
 task = Task.init(project_name="examples", task_name="Model reporting example")
 
 # Create output model and connect it to the task

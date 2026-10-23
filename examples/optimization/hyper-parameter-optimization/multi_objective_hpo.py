@@ -1,11 +1,11 @@
 import sys
 
-from clearml import Task
-from clearml.automation import DiscreteParameterRange, HyperParameterOptimizer, UniformIntegerParameterRange
+from cairnml import Task
+from cairnml.automation import DiscreteParameterRange, HyperParameterOptimizer, UniformIntegerParameterRange
 
 
 try:
-    from clearml.automation.optuna import OptimizerOptuna  # noqa
+    from cairnml.automation.optuna import OptimizerOptuna  # noqa
 except ImportError:
     print("Multi-objective HPO is currently only supported via Optuna")
     sys.exit(0)
@@ -87,7 +87,7 @@ if __name__ == "__main__":
 
     # if we are running as a service, just enqueue ourselves into the services queue and let it run the optimization
     if args["run_as_service"]:
-        # if this code is executed by `clearml-agent` the function call does nothing.
+        # if this code is executed by `cairnml-agent` the function call does nothing.
         # if executed locally, the local process will be terminated, and a remote copy will be executed instead
         task.execute_remotely(queue_name="services", exit_process=True)
 

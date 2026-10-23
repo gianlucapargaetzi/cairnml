@@ -1,6 +1,6 @@
 import sys
 import time
-from clearml import Task
+from cairnml import Task
 
 
 def check_task_status(task_id, timeout=600):

@@ -1,4 +1,4 @@
-from clearml import PipelineController
+from cairnml import PipelineController
 
 
 # We will use the following function an independent pipeline component step
@@ -9,7 +9,7 @@ def step_one(pickle_data_url):
     import sklearn  # noqa
     import pickle
     import pandas as pd
-    from clearml import StorageManager
+    from cairnml import StorageManager
     pickle_data_url = \
         pickle_data_url or \
         'https://github.com/allegroai/events/raw/master/odsc20-east/generic/iris_dataset.pkl'
@@ -97,7 +97,7 @@ if __name__ == '__main__':
     # Use run_pipeline_steps_locally=True to further execute the pipeline component Tasks as subprocesses.
     # pipe.start_locally(run_pipeline_steps_locally=False)
 
-    # Start the pipeline on the services queue (remote machine, default on the clearml-server)
+    # Start the pipeline on the services queue (remote machine, default on the cairnml-server)
     pipe.start()
 
     print('pipeline completed')

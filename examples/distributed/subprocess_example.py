@@ -1,4 +1,4 @@
-# ClearML - example of multiple sub-processes interacting and reporting to a single master experiment
+# CairnML - example of multiple sub-processes interacting and reporting to a single master experiment
 
 import multiprocessing
 import os
@@ -8,7 +8,7 @@ import time
 from argparse import ArgumentParser
 from random import randint
 
-from clearml import Task
+from cairnml import Task
 
 
 def mp_worker(arguments):
@@ -89,7 +89,7 @@ if __name__ == "__main__":
 
     # We have to initialize the task in the master process,
     # it will make sure that any sub-process calling Task.init will get the master task object
-    # notice that we exclude the `counter` argument, so we can launch multiple sub-processes with clearml-agent
+    # notice that we exclude the `counter` argument, so we can launch multiple sub-processes with cairnml-agent
     # otherwise, the `counter` will always be set to the original value.
     task = Task.init(
         project_name="examples",

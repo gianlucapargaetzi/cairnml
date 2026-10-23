@@ -1,0 +1,53 @@
+import json
+from os.path import expanduser
+
+from pathlib2 import Path
+
+from . import running_remotely
+from .defs import SESSION_CACHE_FILE
+
+
+class SessionCache:
+    """
+    Handle SDK session cache.
+    TODO: Improve error handling to something like "except (FileNotFoundError, PermissionError, JSONDecodeError)"
+    TODO: that's both six-compatible and tested
+    """
+
+    SESSION_CACHE_FOLDER = "~/.cairnml"
+
+    @classmethod
+    def _load_cache(cls) -> dict:
+        # noinspection PyBroadException
+        try:
+            with (Path(expanduser(cls.SESSION_CACHE_FOLDER)) / SESSION_CACHE_FILE).open("rt") as fp:
+                return json.load(fp)
+        except Exception:
+            return {}
+
+    @classmethod
+    def _store_cache(cls, cache: dict) -> None:
+        # noinspection PyBroadException
+        try:
+            Path(expanduser(cls.SESSION_CACHE_FOLDER)).mkdir(parents=True, exist_ok=True)
+            with (Path(expanduser(cls.SESSION_CACHE_FOLDER)) / SESSION_CACHE_FILE).open("wt") as fp:
+                json.dump(cache, fp)
+        except Exception:
+            pass
+
+    @classmethod
+    def store_dict(cls, unique_cache_name: str, dict_object: dict) -> None:
+        # disable session cache when running in remote execution mode
+        if running_remotely():
+            return
+        cache = cls._load_cache()
+        cache[unique_cache_name] = dict_object
+        cls._store_cache(cache)
+
+    @classmethod
+    def load_dict(cls, unique_cache_name: str) -> dict:
+        # disable session cache when running in remote execution mode
+        if running_remotely():
+            return {}
+        cache = cls._load_cache()
+        return cache.get(unique_cache_name, {}) if cache else {}

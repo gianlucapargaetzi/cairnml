@@ -1,4 +1,4 @@
-# ClearML - Example of new tensorboard pr_curves model
+# CairnML - Example of new tensorboard pr_curves model
 #
 # Copyright 2017 The TensorFlow Authors. All Rights Reserved.
 #
@@ -37,10 +37,10 @@ from absl import flags
 from six.moves import xrange  # pylint: disable=redefined-builtin
 import tensorflow as tf
 from tensorboard.plugins.pr_curve import summary
-from clearml import Task
+from cairnml import Task
 
 
-# Connecting ClearML with the current process,
+# Connecting CairnML with the current process,
 # from here on everything is logged automatically
 task = Task.init(project_name='examples', task_name='TensorBoard pr_curve')
 

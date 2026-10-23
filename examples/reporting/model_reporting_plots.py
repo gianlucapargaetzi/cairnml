@@ -1,10 +1,10 @@
-# ClearML - Example of manual model reporting
-from clearml import Task, OutputModel
-from clearml.utilities.plotly_reporter import SeriesInfo
+# CairnML - Example of manual model reporting
+from cairnml import Task, OutputModel
+from cairnml.utilities.plotly_reporter import SeriesInfo
 import pandas as pd
 import numpy as np
 
-# Connecting ClearML with the current process,
+# Connecting CairnML with the current process,
 task = Task.init(project_name="examples", task_name="Model reporting plots example")
 
 # Create output model and connect it to the task

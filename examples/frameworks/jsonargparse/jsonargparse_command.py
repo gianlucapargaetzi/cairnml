@@ -1,5 +1,5 @@
 from jsonargparse import CLI
-from clearml import Task
+from cairnml import Task
 
 
 class Main:

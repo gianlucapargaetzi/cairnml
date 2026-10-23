@@ -7,11 +7,11 @@ from typing import Tuple
 
 import yaml
 
-from clearml import Task
-from clearml.automation.auto_scaler import AutoScaler, ScalerConfig
-from clearml.automation.aws_driver import AWSDriver
-from clearml.config import running_remotely
-from clearml.utilities.wizard.user_input import (
+from cairnml import Task
+from cairnml.automation.auto_scaler import AutoScaler, ScalerConfig
+from cairnml.automation.aws_driver import AWSDriver
+from cairnml.config import running_remotely
+from cairnml.utilities.wizard.user_input import (
     get_input, input_bool, input_int, input_list, multiline_input
 )
 
@@ -36,7 +36,7 @@ default_config = {
         'resource_configurations': None,
         'queues': None,
         'extra_trains_conf': '',
-        'extra_clearml_conf': '',
+        'extra_cairnml_conf': '',
         'extra_vm_bash_script': '',
     },
 }
@@ -70,7 +70,7 @@ def main():
         print("AWS Autoscaler setup wizard\n"
               "---------------------------\n"
               "Follow the wizard to configure your AWS auto-scaler service.\n"
-              "Once completed, you will be able to view and change the configuration in the clearml-server web UI.\n"
+              "Once completed, you will be able to view and change the configuration in the cairnml-server web UI.\n"
               "It means there is no need to worry about typos or mistakes :)\n")
 
         if args.config_file.exists() and input_bool(
@@ -93,7 +93,7 @@ def main():
                 print(f"Error! Could not write configuration file at: {args.config_file}")
                 return
 
-    # Connecting ClearML with the current process,
+    # Connecting CairnML with the current process,
     # from here on everything is logged automatically
     task = Task.init(project_name="DevOps", task_name="AWS Auto-Scaler", task_type=Task.TaskTypes.service)
     task.connect(conf['hyper_params'])
@@ -106,7 +106,7 @@ def main():
 
     if args.remote:
         # if we are running remotely enqueue this run, and leave the process
-        # the clearml-agent services will pick it up and execute it for us.
+        # the cairnml-agent services will pick it up and execute it for us.
         task.execute_remotely(queue_name='services')
 
     driver = AWSDriver.from_config(conf)
@@ -226,10 +226,10 @@ def run_wizard():
     )
     print(f"Entered {num_lines_bash_script} lines of pre-execution bash script")
 
-    configurations['extra_clearml_conf'], num_lines_clearml_conf = multiline_input(
-        "\nEnter anything you'd like to include in your clearml.conf file []"
+    configurations['extra_cairnml_conf'], num_lines_cairnml_conf = multiline_input(
+        "\nEnter anything you'd like to include in your cairnml.conf file []"
     )
-    print(f"Entered {num_lines_clearml_conf} extra lines for clearml.conf file")
+    print(f"Entered {num_lines_cairnml_conf} extra lines for cairnml.conf file")
 
     print("\nDefine the machines budget:")
     print("-----------------------------")

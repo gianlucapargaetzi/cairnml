@@ -1,5 +1,5 @@
-from clearml import Task, Model
-from clearml.automation import TriggerScheduler
+from cairnml import Task, Model
+from cairnml.automation import TriggerScheduler
 
 
 def trigger_model_func(model_id):

@@ -1,9 +1,9 @@
 import pickle
-from clearml import Task, StorageManager
+from cairnml import Task, StorageManager
 from sklearn.model_selection import train_test_split
 
 
-# Connecting ClearML with the current process,
+# Connecting CairnML with the current process,
 # from here on everything is logged automatically
 task = Task.init(project_name="examples", task_name="Pipeline step 2 process dataset")
 

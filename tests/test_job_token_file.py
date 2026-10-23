@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from clearml.backend_api.session.job_token_file import read_job_token_file
-from clearml.backend_api.session.session import Session
+from cairnml.backend_api.session.job_token_file import read_job_token_file
+from cairnml.backend_api.session.session import Session
 
 
 def job_session(token_file, job_token=None):

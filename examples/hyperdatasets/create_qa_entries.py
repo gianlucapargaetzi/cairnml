@@ -27,15 +27,15 @@ import uuid
 from pathlib import Path
 from typing import Iterable, List, Optional, Tuple
 
-# ClearML HyperDataset primitives (dataset, entries, and helpers)
-from clearml.hyperdatasets import (
+# CairnML HyperDataset primitives (dataset, entries, and helpers)
+from cairnml.hyperdatasets import (
     HyperDataset,
     DataEntry,
     DataSubEntry,
 )
 
 
-# ClearML sub-entry representing a single text snippet within the Q&A pair
+# CairnML sub-entry representing a single text snippet within the Q&A pair
 class QADataSubEntry(DataSubEntry):
     def __init__(self, name: str, text: str, role: str, preview_source: Optional[str] = None):
         super().__init__(
@@ -46,7 +46,7 @@ class QADataSubEntry(DataSubEntry):
         )
 
 
-# ClearML data entry aggregating the question/answer into a single frame
+# CairnML data entry aggregating the question/answer into a single frame
 class QADataEntry(DataEntry):
     def __init__(
         self,
@@ -81,7 +81,7 @@ def parse_args() -> argparse.Namespace:
         description=description or None,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument("--project", default="HyperDatasets Examples", help="ClearML project name")
+    parser.add_argument("--project", default="HyperDatasets Examples", help="CairnML project name")
     parser.add_argument("--dataset-name", required=True, help="HyperDataset collection name")
     parser.add_argument("--version-name", required=True, help="HyperDataset version name")
     parser.add_argument("--description", default="Q&A demo HyperDataset", help="Version description")
@@ -124,8 +124,8 @@ def load_qa_pairs(qa_json: Optional[Path]) -> List[dict]:
     # Default in-script examples.
     return [
         {
-            "question": "What is ClearML HyperDataset?",
-            "answer": "A ClearML data structure that lets you manage structured data entries with optional assets.",
+            "question": "What is CairnML HyperDataset?",
+            "answer": "A CairnML data structure that lets you manage structured data entries with optional assets.",
             "reference": "https://clear.ml/docs/latest/docs/hyperdatasets",
             "tags": ["docs", "product"],
         },
@@ -272,7 +272,7 @@ def main():
     field_mappings = None
     if vector_dims:
         field_path = vector_field if vector_field.startswith("meta.") else f"meta.{vector_field}"
-        # ClearML field mapping informs the server about the dense vector metadata schema
+        # CairnML field mapping informs the server about the dense vector metadata schema
         field_mappings = {
             field_path: {
                 "type": "dense_vector",
@@ -281,7 +281,7 @@ def main():
             }
         }
 
-    # ClearML HyperDataset version handle (creates if missing)
+    # CairnML HyperDataset version handle (creates if missing)
     dataset = HyperDataset(
         project_name=args.project,
         dataset_name=args.dataset_name,
@@ -292,7 +292,7 @@ def main():
 
     entries, _ = build_entries(qa_pairs, embeddings, vector_field)
 
-    # Upload entries so ClearML handles storage and indexing
+    # Upload entries so CairnML handles storage and indexing
     errors = dataset.add_data_entries(entries, upload_local_files_destination=None, force_upload=True)
     if errors.get("register"):
         raise RuntimeError(f"Failed registering entries: {errors['register']}")

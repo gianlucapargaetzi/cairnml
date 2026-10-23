@@ -1,10 +1,10 @@
-# ClearML - Hydra Example
+# CairnML - Hydra Example
 #
 import hydra
 
 from omegaconf import OmegaConf
 
-from clearml import Task
+from cairnml import Task
 
 
 @hydra.main(config_path="config_files", config_name="config", version_base=None)

@@ -1,10 +1,10 @@
-# ClearML - Example of Plotly integration and reporting
+# CairnML - Example of Plotly integration and reporting
 #
-from clearml import Task
+from cairnml import Task
 import plotly.express as px
 
 
-# Connecting ClearML with the current process,
+# Connecting CairnML with the current process,
 # from here on everything is logged automatically
 task = Task.init('examples', 'plotly reporting')
 

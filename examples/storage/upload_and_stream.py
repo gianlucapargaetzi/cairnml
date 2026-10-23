@@ -10,16 +10,16 @@ Works with any storage provider supported by the SDK, for example:
     python upload_and_stream.py s3://my-bucket/examples
     python upload_and_stream.py gs://my-bucket/examples
     python upload_and_stream.py azure://account.blob.core.windows.net/container/examples
-    python upload_and_stream.py https://files.myclearml.com/examples
+    python upload_and_stream.py https://files.mycairnml.com/examples
 
-Credentials are taken from your clearml.conf (sdk.aws.s3 / sdk.google.storage / sdk.azure.storage).
+Credentials are taken from your cairnml.conf (sdk.aws.s3 / sdk.google.storage / sdk.azure.storage).
 """
 import argparse
 import os
 from io import BytesIO
 from tempfile import gettempdir
 
-from clearml.storage import StorageManager
+from cairnml.storage import StorageManager
 
 
 def main():

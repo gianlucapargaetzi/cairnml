@@ -1,5 +1,5 @@
 """
-ClearML - Example of remote_execution with Pytorch mnist training
+CairnML - Example of remote_execution with Pytorch mnist training
 
 The task.remote_execution option is used when it's needed to run part of the code locally and then move it for
 full execution remotely. When running locally, the task.remote_execution() will complete the currently running task and
@@ -20,7 +20,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torchvision import datasets, transforms
 
-from clearml import Task, Logger
+from cairnml import Task, Logger
 
 
 class Net(nn.Module):
@@ -89,7 +89,7 @@ def test(args, model, device, test_loader, epoch):
 
 
 def main():
-    # Connecting ClearML with the current process,
+    # Connecting CairnML with the current process,
     # from here on everything is logged automatically
     task = Task.init(
         project_name="examples",

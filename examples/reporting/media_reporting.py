@@ -1,10 +1,10 @@
-# ClearML - Example reporting video or audio links/file
+# CairnML - Example reporting video or audio links/file
 #
 import os
-from clearml import Task, Logger
+from cairnml import Task, Logger
 
 
-# Connecting ClearML with the current process,
+# Connecting CairnML with the current process,
 # from here on everything is logged automatically
 task = Task.init(project_name="examples", task_name="Audio and video reporting")
 

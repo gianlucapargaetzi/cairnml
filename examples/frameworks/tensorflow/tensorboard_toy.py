@@ -1,4 +1,4 @@
-# ClearML - Example of tensorboard with tensorflow (without any actual training)
+# CairnML - Example of tensorboard with tensorflow (without any actual training)
 #
 import os
 import tensorflow as tf
@@ -6,7 +6,7 @@ import numpy as np
 from tempfile import gettempdir
 from PIL import Image
 
-from clearml import Task
+from cairnml import Task
 
 
 def generate_summary(k, step):

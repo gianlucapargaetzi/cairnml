@@ -19,8 +19,8 @@ What is the expected behaviour? What should've happened but didn't?
 
 ## Environment
 * Server type (self hosted \ app.clear.ml)
-* ClearML SDK Version
-* ClearML Server Version (Only for self hosted). Can be found on the bottom right corner of the settings screen.
+* CairnML SDK Version
+* CairnML Server Version (Only for self hosted). Can be found on the bottom right corner of the settings screen.
 * Python Version
 * OS (Windows \ Linux \ Macos)
 ## Related Discussion

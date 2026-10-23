@@ -7,13 +7,13 @@ import jwt
 import pytest
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
-from clearml.idp import assertion, keys
+from cairnml.idp import assertion, keys
 
 AUDIENCE = "https://api.example"
 DEVICE = "dev_1234"
 HERE = Path(__file__).resolve().parent
 SERVER_IDP = Path(os.environ.get(
-    "CLEARML_SERVER_IDP", HERE.parent.parent / "clearml-server" / "apiserver" / "idp"
+    "CAIRNML_SERVER_IDP", HERE.parent.parent / "cairnml-server" / "apiserver" / "idp"
 ))
 
 
@@ -76,7 +76,7 @@ def test_a_key_survives_the_pem_round_trip(key):
 def test_the_vendored_copy_matches_the_server(name):
     if not SERVER_IDP.is_dir():
         pytest.skip(f"server checkout not found at {SERVER_IDP}")
-    ours = HERE.parent / "clearml" / "idp" / name
+    ours = HERE.parent / "cairnml" / "idp" / name
     theirs = SERVER_IDP / name
     digest = lambda p: hashlib.sha256(p.read_bytes()).hexdigest()
     assert digest(ours) == digest(theirs)

@@ -2,7 +2,7 @@ import xgboost as xgb
 from sklearn.datasets import load_iris
 from sklearn.model_selection import train_test_split
 
-from clearml import Task
+from cairnml import Task
 
 task = Task.init(project_name="examples", task_name="XGBoost metric auto reporting")
 

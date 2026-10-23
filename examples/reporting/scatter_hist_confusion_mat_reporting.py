@@ -1,8 +1,8 @@
-# ClearML - Example of manual graphs and  statistics reporting
+# CairnML - Example of manual graphs and  statistics reporting
 #
 import numpy as np
 
-from clearml import Task, Logger
+from cairnml import Task, Logger
 
 
 def report_plots(logger, iteration=0):
@@ -109,7 +109,7 @@ def report_plots(logger, iteration=0):
 
 
 def main():
-    # Connecting ClearML with the current process,
+    # Connecting CairnML with the current process,
     # from here on everything is logged automatically
     task = Task.init(project_name="examples", task_name="2D plots reporting")
 

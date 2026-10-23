@@ -75,7 +75,7 @@ if __name__ == '__main__':
         hooks=[
             dict(type='TextLoggerHook'),
             dict(
-                type='ClearMLLoggerHook',
+                type='CairnMLLoggerHook',
                 init_kwargs=dict(
                     project_name='examples',
                     task_name='OpenMMLab cifar10',

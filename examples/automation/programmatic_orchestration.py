@@ -1,4 +1,4 @@
-from clearml import Task
+from cairnml import Task
 from time import sleep
 
 # Initialize the Task Pipe's first Task used to start the Task Pipe
@@ -39,7 +39,7 @@ cloned_task_parameters = cloned_task.get_parameters()
 cloned_task_parameters[param["param_name"]] = param["param_name_new_value"]
 cloned_task.set_parameters(cloned_task_parameters)
 
-# Enqueue the Task for execution. The enqueued Task must already exist in the clearml platform
+# Enqueue the Task for execution. The enqueued Task must already exist in the cairnml platform
 print(
     f"Enqueue next step in pipeline to queue: {param['execution_queue_name']}"
 )

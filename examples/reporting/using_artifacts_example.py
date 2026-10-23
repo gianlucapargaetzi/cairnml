@@ -2,7 +2,7 @@
 """
 Upload artifacts from a Task, and then a different Task can access and utilize the data from that artifact.
 """
-from clearml import Task
+from cairnml import Task
 from time import sleep
 
 task1 = Task.init(project_name='examples', task_name='Create artifact')

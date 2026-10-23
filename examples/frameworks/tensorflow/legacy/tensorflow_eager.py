@@ -1,4 +1,4 @@
-# ClearML - Example of tensorflow eager mode, model logging and tensorboard
+# CairnML - Example of tensorflow eager mode, model logging and tensorboard
 #
 # Copyright 2017 The TensorFlow Authors. All Rights Reserved.
 #
@@ -30,12 +30,12 @@ from tempfile import gettempdir
 import tensorflow as tf
 from tensorflow.examples.tutorials.mnist import input_data
 
-from clearml import Task
+from cairnml import Task
 
 
 tf.compat.v1.enable_eager_execution()
 
-# Connecting ClearML with the current process,
+# Connecting CairnML with the current process,
 # from here on everything is logged automatically
 task = Task.init(project_name='examples', task_name='TensorFlow eager mode')
 

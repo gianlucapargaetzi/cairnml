@@ -1,6 +1,6 @@
 """
 A simple webserver, used as a tool to showcase the capabilities of
-ClearML HTTP router. See `http_router.py` for more details.
+CairnML HTTP router. See `http_router.py` for more details.
 """
 
 

@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from clearml.datasets import footprint as fp
+from cairnml.datasets import footprint as fp
 
 DVC = "outs:\n- md5: 465a62c55506cd2fa10372c1f9ba4b5e.dir\n  size: 2048\n  nfiles: 3\n  hash: md5\n  path: data\n"
 
@@ -90,7 +90,7 @@ def test_a_config_must_pick_one_format():
 
 
 def test_the_script_runs_alone_and_exits_non_zero_on_problems(tmp_path):
-    """The copy in .clearml/verify.py is run by a GitHub Action with no SDK installed."""
+    """The copy in .cairnml/verify.py is run by a GitHub Action with no SDK installed."""
     repo = tmp_path / "repo"
     repo.mkdir()
     (repo / fp.DVC_FILE).write_text(DVC)

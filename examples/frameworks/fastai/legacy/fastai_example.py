@@ -1,8 +1,8 @@
-# ClearML - Fastai example code, automatic logging the model and scalars
+# CairnML - Fastai example code, automatic logging the model and scalars
 #
 import argparse
 
-from clearml import Task
+from cairnml import Task
 
 import fastai
 

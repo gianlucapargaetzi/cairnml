@@ -7,9 +7,9 @@ import jwt
 import pytest
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
-from clearml.backend_api.session.session import LoginError, Session
-from clearml.idp import keys
-from clearml.idp.device import device_assertion, save_device_key
+from cairnml.backend_api.session.session import LoginError, Session
+from cairnml.idp import keys
+from cairnml.idp.device import device_assertion, save_device_key
 
 HOST = "https://api.example"
 DEVICE = "dev_laptop"
@@ -57,7 +57,7 @@ def test_a_device_exchanges_a_signed_assertion_for_a_token(key_file):
     key, path = key_file
     session = device_session()
     reply = Response(200, {"data": {"access_token": "access-1", "expires_in": 900}})
-    with mock.patch("clearml.idp.device.DEVICE_KEY_PATH", path), \
+    with mock.patch("cairnml.idp.device.DEVICE_KEY_PATH", path), \
             mock.patch.object(Session, "_send_request", return_value=reply) as send:
         assert session._do_refresh_token(None) == "access-1"
 
@@ -75,7 +75,7 @@ def test_a_refused_exchange_is_a_login_error(key_file):
     _, path = key_file
     session = device_session()
     refused = Response(401, {"meta": {"result_msg": "device revoked"}})
-    with mock.patch("clearml.idp.device.DEVICE_KEY_PATH", path), \
+    with mock.patch("cairnml.idp.device.DEVICE_KEY_PATH", path), \
             mock.patch.object(Session, "_send_request", return_value=refused):
         with pytest.raises(LoginError, match="device revoked"):
             session._do_refresh_token(None)

@@ -1,13 +1,13 @@
 """
 Fine-tune a base LLM with LoRA adapters on HyperDataset Q&A entries using Hugging Face's Trainer.
 
-This variant keeps the ClearML multi-node bootstrap from the original script but delegates the
+This variant keeps the CairnML multi-node bootstrap from the original script but delegates the
 training loop to `transformers.Trainer` for a more compact implementation.
 
 Example local run (single node, all GPUs):
     python finetune_qa_lora.py --devices-per-node -1
 
-Example ClearML (enqueue):
+Example CairnML (enqueue):
     python finetune_qa_lora.py --queue <your_queue> --num-nodes 2 --devices-per-node -1 --dist-port 29500
 """
 
@@ -17,8 +17,8 @@ import argparse
 import os
 import uuid
 from typing import Any, Dict, Iterable, Optional, TYPE_CHECKING
-from clearml import Task, OutputModel
-from clearml.hyperdatasets import (
+from cairnml import Task, OutputModel
+from cairnml.hyperdatasets import (
     DataEntry,
     DataSubEntry,
     DataView,
@@ -240,11 +240,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--save-model",
         action="store_true",
-        help="Merge LoRA adapters into the base model and upload it as a ClearML OutputModel",
+        help="Merge LoRA adapters into the base model and upload it as a CairnML OutputModel",
     )
 
-    # ClearML / distributed
-    parser.add_argument("--queue", type=str, default=None, help="ClearML queue to enqueue to (runs remotely)")
+    # CairnML / distributed
+    parser.add_argument("--queue", type=str, default=None, help="CairnML queue to enqueue to (runs remotely)")
     parser.add_argument("--num-nodes", type=int, default=1, help="Total number of nodes")
     parser.add_argument("--devices-per-node", type=int, default=-1, help="-1: all visible GPUs; else number")
     parser.add_argument("--dist-port", type=int, default=29500, help="Rendezvous port (local multi-GPU)")
@@ -379,7 +379,7 @@ def _trainer_process_entry(
         save_strategy="no",
         dataloader_num_workers=args.num_workers,
         dataloader_pin_memory=True,
-        report_to=["clearml"],
+        report_to=["cairnml"],
         lr_scheduler_type="linear",
         fp16=torch.cuda.is_available(),
         remove_unused_columns=False,
@@ -421,7 +421,7 @@ def _trainer_process_entry(
                 output_model = OutputModel(task=task, name=model_name, framework="PyTorch")
                 output_model.update_weights_package(weights_path=merged_dir, async_enable=False)
                 task.get_logger().report_text(
-                    f"Merged model uploaded to ClearML model repository as '{output_model.name or model_name}'."
+                    f"Merged model uploaded to CairnML model repository as '{output_model.name or model_name}'."
                 )
             except Exception as exc:  # pragma: no cover
                 task.get_logger().report_text(f"Failed to merge and upload merged model: {exc}")

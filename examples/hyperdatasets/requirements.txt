@@ -1,4 +1,4 @@
-clearml>=2.1.0
+cairnml>=2.1.0
 accelerate==1.12.0
 peft==0.18.1
 Pillow

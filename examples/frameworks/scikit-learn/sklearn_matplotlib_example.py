@@ -6,7 +6,7 @@ from sklearn.model_selection import learning_curve
 from sklearn.naive_bayes import GaussianNB
 from sklearn.svm import SVC
 
-from clearml import Task
+from cairnml import Task
 
 
 def plot_learning_curve(estimator, title, X, y, axes=None, ylim=None, cv=None, n_jobs=None,
@@ -124,7 +124,7 @@ def plot_learning_curve(estimator, title, X, y, axes=None, ylim=None, cv=None, n
     return plt
 
 
-# Connecting ClearML with the current process,
+# Connecting CairnML with the current process,
 # from here on everything is logged automatically
 Task.init('examples', 'scikit-learn matplotlib example')
 

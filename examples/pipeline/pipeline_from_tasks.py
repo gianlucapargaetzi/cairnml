@@ -1,5 +1,5 @@
-from clearml import Task
-from clearml.automation import PipelineController
+from cairnml import Task
+from cairnml.automation import PipelineController
 
 
 def pre_execute_callback_example(a_pipeline, a_node, current_param_override):
@@ -19,7 +19,7 @@ def post_execute_callback_example(a_pipeline, a_node):
     return
 
 
-# Connecting ClearML with the current pipeline,
+# Connecting CairnML with the current pipeline,
 # from here on everything is logged automatically
 pipe = PipelineController(
     name="Pipeline demo", project="examples", version="0.0.1", add_pipeline_tags=False

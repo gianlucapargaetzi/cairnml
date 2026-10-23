@@ -13,9 +13,9 @@ import numpy as np
 import tensorflow as tf
 from tensorflow import keras
 
-from clearml import Task
+from cairnml import Task
 
-# Connecting ClearML with the current process,
+# Connecting CairnML with the current process,
 # from here on everything is logged automatically
 task = Task.init(project_name="autokeras", task_name="AutoKeras IMDB example with scalars")
 

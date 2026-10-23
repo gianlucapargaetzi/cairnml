@@ -1,15 +1,15 @@
-# ClearML - Example of LightGBM integration
+# CairnML - Example of LightGBM integration
 #
 import lightgbm as lgb
 import matplotlib.pyplot as plt
 import pandas as pd
 from sklearn.metrics import mean_squared_error
 
-from clearml import Task
+from cairnml import Task
 
 
 def main():
-    # Connecting ClearML with the current process,
+    # Connecting CairnML with the current process,
     # from here on everything is logged automatically
     task = Task.init(project_name="examples", task_name="LightGBM")
 
