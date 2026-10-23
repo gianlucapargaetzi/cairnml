@@ -86,6 +86,10 @@ setup(
         'gs': [
             'google-cloud-storage>=1.13.2',
         ],
+        'dataset': [
+            'dvc[s3]>=3.50',
+            'pyarrow>=14',
+        ],
         'router': [
             'fastapi>=0.115.2',
             'uvicorn>=0.31.1',
@@ -108,7 +112,7 @@ setup(
             'clearml-init = clearml.cli.enrolment:init_main',
             'clearml-whoami = clearml.cli.enrolment:whoami_main',
             'clearml-logout = clearml.cli.enrolment:logout_main',
-            'clearml-data = clearml.cli.data.__main__:main',
+            'clearml-dataset = clearml.cli.dataset.__main__:main',
             'clearml-task = clearml.cli.task.__main__:main',
             'clearml-param-search = clearml.cli.hpo.__main__:main',
             'clearml-debug = clearml.cli.debug.__main__:main'

@@ -1,15 +1,10 @@
-from clearml import Task, Dataset, Model
+from clearml import Task, Model
 from clearml.automation import TriggerScheduler
 
 
 def trigger_model_func(model_id):
     model = Model(model_id=model_id)
     print(f'model id {model.id} modified')
-
-
-def trigger_dataset_func(dataset_id):
-    dataset = Dataset.get(dataset_id=dataset_id)
-    print(f'dataset id {dataset.id} created')
 
 
 def trigger_task_func(task_id):
@@ -38,15 +33,6 @@ if __name__ == '__main__':
         schedule_queue='default',
         trigger_project='examples',
         trigger_on_tags=['deploy']
-    )
-
-    # Add trigger on dataset creation
-    trigger.add_dataset_trigger(
-        name='retrain on dataset',
-        schedule_function=trigger_dataset_func,
-        # schedule_task_id='aabbcc', # you can also schedule an existing task to be executed
-        trigger_project='datasets',
-        trigger_on_tags=['retrain']
     )
 
     # Add trigger on Task performance
