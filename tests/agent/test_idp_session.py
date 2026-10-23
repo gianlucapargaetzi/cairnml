@@ -88,3 +88,13 @@ def test_the_assertion_helper_targets_the_host(key_file):
     claims = jwt.decode(token, key.public_key(), algorithms=["EdDSA"], audience=HOST,
                         options={"verify_iat": False})
     assert claims["iss"] == DEVICE
+
+
+def test_a_missing_device_key_says_to_enrol_the_machine(tmp_path):
+    """D7: the key file is gone, so the exchange fails with the instruction, not a raw Errno 2."""
+    session = agent_session()
+    with mock.patch("clearml_agent.idp.device.DEVICE_KEY_PATH", tmp_path / "gone.key"), \
+            mock.patch.object(Session, "_send_request") as send:
+        with pytest.raises(LoginError, match="clearml-agent init"):
+            session._exchange_device_assertion()
+    send.assert_not_called()
