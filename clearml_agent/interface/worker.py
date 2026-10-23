@@ -44,11 +44,6 @@ WORKER_ARGS = {
 }
 
 DAEMON_ARGS = dict({
-    '--managed': {
-        'help': 'Managed mode: the server offers this machine the jobs that fit it, and each job runs with the '
-                'limits of its reservation.',
-        'action': 'store_true',
-    },
     '--polling-interval': {
         'help': 'Polling interval in seconds. Minimum is 5 (default 5)',
         'type': int,
@@ -58,15 +53,63 @@ DAEMON_ARGS = dict({
         'help': 'Pipe full log to stdout/stderr, should not be used if running in background',
         'action': 'store_true',
     },
+    '--podman': {
+        'help': 'Run execution task inside a container using podman. Optional args <image> <arguments> or '
+                'specify default docker image in agent.default_docker.image / agent.default_docker.arguments '
+                'use --gpus/--cpu-only (or set NVIDIA_VISIBLE_DEVICES) to limit gpu visibility for docker. '
+                'This is identical to the --docker flag other than the fact the resulting docker run command will '
+                'contain the appropriate adjustments required by podman.',
+        'nargs': '*',
+        'default': False,
+        'group': 'Docker support',
+    },
+    '--docker': {
+        'help': 'Run execution task inside a docker (v19.03 and above). Optional args <image> <arguments> or '
+                'specify default docker image in agent.default_docker.image / agent.default_docker.arguments '
+                'use --gpus/--cpu-only (or set NVIDIA_VISIBLE_DEVICES) to limit gpu visibility for docker',
+        'nargs': '*',
+        'default': False,
+        'group': 'Docker support',
+    },
+    '--force-current-version': {
+        'help': 'Force clearml-agent to use the current clearml-agent version when running in the docker',
+        'action': 'store_true',
+        'group': 'Docker support',
+    },
+    '--queue': {
+        'help': 'Queue ID(s)/Name(s) to pull tasks from (\'default\' queue).'
+                ' Note that the queue list order determines priority, with the first listed queue having the'
+                ' highest priority. To change this behavior, use --order-fairness to pull from each queue in a'
+                ' round-robin order',
+        'nargs': '+',
+        'default': tuple(),
+        'dest': 'queues',
+        'type': foreign_object_id('queues'),
+    },
+    '--order-fairness': {
+        'help': 'Pull from each queue in a round-robin order, instead of priority order.',
+        'action': 'store_true',
+    },
     '--standalone-mode': {
         'help': 'Do not use any network connects, assume everything is pre-installed',
         'action': 'store_true',
+    },
+    '--services-mode': {
+        'help': 'Launch multiple long-term docker services. Implies docker & cpu-only flags.',
+        'nargs': '?',
+        'const': -1,
+        'type': int,
+        'default': None,
     },
     '--child-report-tags': {
         'help': 'List of tags to send with the status reports from the worker that runs a task',
         'nargs': '+',
         'type': str,
         'default': None,
+    },
+    '--create-queue': {
+        'help': 'Create requested queue if it does not exist already.',
+        'action': 'store_true',
     },
     '--detached': {
         'help': 'Detached mode, run agent in the background',
@@ -78,6 +121,34 @@ DAEMON_ARGS = dict({
                 'Optional: provide a list of specific local worker IDs to stop',
         'nargs': '*',
         'default': False,
+    },
+    '--dynamic-gpus': {
+        'help': 'Allow to dynamically allocate gpus based on queue properties, '
+                'configure with \'--queue <queue_name>=<num_gpus>\'.'
+                ' Example: \'--dynamic-gpus --gpus 0-3 --queue dual_gpus=2 single_gpu=1\'.'
+                ' Example Opportunistic: \'--dynamic-gpus --gpus 0-3 --queue dual_gpus=2 max_quad_gpus=1-4\'.'
+                ' Note that the queue list order determines priority, with the first listed queue having the'
+                ' highest priority. To change this behavior, use --order-fairness to pull from each queue in a'
+                ' round-robin order',
+        'action': 'store_true',
+    },
+    '--uptime': {
+        'help': 'Specify uptime for clearml-agent in "<hours> <days>" format. for example, use "17-20 TUE" to set '
+                'Tuesday\'s uptime to 17-20'
+                'Note: Make sure to have only one of uptime/downtime configuration and not both.',
+        'nargs': '*',
+        'default': None,
+    },
+    '--downtime': {
+        'help': 'Specify downtime for clearml-agent in "<hours> <days>" format. for example, use "09-13 TUE" to set '
+                'Tuesday\'s downtime to 09-13'
+                'Note: Make sure to have only on of uptime/downtime configuration and not both.',
+        'nargs': '*',
+        'default': None,
+    },
+    '--status': {
+        'help': 'Print the worker\'s schedule (uptime properties, server\'s runtime properties and listening queues)',
+        'action': 'store_true',
     },
     '--check-bootstrap': {
         'help': 'On daemon startup, check whether the installed clearml-agent-bootstrap package is the '
@@ -111,6 +182,11 @@ COMMANDS = {
             },
             '--full-monitoring': {
                 'help': 'Full environment setup log & task logging & monitoring (stdout is still visible)',
+                'action': 'store_true',
+            },
+            '--require-queue': {
+                'help': 'If the specified task is not queued (in any Queue), the execution will fail. '
+                        '(Used for 3rd party scheduler integration, e.g. K8s, SLURM, etc.)',
                 'action': 'store_true',
             },
             '--standalone-mode': {
