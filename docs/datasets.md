@@ -134,4 +134,5 @@ On an agent, mount the cache into job containers so it survives between jobs, fo
 
 DVC gets short-lived keys for the dataset bucket from the server (`datachunks.dataset_credentials`); no access
 key is stored on your machine. On your machine, git uses your own login. In a job, the server gives the agent a
-read-only GitHub token for the dataset repositories listed in its `apiserver.idp.dataset_repositories` setting.
+read-only GitHub token for the registry and for the dataset repositories its entries point to, and for no other
+repository. The registry is the only list of dataset repositories; the server reads its default branch.
