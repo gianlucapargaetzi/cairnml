@@ -25,7 +25,7 @@ from ..automation import ClearmlJob
 from ..backend_api import Session
 from ..backend_interface.task.populate import CreateFromFunction
 from ..backend_interface.util import get_or_create_project, mutually_exclusive
-from ..config import get_remote_task_id, running_remotely
+from ..config import get_remote_task_id
 from ..debugging.log import LoggerRoot
 from ..errors import UsageError
 from ..model import BaseModel, OutputModel
@@ -46,7 +46,7 @@ class PipelineController:
     created from a function) and monitored until it completes.
 
     The pipeline itself runs as a Task of its own (the "pipeline controller" Task), which can be launched
-    locally or remotely on a clearml-agent. This controller Task stays active for as long as
+    locally or remotely on a clearml-agent services queue. This controller Task stays active for as long as
     the pipeline runs, launching and monitoring the DAG's steps until the pipeline finishes.
     """
 
@@ -99,9 +99,8 @@ class PipelineController:
         base_task_id = attrib(type=str, default=None)
         # alternative to base_task_id, function creating a Task
         task_factory_func = attrib(type=Callable, default=None)
-        # what the step needs from a machine, and its priority (resource-aware scheduling)
-        requirements = attrib(type=dict, default=None)
-        priority = attrib(type=int, default=None)
+        # execution queue name to use
+        queue = attrib(type=str, default=None)
         # list of parent DAG steps
         parents = attrib(type=list, default=None)
         # execution timeout limit
@@ -360,6 +359,7 @@ class PipelineController:
         self._running_nodes = []
         self._start_time = None
         self._pipeline_time_limit = None
+        self._default_execution_queue = None
         self._always_create_from_code = bool(always_create_from_code)
         self._version = str(version).strip() if version else None
         if self._version and not Version.is_valid_version_string(self._version):
@@ -466,6 +466,14 @@ class PipelineController:
             cls._pipeline_as_sub_project_cached = bool(Session.check_min_api_server_version("2.17"))
         return cls._pipeline_as_sub_project_cached
 
+    def set_default_execution_queue(self, default_execution_queue: Optional[str]) -> None:
+        """
+        Set the default execution queue if pipeline step does not specify an execution queue.
+
+        :param default_execution_queue: The execution queue to use if no execution queue is provided.
+        """
+        self._default_execution_queue = str(default_execution_queue) if default_execution_queue else None
+
     def set_pipeline_execution_time_limit(self, max_execution_minutes: Optional[float]) -> None:
         """
         Set maximum execution time (minutes) for the entire pipeline. Pass ``None`` or ``0`` to disable execution time limit.
@@ -483,8 +491,7 @@ class PipelineController:
         parameter_override: Optional[Mapping[str, Any]] = None,
         configuration_overrides: Optional[Mapping[str, Union[str, Mapping]]] = None,
         task_overrides: Optional[Mapping[str, Any]] = None,
-        requirements: Optional[dict] = None,
-        priority: Optional[int] = None,
+        execution_queue: Optional[str] = None,
         monitor_metrics: Optional[List[Union[Tuple[str, str], Tuple]]] = None,
         monitor_artifacts: Optional[List[Union[str, Tuple[str, str]]]] = None,
         monitor_models: Optional[List[Union[str, Tuple[str, str]]]] = None,
@@ -544,6 +551,8 @@ class PipelineController:
           - Change container image ``task_overrides={'container.image': 'nvidia/cuda:11.6.0-devel-ubuntu20.04', 'container.arguments': '--ipc=host'}``
           - Match container image to a previous step ``task_overrides={'container.image': '${stage1.container.image}'}``
           - Reset requirements (the agent will use the ``"requirements.txt"`` inside the repo) ``task_overrides={'script.requirements.pip': ""}``
+        :param execution_queue: The queue to use for executing this specific step.
+            If not provided, the task will be sent to the default execution queue, as defined on the class.
         :param monitor_metrics: Log the step's metrics on the pipeline Task.
             Format is a list of pairs metric (title, series) to log: ``[(step_metric_title, step_metric_series), ]``.
             For example: ``[('test', 'accuracy'), ]``.
@@ -724,8 +733,7 @@ class PipelineController:
             name=name,
             base_task_id=base_task_id,
             parents=parents or [],
-            requirements=requirements,
-            priority=priority,
+            queue=execution_queue,
             timeout=time_limit,
             parameters=parameter_override or {},
             recursively_parse_parameters=recursively_parse_parameters,
@@ -783,8 +791,7 @@ class PipelineController:
         docker_args: Optional[str] = None,
         docker_bash_setup_script: Optional[str] = None,
         parents: Optional[Sequence[str]] = None,
-        requirements: Optional[dict] = None,
-        priority: Optional[int] = None,
+        execution_queue: Optional[str] = None,
         monitor_metrics: Optional[List[Tuple]] = None,
         monitor_artifacts: Optional[List[Union[str, Tuple]]] = None,
         monitor_models: Optional[List[Union[str, Tuple]]] = None,
@@ -872,6 +879,8 @@ class PipelineController:
         :param parents: List of parent nodes in the DAG.
             The current step in the pipeline will be sent for execution only after all the parent nodes
             have been executed successfully.
+        :param execution_queue: The queue to use for executing this specific step.
+            If not provided, the task will be sent to the default execution queue, as defined on the class.
         :param monitor_metrics: Log the step's metrics on the pipeline Task.
             Format is a list of pairs metric (title, series) to log: ``[(step_metric_title, step_metric_series), ]``.
             For example: ``[('test', 'accuracy'), ]``.
@@ -1024,6 +1033,7 @@ class PipelineController:
             docker_args=docker_args,
             docker_bash_setup_script=docker_bash_setup_script,
             parents=parents,
+            execution_queue=execution_queue,
             monitor_metrics=monitor_metrics,
             monitor_artifacts=monitor_artifacts,
             monitor_models=monitor_models,
@@ -1044,6 +1054,7 @@ class PipelineController:
 
     def start(
         self,
+        queue: str = "services",
         step_task_created_callback: Optional[
             Callable[["PipelineController", "PipelineController.Node", dict], bool]
         ] = None,
@@ -1053,8 +1064,10 @@ class PipelineController:
         wait: bool = True,
     ) -> bool:
         """
-        Start the current pipeline remotely. The current process will be stopped and the pipeline is enqueued;
-        the server places it on a machine that fits it.
+        Start the current pipeline remotely (on the selected services queue).
+        The current process will be stopped and launched remotely.
+
+        :param queue: Queue name to launch the pipeline on.
         :param Callable step_task_created_callback: Callback function, called when a step (Task) is created
             and before it is sent for execution. Allows a user to modify the Task before launch.
             Use ``node.job`` to access the ClearmlJob object, or ``node.job.task`` to directly access the Task object.
@@ -1103,7 +1116,7 @@ class PipelineController:
             self.update_execution_plot()
 
         # stop current Task and execute remotely or no-op
-        self._task.execute_remotely(exit_process=True, clone=False)
+        self._task.execute_remotely(queue_name=queue, exit_process=True, clone=False)
 
         if not Task.running_locally() and self._task.is_main_task():
             self._start(
@@ -1117,7 +1130,7 @@ class PipelineController:
     def start_locally(self, run_pipeline_steps_locally: bool = False) -> None:
         """
         Start the current pipeline locally, meaning the pipeline logic is running on the current machine,
-        instead of as a remotely executed pipeline Task.
+        instead of on the ``services`` queue.
 
         Using ``run_pipeline_steps_locally=True`` you can run all the pipeline steps locally as sub-processes.
         Notice: when running pipeline steps locally, it assumes local code execution
@@ -1134,6 +1147,7 @@ class PipelineController:
 
         if run_pipeline_steps_locally:
             self._clearml_job_class = LocalClearmlJob
+            self._default_execution_queue = self._default_execution_queue or "mock"
 
         # serialize state only if we are running locally
         if Task.running_locally() or not self._task.is_main_task():
@@ -1146,7 +1160,7 @@ class PipelineController:
         """
         Manually create and serialize the Pipeline Task (optional, use with care for manual multi pipeline creation).
 
-        **Notice** The recommended flow would be to call ``pipeline.start()``
+        **Notice** The recommended flow would be to call ``pipeline.start(queue=None)``
         which would have a similar effect and will allow you to clone/enqueue later on.
 
         After calling ``PipelineController.create()``, users can edit the pipeline in the UI and enqueue it for execution.
@@ -1735,22 +1749,61 @@ class PipelineController:
     def enqueue(
         cls,
         pipeline_controller: Union["PipelineController", str],
+        queue_name: Optional[str] = None,
+        queue_id: Optional[str] = None,
         force: bool = False,
     ) -> Any:
         """
-        Enqueue a PipelineController for execution. The server places it on a machine that fits its requirements.
+        Enqueue a PipelineController for execution, by adding it to an execution queue.
+
+        .. note::
+           A worker daemon must be listening at the queue for the worker to fetch the Task and execute it,
+           see "ClearML Agent" in the ClearML Documentation.
 
         :param pipeline_controller: The PipelineController to enqueue. Specify a PipelineController object or PipelineController ID.
+        :param queue_name: The name of the queue. If not specified, then ``queue_id`` must be specified.
+        :param queue_id: The ID of the queue. If not specified, then ``queue_name`` must be specified.
         :param bool force: If ``True``, reset the PipelineController if necessary before enqueuing it.
 
-        :return: An enqueue JSON response (see ``Task.enqueue``).
+        :return: An enqueue JSON response.
+
+            .. code-block:: javascript
+
+               {
+                    "queued": 1,
+                    "updated": 1,
+                    "fields": {
+                        "status": "queued",
+                        "status_reason": "",
+                        "status_message": "",
+                        "status_changed": "2020-02-24T15:05:35.426770+00:00",
+                        "last_update": "2020-02-24T15:05:35.426770+00:00",
+                        "execution.queue": "2bd96ab2d9e54b578cc2fb195e52c7cf"
+                        }
+                }
+
+            - ``queued`` - The number of Tasks enqueued (an integer or ``null``).
+            - ``updated`` - The number of Tasks updated (an integer or ``null``).
+            - ``fields``
+
+              - ``status`` - The status of the experiment.
+              - ``status_reason`` - The reason for the last status change.
+              - ``status_message`` - Information about the status.
+              - ``status_changed`` - The last status change date and time (ISO 8601 format).
+              - ``last_update`` - The last Task update time, including Task creation, update, change, or events for this task (ISO 8601 format).
+              - ``execution.queue`` - The ID of the queue where the Task is enqueued. ``null`` indicates not enqueued.
         """
         pipeline_controller = (
             pipeline_controller
             if isinstance(pipeline_controller, PipelineController)
             else cls.get(pipeline_id=pipeline_controller)
         )
-        return Task.enqueue(pipeline_controller._task, force=force)
+        return Task.enqueue(
+            pipeline_controller._task,
+            queue_name=queue_name,
+            queue_id=queue_id,
+            force=force,
+        )
 
     @classmethod
     def get(
@@ -2016,6 +2069,7 @@ class PipelineController:
                 pipeline_dag[k]["executed"] = None
                 pipeline_dag[k]["job_started"] = None
                 pipeline_dag[k]["job_ended"] = None
+        self._default_execution_queue = params["default_queue"]
         self._add_pipeline_tags = params["add_pipeline_tags"]
         self._target_project = params["target_project"] or ""
         self._deserialize(pipeline_dag)
@@ -2041,6 +2095,7 @@ class PipelineController:
         :return: params, pipeline_dag.
         """
         params = {
+            "default_queue": self._default_execution_queue,
             "add_pipeline_tags": self._add_pipeline_tags,
             "target_project": self._target_project,
         }
@@ -2208,6 +2263,7 @@ class PipelineController:
         for name in list(self._nodes.keys()):
             if not self._nodes[name].clone_task and name in dag_dict and not dag_dict[name].get("clone_task"):
                 for k in (
+                    "queue",
                     "parents",
                     "timeout",
                     "parameters",
@@ -2275,6 +2331,12 @@ class PipelineController:
         """
         if not node.base_task_id and not node.task_factory_func:
             raise ValueError(f"Node '{node.name}', base_task_id is empty")
+
+        if not self._default_execution_queue and not node.queue:
+            raise ValueError(
+                f"Node '{node.name}' missing execution queue, "
+                "no default queue defined and no specific node queue defined"
+            )
 
         task = node.task_factory_func or Task.get_task(task_id=node.base_task_id)
         if not task:
@@ -2395,8 +2457,7 @@ class PipelineController:
         docker_args: Optional[str] = None,
         docker_bash_setup_script: Optional[str] = None,
         parents: Optional[Sequence[str]] = None,
-        requirements: Optional[dict] = None,
-        priority: Optional[int] = None,
+        execution_queue: Optional[str] = None,
         monitor_metrics: Optional[List[Union[Tuple[str, str], Tuple]]] = None,
         monitor_artifacts: Optional[List[Union[str, Tuple[str, str]]]] = None,
         monitor_models: Optional[List[Union[str, Tuple[str, str]]]] = None,
@@ -2484,6 +2545,8 @@ class PipelineController:
         :param parents: List of parent nodes in the DAG.
             The current step in the pipeline will be sent for execution only after all the parent nodes
             have been executed successfully.
+        :param execution_queue: The queue to use for executing this specific step.
+            If not provided, the task will be sent to the default execution queue, as defined on the class.
         :param monitor_metrics: Log the step's metrics on the pipeline Task.
             Format is a list of pairs metric (title, series) to log:
                 ``[(step_metric_title, step_metric_series), ]``
@@ -2755,8 +2818,7 @@ class PipelineController:
             name=name,
             base_task_id=None,
             parents=parents or [],
-            requirements=requirements,
-            priority=priority,
+            queue=execution_queue,
             timeout=time_limit,
             parameters=parameters,
             clone_task=False,
@@ -2805,10 +2867,8 @@ class PipelineController:
         node.job.task.get_logger().report_text(
             f"\nNode '{node.name}' failed. Retrying... (this is retry number {self._retries[node.name]})\n"
         )
-        node.job.launch(
-            requirements=node.requirements,
-            priority=node.priority,
-        )
+        parsed_queue_name = self._parse_step_ref(node.queue)
+        node.job.launch(queue_name=parsed_queue_name or self._default_execution_queue)
 
     def _launch_node(self, node: "PipelineController.Node") -> bool:
         """
@@ -2905,10 +2965,8 @@ class PipelineController:
         else:
             self._running_nodes.append(node.name)
 
-            return node.job.launch(
-                requirements=node.requirements,
-                priority=node.priority,
-            )
+            parsed_queue_name = self._parse_step_ref(node.queue)
+            return node.job.launch(queue_name=parsed_queue_name or self._default_execution_queue)
 
         return True
 
@@ -3928,6 +3986,7 @@ class PipelineDecorator(PipelineController):
     _eager_execution_instance = False
     _debug_execute_step_process = False
     _debug_execute_step_function = False
+    _default_execution_queue = None
     _multi_pipeline_instances = []
     _multi_pipeline_call_counter = -1
     _atexit_registered = False
@@ -4081,6 +4140,9 @@ class PipelineDecorator(PipelineController):
         # if we are in eager execution, make sure parent class knows it
         if self._eager_execution_instance:
             self._mock_execution = True
+
+        if PipelineDecorator._default_execution_queue:
+            super(PipelineDecorator, self).set_default_execution_queue(PipelineDecorator._default_execution_queue)
 
         for n in self._added_decorator:
             self._add_function_step(**n)
@@ -4418,6 +4480,7 @@ class PipelineDecorator(PipelineController):
         cache: bool = False,
         packages: Optional[Union[bool, str, Sequence[str]]] = None,
         parents: Optional[List[str]] = None,
+        execution_queue: Optional[str] = None,
         continue_on_fail: bool = False,
         docker: Optional[str] = None,
         docker_args: Optional[str] = None,
@@ -4463,6 +4526,8 @@ class PipelineDecorator(PipelineController):
         :param parents: List of parent nodes in the DAG.
             The current step in the pipeline will be sent for execution only after all the parent nodes
             have been executed successfully.
+        :param execution_queue: The queue to use for executing this specific step.
+            If not provided, the task will be sent to the pipeline's default execution queue.
         :param continue_on_fail: (Deprecated, use ``continue_behaviour`` instead).
             If ``True``, failed step will not cause the pipeline to stop
             (or be marked as failed). Notice, that steps that are connected (or indirectly connected)
@@ -4632,7 +4697,8 @@ class PipelineDecorator(PipelineController):
                 cache_executed_step=cache,
                 packages=packages,
                 parents=parents,
-                    continue_on_fail=continue_on_fail,
+                execution_queue=execution_queue,
+                continue_on_fail=continue_on_fail,
                 docker=docker,
                 docker_args=docker_args,
                 docker_bash_setup_script=docker_bash_setup_script,
@@ -4747,9 +4813,15 @@ class PipelineDecorator(PipelineController):
                         target_project=None,
                     )
 
-                    if not running_remotely():
-                        # if we are not running from an agent, we are probably in debug mode
+                    target_queue = (
+                        PipelineDecorator._default_execution_queue or Task.current_task().data.execution.queue
+                    )
+                    if target_queue:
+                        PipelineDecorator.set_default_execution_queue(target_queue)
+                    else:
+                        # if we are not running from a queue, we are probably in debug mode
                         a_pipeline._clearml_job_class = LocalClearmlJob
+                        a_pipeline._default_execution_queue = "mock"
 
                     # restore tags, the pipeline might add a few
                     Task.current_task().set_tags(original_tags[0])
@@ -4908,10 +4980,12 @@ class PipelineDecorator(PipelineController):
         project: str,
         version: Optional[str] = None,
         return_value: Optional[str] = None,
+        default_queue: Optional[str] = None,
         pool_frequency: float = 0.2,
         add_pipeline_tags: bool = False,
         target_project: Optional[str] = None,
         abort_on_failure: bool = False,
+        pipeline_execution_queue: Optional[str] = "services",
         multi_instance_support: bool = False,
         add_run_number: bool = True,
         args_map: Dict[str, List[str]] = None,
@@ -4944,6 +5018,7 @@ class PipelineDecorator(PipelineController):
             default to ``'1.0.0'``.
         :param return_value: Provide an artifact name to store the pipeline function return object.
             Notice, if not provided the pipeline will not store the pipeline function return value.
+        :param default_queue: default pipeline step queue.
         :param float pool_frequency: The pooling frequency (in minutes) for monitoring experiments / states.
         :param bool add_pipeline_tags: (default: ``False``) if ``True``, add ``pipe: <pipeline_task_id>`` tag to all
             steps (Tasks) created by this pipeline.
@@ -4954,6 +5029,7 @@ class PipelineDecorator(PipelineController):
             was specifically defined with ``continue_on_fail=True``.
             If ``True``, any failed step will cause the pipeline to immediately abort, stop all running steps,
             and mark the pipeline as failed.
+        :param pipeline_execution_queue: remote pipeline execution queue (default ``'services'`` queue).
             If ``None`` is passed, execute the pipeline logic locally (pipeline steps are still executed remotely).
         :param multi_instance_support: If ``True``, allow multiple calls to the same pipeline function,
             each call creating a new Pipeline Task. Notice it is recommended to create an additional Task on the
@@ -5134,6 +5210,9 @@ class PipelineDecorator(PipelineController):
                                 # instance and leave immediately
                                 force_single_multi_pipeline_call = True
 
+                if default_queue:
+                    cls.set_default_execution_queue(default_queue)
+
                 a_pipeline = PipelineDecorator(
                     name=name,
                     project=project,
@@ -5163,6 +5242,7 @@ class PipelineDecorator(PipelineController):
 
                 if PipelineDecorator._debug_execute_step_process:
                     a_pipeline._clearml_job_class = LocalClearmlJob
+                    a_pipeline._default_execution_queue = "mock"
 
                 a_pipeline._clearml_job_class.register_hashing_callback(a_pipeline._adjust_task_hashing)
 
@@ -5182,9 +5262,13 @@ class PipelineDecorator(PipelineController):
                     )
 
                 # run the actual pipeline
-                if not start_controller_locally and not PipelineDecorator._debug_execute_step_process:
+                if (
+                    not start_controller_locally
+                    and not PipelineDecorator._debug_execute_step_process
+                    and pipeline_execution_queue
+                ):
                     # rerun the pipeline on a remote machine
-                    a_pipeline._task.execute_remotely()
+                    a_pipeline._task.execute_remotely(queue_name=pipeline_execution_queue)
                     # when we get here it means we are running remotely
 
                 # this will also deserialize the pipeline and arguments
@@ -5245,6 +5329,15 @@ class PipelineDecorator(PipelineController):
             return internal_decorator
 
         return decorator_wrap if _func is None else decorator_wrap(_func)
+
+    @classmethod
+    def set_default_execution_queue(cls, default_execution_queue: Optional[str]) -> None:
+        """
+        Set the default execution queue if pipeline step does not specify an execution queue.
+
+        :param default_execution_queue: The execution queue to use if no execution queue is provided.
+        """
+        cls._default_execution_queue = str(default_execution_queue) if default_execution_queue else None
 
     @classmethod
     def run_locally(cls) -> None:

@@ -61,6 +61,7 @@ if __name__ == '__main__':
     )
 
     # set the default execution queue to be used (per step we can override the execution)
+    pipe.set_default_execution_queue('default')
 
     # add pipeline components
     pipe.add_parameter(

@@ -62,7 +62,7 @@ def main():
     args = parse_args()
     task = Task.init(project_name="Example", task_name="Finetune", output_uri=True)
     task.set_packages("requirements.txt")
-    task.execute_remotely()
+    task.execute_remotely(queue_name="some_queue")
 
     out_dir = Path(args.output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)

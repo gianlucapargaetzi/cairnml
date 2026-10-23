@@ -215,7 +215,7 @@ def main():
         if epoch > 1:
             # We run training for 1 epoch to make sure nothing crashes then local execution will be terminated.
             # Execution will switch to remote execution by the agent listening to specified queue
-            task.execute_remotely()
+            task.execute_remotely(queue_name="default")
         train(
             args,
             model,
