@@ -39,6 +39,7 @@ class Dataset:
         commit: str,
         alias: Optional[str] = None,
         cache: Optional[DatasetCache] = None,
+        record: bool = True,
     ) -> "Dataset":
         """The dataset in ``repo`` at ``commit``, downloaded to the cache unless it is there already.
 
@@ -46,6 +47,7 @@ class Dataset:
         :param commit: the commit, branch or tag to use. The run records the commit it resolves to.
         :param alias: the name the run records the dataset under. Defaults to the repository name.
         :param cache: where to keep the files. Defaults to the user's dataset cache.
+        :param record: write the dataset onto the current task (default). Callers that record it themselves pass False.
         """
         cache = cache or DatasetCache.default()
         git = mirror(cache, repo, git_token(repo))
@@ -59,7 +61,8 @@ class Dataset:
         dataset = cls(repo, sha, checkout / DATA_DIR, match.group(1) if match else None)
         cache.touch(checkout)
         cache.evict()
-        dataset._record(alias)
+        if record:
+            dataset._record(alias)
         return dataset
 
     def use(self, cache: Optional[DatasetCache] = None):
