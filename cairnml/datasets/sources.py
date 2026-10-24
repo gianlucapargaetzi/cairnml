@@ -5,14 +5,21 @@
 """
 
 import hashlib
+import os
 import re
-import subprocess
 from pathlib import Path
-from typing import Optional
+from typing import Dict, Optional
 
+from . import process
 from .errors import DatasetError
 
 _SHA = re.compile(r"[0-9a-f]{40}")
+
+
+def _git_env() -> Dict[str, str]:
+    env = dict(os.environ)
+    env["GIT_TERMINAL_PROMPT"] = "0"  # a missing credential is an error to report, not a question to ask
+    return env
 
 
 class Source:
@@ -70,7 +77,7 @@ class GitSource(Source):
         if revision and _SHA.fullmatch(revision):
             return revision
         ref = revision or "HEAD"
-        result = subprocess.run(["git", "ls-remote", link, ref], capture_output=True, text=True)
+        result = process.run(["git", "ls-remote", link, ref], env=_git_env())
         lines = result.stdout.split()
         if result.returncode != 0 or not lines:
             raise DatasetError(f"cannot find {ref!r} in {link}: {result.stderr.strip()}")
@@ -79,7 +86,7 @@ class GitSource(Source):
     def fetch(self, link: str, revision: str, dest: Path) -> None:
         dest.mkdir(parents=True, exist_ok=True)
         for args in (["init", "-q"], ["fetch", "-q", "--depth", "1", link, revision], ["checkout", "-q", "FETCH_HEAD"]):
-            result = subprocess.run(["git", "-C", str(dest)] + args, capture_output=True, text=True)
+            result = process.run(["git", "-C", str(dest)] + args, env=_git_env(), timeout=process.transfer_timeout())
             if result.returncode != 0:
                 raise DatasetError(f"cannot fetch {revision[:10]} of {link}: {result.stderr.strip()}")
 
