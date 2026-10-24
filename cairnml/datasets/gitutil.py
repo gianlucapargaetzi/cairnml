@@ -1,12 +1,13 @@
 """The git command line, for the few things the dataset tool needs from it."""
 
 import base64
+import io
 import os
-import subprocess
 import tarfile
 from pathlib import Path
-from typing import List, Optional, Sequence, Union
+from typing import Dict, List, Optional, Sequence, Union
 
+from . import process
 from .errors import DatasetError
 
 
@@ -14,18 +15,29 @@ class GitError(DatasetError):
     pass
 
 
-def _env() -> dict:
+def _env(token: Optional[str] = None) -> Dict[str, str]:
+    """The environment of one git command.
+
+    The token travels as git configuration in the environment (GIT_CONFIG_COUNT and its keys), not as a ``-c`` option,
+    so it does not show up in the command line that other users of the machine can read with ``ps``.
+    """
     env = dict(os.environ)
     # Never block on a prompt: a missing credential is an error to report, not a question to ask.
     env["GIT_TERMINAL_PROMPT"] = "0"
+    if token:
+        basic = base64.b64encode(f"x-access-token:{token}".encode()).decode()
+        index = int(env.get("GIT_CONFIG_COUNT", "0") or 0)
+        env["GIT_CONFIG_COUNT"] = str(index + 1)
+        env[f"GIT_CONFIG_KEY_{index}"] = "http.extraheader"
+        env[f"GIT_CONFIG_VALUE_{index}"] = f"Authorization: Basic {basic}"
     return env
 
 
 class Git:
     """One repository, or one bare repository when ``bare`` is True.
 
-    ``token`` is a GitHub installation token. It is sent as an HTTP header for the one command, never
-    stored in the repository's configuration or in the remote URL.
+    ``token`` is a GitHub installation token. It is sent as an HTTP header for the one command (through the
+    environment of that command), never stored in the repository's configuration, the remote URL or the command line.
     """
 
     def __init__(self, path: Union[str, Path], token: Optional[str] = None, bare: bool = False) -> None:
@@ -34,18 +46,11 @@ class Git:
         self.bare = bare
 
     def _base(self) -> List[str]:
-        args = ["git"]
-        if self.token:
-            basic = base64.b64encode(f"x-access-token:{self.token}".encode()).decode()
-            args += ["-c", f"http.extraheader=Authorization: Basic {basic}"]
-        args += ["--git-dir", str(self.path)] if self.bare else ["-C", str(self.path)]
-        return args
+        return ["git"] + (["--git-dir", str(self.path)] if self.bare else ["-C", str(self.path)])
 
     def run(self, *args: str, check: bool = True) -> str:
         try:
-            result = subprocess.run(
-                self._base() + list(args), capture_output=True, text=True, env=_env(), check=False
-            )
+            result = process.run(self._base() + list(args), env=_env(self.token))
         except FileNotFoundError:
             raise GitError("git is not installed") from None
         if check and result.returncode != 0:
@@ -55,9 +60,7 @@ class Git:
     def ok(self, *args: str) -> bool:
         """True when the git command exits with 0."""
         try:
-            return subprocess.run(
-                self._base() + list(args), capture_output=True, env=_env(), check=False
-            ).returncode == 0
+            return process.run(self._base() + list(args), env=_env(self.token), text=False).returncode == 0
         except FileNotFoundError:
             raise GitError("git is not installed") from None
 
@@ -154,13 +157,12 @@ class Git:
     def clone_bare(url: str, dest: Union[str, Path], token: Optional[str] = None) -> "Git":
         Path(dest).parent.mkdir(parents=True, exist_ok=True)
         git = Git(dest, token=token, bare=True)
-        base = ["git"]
-        if token:
-            basic = base64.b64encode(f"x-access-token:{token}".encode()).decode()
-            base += ["-c", f"http.extraheader=Authorization: Basic {basic}"]
-        result = subprocess.run(
-            base + ["clone", "-q", "--bare", url, str(dest)], capture_output=True, text=True, env=_env()
-        )
+        try:
+            result = process.run(
+                ["git", "clone", "-q", "--bare", url, str(dest)], env=_env(token), timeout=process.transfer_timeout()
+            )
+        except FileNotFoundError:
+            raise GitError("git is not installed") from None
         if result.returncode != 0:
             raise GitError(f"could not clone {url}: {result.stderr.strip()}")
         return git
@@ -177,17 +179,16 @@ class Git:
     def archive_to(self, commit: str, dest: Union[str, Path]) -> None:
         """Extract the files of one commit into ``dest``. No history, no .git folder."""
         Path(dest).mkdir(parents=True, exist_ok=True)
-        proc = subprocess.Popen(
-            self._base() + ["archive", "--format=tar", commit],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            env=_env(),
-        )
-        with tarfile.open(fileobj=proc.stdout, mode="r|") as archive:
+        try:
+            proc = process.run(self._base() + ["archive", "--format=tar", commit], env=_env(self.token), text=False)
+        except FileNotFoundError:
+            raise GitError("git is not installed") from None
+        if proc.returncode != 0:
+            raise GitError(f"git archive {commit} failed: {proc.stderr.decode(errors='replace').strip()}")
+        # A dataset repository holds metadata only (the footprint check keeps every file small), so the archive is read
+        # from memory; that lets the command have a time limit like every other one.
+        with tarfile.open(fileobj=io.BytesIO(proc.stdout), mode="r:") as archive:
             if hasattr(tarfile, "data_filter"):  # Python 3.12+: refuse links and paths that leave dest
                 archive.extractall(str(dest), filter="data")
             else:
                 archive.extractall(str(dest))
-        stderr = proc.stderr.read().decode().strip()
-        if proc.wait() != 0:
-            raise GitError(f"git archive {commit} failed: {stderr}")
