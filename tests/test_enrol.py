@@ -11,7 +11,7 @@ from cairnml.idp.device import save_device_key
 from cairnml.idp.keys import load_public_key
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
-PUBLIC = "http://mlops-cairnml:8008"
+PUBLIC = "http://cairnml:8008"
 API = "http://localhost:8008"  # the address typed on the command line; the server's own address wins
 
 
@@ -39,7 +39,7 @@ class FakeServer:
         if url.endswith("devices.idp_settings"):
             return Response(200, {"data": {"issuer": "https://idp.example/realms/mlops",
                                            "sdk_client_id": "cairnml-sdk",
-                                           "public_url": PUBLIC, "web_url": "http://mlops-cairnml:8080"}})
+                                           "public_url": PUBLIC, "web_url": "http://cairnml:8080"}})
         if url.endswith("devices.exchange"):
             return Response(200, {"data": {"access_token": "device-token"}})
         if url.endswith("devices.revoke"):
@@ -59,7 +59,7 @@ def test_enrolment_uses_the_servers_public_address_and_registers_the_key(tmp_pat
 
     assert result.device_id == "dev_1"
     assert result.server_url == PUBLIC
-    assert result.web_url == "http://mlops-cairnml:8080"
+    assert result.web_url == "http://cairnml:8080"
     assert result.user == "alice"
     url, body, headers = server.calls[-1]
     assert url == PUBLIC + "/v2.8/devices.enroll"
