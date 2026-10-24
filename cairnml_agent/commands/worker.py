@@ -290,16 +290,28 @@ class LiteralScriptManager(object):
 _LOCAL_WHEELS = {}
 
 
-def build_local_wheel(source: Path) -> str:
-    """The path of a wheel built from a source tree of this machine, built once per process.
+def is_source_tree(folder: Path, name: str) -> bool:
+    """True when ``folder`` is a source tree of the package ``name``: its pyproject.toml gives that name, or it still
+    has a setup.py. A pyproject.toml of some other project (a virtual environment can sit inside one) does not count."""
+    if (folder / "setup.py").is_file():
+        return True
+    try:
+        text = (folder / "pyproject.toml").read_text(encoding="utf-8")
+    except OSError:
+        return False
+    return re.search(r'^name\s*=\s*"{}"\s*$'.format(re.escape(name)), text, re.M) is not None
+
+
+def build_local_wheel(source: Path, name: str) -> str:
+    """The path of a wheel of the package ``name``, built from a source tree of this machine, once per process.
 
     Job containers install from these wheels and never from PyPI (KNOWN DEFECT D1, cairnml-agent issue #1).
     """
     key = str(source)
     if key not in _LOCAL_WHEELS:
-        if not (source / "setup.py").is_file():
-            raise CommandFailedError("{} is not a source tree (no setup.py): the job containers need the local "
-                                     "wheel built from it".format(source))
+        if not is_source_tree(source, name):
+            raise CommandFailedError("{} is not a source tree of {} (no pyproject.toml naming it, and no setup.py): "
+                                     "the job containers need the local wheel built from it".format(source, name))
         out = Path(mkdtemp(prefix="cairnml-wheel-"))
         subprocess.run([sys.executable, "-m", "pip", "wheel", "--no-deps", "-q", "-w", str(out), str(source)],
                        check=True, timeout=900)
@@ -312,21 +324,21 @@ def build_local_wheel(source: Path) -> str:
 
 def local_agent_wheel() -> str:
     """The wheel of this cairnml-agent, built from the source tree it runs from."""
-    return build_local_wheel(Path(__file__).resolve().parents[2])
+    return build_local_wheel(Path(__file__).resolve().parents[2], "cairnml-agent")
 
 
 def local_sdk_wheel() -> str:
     """The wheel of the CairnML SDK this machine has, built from its source tree.
 
     The SDK is found through its package path (it can be a namespace package, with no __file__); its source tree is
-    the first folder above the package that has a setup.py.
+    the first folder above the package that is a source tree of the SDK (see ``is_source_tree``).
     """
     import cairnml
     for package_dir in cairnml.__path__:
         for folder in [Path(package_dir).resolve(), *Path(package_dir).resolve().parents]:
-            if (folder / "setup.py").is_file():
-                return build_local_wheel(folder)
-    raise CommandFailedError("no source tree with a setup.py above the CairnML SDK package: cannot build its wheel")
+            if is_source_tree(folder, "cairnml"):
+                return build_local_wheel(folder, "cairnml")
+    raise CommandFailedError("no source tree of cairnml above the CairnML SDK package: cannot build its wheel")
 
 
 def get_repo_auth_string(user, password):

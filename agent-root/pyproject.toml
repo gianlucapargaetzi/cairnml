@@ -1,3 +1,51 @@
 [build-system]
-requires = ["setuptools>=61", "wheel"]
+requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "cairnml-agent"
+dynamic = ["version", "dependencies"]
+description = "CairnML agent - runs queued CairnML jobs (an unofficial fork of ClearML Agent)"
+readme = "README.md"
+requires-python = ">=3.9"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+authors = [{ name = "Gianluca Pargaetzi", email = "121188387+gianlucapargaetzi@users.noreply.github.com" }]
+keywords = ["cairnml", "clearml", "devops", "machine learning", "deep learning", "agent", "automation", "hpc", "cluster"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "Intended Audience :: Science/Research",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS :: MacOS X",
+    "Operating System :: Microsoft",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Image Recognition",
+    "Topic :: System :: Logging",
+    "Topic :: System :: Monitoring",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+
+[project.urls]
+Source = "https://github.com/gianlucapargaetzi/cairnml-agent"
+Issues = "https://github.com/gianlucapargaetzi/cairnml-agent/issues"
+"Based on" = "https://github.com/clearml/clearml-agent"
+
+[project.scripts]
+cairnml-agent = "cairnml_agent.__main__:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "cairnml_agent.version.__version__" }
+dependencies = { file = ["requirements.txt"] }
+
+[tool.setuptools.packages.find]
+exclude = ["contrib*", "docs*", "data*", "examples*", "tests*"]
+
+[tool.setuptools.package-data]
+cairnml_agent = ["backend_api/config/default/*.conf", "_vendor/jsonschema/schemas/*.json"]
