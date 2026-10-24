@@ -1,7 +1,7 @@
 """This machine's enrolment with the CairnML server: cairnml-init, cairnml-whoami and cairnml-logout.
 
 They replace the mlops enroll, whoami and logout commands. The server is named on the command line
-(cairnml-init --server http://mlops-cairnml:8008); nothing is asked interactively.
+(cairnml-init --server http://cairnml:8008); nothing is asked interactively.
 """
 import argparse
 import os
@@ -50,7 +50,7 @@ def _config_arg(parser: argparse.ArgumentParser) -> None:
 
 def init_main(argv=None) -> int:
     parser = argparse.ArgumentParser(prog="cairnml-init", description="Enrol this machine with the CairnML server.")
-    parser.add_argument("--server", required=True, help="the server's API address, e.g. http://mlops-cairnml:8008")
+    parser.add_argument("--server", required=True, help="the server's API address, e.g. http://cairnml:8008")
     parser.add_argument("--name", default=socket.gethostname(), help="the name of this machine (default: %(default)s)")
     parser.add_argument("--force", action="store_true",
                         help="enrol again: the previous device is revoked and the key replaced")
