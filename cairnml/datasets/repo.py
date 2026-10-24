@@ -12,12 +12,11 @@ footprint check.
 import json
 import re
 import shutil
-import subprocess
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Union
 
 from ..version import __version__
-from . import footprint
+from . import footprint, process
 from .cache import DatasetCache
 from .check import run_check
 from .credentials import StorageKeys, fetch_storage_keys, register_dataset
@@ -236,23 +235,35 @@ class DatasetRepo:
         if heads and branch == default:
             target = f"incoming/{head[:10]}"
             self.git.push_to(target)
-            return {"commit": head, "branch": target, "pull_request": self._open_pull_request(target, default)}
+            return {"commit": head, "branch": target, **self._open_pull_request(target, default)}
         self.git.push_to(branch)
-        return {"commit": head, "branch": branch, "pull_request": None}
+        return {"commit": head, "branch": branch, "pull_request": None, "problem": None, "auto_merge": None}
 
-    def _open_pull_request(self, branch: str, base: str) -> Optional[str]:
-        """Open a pull request with auto-merge, if the GitHub command line is there. Returns its URL or None."""
+    def _open_pull_request(self, branch: str, base: str) -> Dict[str, Any]:
+        """Open a pull request and ask for auto-merge, through the GitHub command line.
+
+        Returns ``pull_request`` (its URL, or None), ``auto_merge`` (whether it was switched on, or None when there
+        is no pull request) and ``problem`` (why a step did not work, in the tool's own words, or None).
+        """
+        none = {"pull_request": None, "auto_merge": None}
         if shutil.which("gh") is None:
-            return None
-        made = subprocess.run(
-            ["gh", "pr", "create", "--base", base, "--head", branch, "--fill"],
-            cwd=str(self.path), capture_output=True, text=True,
-        )
-        if made.returncode != 0:
-            return None
-        url = (made.stdout.strip().splitlines() or [None])[-1]
-        subprocess.run(["gh", "pr", "merge", "--auto", "--merge", branch], cwd=str(self.path), capture_output=True)
-        return url
+            return {**none, "problem": "the GitHub command line (gh) is not installed"}
+        try:
+            made = process.run(
+                ["gh", "pr", "create", "--base", base, "--head", branch, "--fill"], cwd=str(self.path)
+            )
+            if made.returncode != 0:
+                return {**none, "problem": (made.stderr or made.stdout).strip() or "gh pr create failed"}
+            url = (made.stdout.strip().splitlines() or [None])[-1]
+            merge = process.run(["gh", "pr", "merge", "--auto", "--merge", branch], cwd=str(self.path))
+        except process.CommandTimeout as exc:
+            return {**none, "problem": str(exc)}
+        if merge.returncode != 0:
+            return {
+                "pull_request": url, "auto_merge": False,
+                "problem": (merge.stderr or merge.stdout).strip() or "gh pr merge failed",
+            }
+        return {"pull_request": url, "auto_merge": True, "problem": None}
 
     def compare_url(self, branch: str) -> Optional[str]:
         name = github_name(self.git.remote_url() or "")

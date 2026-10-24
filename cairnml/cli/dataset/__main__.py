@@ -68,13 +68,17 @@ def do_commit(args: argparse.Namespace) -> None:
 def do_push(args: argparse.Namespace) -> None:
     repo = DatasetRepo(args.path)
     result = repo.push()
-    if result["pull_request"]:
-        print(f"Pushed {result['commit'][:10]} to {result['branch']}; pull request with auto-merge: {result['pull_request']}")
+    pushed = f"Pushed {result['commit'][:10]} to {result['branch']}"
+    if result["pull_request"] and result["auto_merge"]:
+        print(f"{pushed}; pull request with auto-merge: {result['pull_request']}")
+    elif result["pull_request"]:
+        print(f"{pushed}; pull request: {result['pull_request']}")
+        print(f"Auto-merge could not be switched on ({result['problem']}). Merge it by hand once its check passes.")
     elif result["branch"].startswith("incoming/"):
-        print(f"Pushed {result['commit'][:10]} to {result['branch']}. Open a pull request into the default branch: "
-              f"{repo.compare_url(result['branch'])}")
+        print(f"{pushed}. No pull request was opened ({result['problem']}). "
+              f"Open one into the default branch: {repo.compare_url(result['branch'])}")
     else:
-        print(f"Pushed {result['commit'][:10]} to {result['branch']}")
+        print(pushed)
 
 
 def do_register(args: argparse.Namespace) -> None:
