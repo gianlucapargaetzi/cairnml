@@ -6,11 +6,11 @@ dvc holds the file content in object storage and in a local cache. The tool neve
 import json
 import os
 import shutil
-import subprocess
 import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 
+from . import process
 from .errors import DatasetError
 
 REMOTE_NAME = "storage"
@@ -18,6 +18,9 @@ REMOTE_NAME = "storage"
 
 class DvcError(DatasetError):
     pass
+
+
+_TRANSFERS = {"push", "pull", "fetch", "checkout", "get", "update"}
 
 
 def _command() -> List[str]:
@@ -36,10 +39,10 @@ class Dvc:
         env = dict(os.environ)
         env.update(self.env)
         env["DVC_NO_ANALYTICS"] = "true"
+        # Moving data takes as long as the data is big; everything else is a short command.
+        limit = process.transfer_timeout() if args and args[0] in _TRANSFERS else -1
         try:
-            result = subprocess.run(
-                _command() + list(args), cwd=str(self.path), capture_output=True, text=True, env=env, check=False
-            )
+            result = process.run(_command() + list(args), cwd=str(self.path), env=env, timeout=limit)
         except FileNotFoundError:
             raise DvcError("dvc is not installed: pip install 'cairnml[dataset]'") from None
         if result.returncode != 0:
