@@ -1,3 +1,64 @@
 [build-system]
-requires = ["setuptools>=61", "wheel"]
+requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "cairnml"
+dynamic = ["version", "dependencies"]
+description = "CairnML - experiment tracking, remote jobs and git-based datasets (an unofficial fork of ClearML)"
+readme = "README.md"
+requires-python = ">=3.9"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+authors = [{ name = "Gianluca Pargaetzi", email = "121188387+gianlucapargaetzi@users.noreply.github.com" }]
+keywords = ["cairnml", "clearml", "development", "machine learning", "deep learning", "version control", "experiment manager", "mlops"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS :: MacOS X",
+    "Operating System :: Microsoft",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development",
+    "Topic :: Software Development :: Version Control",
+    "Topic :: System :: Logging",
+    "Topic :: System :: Monitoring",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+
+[project.urls]
+Source = "https://github.com/gianlucapargaetzi/cairnml"
+Issues = "https://github.com/gianlucapargaetzi/cairnml/issues"
+"Based on" = "https://github.com/clearml/clearml"
+
+[project.optional-dependencies]
+s3 = ["boto3>=1.9"]
+azure = ["azure-storage-blob>=12.0.0"]
+gs = ["google-cloud-storage>=1.13.2"]
+dataset = ["dvc[s3]>=3.50", "pyarrow>=14"]
+router = ["fastapi>=0.115.2", "uvicorn>=0.31.1", "httpx>=0.27.2"]
+
+[project.scripts]
+cairnml-init = "cairnml.cli.enrolment:init_main"
+cairnml-whoami = "cairnml.cli.enrolment:whoami_main"
+cairnml-logout = "cairnml.cli.enrolment:logout_main"
+cairnml-dataset = "cairnml.cli.dataset.__main__:main"
+cairnml-task = "cairnml.cli.task.__main__:main"
+cairnml-param-search = "cairnml.cli.hpo.__main__:main"
+cairnml-debug = "cairnml.cli.debug.__main__:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "cairnml.version.__version__" }
+dependencies = { file = ["requirements.txt"] }
+
+[tool.setuptools.packages.find]
+exclude = ["contrib*", "docs*", "data*", "examples*", "tests*"]
+
+[tool.setuptools.package-data]
+cairnml = ["config/default/*.conf", "backend_api/config/default/*.conf", "py.typed"]
