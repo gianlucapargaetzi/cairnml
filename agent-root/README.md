@@ -15,18 +15,26 @@
   <a href="https://github.com/gianlucapargaetzi/cairnml-agent/blob/main/LICENSE"><img src="https://img.shields.io/github/license/gianlucapargaetzi/cairnml-agent?style=flat-square&color=green" alt="License"></a>
 </p>
 
-# 🤖 CairnML Agent
+# CairnML Agent
 
-Runs the jobs of a CairnML queue on this machine.
+CairnML Agent runs the jobs of a CairnML queue on this machine. It takes one job at a time from its queue, prepares the job's environment, runs it and reports the result back to the server.
 
-## 🧰 Prerequisites
+## Features
 
-- 🐍 Python 3.9 or newer
-- 🖥️ A running [CairnML server](https://github.com/gianlucapargaetzi/cairnml-server)
-- 👤 An admin account on that server, since only admins enrol agents
-- 🐳 Docker, for jobs that run in containers (optional)
+- Takes jobs from one or more queues.
+- Runs each job in its own container with `--docker`.
+- Gives the agent the GPUs you choose with `--gpus`.
+- Gives every job its own short-lived token, so a job never receives the agent's own token.
+- Is enrolled once by an admin, who signs in when the browser opens.
 
-## 📦 Installation
+## Prerequisites
+
+- Python 3.9 or newer
+- A running [CairnML server](https://github.com/gianlucapargaetzi/cairnml-server)
+- An admin account on that server, since only admins can enrol an agent
+- Docker, for jobs that run in containers (optional)
+
+## Installation
 
 ```bash
 python3 -m venv .venv
@@ -34,15 +42,15 @@ python3 -m venv .venv
 pip install cairnml-agent
 ```
 
-## 🔌 Connect to your server
+## Connect to your server
 
 ```bash
 cairnml-agent init
 ```
 
-Your browser opens the sign-in page. Sign in as an admin.
+The command runs a short wizard. Your browser opens the sign-in page: sign in as an admin. A non-admin is refused, and no configuration is written.
 
-## 🚀 Start the agent
+## Start the agent
 
 ```bash
 cairnml-agent daemon --queue default
@@ -54,17 +62,21 @@ cairnml-agent daemon --queue default
 | `--docker` | Run each job in a container |
 | `--gpus 0` | The GPUs the agent may use |
 
-The **Workers** page of the web app lists this machine once it is running.
+Run `cairnml-agent daemon --help` for the rest.
 
-## ✅ Setup complete
+## Check it
 
-Your agent is ready to run jobs. Continue with **[cairnml-examples](https://github.com/gianlucapargaetzi/cairnml-examples)**.
+The **Workers** page of the web app lists this machine once it is running. Send a job to the queue, for example with `Task.enqueue` from the [SDK](https://github.com/gianlucapargaetzi/cairnml), and it starts on this machine.
 
-## 🆘 Having problems
+## Next steps
+
+Continue with the [CairnML examples](https://github.com/gianlucapargaetzi/cairnml-examples).
+
+## Having problems
 
 1. Check the [open issues](https://github.com/gianlucapargaetzi/cairnml-agent/issues).
 2. If your problem is not listed, [open a new issue](https://github.com/gianlucapargaetzi/cairnml-agent/issues/new) with the command you ran and the full error message.
 
-## 📄 License
+## License
 
 Apache License 2.0, see [LICENSE](LICENSE). Unofficial fork of ClearML Agent, see [DISCLAIMER.md](DISCLAIMER.md).
