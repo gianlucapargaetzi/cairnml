@@ -78,7 +78,8 @@ class Dvc:
             ("secret_access_key", secret_key),
             ("session_token", session_token),
         ):
-            self.run("remote", "modify", "--local", REMOTE_NAME, key, value)
+            # "--" keeps a value that starts with "-" (a random secret can) from being read as an option
+            self.run("remote", "modify", "--local", "--", REMOTE_NAME, key, value)
 
     def remote_url(self) -> Optional[str]:
         out = self.run("config", f"remote.{REMOTE_NAME}.url") if self._has_remote() else ""
