@@ -27,9 +27,9 @@ LOCAL_CONFIG_PATHS = [
 
 LOCAL_CONFIG_FILES = [
     expanduser('~/trains.conf'),    # used for workstation configuration (end-users, workers)
-    expanduser('~/cairnml.conf'),    # used for workstation configuration (end-users, workers)
+    expanduser('~/cairnml-agent.conf'),    # agent's own configuration, written by cairnml-agent init (last = preferred)
 ]
-""" Local config files (not paths) """
+""" Local config files (not paths). The agent does not read the CairnML SDK's ~/cairnml.conf """
 
 
 LOCAL_CONFIG_FILE_OVERRIDE_VAR = EnvEntry('CAIRNML_CONFIG_FILE', 'TRAINS_CONFIG_FILE', )

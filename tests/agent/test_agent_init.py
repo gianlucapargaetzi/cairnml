@@ -43,3 +43,30 @@ def test_a_refused_agent_writes_no_configuration(tmp_path):
 
     conf, _ = run_init(tmp_path, enrol=refused)
     assert not conf.exists()
+
+
+def test_an_sdk_configuration_file_does_not_block_agent_setup(tmp_path):
+    sdk_conf = tmp_path / "cairnml.conf"
+    sdk_conf.write_text('api { idp { device_id: "dev_sdk" } }\n')
+    agent_conf = tmp_path / "cairnml-agent.conf"
+    files = [str(tmp_path / "trains.conf"), str(sdk_conf), str(agent_conf)]
+
+    with mock.patch.object(init, "LOCAL_CONFIG_FILES", files), \
+            mock.patch.object(init, "input", answers(*SCRIPT), create=True), \
+            mock.patch.object(init, "enrol_device", return_value="dev_agent"):
+        init.main()
+
+    assert 'device_id: "dev_agent"' in agent_conf.read_text()
+    assert sdk_conf.read_text() == 'api { idp { device_id: "dev_sdk" } }\n'
+
+
+def test_the_agent_does_not_read_the_sdk_configuration_file():
+    from cairnml_agent.backend_config.defs import LOCAL_CONFIG_FILES
+
+    assert not any(Path(f).name == "cairnml.conf" for f in LOCAL_CONFIG_FILES)
+
+
+def test_the_agent_keeps_its_own_device_key():
+    from cairnml_agent.idp.device import DEVICE_KEY_PATH
+
+    assert DEVICE_KEY_PATH == Path.home() / ".cairnml" / "agent" / "device.key"

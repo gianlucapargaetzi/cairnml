@@ -32,14 +32,11 @@ Enter the url of the cairnml-server's Web service, for example: {HOST} or http:/
 
 def main():
     print('CAIRNML-AGENT setup process')
-    for f in LOCAL_CONFIG_FILES:
-        conf_file = Path(f).absolute()
-        if conf_file.exists():
-            break
+    conf_file = Path(LOCAL_CONFIG_FILES[-1]).absolute()
 
     if conf_file.exists() and conf_file.is_file() and conf_file.stat().st_size > 0:
         print('Configuration file already exists: {}'.format(str(conf_file)))
-        print('Leaving setup. If you\'ve previously initialized the CairnML SDK on this machine, manually add an \'agent\' section to this file.')
+        print('Leaving setup. Move or delete this file to set up the agent again.')
         return
 
     print(description, end='')
