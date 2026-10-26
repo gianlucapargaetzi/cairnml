@@ -1,3 +1,20 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/cairnml-logo-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="assets/cairnml-logo.svg">
+    <img src="assets/cairnml-logo.svg" alt="CairnML" width="480">
+  </picture>
+</p>
+
+<p align="center">
+  <a href="https://github.com/gianlucapargaetzi/cairnml/actions/workflows/ci.yml"><img src="https://github.com/gianlucapargaetzi/cairnml/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://pypi.org/project/cairnml/"><img src="https://img.shields.io/pypi/v/cairnml?style=flat-square&logo=pypi&logoColor=white" alt="PyPI"></a>
+  <a href="https://pypi.org/project/cairnml/"><img src="https://img.shields.io/pypi/dm/cairnml?style=flat-square&label=monthly%20downloads" alt="Monthly downloads"></a>
+  <a href="https://pypi.org/project/cairnml/"><img src="https://img.shields.io/pypi/pyversions/cairnml?style=flat-square&logo=python&logoColor=white" alt="Python"></a>
+  <a href="https://github.com/gianlucapargaetzi/cairnml/stargazers"><img src="https://img.shields.io/github/stars/gianlucapargaetzi/cairnml?style=flat-square&logo=github" alt="GitHub stars"></a>
+  <a href="https://github.com/gianlucapargaetzi/cairnml/blob/main/LICENSE"><img src="https://img.shields.io/github/license/gianlucapargaetzi/cairnml?style=flat-square&color=green" alt="License"></a>
+</p>
+
 # 🪨 CairnML SDK
 
 Track your training runs, version your datasets and send jobs to remote machines.
