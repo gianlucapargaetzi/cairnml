@@ -45,41 +45,10 @@ def write_config(conf_file, api_host: str, web_host: str, device_id: Optional[st
 
 
 def parse_known_host(parsed_host: Any) -> Tuple[str, str]:
-    if parsed_host.netloc.startswith("demoapp."):
-        # this is our demo server
-        api_host = parsed_host.scheme + "://" + parsed_host.netloc.replace("demoapp.", "demoapi.", 1) + parsed_host.path
-        web_host = parsed_host.scheme + "://" + parsed_host.netloc + parsed_host.path
-    elif parsed_host.netloc.startswith("app."):
-        # this is our application server
-        api_host = parsed_host.scheme + "://" + parsed_host.netloc.replace("app.", "api.", 1) + parsed_host.path
-        web_host = parsed_host.scheme + "://" + parsed_host.netloc + parsed_host.path
-    elif parsed_host.netloc.startswith("demoapi."):
-        print(f"{parsed_host.netloc} is the api server, we need the web server. Replacing 'demoapi.' with 'demoapp.'")
-        api_host = parsed_host.scheme + "://" + parsed_host.netloc + parsed_host.path
-        web_host = parsed_host.scheme + "://" + parsed_host.netloc.replace("demoapi.", "demoapp.", 1) + parsed_host.path
-    elif parsed_host.netloc.startswith("api."):
-        print(f"{parsed_host.netloc} is the api server, we need the web server. Replacing 'api.' with 'app.'")
-        api_host = parsed_host.scheme + "://" + parsed_host.netloc + parsed_host.path
-        web_host = parsed_host.scheme + "://" + parsed_host.netloc.replace("api.", "app.", 1) + parsed_host.path
-    elif parsed_host.port == 8008:
-        print("Port 8008 is the api port. Replacing 8008 with 8080 for Web application")
-        api_host = parsed_host.scheme + "://" + parsed_host.netloc + parsed_host.path
-        web_host = parsed_host.scheme + "://" + parsed_host.netloc.replace(":8008", ":8080", 1) + parsed_host.path
-    elif parsed_host.port == 8080:
-        print("Port 8080 is the web port. Replacing 8080 with 8008 for API server")
-        api_host = parsed_host.scheme + "://" + parsed_host.netloc.replace(":8080", ":8008", 1) + parsed_host.path
-        web_host = parsed_host.scheme + "://" + parsed_host.netloc + parsed_host.path
-    elif parsed_host.port is None:
-        print("Web app hosted on standard port using " + parsed_host.scheme + " protocol.")
-        print("Assuming the api port is 8008 and uses the same (" + parsed_host.scheme + ") protocol")
-        api_host = parsed_host.scheme + "://" + parsed_host.netloc + ":8008" + parsed_host.path
-        web_host = parsed_host.scheme + "://" + parsed_host.netloc + parsed_host.path
-    else:
-        print("Warning! Could not parse host name")
-        api_host = ""
-        web_host = ""
-
-    return api_host, web_host
+    """The API and web addresses of the server. The server is reached through its proxy on the address given: the web
+    app at that address, the API under /api."""
+    root = parsed_host.scheme + "://" + parsed_host.netloc + parsed_host.path.rstrip("/")
+    return root + "/api", root
 
 
 def input_url(host_type: str, host: str = None) -> str:

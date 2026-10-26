@@ -59,7 +59,6 @@ def init_main(argv=None) -> int:
 
     conf = Path(os.path.expanduser(args.file)).absolute()
     _, previous, _ = read_enrolment(conf)
-    # The web address (port 8080) is accepted: the API address (port 8008) is derived from it.
     api_server, _ = parse_known_host(urlparse(args.server))
     try:
         result = enrol(api_server or args.server, name=args.name, force=args.force, previous_device_id=previous)
@@ -70,9 +69,7 @@ def init_main(argv=None) -> int:
         print(f"error: cannot reach {api_server or args.server}: {exc.__class__.__name__}", file=sys.stderr)
         return 1
 
-    parsed = urlparse(result.server_url)
-    _, derived_web = parse_known_host(parsed)
-    write_config(conf, result.server_url, result.web_url or derived_web, result.device_id)
+    write_config(conf, result.server_url, result.web_url, result.device_id)
     print(f"enrolled as {result.user or 'unknown user'} on {result.server_url} (device {result.device_id})")
     return 0
 

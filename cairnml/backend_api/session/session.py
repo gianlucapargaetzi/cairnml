@@ -98,8 +98,8 @@ class Session(TokenManager):
     server_version = "1.0.0"
     max_api_version = "2.9"
     feature_set = "basic"
-    default_host = "http://localhost:8008"
-    default_web = "http://localhost:8080"
+    default_host = "http://localhost/api"
+    default_web = "http://localhost"
     force_max_api_version = ENV_FORCE_MAX_API_VERSION.get()
 
 
