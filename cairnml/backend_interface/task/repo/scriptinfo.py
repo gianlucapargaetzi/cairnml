@@ -825,7 +825,7 @@ class ScriptInfo:
                     # raise on last one only
                     if server_index == len(jupyter_servers) - 1:
                         cls._get_logger().warning(
-                            f"Failed accessing the jupyter server [password={password}]: {ex}"
+                            f"Failed accessing the jupyter server (password authentication was used): {ex}"
                             if server_info.get("password")
                             else f"Failed accessing the jupyter server: {ex}"
                         )
