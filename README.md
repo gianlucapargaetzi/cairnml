@@ -1,25 +1,34 @@
-# CairnML
+# 🪨 CairnML SDK
 
-CairnML records what your training scripts do (parameters, metrics, logs, artifacts), runs them on remote machines through job queues, and versions datasets with git and DVC so every run records the exact data it used.
+Track your training runs, version your datasets and send jobs to remote machines.
 
-This is the Python SDK. It needs a CairnML server (see [cairnml-server](https://github.com/gianlucapargaetzi/cairnml-server) and the [deployment files](https://github.com/gianlucapargaetzi/cairnml-stack)).
+## 🧰 Prerequisites
 
-CairnML is an unofficial, modified version of [ClearML](https://github.com/clearml/clearml). It is not created, sponsored, endorsed or supported by ClearML, Inc. See [DISCLAIMER.md](DISCLAIMER.md) and [NOTICE](NOTICE).
+- 🐍 Python 3.9 or newer
+- 🔀 `git`, for datasets only
+- 🖥️ A running [CairnML server](https://github.com/gianlucapargaetzi/cairnml-server)
 
-## Install
+## 📦 Installation
 
 ```bash
 pip install cairnml
-pip install "cairnml[dataset]"   # adds the dataset tools (DVC, Parquet)
 ```
 
-## Use
-
-Sign this machine in to your server once:
+For the dataset tools:
 
 ```bash
-cairnml-init --server https://your-server:8008
+pip install "cairnml[dataset]"
 ```
+
+## 🔌 Connect to your server
+
+```bash
+cairnml-init --server http://cairnml:8008
+```
+
+Your browser opens the sign-in page. When the command prints `enrolled as …`, this machine is connected.
+
+## 🚀 Getting started
 
 Track a script:
 
@@ -31,23 +40,44 @@ task.connect({"lr": 0.001})
 task.get_logger().report_scalar("loss", "train", value=0.5, iteration=1)
 ```
 
-Run a recorded task on an agent ([cairnml-agent](https://pypi.org/project/cairnml-agent/)):
+Run it on an agent:
 
 ```python
 Task.enqueue(task, queue_name="default")
 ```
 
-Version a dataset (a dataset is a git repository, its commit is its version):
+## 🖥️ The web app
 
-```bash
-cairnml-dataset init
-cairnml-dataset add
-cairnml-dataset commit -m "March measurements"
-cairnml-dataset push
+Open `http://cairnml:8080` and sign in. The menu has these sections:
+
+- 🏠 **Dashboard:** projects and recent experiments
+- 📁 **Projects:** the tasks, experiments and models of each project
+- 🗂️ **Datasets:** dataset versions
+- 🔀 **Pipelines**
+- 📝 **Reports**
+- 🖥️ **Workers & Queues:** the machines running agents, and the jobs waiting for them
+- ⚙️ **Settings**
+
+## 📂 Access your data
+
+```python
+from cairnml.datasets import Dataset
+
+data = Dataset.get("https://github.com/acme/cars-data.git", "3f2a9c1")  # a commit, tag or branch
+print(data.path)  # a local folder with the files
 ```
 
-See [docs/datasets.md](docs/datasets.md) for datasets, adapters and the cache.
+To create your own dataset, see [docs/datasets.md](docs/datasets.md).
 
-## License
+## ✅ Setup complete
 
-Apache License 2.0, see [LICENSE](LICENSE). Based on ClearML, Copyright 2025 ClearML Inc.
+Your SDK is connected. Continue with **[cairnml-examples](https://github.com/gianlucapargaetzi/cairnml-examples)**.
+
+## 🆘 Having problems
+
+1. Check the [open issues](https://github.com/gianlucapargaetzi/cairnml/issues).
+2. If your problem is not listed, [open a new issue](https://github.com/gianlucapargaetzi/cairnml/issues/new) with the command you ran and the full error message.
+
+## 📄 License
+
+Apache License 2.0, see [LICENSE](LICENSE). Unofficial fork of ClearML, see [DISCLAIMER.md](DISCLAIMER.md).
