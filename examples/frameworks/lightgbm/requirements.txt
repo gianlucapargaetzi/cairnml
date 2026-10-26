@@ -1,5 +1,0 @@
-lightgbm
-scikit-learn
-pandas
-matplotlib
-cairnml>=1.14.4

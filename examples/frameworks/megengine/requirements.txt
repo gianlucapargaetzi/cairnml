@@ -1,3 +1,0 @@
-MegEngine ; python_version < '3.9'
-tensorboardX
-cairnml>=1.14.4

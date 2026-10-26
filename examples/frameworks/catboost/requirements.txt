@@ -1,4 +1,0 @@
-catboost
-numpy >= 1.19.2
-scikit_learn
-cairnml>=1.14.4

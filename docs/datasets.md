@@ -1,120 +1,137 @@
-# Datasets: `cairnml-dataset`
+# Datasets
 
-A dataset is a git repository with a `data/` folder. Git holds the history, DVC holds the files in object
-storage, and the **commit of the repository is the dataset version**. A training run records the repository,
-the commit and a hash of the files, so you can always tell which data a run used.
+CairnML versions the datasets your runs use. A dataset of your own is a git repository whose files are tracked with DVC, so every run records the exact commit and content it used. Public datasets are read through adapters from the [dataset registry](https://github.com/gianlucapargaetzi/cairnml-dataset-registry), which turns each source into the same sample format.
 
-Install: `pip install "cairnml[dataset]"` (needs Python 3.9+ and `git`).
+## Features
 
-## Your own data
+- Versioned datasets: the commit of the repository is the version of the data.
+- A footprint check on every commit, and a continuous-integration check that repeats it without the data.
+- Public datasets read through adapters, with the source revision recorded on the run.
+- One sample format for every dataset, with named modalities and typed labels.
+- A local cache, so a dataset is downloaded once per machine.
 
-Create an empty repository on GitHub and clone it. Then, inside it:
+## Prerequisites
+
+- Python 3.9 or newer
+- git
+- A running [CairnML server](https://github.com/gianlucapargaetzi/cairnml-server), for storing the files and recording the runs
+
+## Installation
 
 ```bash
-cairnml-dataset init                 # git tracking, file storage, dataset.yaml and the footprint check
-cp -r /path/to/measurements data/    # put your files in data/
-cairnml-dataset status               # branch, and what is new, changed or deleted
-cairnml-dataset add                  # record the state of data/, deleted files included
-cairnml-dataset commit -m "March measurements"   # checks the data, writes dataset.lock.json, commits
-cairnml-dataset push                 # files first, then the commit, through a branch and a pull request
-cairnml-dataset register             # once: add the dataset to the registry
+pip install "cairnml[dataset]"
 ```
 
-`add` records the whole of `data/` as it is now: new and changed files are included and files you removed are
-removed from the dataset. Older commits keep their files; check one out with `Dataset.get`.
+## Create a dataset of your own
 
-### Native or through an adapter
+Create an empty repository on GitHub and clone it. Then, inside the clone:
 
-A dataset must be readable in the standard format, so every dataset says how. `dataset.yaml` holds one of two lines:
+```bash
+cairnml-dataset init                     # git tracking, file storage and dataset.yaml
+cp -r /path/to/measurements data/        # copy your files into data/
+cairnml-dataset status                   # what is new, changed or deleted
+cairnml-dataset add                      # record data/ as it is now
+cairnml-dataset commit -m "March measurements"   # check the data and commit it with its footprint
+cairnml-dataset push                     # send the files, then the commit, as a pull request
+cairnml-dataset register                 # once: add the dataset to the registry
+```
 
-- `format: native`: `data/` already contains `samples.parquet` and `manifest.json`, the standard sample table (see
-  `cairnml.datasets.schema`).
-- `adapter: <name>` (and optionally `registry: <url>`): an adapter of the registry reads the files in `data/` into it.
-  `cairnml-dataset init --adapter <name>` sets this up.
+`add` records the whole of `data/`: new and changed files are included, and files you removed are removed from the dataset. Older commits keep their files, so an earlier version stays available.
 
-`cairnml-dataset check` reads `data/` as `dataset.yaml` says and validates the result. A dataset that is neither native
-nor read by an adapter cannot be committed.
+## How the data is read
 
-### The footprint
+Every dataset says how its files are read in `dataset.yaml`, which holds one of two lines:
 
-`commit` writes `dataset.lock.json` next to `data.dvc`. It copies the size, file count and content hash that DVC wrote,
-says in which format the data was read, and ends with a checksum of everything above. `.cairnml/verify.py` recomputes
-what it can from git alone (no data, no server, no key): that the lock and `data.dvc` agree, that the checksum holds,
-that `dataset.yaml` and the lock name the same format, and that the repository holds only the files a dataset
-repository may hold. A GitHub Action (`.github/workflows/dataset.yml`, written by `init`) runs it.
+- `format: native`: `data/` already contains the standard sample table, `samples.parquet` with `manifest.json`.
+- `adapter: <name>`, with `registry: <url>`: an adapter from the registry reads the files in `data/` into the standard format. `cairnml-dataset init --adapter <name> --registry <url>` writes this line for you.
 
-It is a footprint, not a signature: someone who writes a matching lock by hand gets past it. That fails when the
-dataset is used, because the data is read and validated again.
+`cairnml-dataset check` reads `data/` the way `dataset.yaml` says and reports what is wrong. A dataset that is neither native nor read by an adapter cannot be committed.
 
-### Publishing
+## Publish a dataset
 
-Set a ruleset on the default branch of the dataset repository: pull requests only, no force pushes, and the check
-`verify` required. `push` then sends a commit made on the default branch to `incoming/<commit>` and opens a pull
-request with auto-merge when the GitHub command line (`gh`) is installed; otherwise it prints the link. The first push
-to an empty repository goes straight to its first branch. `push` refuses a commit whose footprint does not hold.
+Protect the default branch of the dataset repository: require pull requests, block force pushes, and require the `verify` check. `push` then sends your commit to a branch named `incoming/<commit>` and opens a pull request, which merges automatically once the check passes. Without the GitHub command line (`gh`), `push` prints the link to open the pull request yourself. The first push to an empty repository goes straight to its default branch.
 
-### The registry
+`push` refuses a commit whose footprint does not hold.
 
-`cairnml-dataset register` asks the server to add the dataset to the registry. The server reads the dataset
-repository's default branch with the GitHub App, verifies the footprint, and opens a pull request in the registry with
-the entry. It happens once: a repository that is registered, or waiting in a pull request, is refused. The commit must
-already be on the default branch. The server needs `apiserver.dataset_registry.repository` and `allowed_owners`, and
-the GitHub App needs write access to contents and pull requests on the registry.
+## Register a dataset
 
-## Using a dataset in a script
+`cairnml-dataset register` asks the server to add the dataset to the registry. The server reads the default branch of the repository, verifies the footprint, and opens a pull request in the registry with the new entry. Registration happens once. A repository that is already registered, or waiting in a pull request, is refused. Its commit must already be on the default branch.
+
+## Use a dataset in a script
 
 ```python
 from cairnml import Task
 from cairnml.datasets import Dataset
 
 task = Task.init(project_name="cars", task_name="train")
-data = Dataset.get("https://github.com/acme/cars-data.git", "3f2a9c1")   # commit, tag or branch
-print(data.path)            # a folder with the files
+data = Dataset.get("https://github.com/acme/cars-data.git", "3f2a9c1")   # a commit, tag or branch
+print(data.path)   # a folder with the files
 ```
 
-The files are downloaded once into your cache and reused by every later run on the machine. The task gets
-the parameters `Datasets/<name>/repo`, `commit` and `content_hash`. A commit that is not pushed is refused.
-Use a commit hash, not a branch, when you want to rerun the same data later.
+The files are downloaded once into your cache and reused by every later run on the machine. The task records the repository, the commit and the content hash, so the run always shows which data it used. Pass a commit hash rather than a branch when you want to rerun the same data later.
 
-## Datasets from outside (Hugging Face, git, local folders)
+## Use a public dataset from the registry
 
-A separate repository, `external-datasets`, is the registry. It holds one small file per dataset and the adapters.
-Datasets of our own have an entry too (`source: repo`, see above); the others look like this:
+A public dataset has an entry in the registry: a pin file in `datasets/` that names its source and its adapter. Read it by name:
+
+```python
+from cairnml.datasets import Dataset
+
+data = Dataset.get_external(
+    "coco-fashion",
+    repo="https://github.com/gianlucapargaetzi/cairnml-dataset-registry",
+)
+for sample in data.samples("train"):
+    image = sample.modality("image")   # a path
+    boxes = sample.label("bbox2d")     # [{"box": [x1, y1, x2, y2], "label": "shoe"}, ...]
+```
+
+The commit of the registry fixes both the pin file, which says where the data comes from, and the adapter, which says how it is read. Without a commit, the latest commit of its default branch is used. Pass a commit to rerun an earlier run exactly. The run records the source revision, the adapter and the registry commit. To set the registry once for all scripts, put its URL in the configuration as `sdk.datasets.external_repo`.
+
+### The pin file
 
 ```yaml
 # datasets/coco-det.yaml
-source: huggingface
+source: huggingface              # or git, local, or web
 link: hf://datasets/org/coco-det
-adapter: coco_det                # the default adapter
-revision: null                   # optional: pin the source's own commit
-overrides:                       # a different adapter for revisions where the layout changed
+adapter: coco_det               # the adapter that reads the files
+revision: null                  # optional: pin the source's own revision
+overrides:                      # another adapter for revisions whose layout changed
   - revisions: ["9b1c4e7"]
     adapter: coco_det_v2
 ```
 
+A `web` source takes a list of addresses under `link`. A zip archive among them is unpacked into a folder named after it.
+
+## Write an adapter
+
+An adapter is a small class in the registry's `adapters/` folder. It declares the modalities and labels it produces, and then adds one sample at a time:
+
 ```python
-data = Dataset.get_external("coco-det")                    # latest commit of external-datasets
-data = Dataset.get_external("coco-det", "a1b2c3d")         # a fixed commit, to rerun an earlier run exactly
-for sample in data.samples(split="train"):
-    image = sample.modality("image")        # a path
-    boxes = sample.label("bbox2d")          # [{"box": [x1, y1, x2, y2], "label": "car"}, ...]
+from cairnml.datasets import Adapter
+
+class CocoDetection(Adapter):
+    modalities = {"image": "image"}
+    labels = {"bbox2d": "bbox2d"}
+
+    def run(self, source, writer):
+        for item in read_source(source):
+            writer.add(item.id, item.split, {"image": item.file}, {"bbox2d": item.boxes})
 ```
 
-The commit of `external-datasets` fixes the pin file and the adapter code. Without one, the latest commit of its
-default branch is used; that branch is kept working by the repository's tests. The source's revision is the one
-you pass, else the pin file's, else the latest. Whatever was used is recorded on the run
-(`Datasets/<name>/revision`, `adapter`, `repo_commit`), so a rerun can pass the same values. Name the repository with `repo=...` or the
-configuration key `sdk.datasets.external_repo`.
+`source` is the folder with the files of the dataset at the revision the run asked for. Image paths are relative to that folder. The writer checks every sample against the standard format, and an error names the adapter, so the run stops before training.
 
-Every adapter produces the same shape: samples with named modalities (`image`, `depth`, ...) and typed labels
-(`class`, `bbox2d`, `mask2d`, `json`). Boxes are always `[x1, y1, x2, y2]` in pixels. An adapter that finds a
-layout it does not know stops the run with a message that names the adapter. To write one, see the docstring of
-`cairnml.datasets.adapter`.
+## The sample format
+
+Every adapter produces the same shape: one row per sample, with an id, a split, the files of each modality and the labels.
+
+- Modalities are named files, for example `image` and `depth`. Types: `image`, `depth`, `audio`, `video`, `text`, `table`, `file`.
+- Labels are named and typed. Types: `class`, `bbox2d`, `mask2d`, `json`.
+- Boxes are always `[x1, y1, x2, y2]` in pixels, with `x2 > x1` and `y2 > y1`.
 
 ## The cache
 
-Datasets are kept per user, by default in `~/.cairnml/cache/datasets`, up to 50 GB. When the cache is over
-its limit, the versions used longest ago are removed first; a version in use is never removed.
+Datasets are kept per user, by default in `~/.cairnml/cache/datasets`, up to 50 GB. When the cache is over its limit, the versions used longest ago are removed first. A version in use is never removed.
 
 ```bash
 cairnml-dataset cache info
@@ -122,17 +139,13 @@ cairnml-dataset cache limit 20GB
 cairnml-dataset cache clean
 ```
 
-```
-sdk.datasets.cache.dir: ~/.cairnml/cache/datasets
-sdk.datasets.cache.max_size: 50GB
-```
-
-On an agent, mount the cache into job containers so it survives between jobs, for example in the agent's
-`cairnml.conf`: `agent.extra_docker_arguments: ["-v", "/srv/dataset-cache:/root/.cairnml/cache/datasets"]`.
+On an agent, mount the cache into the job containers, so it survives between jobs.
 
 ## Access
 
-DVC gets short-lived keys for the dataset bucket from the server (`datachunks.dataset_credentials`); no access
-key is stored on your machine. On your machine, git uses your own login. In a job, the server gives the agent a
-read-only GitHub token for the registry and for the dataset repositories its entries point to, and for no other
-repository. The registry is the only list of dataset repositories; the server reads its default branch.
+DVC gets short-lived keys for the dataset storage from the server, so no access key is stored on your machine. Git uses your own login. In a job, the agent gets a read-only token for the registry and for the dataset repositories its entries point to, and for no other repository.
+
+## Having problems
+
+1. Check the [open issues](https://github.com/gianlucapargaetzi/cairnml/issues).
+2. If your problem is not listed, [open a new issue](https://github.com/gianlucapargaetzi/cairnml/issues/new) with the commands you ran and the full error message.

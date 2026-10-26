@@ -1,4 +1,0 @@
-fastai < 2.0.0
-tensorboard
-tensorboardX
-cairnml>=1.14.4

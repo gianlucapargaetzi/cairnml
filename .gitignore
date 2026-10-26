@@ -15,11 +15,6 @@ __pycache__
 .venv/
 venv/
 
-# example data
-examples/runs/
-examples/*_data
-examples/frameworks/data
-
 # vscode
 .workspace/
 .vscode/
