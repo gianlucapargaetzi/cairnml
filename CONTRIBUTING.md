@@ -51,7 +51,7 @@ Enhancement suggestions are tracked as GitHub issues. After you determine which 
 Before you submit a new PR:
 
 * Verify the work you plan to merge addresses an existing [issue](https://github.com/gianlucapargaetzi/cairnml/issues) (If not, open a new one)
-* Check related discussions in the [CairnML slack community](https://joinslack.clear.ml) (Or start your own discussion on the `#cairnml-dev` channel)
+* Check related [issues](https://github.com/gianlucapargaetzi/cairnml/issues) and start your own on GitHub if nothing matches
 * Make sure your code conforms to the CairnML coding standards by running:  
   `flake8 --max-line-length=120 --statistics --show-source --extend-ignore=E501 ./cairnml*`
 

@@ -18,7 +18,7 @@ Exact steps to reproduce the bug. Provide example code if possible.
 What is the expected behaviour? What should've happened but didn't?
 
 ## Environment
-* Server type (self hosted \ app.clear.ml)
+* Server type (self hosted, or a server run by someone else)
 * CairnML SDK Version
 * CairnML Server Version (Only for self hosted). Can be found on the bottom right corner of the settings screen.
 * Python Version
