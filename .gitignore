@@ -23,3 +23,8 @@ examples/frameworks/data
 # vscode
 .workspace/
 .vscode/
+
+# Claude Code: its settings, skills, project instructions and plans stay on the author's machine, not in the repository
+.claude/
+CLAUDE.md
+.superpowers/
