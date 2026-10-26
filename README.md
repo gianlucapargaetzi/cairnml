@@ -15,37 +15,44 @@
   <a href="https://github.com/gianlucapargaetzi/cairnml/blob/main/LICENSE"><img src="https://img.shields.io/github/license/gianlucapargaetzi/cairnml?style=flat-square&color=green" alt="License"></a>
 </p>
 
-# 🪨 CairnML SDK
+# CairnML SDK
 
-Track your training runs, version your datasets and send jobs to remote machines.
+The CairnML SDK is the Python library you add to your training scripts. It records what a run does (parameters, metrics, logs and artifacts), sends runs to remote agents through job queues, and versions datasets so that every run knows the exact data it used.
 
-## 🧰 Prerequisites
+## Features
 
-- 🐍 Python 3.9 or newer
-- 🔀 `git`, for datasets only
-- 🖥️ A running [CairnML server](https://github.com/gianlucapargaetzi/cairnml-server)
+- Track a training script with a few lines: parameters, metrics, logs and artifacts are recorded on your server.
+- Send a recorded run to an agent on another machine through a job queue.
+- Version datasets with git and DVC, and record the dataset commit on every run.
+- Read public datasets through adapters from the [dataset registry](https://github.com/gianlucapargaetzi/cairnml-dataset-registry), with the source revision recorded.
 
-## 📦 Installation
+## Prerequisites
+
+- Python 3.9 or newer
+- git, for datasets
+- A running [CairnML server](https://github.com/gianlucapargaetzi/cairnml-server)
+
+## Installation
 
 ```bash
 pip install cairnml
 ```
 
-For the dataset tools:
+For the dataset tools as well:
 
 ```bash
 pip install "cairnml[dataset]"
 ```
 
-## 🔌 Connect to your server
+## Connect to your server
 
 ```bash
 cairnml-init --server http://<server-ip>:8008
 ```
 
-Your browser opens the sign-in page. When the command prints `enrolled as …`, this machine is connected.
+Your browser opens the sign-in page. When the command prints `enrolled as ...`, this machine is connected. Each machine has its own key, so no access key is copied to it.
 
-## 🚀 Getting started
+## Getting started
 
 Track a script:
 
@@ -57,25 +64,28 @@ task.connect({"lr": 0.001})
 task.get_logger().report_scalar("loss", "train", value=0.5, iteration=1)
 ```
 
-Run it on an agent:
+Run the recorded task on an agent:
 
 ```python
 Task.enqueue(task, queue_name="default")
 ```
 
-## 🖥️ The web app
+The run appears in the web app under its project, with its parameters, metrics and artifacts.
+
+## The web app
 
 Open `http://<server-ip>:8080` and sign in. The menu has these sections:
 
-- 🏠 **Dashboard:** projects and recent experiments
-- 📁 **Projects:** the tasks, experiments and models of each project
-- 🗂️ **Datasets:** dataset versions
-- 🔀 **Pipelines**
-- 📝 **Reports**
-- 🖥️ **Workers & Queues:** the machines running agents, and the jobs waiting for them
-- ⚙️ **Settings**
+- **Dashboard:** projects and recent experiments
+- **Projects:** the tasks, experiments and models of each project
+- **Datasets:** dataset versions
+- **Pipelines** and **Reports**
+- **Workers & Queues:** the machines running agents, and the jobs waiting for them
+- **Settings**
 
-## 📂 Access your data
+## Access data
+
+Read a dataset from a repository of your own, at a commit:
 
 ```python
 from cairnml.datasets import Dataset
@@ -84,17 +94,31 @@ data = Dataset.get("https://github.com/acme/cars-data.git", "3f2a9c1")  # a comm
 print(data.path)  # a local folder with the files
 ```
 
-To create your own dataset, see [docs/datasets.md](docs/datasets.md).
+Read a public dataset from the dataset registry. The adapter turns its files into samples with images and labelled boxes:
 
-## ✅ Setup complete
+```python
+from cairnml.datasets import Dataset
 
-Your SDK is connected. Continue with **[cairnml-examples](https://github.com/gianlucapargaetzi/cairnml-examples)**.
+data = Dataset.get_external(
+    "coco-fashion",
+    repo="https://github.com/gianlucapargaetzi/cairnml-dataset-registry",
+)
+for sample in data.samples("train"):
+    image = sample.modality("image")   # a path
+    boxes = sample.label("bbox2d")     # [{"box": [x1, y1, x2, y2], "label": "shoe"}, ...]
+```
 
-## 🆘 Having problems
+Both calls record the dataset and its revision on the run. To create a dataset of your own, see [docs/datasets.md](docs/datasets.md).
+
+## Next steps
+
+The [CairnML examples](https://github.com/gianlucapargaetzi/cairnml-examples) walk through a first run, a full training run, and the same training on a dataset from the registry.
+
+## Having problems
 
 1. Check the [open issues](https://github.com/gianlucapargaetzi/cairnml/issues).
-2. If your problem is not listed, [open a new issue](https://github.com/gianlucapargaetzi/cairnml/issues/new) with the command you ran and the full error message.
+2. If your problem is not listed, [open a new issue](https://github.com/gianlucapargaetzi/cairnml/issues/new) with the command you ran, your Python version and the full error message.
 
-## 📄 License
+## License
 
 Apache License 2.0, see [LICENSE](LICENSE). Unofficial fork of ClearML, see [DISCLAIMER.md](DISCLAIMER.md).
