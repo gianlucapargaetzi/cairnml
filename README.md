@@ -23,7 +23,7 @@ pip install "cairnml[dataset]"
 ## 🔌 Connect to your server
 
 ```bash
-cairnml-init --server http://cairnml:8008
+cairnml-init --server http://<server-ip>:8008
 ```
 
 Your browser opens the sign-in page. When the command prints `enrolled as …`, this machine is connected.
@@ -48,7 +48,7 @@ Task.enqueue(task, queue_name="default")
 
 ## 🖥️ The web app
 
-Open `http://cairnml:8080` and sign in. The menu has these sections:
+Open `http://<server-ip>:8080` and sign in. The menu has these sections:
 
 - 🏠 **Dashboard:** projects and recent experiments
 - 📁 **Projects:** the tasks, experiments and models of each project
