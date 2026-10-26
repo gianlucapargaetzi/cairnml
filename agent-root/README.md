@@ -1,26 +1,53 @@
-# CairnML agent
+# 🤖 CairnML Agent
 
-The agent takes jobs from a CairnML queue and runs them on this machine: it prepares the environment, runs the task and reports back. It works with a [CairnML server](https://github.com/gianlucapargaetzi/cairnml-server) and the [cairnml SDK](https://pypi.org/project/cairnml/).
+Runs the jobs of a CairnML queue on this machine.
 
-CairnML is an unofficial, modified version of [ClearML](https://github.com/clearml/clearml). It is not created, sponsored, endorsed or supported by ClearML, Inc. See [DISCLAIMER.md](DISCLAIMER.md) and [NOTICE](NOTICE).
+## 🧰 Prerequisites
 
-## Install
+- 🐍 Python 3.9 or newer
+- 🖥️ A running [CairnML server](https://github.com/gianlucapargaetzi/cairnml-server)
+- 👤 An admin account on that server, since only admins enrol agents
+- 🐳 Docker, for jobs that run in containers (optional)
+
+## 📦 Installation
 
 ```bash
+python3 -m venv .venv
+. .venv/bin/activate
 pip install cairnml-agent
 ```
 
-## Use
-
-Sign the machine in to your server once, then listen to a queue:
+## 🔌 Connect to your server
 
 ```bash
 cairnml-agent init
+```
+
+Your browser opens the sign-in page. Sign in as an admin.
+
+## 🚀 Start the agent
+
+```bash
 cairnml-agent daemon --queue default
 ```
 
-Add `--docker` to run each job in a container and `--gpus 0` to give the agent chosen GPUs.
+| Option | What it does |
+|---|---|
+| `--queue NAME` | The queue to take jobs from |
+| `--docker` | Run each job in a container |
+| `--gpus 0` | The GPUs the agent may use |
 
-## License
+The **Workers** page of the web app lists this machine once it is running.
 
-Apache License 2.0, see [LICENSE](LICENSE). Based on ClearML Agent, Copyright 2025 ClearML Inc.
+## ✅ Setup complete
+
+Your agent is ready to run jobs. Continue with **[cairnml-examples](https://github.com/gianlucapargaetzi/cairnml-examples)**.
+
+## 🆘 Having problems
+
+1. Check the [open issues](https://github.com/gianlucapargaetzi/cairnml-agent/issues).
+2. If your problem is not listed, [open a new issue](https://github.com/gianlucapargaetzi/cairnml-agent/issues/new) with the command you ran and the full error message.
+
+## 📄 License
+
+Apache License 2.0, see [LICENSE](LICENSE). Unofficial fork of ClearML Agent, see [DISCLAIMER.md](DISCLAIMER.md).
