@@ -1,5 +1,0 @@
-allegroai~=3.5.7
-cairnml>=1.14.4
-numpy
-Pillow
-torch

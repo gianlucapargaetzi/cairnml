@@ -1324,7 +1324,7 @@ class Task(_Task):
         :param task_type: Optional, The task type to be created. Supported values: 'training', 'testing', 'inference',
             'data_processing', 'application', 'monitor', 'controller', 'optimizer', 'service', 'qc', 'custom'
         :param repo: Remote URL for the repository to use, or path to local copy of the git repository.
-            Example: 'https://github.com/allegroai/cairnml.git' or '~/project/repo'. If ``repo`` is specified, then
+            Example: 'https://github.com/gianlucapargaetzi/cairnml-examples.git' or '~/project/repo'. If ``repo`` is specified, then
             the ``script`` parameter must also be specified
         :param branch: Select specific repository branch/tag (implies the latest commit from the branch)
         :param commit: Select specific commit ID to use (default: latest commit,
@@ -3427,10 +3427,10 @@ class Task(_Task):
         .. code-block:: javascript
 
            {
-                'working_dir': 'examples/reporting',
+                'working_dir': 'examples/02-coco-fashion-detection',
                 'entry_point': 'artifacts.py',
                 'branch': 'master',
-                'repository': 'https://github.com/allegroai/cairnml.git'
+                'repository': 'https://github.com/gianlucapargaetzi/cairnml-examples.git'
            }
 
         """
@@ -3460,10 +3460,10 @@ class Task(_Task):
         .. code-block:: py
 
             task.set_script(
-                repository='https://github.com/allegroai/cairnml.git,
+                repository='https://github.com/gianlucapargaetzi/cairnml-examples.git',
                 branch='main',
-                working_dir='examples/reporting',
-                entry_point='artifacts.py'
+                working_dir='examples/02-coco-fashion-detection',
+                entry_point='train.py'
             )
 
         :param repository: Optional, URL of remote repository. use empty string (``""``) to clear repository entry.

@@ -1,1 +1,0 @@
-The `audio_classifier_UrbanSound8K.ipynb` example uses a small dataset based on [UrbanSound8K dataset](https://urbansounddataset.weebly.com/urbansound8k.html).

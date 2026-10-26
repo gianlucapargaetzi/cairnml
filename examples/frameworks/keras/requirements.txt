@@ -1,2 +1,0 @@
-tensorflow>=2.0
-cairnml>=1.14.4

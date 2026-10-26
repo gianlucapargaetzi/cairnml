@@ -1,2 +1,0 @@
-autokeras ; python_version >= '3.7'
-cairnml>=1.14.4

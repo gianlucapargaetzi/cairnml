@@ -1,4 +1,0 @@
-cairnml==2.0.2
-transformers==5.10.1
-datasets==5.1.0
-peft==0.11.1

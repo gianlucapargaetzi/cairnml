@@ -3,8 +3,8 @@
 Firstly, we thank you for taking the time to contribute!
 
 Contribution comes in many forms:
-* Reporting [issues](https://github.com/allegroai/cairnml/issues) you've come upon
-* Participating in issue discussions in the [issue tracker](https://github.com/allegroai/cairnml/issues) and the [CairnML community slack space](https://joinslack.clear.ml)
+* Reporting [issues](https://github.com/gianlucapargaetzi/cairnml/issues) you've come upon
+* Participating in issue discussions in the [issue tracker](https://github.com/gianlucapargaetzi/cairnml/issues)
 * Suggesting new features or enhancements
 * Implementing new features or fixing outstanding issues
 
@@ -16,7 +16,7 @@ Use your best judgment and feel free to propose changes to this document in a pu
 
 By following these guidelines, you help maintainers and the community understand your report, reproduce the behavior, and find related reports.
 
-Before reporting an issue, please check whether it already appears [here](https://github.com/allegroai/cairnml/issues).
+Before reporting an issue, please check whether it already appears [here](https://github.com/gianlucapargaetzi/cairnml/issues).
 If it does, join the on-going discussion instead.
 
 **Note**: If you find a **Closed** issue that may be the same issue which you are currently experiencing,
@@ -50,7 +50,7 @@ Enhancement suggestions are tracked as GitHub issues. After you determine which 
 
 Before you submit a new PR:
 
-* Verify the work you plan to merge addresses an existing [issue](https://github.com/allegroai/cairnml/issues) (If not, open a new one)
+* Verify the work you plan to merge addresses an existing [issue](https://github.com/gianlucapargaetzi/cairnml/issues) (If not, open a new one)
 * Check related discussions in the [CairnML slack community](https://joinslack.clear.ml) (Or start your own discussion on the `#cairnml-dev` channel)
 * Make sure your code conforms to the CairnML coding standards by running:  
   `flake8 --max-line-length=120 --statistics --show-source --extend-ignore=E501 ./cairnml*`

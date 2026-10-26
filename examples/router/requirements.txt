@@ -1,2 +1,0 @@
-cairnml
-cairnml[router]
