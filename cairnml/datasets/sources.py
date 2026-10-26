@@ -7,6 +7,8 @@
 import hashlib
 import os
 import re
+import urllib.request
+import zipfile
 from pathlib import Path
 from typing import Dict, Optional
 
@@ -117,7 +119,51 @@ class LocalFolder(Source):
         return found
 
 
-SOURCES = {cls.kind: cls for cls in (HuggingFace, GitSource, LocalFolder)}
+class Web(Source):
+    """Files on the web: one address, or a list of them. A zip archive is unpacked into a folder named after it
+    (``images.zip`` becomes ``images/``) and the archive is removed. The revision is a hash of the ETags and sizes
+    the server reports, so it changes when a file changes."""
+
+    kind = "web"
+
+    @staticmethod
+    def _urls(link) -> list:
+        urls = [link] if isinstance(link, str) else list(link)
+        for url in urls:
+            if not re.match(r"(https?|file)://", url):
+                raise DatasetError(f"not a web address: {url!r}")
+        return urls
+
+    def resolve(self, link: str, revision: Optional[str]) -> str:
+        if revision:
+            return revision
+        digest = hashlib.sha256()
+        for url in self._urls(link):
+            request = urllib.request.Request(url, method="HEAD")
+            try:
+                with urllib.request.urlopen(request, timeout=60) as reply:
+                    etag = reply.headers.get("ETag", "")
+                    size = reply.headers.get("Content-Length", "")
+            except OSError as exc:
+                raise DatasetError(f"cannot reach {url}: {exc}") from None
+            digest.update(f"{url}\n{etag}\n{size}\n".encode())
+        return digest.hexdigest()
+
+    def fetch(self, link: str, revision: str, dest: Path) -> None:
+        dest.mkdir(parents=True, exist_ok=True)
+        for url in self._urls(link):
+            target = dest / url.rsplit("/", 1)[-1].split("?", 1)[0]
+            try:
+                urllib.request.urlretrieve(url, target)
+            except OSError as exc:
+                raise DatasetError(f"cannot download {url}: {exc}") from None
+            if target.suffix == ".zip":
+                with zipfile.ZipFile(target) as archive:
+                    archive.extractall(dest / target.stem)
+                target.unlink()
+
+
+SOURCES = {cls.kind: cls for cls in (HuggingFace, GitSource, LocalFolder, Web)}
 
 
 def source_for(kind: str) -> Source:

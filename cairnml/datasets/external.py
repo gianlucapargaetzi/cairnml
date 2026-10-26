@@ -267,7 +267,7 @@ def _ensure_source(cache: DatasetCache, source, link: str, revision: str) -> Pat
         return source.local_root(link)
     import hashlib
 
-    folder = cache.root / "checkouts" / f"src__{source.kind}-{hashlib.sha1(link.encode()).hexdigest()[:10]}" / revision
+    folder = cache.root / "checkouts" / f"src__{source.kind}-{hashlib.sha1(str(link).encode()).hexdigest()[:10]}" / revision
     if not cache.is_ready(folder):
         with cache.downloading():
             if folder.exists():
