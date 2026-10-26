@@ -770,7 +770,7 @@ class Git(VCS):
         if not self._use_ask_pass or not password or not username:
             return func(*args, **kwargs)
 
-        # create the password file
+        # create the askpass script; it holds no credentials, it echoes them from the environment
         fp, pass_file = tempfile.mkstemp(prefix='cairnml_git_', suffix='.sh')
         os.close(fp)
         with open(pass_file, 'wt') as f:
@@ -780,21 +780,23 @@ class Git(VCS):
                 '#!/bin/bash\n',
                 'c="$1"\n',
                 'c="${c%"${c#?}"}"\n',
-                'if [ "$c" == "u" ] || [ "$c" == "U" ]; then echo "{}"; else echo "{}"; fi\n'.format(
-                    username.replace('"', '\\"'), password.replace('"', '\\"')
-                )
+                'if [ "$c" == "u" ] || [ "$c" == "U" ]; then echo "$CAIRNML_GIT_USERNAME"; else echo "$CAIRNML_GIT_PASSWORD"; fi\n',
             ])
         # mark executable
         st = os.stat(pass_file)
         os.chmod(pass_file, st.st_mode | stat.S_IEXEC)
-        # let GIT use it
+        # let GIT use it, the credentials reach the script through the command environment
+        self.COMMAND_ENV["CAIRNML_GIT_USERNAME"] = username
+        self.COMMAND_ENV["CAIRNML_GIT_PASSWORD"] = password
         self.COMMAND_ENV["GIT_ASKPASS"] = pass_file
         # call git command
         try:
             ret = func(*args, **kwargs)
         finally:
-            # delete temp password file
+            # remove the credentials and delete the askpass script
             self.COMMAND_ENV.pop("GIT_ASKPASS", None)
+            self.COMMAND_ENV.pop("CAIRNML_GIT_USERNAME", None)
+            self.COMMAND_ENV.pop("CAIRNML_GIT_PASSWORD", None)
             safe_remove_file(pass_file)
 
         return ret
