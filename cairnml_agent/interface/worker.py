@@ -263,7 +263,26 @@ COMMANDS = {
         'help': 'Check daemon configuration and print it',
     },
     'init': {
-        'help': 'CairnML-Agent configuration wizard',
+        'help': 'Enrol this agent machine with the CairnML server (an admin signs in)',
+        'args': {
+            '--server': {
+                'help': "The server's API address, e.g. http://cairnml:8008",
+                'required': True,
+            },
+            '--name': {
+                'help': 'The name of this machine (default: the host name)',
+                'default': None,
+            },
+            '--force': {
+                'help': 'Enrol again: the previous device is revoked and the key replaced',
+                'action': 'store_true',
+            },
+            '--file': {
+                'help': "Configuration file (default: the agent's ~/cairnml-agent.conf)",
+                'aliases': ['-F'],
+                'default': None,
+            },
+        },
     },
     'install-bootstrap': {
         'help': 'Install or update the cairnml-agent-bootstrap package (default from GitHub Releases)',

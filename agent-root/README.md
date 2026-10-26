@@ -45,10 +45,10 @@ pip install cairnml-agent
 ## Connect to your server
 
 ```bash
-cairnml-agent init
+cairnml-agent init --server http://cairnml:8008
 ```
 
-The command runs a short wizard. Your browser opens the sign-in page: sign in as an admin. A non-admin is refused, and no configuration is written.
+`--server` takes the server's API address (port 8008); the web address (port 8080) works too, and the other address is derived from it. Your browser opens the sign-in page: sign in as an admin. A non-admin is refused, and no configuration is written. The configuration is stored in `~/cairnml-agent.conf`; the agent's git credentials and extra package indexes are set there by hand.
 
 ## Start the agent
 
