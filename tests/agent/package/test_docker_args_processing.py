@@ -45,7 +45,7 @@ class _DummyConfig:
         return self._overrides.get(key, default)
 
 
-# Mirrors the value shipped in agent.conf / docs/cairnml.conf so tests reflect real usage.
+# Mirrors the value shipped in agent.conf so tests reflect real usage.
 _SHIPPED_CONF = {"agent.forbidden_docker_args": ["entrypoint"]}
 
 
