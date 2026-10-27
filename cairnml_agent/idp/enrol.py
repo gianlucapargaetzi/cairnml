@@ -41,7 +41,7 @@ def _call(http, url, body, token=None):
         if not message:
             message = f"error {response.status_code}"
             if response.status_code in (404, 405):
-                message += ": this is not the CairnML API address; it is usually port 8008, not 8080"
+                message += ": this is not the CairnML API address; give the address of the server, e.g. http://cairnml"
         raise EnrolmentFailed(message)
     return reply["data"]
 

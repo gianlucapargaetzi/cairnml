@@ -265,9 +265,8 @@ COMMANDS = {
     'init': {
         'help': 'Enrol this agent machine with the CairnML server (an admin signs in)',
         'args': {
-            '--server': {
-                'help': "The server's API address, e.g. http://cairnml:8008",
-                'required': True,
+            'server': {
+                'help': "The server's address, e.g. http://cairnml",
             },
             '--name': {
                 'help': 'The name of this machine (default: the host name)',

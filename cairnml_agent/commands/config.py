@@ -1,6 +1,6 @@
-"""cairnml-agent init: enrol this agent machine with the server. Reads the server address from the command line.
+"""cairnml-agent init <server>: enrol this agent machine with the server. Reads the server address from the command line.
 
-It does what cairnml-init of the CairnML SDK does, with one difference: the machine is enrolled as an agent, and only an
+It does what cairnml init of the CairnML SDK does, with one difference: the machine is enrolled as an agent, and only an
 admin may do that. The server address is parsed the same way (parse_known_host is the SDK's, copied so the agent does
 not depend on the SDK).
 """
@@ -70,7 +70,7 @@ def write_config(conf_file, api_host, web_host, device_id):
         with open(str(conf_file), 'wt') as f:
             header = '# CAIRNML-AGENT configuration file\n' \
                      'api {\n' \
-                     '    # Notice: \'api_server\' is the api server (default port 8008), not the web server.\n' \
+                     '    # Notice: \'api_server\' is the api server (<address>/cairnml/api), not the web server.\n' \
                      '    api_server: %s\n' \
                      '    web_server: %s\n' \
                      '    # This agent signs in with the device key in ~/.cairnml/agent/device.key\n' \
@@ -94,8 +94,17 @@ def write_config(conf_file, api_host, web_host, device_id):
     return True
 
 
+BASE_PATH = '/cairnml'
+
+
 def parse_known_host(parsed_host):
-    """The API and web addresses of the server. The server is reached through its proxy on the address given: the web
-    app at that address, the API under /api."""
-    root = parsed_host.scheme + "://" + parsed_host.netloc + parsed_host.path.rstrip("/")
-    return root + "/api", root
+    """The API and web addresses of the server. The server is reached through its proxy under /cairnml, so the web app
+    is at <address>/cairnml and the API at <address>/cairnml/api. The address may already end in /cairnml (or /cairnml/api,
+    the API address itself)."""
+    origin = parsed_host.scheme + "://" + parsed_host.netloc
+    path = parsed_host.path.rstrip("/")
+    if path.endswith(BASE_PATH + "/api"):
+        path = path[: -len("/api")]
+    if not path.endswith(BASE_PATH):
+        path += BASE_PATH
+    return origin + path + "/api", origin + path
