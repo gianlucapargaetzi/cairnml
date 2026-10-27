@@ -15,7 +15,6 @@ from requests.exceptions import (
     ContentDecodingError,
     StreamConsumedError,
 )
-from six.moves.urllib.parse import urlparse
 from typing import List, Optional, Union, Dict, Iterable, Tuple, Any
 
 from .callresult import CallResult
@@ -98,8 +97,8 @@ class Session(TokenManager):
     server_version = "1.0.0"
     max_api_version = "2.9"
     feature_set = "basic"
-    default_host = "http://localhost/api"
-    default_web = "http://localhost"
+    default_host = "http://localhost/cairnml/api"
+    default_web = "http://localhost/cairnml"
     force_max_api_version = ENV_FORCE_MAX_API_VERSION.get()
 
 
@@ -745,9 +744,9 @@ class Session(TokenManager):
         if "://api." in host:
             return host.replace("://api.", "://app.", 1)
 
-        parsed = urlparse(host)
-        if parsed.port == 8008:
-            return host.replace(":8008", ":8080", 1)
+        # the web app is the address the API is under: <address>/cairnml/api -> <address>/cairnml
+        if host.rstrip("/").endswith("/api"):
+            return host.rstrip("/")[: -len("/api")]
 
         raise ValueError("Could not detect CairnML web application server")
 
@@ -854,7 +853,7 @@ class Session(TokenManager):
             return self._exchange_device_assertion()
         if self.__auth_token:
             return self.__auth_token
-        raise LoginError("This machine has no device key or token; run cairnml-init to enrol it")
+        raise LoginError("This machine has no device key or token; run cairnml init to enrol it")
 
     def _exchange_device_assertion(self) -> str:
         """Sign an assertion with this device's key and exchange it for a short-lived token."""

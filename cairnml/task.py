@@ -4168,19 +4168,19 @@ class Task(_Task):
         file, ``cairnml.conf``.
 
         .. warning::
-           Hosts must be set before initializing a Task object. Sign-in is by the device key (``cairnml-init``).
+           Hosts must be set before initializing a Task object. Sign-in is by the device key (``cairnml init``).
 
         For example, to set credentials for a remote computer:
 
         .. code-block:: py
 
             Task.set_credentials(
-                api_host='http://localhost:8008', web_host='http://localhost:8080'
+                api_host='http://localhost/cairnml/api', web_host='http://localhost/cairnml'
             )
             task = Task.init('project name', 'experiment name')
 
-        :param str api_host: The API server URL. For example, ``host='http://localhost:8008'``
-        :param str web_host: The Web server URL. For example, ``host='http://localhost:8080'``
+        :param str api_host: The API server URL. For example, ``host='http://localhost/cairnml/api'``
+        :param str web_host: The Web server URL. For example, ``host='http://localhost/cairnml'``
         :param bool store_conf_file: If ``True``, store the current configuration into the ~/cairnml.conf file.
             If the configuration file exists, no change will be made (outputs a warning).
             Not applicable when running remotely (i.e. cairnml-agent).

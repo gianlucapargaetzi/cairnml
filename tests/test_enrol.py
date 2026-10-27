@@ -117,8 +117,8 @@ def test_sign_out_revokes_the_device_with_its_own_key(tmp_path):
     assert headers == {"Authorization": "Bearer device-token"}
 
 
-def test_a_wrong_address_says_which_port_to_use(tmp_path):
+def test_a_wrong_address_says_which_address_to_give(tmp_path):
     server = FakeServer()
     server.post = lambda url, json=None, headers=None, timeout=None: Response(405, {})
-    with pytest.raises(EnrolmentFailed, match="port 8008"):
+    with pytest.raises(EnrolmentFailed, match="give the address of the server"):
         enrol(API, http=server, login=login, key_path=tmp_path / "device.key")

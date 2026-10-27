@@ -45,13 +45,7 @@ dataset = ["dvc[s3]>=3.50", "pyarrow>=14"]
 router = ["fastapi>=0.115.2", "uvicorn>=0.31.1", "httpx>=0.27.2"]
 
 [project.scripts]
-cairnml-init = "cairnml.cli.enrolment:init_main"
-cairnml-whoami = "cairnml.cli.enrolment:whoami_main"
-cairnml-logout = "cairnml.cli.enrolment:logout_main"
-cairnml-dataset = "cairnml.cli.dataset.__main__:main"
-cairnml-task = "cairnml.cli.task.__main__:main"
-cairnml-param-search = "cairnml.cli.hpo.__main__:main"
-cairnml-debug = "cairnml.cli.debug.__main__:main"
+cairnml = "cairnml.cli.__main__:main"
 
 [tool.setuptools.dynamic]
 version = { attr = "cairnml.version.__version__" }

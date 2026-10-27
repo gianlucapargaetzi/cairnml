@@ -41,4 +41,4 @@ jobs:
           python -m venv /tmp/clean
           /tmp/clean/bin/pip install dist/*.whl
           /tmp/clean/bin/python -I -c "import cairnml"
-          /tmp/clean/bin/cairnml-init --help > /dev/null
+          /tmp/clean/bin/cairnml init --help > /dev/null

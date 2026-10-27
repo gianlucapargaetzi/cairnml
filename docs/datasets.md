@@ -27,13 +27,13 @@ pip install "cairnml[dataset]"
 Create an empty repository on GitHub and clone it. Then, inside the clone:
 
 ```bash
-cairnml-dataset init                     # git tracking, file storage and dataset.yaml
+cairnml dataset init                     # git tracking, file storage and dataset.yaml
 cp -r /path/to/measurements data/        # copy your files into data/
-cairnml-dataset status                   # what is new, changed or deleted
-cairnml-dataset add                      # record data/ as it is now
-cairnml-dataset commit -m "March measurements"   # check the data and commit it with its footprint
-cairnml-dataset push                     # send the files, then the commit, as a pull request
-cairnml-dataset register                 # once: add the dataset to the registry
+cairnml dataset status                   # what is new, changed or deleted
+cairnml dataset add                      # record data/ as it is now
+cairnml dataset commit -m "March measurements"   # check the data and commit it with its footprint
+cairnml dataset push                     # send the files, then the commit, as a pull request
+cairnml dataset register                 # once: add the dataset to the registry
 ```
 
 `add` records the whole of `data/`: new and changed files are included, and files you removed are removed from the dataset. Older commits keep their files, so an earlier version stays available.
@@ -43,9 +43,9 @@ cairnml-dataset register                 # once: add the dataset to the registry
 Every dataset says how its files are read in `dataset.yaml`, which holds one of two lines:
 
 - `format: native`: `data/` already contains the standard sample table, `samples.parquet` with `manifest.json`.
-- `adapter: <name>`, with `registry: <url>`: an adapter from the registry reads the files in `data/` into the standard format. `cairnml-dataset init --adapter <name> --registry <url>` writes this line for you.
+- `adapter: <name>`, with `registry: <url>`: an adapter from the registry reads the files in `data/` into the standard format. `cairnml dataset init --adapter <name> --registry <url>` writes this line for you.
 
-`cairnml-dataset check` reads `data/` the way `dataset.yaml` says and reports what is wrong. A dataset that is neither native nor read by an adapter cannot be committed.
+`cairnml dataset check` reads `data/` the way `dataset.yaml` says and reports what is wrong. A dataset that is neither native nor read by an adapter cannot be committed.
 
 ## Publish a dataset
 
@@ -55,7 +55,7 @@ Protect the default branch of the dataset repository: require pull requests, blo
 
 ## Register a dataset
 
-`cairnml-dataset register` asks the server to add the dataset to the registry. The server reads the default branch of the repository, verifies the footprint, and opens a pull request in the registry with the new entry. Registration happens once. A repository that is already registered, or waiting in a pull request, is refused. Its commit must already be on the default branch.
+`cairnml dataset register` asks the server to add the dataset to the registry. The server reads the default branch of the repository, verifies the footprint, and opens a pull request in the registry with the new entry. Registration happens once. A repository that is already registered, or waiting in a pull request, is refused. Its commit must already be on the default branch.
 
 ## Use a dataset in a script
 
@@ -134,9 +134,9 @@ Every adapter produces the same shape: one row per sample, with an id, a split, 
 Datasets are kept per user, by default in `~/.cairnml/cache/datasets`, up to 50 GB. When the cache is over its limit, the versions used longest ago are removed first. A version in use is never removed.
 
 ```bash
-cairnml-dataset cache info
-cairnml-dataset cache limit 20GB
-cairnml-dataset cache clean
+cairnml dataset cache info
+cairnml dataset cache limit 20GB
+cairnml dataset cache clean
 ```
 
 On an agent, mount the cache into the job containers, so it survives between jobs.

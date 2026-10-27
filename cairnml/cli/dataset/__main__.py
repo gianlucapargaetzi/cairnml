@@ -22,7 +22,7 @@ def do_init(args: argparse.Namespace) -> None:
     url = DatasetRepo(args.path).init(remote_url=args.remote, adapter=args.adapter, registry=args.registry)
     how = f"through the adapter {args.adapter!r}" if args.adapter else "as they are (native format)"
     print(f"Dataset repository set up. Files are stored at {url}; data/ is read {how} (see dataset.yaml).")
-    print("Copy your files into data/, then run: cairnml-dataset status")
+    print("Copy your files into data/, then run: cairnml dataset status")
 
 
 def do_status(args: argparse.Namespace) -> None:
@@ -30,9 +30,9 @@ def do_status(args: argparse.Namespace) -> None:
     head = f" (last commit {status['commit'][:10]})" if status["commit"] else " (no commits yet)"
     print(f"On branch {status['branch']}{head}\n")
     _print_group("Added, ready to commit:", status["added"])
-    _print_group("Changed, not added (run: cairnml-dataset add):", status["not_added"])
+    _print_group("Changed, not added (run: cairnml dataset add):", status["not_added"])
     if status["untracked"]:
-        print("Not tracked yet (run: cairnml-dataset add):\n")
+        print("Not tracked yet (run: cairnml dataset add):\n")
         for path in status["untracked"]:
             print(f"    {path}")
         print()
@@ -50,7 +50,7 @@ def do_add(args: argparse.Namespace) -> None:
     status = DatasetRepo(args.path).add()
     counts = {kind: len(files) for kind, files in status["added"].items()}
     print(f"Added: {counts['added']} new, {counts['modified']} modified, {counts['deleted']} deleted. "
-          f"Run: cairnml-dataset commit -m \"message\"")
+          f"Run: cairnml dataset commit -m \"message\"")
 
 
 def do_check(args: argparse.Namespace) -> None:
@@ -104,8 +104,8 @@ def do_cache(args: argparse.Namespace) -> None:
 
 
 def cli(argv: Optional[List[str]] = None) -> int:
-    title = "cairnml-dataset - versioned datasets on git and DVC"
-    parser = ArgumentParser(prog="cairnml-dataset", description=title)
+    title = "cairnml dataset - versioned datasets on git and DVC"
+    parser = ArgumentParser(prog="cairnml dataset", description=title)
     sub = parser.add_subparsers(dest="command", required=True)
 
     def command(name, function, help_text):

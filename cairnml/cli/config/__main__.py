@@ -1,6 +1,6 @@
-""" cairnml-init: enrol this machine with the server. Reads the server address from the command line.
+""" cairnml init: enrol this machine with the server. Reads the server address from the command line.
 
-The same set as the mlops client: cairnml-init (enrol), cairnml-whoami and cairnml-logout live in
+The same set as the mlops client: cairnml init (enrol), cairnml whoami and cairnml logout live in
 cairnml.cli.enrolment. This module keeps the configuration writer and the host helpers they use.
 """
 import sys
@@ -26,7 +26,7 @@ def write_config(conf_file, api_host: str, web_host: str, device_id: Optional[st
             header = (
                 "# CairnML SDK configuration file\n"
                 "api {\n"
-                "    # Notice: 'api_server' is the api server (default port 8008), not the web server.\n"
+                "    # Notice: 'api_server' is the api server (<address>/cairnml/api), not the web server.\n"
                 "    api_server: %s\n"
                 "    web_server: %s\n"
                 "    # This machine signs in with the device key in ~/.cairnml/device.key (empty when signed out)\n"
@@ -44,11 +44,20 @@ def write_config(conf_file, api_host: str, web_host: str, device_id: Optional[st
         return
 
 
+BASE_PATH = "/cairnml"
+
+
 def parse_known_host(parsed_host: Any) -> Tuple[str, str]:
-    """The API and web addresses of the server. The server is reached through its proxy on the address given: the web
-    app at that address, the API under /api."""
-    root = parsed_host.scheme + "://" + parsed_host.netloc + parsed_host.path.rstrip("/")
-    return root + "/api", root
+    """The API and web addresses of the server. The server is reached through its proxy under /cairnml, so the web app
+    is at <address>/cairnml and the API at <address>/cairnml/api. The address may already end in /cairnml (or /cairnml/api,
+    the API address itself)."""
+    origin = parsed_host.scheme + "://" + parsed_host.netloc
+    path = parsed_host.path.rstrip("/")
+    if path.endswith(BASE_PATH + "/api"):
+        path = path[: -len("/api")]
+    if not path.endswith(BASE_PATH):
+        path += BASE_PATH
+    return origin + path + "/api", origin + path
 
 
 def input_url(host_type: str, host: str = None) -> str:

@@ -1,7 +1,7 @@
-"""This machine's enrolment with the CairnML server: cairnml-init, cairnml-whoami and cairnml-logout.
+"""This machine's enrolment with the CairnML server: cairnml init, cairnml whoami and cairnml logout.
 
 They replace the mlops enroll, whoami and logout commands. The server is named on the command line
-(cairnml-init --server http://cairnml:8008); nothing is asked interactively.
+(cairnml init http://cairnml); nothing is asked interactively.
 """
 import argparse
 import os
@@ -49,8 +49,8 @@ def _config_arg(parser: argparse.ArgumentParser) -> None:
 
 
 def init_main(argv=None) -> int:
-    parser = argparse.ArgumentParser(prog="cairnml-init", description="Enrol this machine with the CairnML server.")
-    parser.add_argument("--server", required=True, help="the server's API address, e.g. http://cairnml:8008")
+    parser = argparse.ArgumentParser(prog="cairnml init", description="Enrol this machine with the CairnML server.")
+    parser.add_argument("server", help="the server's address, e.g. http://cairnml")
     parser.add_argument("--name", default=socket.gethostname(), help="the name of this machine (default: %(default)s)")
     parser.add_argument("--force", action="store_true",
                         help="enrol again: the previous device is revoked and the key replaced")
@@ -75,12 +75,12 @@ def init_main(argv=None) -> int:
 
 
 def whoami_main(argv=None) -> int:
-    parser = argparse.ArgumentParser(prog="cairnml-whoami", description="Show who this machine signs in as.")
+    parser = argparse.ArgumentParser(prog="cairnml whoami", description="Show who this machine signs in as.")
     _config_arg(parser)
     args = parser.parse_args(argv)
     server, device, _ = read_enrolment(Path(os.path.expanduser(args.file)).absolute())
     if not device:
-        print("not enrolled: run cairnml-init --server <server address>", file=sys.stderr)
+        print("not enrolled: run cairnml init <server address>", file=sys.stderr)
         return 1
     try:
         user = whoami(server, device, key_path=DEVICE_KEY_PATH)
@@ -92,7 +92,7 @@ def whoami_main(argv=None) -> int:
 
 
 def logout_main(argv=None) -> int:
-    parser = argparse.ArgumentParser(prog="cairnml-logout",
+    parser = argparse.ArgumentParser(prog="cairnml logout",
                                      description="Revoke this machine's enrolment and remove its key.")
     _config_arg(parser)
     args = parser.parse_args(argv)
