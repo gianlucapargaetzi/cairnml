@@ -125,7 +125,7 @@ VIRTUAL_ENVIRONMENT_PATH = {
 }
 
 DEFAULT_BASE_DIR = normalize_path(CONFIG_DIR, "data_cache")
-DEFAULT_HOST = "http://localhost:8008"
+DEFAULT_HOST = "http://localhost/cairnml/api"
 MAX_DATASET_SOURCES_COUNT = 50000
 
 INVALID_WORKER_ID = (400, 1001)

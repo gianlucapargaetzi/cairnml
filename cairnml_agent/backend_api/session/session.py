@@ -7,7 +7,6 @@ from socket import gethostname
 
 from ..._vendor import jwt
 import requests
-from ..._vendor.six.moves.urllib.parse import urlparse
 
 from cairnml_agent.external.pyhocon import ConfigTree, ConfigFactory
 from .callresult import CallResult
@@ -56,8 +55,8 @@ class Session(TokenManager):
 
     api_version = '2.1'
     feature_set = 'basic'
-    default_host = "http://localhost:8008"
-    default_web = "http://localhost:8080"
+    default_host = "http://localhost/cairnml/api"
+    default_web = "http://localhost/cairnml"
     force_max_api_version = ENV_FORCE_MAX_API_VERSION.get()
     server_version = "1.0.0"
     user_id = None
@@ -619,9 +618,9 @@ class Session(TokenManager):
         if '://api.' in host:
             return host.replace('://api.', '://app.', 1)
 
-        parsed = urlparse(host)
-        if parsed.port == 8008:
-            return host.replace(':8008', ':8080', 1)
+        # the web app is the address the API is under: <address>/cairnml/api -> <address>/cairnml
+        if host.rstrip('/').endswith('/api'):
+            return host.rstrip('/')[:-len('/api')]
 
         raise ValueError('Could not detect CairnML web application server')
 

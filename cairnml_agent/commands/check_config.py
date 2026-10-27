@@ -9,10 +9,9 @@ class Config(ServiceCommandSection):
     def config(self, **_):
         return self._session.print_configuration()
 
-    def init(self, **_):
-        # alias config init
+    def init(self, server=None, name=None, force=False, file=None, **_):
         from .config import main
-        return main()
+        return main(server=server, name=name, force=force, file=file)
 
     @property
     def service(self):

@@ -5,7 +5,8 @@ from pathlib import Path
 from .assertion import make_assertion
 from .keys import read_private_key, write_private_key
 
-DEVICE_KEY_PATH = Path.home() / ".cairnml" / "device.key"
+# The agent has its own key, apart from the CairnML SDK's ~/.cairnml/device.key
+DEVICE_KEY_PATH = Path.home() / ".cairnml" / "agent" / "device.key"
 # Long enough to reach the server, short enough that a leaked assertion is useless soon after.
 ASSERTION_TTL_SEC = 60
 
