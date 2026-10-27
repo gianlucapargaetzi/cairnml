@@ -47,10 +47,26 @@ pip install "cairnml[dataset]"
 ## Connect to your server
 
 ```bash
-cairnml-init --server http://<server-ip>:8008
+cairnml init http://<server-ip>
 ```
 
+`<server-ip>` is the address of the server, for example `http://localhost` or `http://192.168.1.20`. Add a port only if the server does not use port 80. The command works out where the API and the web app are (`<address>/cairnml/api` and `<address>/cairnml/`).
+
 Your browser opens the sign-in page. When the command prints `enrolled as ...`, this machine is connected. Each machine has its own key, so no access key is copied to it.
+
+## Commands
+
+Everything is one command, `cairnml`, with a subcommand for each tool. `cairnml <command> --help` shows the arguments of a command.
+
+| Command | What it does |
+|---|---|
+| `cairnml init <server>` | Enrol this machine with the server. `--name` names the machine, `--force` enrols again. |
+| `cairnml whoami` | Show who this machine signs in as |
+| `cairnml logout` | Revoke this machine's enrolment and remove its key |
+| `cairnml dataset ...` | Versioned datasets on git and DVC (needs `cairnml[dataset]`) |
+| `cairnml task ...` | Launch any codebase on a machine running `cairnml-agent` |
+| `cairnml param-search ...` | Search for the best parameters for your models |
+| `cairnml debug ...` | Debugging tools for the SDK |
 
 ## Getting started
 
@@ -74,7 +90,7 @@ The run appears in the web app under its project, with its parameters, metrics a
 
 ## The web app
 
-Open `http://<server-ip>:8080` and sign in. The menu has these sections:
+Open `http://<server-ip>/cairnml/` and sign in. The menu has these sections:
 
 - **Dashboard:** projects and recent experiments
 - **Projects:** the tasks, experiments and models of each project

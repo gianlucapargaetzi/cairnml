@@ -63,6 +63,6 @@ class MissingConfigError(ValueError):
             message = (
                 "It seems CairnML is not configured on this machine!\n"
                 "To get started with CairnML, set up your own 'cairnml-server' "
-                "and run 'cairnml-init'.\n"
+                "and run 'cairnml init'.\n"
             )
         super(MissingConfigError, self).__init__(message)

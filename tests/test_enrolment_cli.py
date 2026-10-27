@@ -18,11 +18,11 @@ def test_init_needs_the_server_on_the_command_line(tmp_path):
 
 def test_init_writes_the_servers_own_address_and_the_device(tmp_path, capsys):
     conf = tmp_path / "cairnml.conf"
-    result = Enrolment(device_id="dev_9", server_url=PUBLIC, web_url="http://cairnml:8080", user="alice")
+    result = Enrolment(device_id="dev_9", server_url=PUBLIC, web_url="http://cairnml", user="alice")
     with mock.patch.object(enrolment, "enrol", return_value=result) as enrol:
-        code = enrolment.init_main(["--server", "http://localhost:8008", "--file", str(conf)])
+        code = enrolment.init_main(["http://localhost", "--file", str(conf)])
     assert code == 0
-    assert enrol.call_args.args[0] == "http://localhost:8008"
+    assert enrol.call_args.args[0] == "http://localhost/cairnml/api"
     text = conf.read_text()
     assert f'api_server: {PUBLIC}' in text
     assert 'device_id: "dev_9"' in text
@@ -34,7 +34,7 @@ def test_init_refuses_when_enrolled_and_passes_the_previous_device_on_force(tmp_
     conf.write_text(f'api {{ api_server: "{PUBLIC}"\n idp {{ device_id: "dev_old" }} }}\n')
     result = Enrolment(device_id="dev_new", server_url=PUBLIC, web_url="", user="bob")
     with mock.patch.object(enrolment, "enrol", return_value=result) as enrol:
-        enrolment.init_main(["--server", PUBLIC, "--force", "--file", str(conf)])
+        enrolment.init_main([PUBLIC, "--force", "--file", str(conf)])
     assert enrol.call_args.kwargs["previous_device_id"] == "dev_old"
     assert enrol.call_args.kwargs["force"] is True
 
@@ -42,7 +42,7 @@ def test_init_refuses_when_enrolled_and_passes_the_previous_device_on_force(tmp_
 def test_init_reports_a_refusal_and_writes_nothing(tmp_path, capsys):
     conf = tmp_path / "cairnml.conf"
     with mock.patch.object(enrolment, "enrol", side_effect=EnrolmentFailed("only an admin may enrol an agent")):
-        assert enrolment.init_main(["--server", PUBLIC, "--file", str(conf)]) == 1
+        assert enrolment.init_main([PUBLIC, "--file", str(conf)]) == 1
     assert not conf.exists()
     assert "only an admin" in capsys.readouterr().err
 
@@ -77,9 +77,23 @@ def test_logout_revokes_then_removes_the_key_and_the_device(tmp_path):
     assert 'device_id: ""' in conf.read_text()
 
 
-def test_the_web_address_is_turned_into_the_api_address(tmp_path):
+def test_the_address_given_is_the_server_and_the_api_is_under_cairnml_api(tmp_path):
     conf = tmp_path / "cairnml.conf"
     result = Enrolment(device_id="dev_7", server_url=PUBLIC, web_url="", user="alice")
     with mock.patch.object(enrolment, "enrol", return_value=result) as enrol:
-        enrolment.init_main(["--server", "http://cairnml:8080", "--file", str(conf)])
-    assert enrol.call_args.args[0] == "http://cairnml:8008"
+        enrolment.init_main(["http://192.168.1.20", "--file", str(conf)])
+    assert enrol.call_args.args[0] == "http://192.168.1.20/cairnml/api"
+
+
+@pytest.mark.parametrize("given, api", [
+    ("http://localhost", "http://localhost/cairnml/api"),
+    ("http://localhost/", "http://localhost/cairnml/api"),
+    ("http://localhost/cairnml", "http://localhost/cairnml/api"),
+    ("https://example.org/cairnml/", "https://example.org/cairnml/api"),
+    ("http://localhost/cairnml/api", "http://localhost/cairnml/api"),
+])
+def test_the_prefix_is_added_once(tmp_path, given, api):
+    result = Enrolment(device_id="dev_7", server_url=PUBLIC, web_url="", user="alice")
+    with mock.patch.object(enrolment, "enrol", return_value=result) as enrol:
+        enrolment.init_main([given, "--file", str(tmp_path / "cairnml.conf")])
+    assert enrol.call_args.args[0] == api

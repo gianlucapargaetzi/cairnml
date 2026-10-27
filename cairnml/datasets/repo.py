@@ -1,4 +1,4 @@
-"""A dataset repository on the user's machine: the workflow behind ``cairnml-dataset``.
+"""A dataset repository on the user's machine: the workflow behind ``cairnml dataset``.
 
 A dataset is a git repository with a ``data/`` folder. Git holds the metadata, DVC holds the files. The commit of the
 repository is the version of the dataset.
@@ -171,11 +171,11 @@ class DatasetRepo:
         pending = [p for p in dvc.get("untracked", []) if p.startswith(f"{DATA_DIR}/")]
         pending += [p for kind in ("added", "modified", "deleted") for p in dvc.get("uncommitted", {}).get(kind, [])]
         if pending:
-            raise DatasetError("data/ has changes that are not added; run 'cairnml-dataset add' first")
+            raise DatasetError("data/ has changes that are not added; run 'cairnml dataset add' first")
         dvc_file = self.path / DVC_FILE
         config_file = self.path / footprint.CONFIG_FILE
         if not dvc_file.exists():
-            raise DatasetError(f"{DVC_FILE} is missing; run 'cairnml-dataset add' first")
+            raise DatasetError(f"{DVC_FILE} is missing; run 'cairnml dataset add' first")
         if not config_file.exists():
             raise DatasetError(f"{footprint.CONFIG_FILE} is missing; say how data/ is read ('format: native' or 'adapter: <name>')")
         try:
@@ -209,7 +209,7 @@ class DatasetRepo:
         problems = footprint.verify_files(files, self.git.tracked_sizes())
         dirty = self.git.run("status", "--porcelain", "--", DVC_FILE, footprint.CONFIG_FILE, footprint.LOCK_FILE)
         if dirty:
-            problems.append("data.dvc, dataset.yaml or dataset.lock.json has uncommitted changes; run 'cairnml-dataset commit'")
+            problems.append("data.dvc, dataset.yaml or dataset.lock.json has uncommitted changes; run 'cairnml dataset commit'")
         return problems
 
     def push(self) -> Dict[str, Optional[str]]:

@@ -16,7 +16,7 @@ def setup_parser(parser: ArgumentParser) -> None:
         "--version",
         action="store_true",
         default=None,
-        help="Display the cairnml-task utility version",
+        help="Display the cairnml task utility version",
     )
     parser.add_argument(
         "--project",
