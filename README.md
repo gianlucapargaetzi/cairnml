@@ -94,6 +94,17 @@ Task.enqueue(task, queue_name="default")
 
 The run appears in the web app under its project, with its parameters, metrics and artifacts.
 
+A task waits in its queue until a worker listens to it. `Task.enqueue` logs a warning when no worker listens to the queue, for example after a typing error in its name. To check it yourself:
+
+```python
+from cairnml import queues
+
+for queue in queues.list_queues():
+    print(queue.name)
+
+print(queues.workers_for_queue("default"))  # [] when no agent listens to it
+```
+
 ## The web app
 
 Open `http://<server-ip>/cairnml/` and sign in. The menu has these sections:
