@@ -15,7 +15,9 @@ from pathlib2 import Path
 
 from cairnml.backend_config.defs import LOCAL_CONFIG_FILE_OVERRIDE_VAR, LOCAL_CONFIG_FILES
 from cairnml.cli.config.__main__ import parse_known_host, write_config
+from cairnml.idp.browser_login import browser_login
 from cairnml.idp.device import DEVICE_KEY_PATH
+from cairnml.idp.device_login import device_login
 from cairnml.idp.enrol import EnrolmentFailed, enrol, revoke_device, whoami
 from cairnml.utilities.pyhocon import ConfigFactory
 
@@ -48,12 +50,26 @@ def _config_arg(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--file", "-F", default=default_config_file(), help="configuration file (default: %(default)s)")
 
 
+def _browser_available() -> bool:
+    """Linux without a graphical session cannot open the sign-in page for the person; other systems can."""
+    if not sys.platform.startswith("linux"):
+        return True
+    return bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
+
+
+def choose_login(device: bool):
+    """The browser sign-in, or the device code when asked for or when no browser is available here."""
+    return device_login if device or not _browser_available() else browser_login
+
+
 def init_main(argv=None) -> int:
     parser = argparse.ArgumentParser(prog="cairnml init", description="Enrol this machine with the CairnML server.")
     parser.add_argument("server", help="the server's address, e.g. http://cairnml")
     parser.add_argument("--name", default=socket.gethostname(), help="the name of this machine (default: %(default)s)")
     parser.add_argument("--force", action="store_true",
                         help="enrol again: the previous device is revoked and the key replaced")
+    parser.add_argument("--device", action="store_true",
+                        help="sign in with a code on another device instead of the browser (for headless machines)")
     _config_arg(parser)
     args = parser.parse_args(argv)
 
@@ -61,7 +77,8 @@ def init_main(argv=None) -> int:
     _, previous, _ = read_enrolment(conf)
     api_server, _ = parse_known_host(urlparse(args.server))
     try:
-        result = enrol(api_server or args.server, name=args.name, force=args.force, previous_device_id=previous)
+        result = enrol(api_server or args.server, name=args.name, force=args.force, previous_device_id=previous,
+                       login=choose_login(args.device))
     except EnrolmentFailed as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
