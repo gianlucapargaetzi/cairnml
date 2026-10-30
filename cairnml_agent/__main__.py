@@ -8,8 +8,8 @@ from cairnml_agent.backend_api.session.datamodel import UnusedKwargsWarning
 
 import cairnml_agent
 from cairnml_agent.config import get_config
-from cairnml_agent.definitions import FileBuffering, CONFIG_FILE
-from cairnml_agent.helper.base import reverse_home_folder_expansion, chain_map, named_temporary_file
+from cairnml_agent.definitions import FileBuffering
+from cairnml_agent.helper.base import chain_map, named_temporary_file
 from cairnml_agent.helper.process import ExitStatus
 from . import interface, session, definitions, commands
 from .errors import ConfigFileNotFound, Sigterm, APIError, CustomBuildScriptFailed
@@ -55,7 +55,7 @@ def run_command(parser, args, command_name):
     except ConfigFileNotFound:
         message = 'Cannot find configuration file in "{}".\n' \
                   'To create a configuration file, run:\n' \
-                  '$ cairnml_agent init'.format(reverse_home_folder_expansion(CONFIG_FILE))
+                  '$ cairnml_agent init'.format(definitions.AGENT_CONFIG_FILE)
         command_class.exit(message)
     except APIError as api_error:
         if not debug:
