@@ -19,6 +19,8 @@
 
 The CairnML SDK is the Python library you add to your training scripts. It records what a run does (parameters, metrics, logs and artifacts), sends runs to remote agents through job queues, and versions datasets so that every run knows the exact data it used.
 
+New to CairnML? Read [Start here](docs/start-here.md) first: it explains the four parts (server, SDK, agent, web app), which are required, and the order of setup.
+
 ## Features
 
 - Track a training script with a few lines: parameters, metrics, logs and artifacts are recorded on your server.
