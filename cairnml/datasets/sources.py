@@ -4,9 +4,12 @@
 ``fetch`` downloads that revision into a folder. The revision is recorded on the run.
 """
 
+import gzip
 import hashlib
 import os
 import re
+import shutil
+import tarfile
 import urllib.request
 import zipfile
 from pathlib import Path
@@ -119,48 +122,135 @@ class LocalFolder(Source):
         return found
 
 
+UNPACK_SUFFIXES = {"zip": ".zip", "tar.gz": ".tar.gz", "gz": ".gz"}
+UNPACK_HOWS = ("none",) + tuple(UNPACK_SUFFIXES)
+CHECKSUM_LENGTHS = {"md5": 32, "sha256": 64}  # hex digits
+
+
+def _fetch_entry(item, where: str) -> dict:
+    """One file of a web dataset: ``{"url", "checksum", "unpack"}``.
+
+    An item is an address, or a mapping with ``url`` and optionally ``checksum`` (``md5:<hex>`` or ``sha256:<hex>``,
+    the value the publisher gives) and ``unpack`` (``none``, ``zip``, ``tar.gz`` or ``gz``). An address without
+    ``unpack`` is unpacked if it ends in ``.zip``, as it always was.
+    """
+    if isinstance(item, str):
+        item = {"url": item}
+    if not isinstance(item, dict):
+        raise DatasetError(f"{where}: a fetch entry is an address, or a mapping with url, checksum and unpack")
+    unknown = sorted(set(item) - {"url", "checksum", "unpack"})
+    if unknown:
+        raise DatasetError(f"{where}: unknown key {', '.join(unknown)} in a fetch entry (use url, checksum, unpack)")
+    url = item.get("url")
+    if not isinstance(url, str) or not re.match(r"(https?|file)://", url):
+        raise DatasetError(f"{where}: not a web address: {url!r}")
+    checksum = item.get("checksum")
+    if checksum is not None:
+        algorithm, _, value = str(checksum).partition(":")
+        length = CHECKSUM_LENGTHS.get(algorithm)
+        if length is None or not re.fullmatch(rf"[0-9a-fA-F]{{{length}}}", value):
+            raise DatasetError(
+                f"{where}: the checksum of {url} must be md5:<32 hex digits> or sha256:<64 hex digits>, "
+                f"not {checksum!r}"
+            )
+        checksum = f"{algorithm}:{value.lower()}"
+    unpack = item.get("unpack")
+    if unpack is None:
+        unpack = "zip" if url.split("?", 1)[0].endswith(".zip") else "none"
+    if unpack not in UNPACK_HOWS:
+        raise DatasetError(f"{where}: unpack of {url} must be one of {', '.join(UNPACK_HOWS)}, not {unpack!r}")
+    return {"url": url, "checksum": checksum, "unpack": unpack}
+
+
+def parse_fetch(items, where: str) -> list:
+    """The ``fetch`` list of a pin file, checked. ``where`` names the file in the messages."""
+    if not isinstance(items, list) or not items:
+        raise DatasetError(f"{where}: fetch must be a non-empty list of files")
+    return [_fetch_entry(item, where) for item in items]
+
+
+def _verify_checksum(path: Path, checksum: str, url: str) -> None:
+    algorithm, _, expected = checksum.partition(":")
+    digest = hashlib.new(algorithm)
+    with open(path, "rb") as handle:
+        for block in iter(lambda: handle.read(1 << 20), b""):
+            digest.update(block)
+    if digest.hexdigest() != expected:
+        raise DatasetError(
+            f"{path.name} from {url} does not match its {algorithm} checksum (expected {expected}, got "
+            f"{digest.hexdigest()}): the download is refused"
+        )
+
+
+def _unpack(target: Path, how: str) -> None:
+    if how == "none":
+        return
+    suffix = UNPACK_SUFFIXES[how]
+    if not target.name.endswith(suffix):
+        raise DatasetError(f"{target.name} is not a {suffix} file, so it cannot be unpacked as {how}")
+    stem = target.name[: -len(suffix)]
+    if how == "zip":
+        with zipfile.ZipFile(target) as archive:
+            archive.extractall(target.parent / stem)
+    elif how == "tar.gz":
+        with tarfile.open(target, mode="r:gz") as archive:
+            if hasattr(tarfile, "data_filter"):  # Python 3.12+: refuse links and paths that leave the folder
+                archive.extractall(target.parent / stem, filter="data")
+            else:
+                archive.extractall(target.parent / stem)
+    else:  # gz: one file, written in place of the archive
+        with gzip.open(target, "rb") as source, open(target.with_name(stem), "wb") as out:
+            shutil.copyfileobj(source, out)
+    target.unlink()
+
+
 class Web(Source):
-    """Files on the web: one address, or a list of them. A zip archive is unpacked into a folder named after it
-    (``images.zip`` becomes ``images/``) and the archive is removed. The revision is a hash of the ETags and sizes
-    the server reports, so it changes when a file changes."""
+    """Files on the web: one address, a list of them, or a ``fetch`` list (see :func:`parse_fetch`).
+
+    A zip archive is unpacked into a folder named after it (``images.zip`` becomes ``images/``) and the archive is
+    removed. A file with a checksum is verified after download, and a mismatch names the file and refuses the download.
+    The revision is a hash of the checksums when every file has one; a file without one contributes the ETag and size
+    the server reports, so the revision changes when that file changes.
+    """
 
     kind = "web"
 
     @staticmethod
-    def _urls(link) -> list:
-        urls = [link] if isinstance(link, str) else list(link)
-        for url in urls:
-            if not re.match(r"(https?|file)://", url):
-                raise DatasetError(f"not a web address: {url!r}")
-        return urls
+    def _entries(link) -> list:
+        items = [link] if isinstance(link, (str, dict)) else list(link)
+        return [_fetch_entry(item, "the web source") for item in items]
 
     def resolve(self, link: str, revision: Optional[str]) -> str:
+        entries = self._entries(link)  # checked first, so a bad entry is reported whatever the revision
         if revision:
             return revision
         digest = hashlib.sha256()
-        for url in self._urls(link):
-            request = urllib.request.Request(url, method="HEAD")
+        for entry in entries:
+            if entry["checksum"]:
+                digest.update(f"{entry['checksum']}\n".encode())
+                continue
+            request = urllib.request.Request(entry["url"], method="HEAD")
             try:
                 with urllib.request.urlopen(request, timeout=60) as reply:
                     etag = reply.headers.get("ETag", "")
                     size = reply.headers.get("Content-Length", "")
             except OSError as exc:
-                raise DatasetError(f"cannot reach {url}: {exc}") from None
-            digest.update(f"{url}\n{etag}\n{size}\n".encode())
+                raise DatasetError(f"cannot reach {entry['url']}: {exc}") from None
+            digest.update(f"{entry['url']}\n{etag}\n{size}\n".encode())
         return digest.hexdigest()
 
     def fetch(self, link: str, revision: str, dest: Path) -> None:
         dest.mkdir(parents=True, exist_ok=True)
-        for url in self._urls(link):
+        for entry in self._entries(link):
+            url = entry["url"]
             target = dest / url.rsplit("/", 1)[-1].split("?", 1)[0]
             try:
                 urllib.request.urlretrieve(url, target)
             except OSError as exc:
                 raise DatasetError(f"cannot download {url}: {exc}") from None
-            if target.suffix == ".zip":
-                with zipfile.ZipFile(target) as archive:
-                    archive.extractall(dest / target.stem)
-                target.unlink()
+            if entry["checksum"]:
+                _verify_checksum(target, entry["checksum"], url)
+            _unpack(target, entry["unpack"])
 
 
 SOURCES = {cls.kind: cls for cls in (HuggingFace, GitSource, LocalFolder, Web)}
