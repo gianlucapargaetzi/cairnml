@@ -1,12 +1,16 @@
 from __future__ import unicode_literals
 import re
+import warnings
 
 # setuptools >= 82 removed pkg_resources, so on any Python where
 # the user has a newer setuptools we fall back to the vendored copy.
-try:
-    from pkg_resources import Requirement as Req  # noqa
-except ImportError:
-    from ..._vendor.pkg_resources import Requirement as Req
+# Setuptools announces pkg_resources as deprecated on import; that notice is not for the agent's users.
+with warnings.catch_warnings():
+    warnings.filterwarnings('ignore', message='pkg_resources is deprecated', category=UserWarning)
+    try:
+        from pkg_resources import Requirement as Req  # noqa
+    except ImportError:
+        from ..._vendor.pkg_resources import Requirement as Req
 
 from .fragment import get_hash_info, parse_fragment, parse_extras_require
 from .vcs import VCS, VCS_SCHEMES

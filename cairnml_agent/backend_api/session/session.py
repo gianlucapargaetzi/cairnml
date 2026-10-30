@@ -129,7 +129,7 @@ class Session(TokenManager):
         if not host:
             raise ValueError(
                 "Could not find host server definition "
-                "(missing `~/cairnml.conf` or Environment CAIRNML_API_HOST)\n"
+                "(missing `~/cairnml-agent.conf` or Environment CAIRNML_API_HOST)\n"
                 "To get started with CairnML: setup your own `cairnml-server`, "
                 "and run `cairnml-agent init`"
             )

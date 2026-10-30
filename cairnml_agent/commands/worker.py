@@ -10,6 +10,7 @@ import os.path
 import random
 import re
 import shlex
+import stat
 import shutil
 import signal
 import string
@@ -170,6 +171,28 @@ DOCKER_DEFAULT_CONF_FILE = "~/default_cairnml.conf"
 sys_random = random.SystemRandom()
 
 
+VENV_MODE_WARNING = (
+    "WARNING: --allow-venv runs jobs on this host as the agent's own user. A job can read the agent's device key "
+    "(~/.cairnml/agent/device.key) and sign in as the admin who enrolled this agent, with a token that lasts until "
+    "the device is revoked. Use it only for code you fully trust, or run the agent with --docker."
+)
+
+
+def check_execution_mode(use_docker: bool, allow_venv: bool) -> Optional[str]:
+    """
+    Jobs run in a Docker container. A Python virtual environment on the host is allowed only when the
+    agent is started with --allow-venv, because such a job can read the agent's own device key.
+    Returns the warning to show when jobs run on the host, otherwise None.
+    """
+    if not use_docker and not allow_venv:
+        raise ValueError(
+            "The agent runs jobs in Docker containers only. Start it with --docker. "
+            "To run jobs in a virtual environment on this host instead, pass --allow-venv "
+            "(not recommended: such a job can read the agent's device key)."
+        )
+    return None if use_docker else VENV_MODE_WARNING
+
+
 @attr.s
 class LiteralScriptManager(object):
     """
@@ -313,7 +336,16 @@ def build_local_wheel(source: Path, name: str) -> str:
             raise CommandFailedError("{} is not a source tree of {} (no pyproject.toml naming it, and no setup.py): "
                                      "the job containers need the local wheel built from it".format(source, name))
         out = Path(mkdtemp(prefix="cairnml-wheel-"))
-        subprocess.run([sys.executable, "-m", "pip", "wheel", "--no-deps", "-q", "-w", str(out), str(source)],
+        # pip writes egg-info and build output into the source tree, which may be read-only for this user (the
+        # agent can run from a tree owned by another user). Build from a copy so the tree is never written to.
+        build_src = Path(mkdtemp(prefix="cairnml-src-")) / source.name
+        shutil.copytree(source, build_src, ignore=shutil.ignore_patterns(
+            ".git", "build", "dist", "*.egg-info", "__pycache__"))
+        for root, dirs, files in os.walk(build_src):  # the copy keeps read-only modes, so make it writable for the build
+            for name in dirs + files + ["."]:
+                path = os.path.join(root, name)
+                os.chmod(path, os.stat(path).st_mode | stat.S_IWUSR)
+        subprocess.run([sys.executable, "-m", "pip", "wheel", "--no-deps", "-q", "-w", str(out), str(build_src)],
                        check=True, timeout=900)
         wheels = sorted(out.glob("*.whl"))
         if not wheels:
@@ -2098,6 +2130,7 @@ class Worker(ServiceCommandSection):
 
     def daemon(self, queues, log_level, foreground=False, docker=False, detached=False, order_fairness=False, **kwargs):
         use_docker = docker not in (False, None)
+        allow_venv = bool(kwargs.get("allow_venv", False))
 
         podman = kwargs.get("podman", None)
         self._use_podman = podman not in (False, None)
@@ -2113,6 +2146,10 @@ class Worker(ServiceCommandSection):
                     "Running in docker+podman mode, different containers provided. "
                     "Please use --docker or --podman with container details, not both."
                 )
+
+        venv_warning = check_execution_mode(use_docker, allow_venv)
+        if venv_warning:
+            print(venv_warning)
 
         # We use containers with podman - this is identical to
         # check that we have docker command if we need it
@@ -5270,8 +5307,8 @@ class Worker(ServiceCommandSection):
         if stripped_switches:
             warn_msg = (
                 "cairnml-agent: ignoring docker argument(s) {}; "
-                "they would override the agent startup script and prevent the task from running"
-            ).format(", ".join("--{}".format(s) for s in stripped_switches))
+                "they would give the task access to the host or override the agent startup script"
+            ).format(", ".join(("-" if len(s) == 1 else "--") + s for s in stripped_switches))
             self.log.warning(warn_msg)
             if env_task_id:
                 self.send_logs(env_task_id, [warn_msg + '\n'], session=self._session)

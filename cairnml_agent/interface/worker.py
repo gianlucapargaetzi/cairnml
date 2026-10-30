@@ -34,7 +34,7 @@ WORKER_ARGS = {
         'help': 'Specify active GPUs for the daemon to use (docker / virtual environment), '
                 'Equivalent to setting NVIDIA_VISIBLE_DEVICES '
                 'Examples: --gpus 0 or --gpu 0,1,2 or --gpus all',
-        'group': 'Docker support',
+        'group': 'Common options',
     },
     '--cpu-only': {
         'help': 'Disable GPU access for the daemon, only use CPU in either docker or virtual environment',
@@ -69,6 +69,13 @@ DAEMON_ARGS = dict({
                 'use --gpus/--cpu-only (or set NVIDIA_VISIBLE_DEVICES) to limit gpu visibility for docker',
         'nargs': '*',
         'default': False,
+        'group': 'Common options',
+    },
+    '--allow-venv': {
+        'help': 'Allow jobs to run in a Python virtual environment on this host instead of a Docker container. '
+                'Off by default. A job that runs this way can read the agent\'s device key and act as the '
+                'enrolling admin, so use it only for code you fully trust.',
+        'action': 'store_true',
         'group': 'Docker support',
     },
     '--force-current-version': {
@@ -85,6 +92,7 @@ DAEMON_ARGS = dict({
         'default': tuple(),
         'dest': 'queues',
         'type': foreign_object_id('queues'),
+        'group': 'Common options',
     },
     '--order-fairness': {
         'help': 'Pull from each queue in a round-robin order, instead of priority order.',
@@ -115,6 +123,7 @@ DAEMON_ARGS = dict({
         'help': 'Detached mode, run agent in the background',
         'action': 'store_true',
         'aliases': ['-d'],
+        'group': 'Common options',
     },
     '--stop': {
         'help': 'Stop the running agent (based on the same set of arguments). '
@@ -274,6 +283,10 @@ COMMANDS = {
             },
             '--force': {
                 'help': 'Enrol again: the previous device is revoked and the key replaced',
+                'action': 'store_true',
+            },
+            '--device': {
+                'help': 'Sign in with a code on another device instead of the browser (for headless machines)',
                 'action': 'store_true',
             },
             '--file': {

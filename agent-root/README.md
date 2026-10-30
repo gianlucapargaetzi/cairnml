@@ -22,7 +22,7 @@ CairnML Agent runs the jobs of a CairnML queue on this machine. It takes one job
 ## Features
 
 - Takes jobs from one or more queues.
-- Runs each job in its own container with `--docker`.
+- Runs each job in its own Docker container. Docker is required; jobs in a Python virtual environment on the host need `--allow-venv`, which is off by default.
 - Gives the agent the GPUs you choose with `--gpus`.
 - Gives every job its own short-lived token, so a job never receives the agent's own token.
 - Is enrolled once by an admin, who signs in when the browser opens.
@@ -32,7 +32,7 @@ CairnML Agent runs the jobs of a CairnML queue on this machine. It takes one job
 - Python 3.9 or newer
 - A running [CairnML server](https://github.com/gianlucapargaetzi/cairnml-server)
 - An admin account on that server, since only admins can enrol an agent
-- Docker, for jobs that run in containers (optional)
+- Docker (required; see `--allow-venv` for the exception)
 
 ## Installation
 
@@ -48,7 +48,7 @@ pip install cairnml-agent
 cairnml-agent init http://cairnml
 ```
 
-The argument is the server's address. The web app is at `<address>/cairnml` and the API at `<address>/cairnml/api`, which the command works out itself, so there are no ports to give. Your browser opens the sign-in page: sign in as an admin. A non-admin is refused, and no configuration is written. The configuration is stored in `~/cairnml-agent.conf`; the agent's git credentials and extra package indexes are set there by hand.
+The argument is the server's address. The web app is at `<address>/cairnml` and the API at `<address>/cairnml/api`, which the command works out itself, so there are no ports to give. Your browser opens the sign-in page: sign in as an admin. The browser sign-in receives its reply on `127.0.0.1:8765`, the only redirect address the identity provider accepts; if another program holds that port, the command signs in with a code instead. A non-admin is refused, and no configuration is written. The configuration is stored in `~/cairnml-agent.conf`; the agent's git credentials and extra package indexes are set there by hand.
 
 The agent enrols as its own device, with its own key (`~/.cairnml/agent/device.key`), apart from the SDK's `cairnml init`. `--name` names the machine, `--force` enrols it again (the previous device is revoked) and `-F <file>` uses another configuration file.
 
@@ -61,10 +61,20 @@ cairnml-agent daemon --queue default
 | Option | What it does |
 |---|---|
 | `--queue NAME` | The queue to take jobs from |
-| `--docker` | Run each job in a container |
+| `--docker` | Run each job in a container (required unless `--allow-venv` is given) |
+| `--allow-venv` | Allow jobs in a Python virtual environment on this host. Off by default: such a job can read the agent's device key |
 | `--gpus 0` | The GPUs the agent may use |
 
 Run `cairnml-agent daemon --help` for the rest.
+
+## Trust model
+
+The agent runs the code of every job that reaches its queue, so decide who may enqueue jobs before you start it.
+
+- **Docker (`--docker`) is the isolated mode.** A job runs in its own container, which does not see the agent's device key (`~/.cairnml/agent/device.key`). Use it for any setup where jobs come from more than one person.
+- **Virtual environment (`--allow-venv`) is not isolated.** A job runs as the agent's own user, so it can read the device key. The key signs in as the admin who enrolled the agent, with a token that lasts until the device is revoked. The agent prints a warning when it starts this way. Use it only for code you fully trust.
+- A task's own Docker arguments cannot give its container host access. By default the agent drops switches such as `--privileged`, `--cap-add`, `--device`, host namespaces (`--pid`, `--ipc`, `--network`), mounts and volumes (`-v`, `--mount`), and host files (`--env-file`, `--log-opt`). The list is `forbidden_docker_args` in the agent configuration. Changing it is an administrator decision, and an empty list turns the check off.
+- Keep the agent's own folder (`~/.cairnml/agent`) out of any cache or mount you configure for jobs.
 
 ## Check it
 
