@@ -15,6 +15,9 @@ HERE = Path(__file__).resolve().parent
 SERVER_IDP = Path(os.environ.get(
     "CAIRNML_SERVER_IDP", HERE.parent.parent / "cairnml-server" / "apiserver" / "idp"
 ))
+AGENT_IDP = Path(os.environ.get(
+    "CAIRNML_AGENT_IDP", HERE.parent.parent / "cairnml-agent" / "cairnml_agent" / "idp"
+))
 
 
 @pytest.fixture
@@ -80,3 +83,13 @@ def test_the_vendored_copy_matches_the_server(name):
     theirs = SERVER_IDP / name
     digest = lambda p: hashlib.sha256(p.read_bytes()).hexdigest()
     assert digest(ours) == digest(theirs)
+
+
+@pytest.mark.parametrize("name", ["browser_login.py", "enrol.py"])
+def test_the_copy_in_the_agent_matches_this_sdk(name):
+    if not AGENT_IDP.is_dir():
+        pytest.skip(f"agent checkout not found at {AGENT_IDP}")
+    ours = HERE.parent / "cairnml" / "idp" / name
+    theirs = AGENT_IDP / name
+    digest = lambda p: hashlib.sha256(p.read_bytes()).hexdigest()
+    assert digest(ours) == digest(theirs), f"{name} differs from the agent copy"
