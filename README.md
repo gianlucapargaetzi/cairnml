@@ -90,12 +90,12 @@ task.get_logger().report_scalar("loss", "train", value=0.5, iteration=1)
 Run the recorded task on an agent:
 
 ```python
-Task.enqueue(task, queue_name="default")
+task.execute_remotely(queue_name="default")
 ```
 
 The run appears in the web app under its project, with its parameters, metrics and artifacts.
 
-A task waits in its queue until a worker listens to it. `Task.enqueue` logs a warning when no worker listens to the queue, for example after a typing error in its name. To check it yourself:
+A task waits in its queue until a worker listens to it. `execute_remotely` logs a warning when no worker listens to the queue, for example after a typing error in its name. To check it yourself:
 
 ```python
 from cairnml import queues
