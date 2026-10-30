@@ -6,6 +6,7 @@ on 127.0.0.1, which takes the code and exchanges it for a token. Nothing is type
 
 import base64
 import hashlib
+import os
 import secrets
 import time
 import webbrowser
@@ -23,10 +24,27 @@ class LoginPortBusy(LoginFailed):
     """The fixed loopback port is in use, so the browser sign-in cannot receive its reply here."""
 
 
-# The sign-in reply comes back to this fixed loopback port. The identity provider registers this exact
-# redirect address for cairnml-sdk and does not accept a port wildcard (Keycloak 26), so the port cannot
-# be chosen per login. When another program holds it, the device code sign-in is used instead.
+# The sign-in reply comes back to this loopback port. The identity provider registers this exact
+# redirect address for cairnml-sdk and does not accept a port wildcard (Keycloak 26), so the default
+# cannot be an ephemeral port until the realm registers more addresses. When another program holds
+# the port, the device code sign-in is used instead.
 LOGIN_PORT = 8765
+# Overrides LOGIN_PORT. Use 0 to let the system choose a free port; the redirect address then carries
+# the port that was actually bound. Only set it to a port the identity provider accepts for cairnml-sdk.
+LOGIN_PORT_VAR = "CAIRNML_LOGIN_PORT"
+
+
+def configured_login_port():
+    raw = os.environ.get(LOGIN_PORT_VAR, "").strip()
+    if not raw:
+        return LOGIN_PORT
+    try:
+        port = int(raw)
+    except ValueError:
+        raise LoginFailed(f"{LOGIN_PORT_VAR} must be a port number, not {raw!r}") from None
+    if not 0 <= port <= 65535:
+        raise LoginFailed(f"{LOGIN_PORT_VAR} must be between 0 and 65535, not {port}")
+    return port
 
 
 def pkce_pair():
@@ -44,8 +62,10 @@ def browser_login(
     open_browser=webbrowser.open,
     out=print,
     timeout=300.0,
-    port=LOGIN_PORT,
+    port=None,
 ):
+    if port is None:
+        port = configured_login_port()
     http = session or requests.Session()
     meta = http.get(issuer.rstrip("/") + "/.well-known/openid-configuration", timeout=30).json()
     verifier, challenge = pkce_pair()
@@ -80,7 +100,7 @@ def browser_login(
             f"port {port} on 127.0.0.1 is in use by another program, and the sign-in cannot receive its reply "
             f"there ({exc.strerror or exc})"
         ) from None
-    redirect = f"http://127.0.0.1:{port}/callback"
+    redirect = f"http://127.0.0.1:{listener.server_address[1]}/callback"
     query = urlencode({
         "response_type": "code",
         "client_id": client_id,
