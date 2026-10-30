@@ -6,7 +6,7 @@ from unittest import mock
 
 from cairnml_agent.backend_api.session.job_token_file import read_job_token_file
 from cairnml_agent.backend_api.session.session import Session
-from cairnml_agent.helper.job_token import TokenRenewer, write_job_token
+from cairnml_agent.helper.job_token import TokenRenewer, request_job_token, write_job_token
 
 
 def test_the_token_file_is_replaced_and_readable_by_its_owner_only(tmp_path):
@@ -57,6 +57,64 @@ def test_the_renewer_tries_again_after_an_error(tmp_path):
     renewer.join(timeout=20)
     assert len(calls) == 3
     assert path.read_text() == "second"
+
+
+class Answer:
+    def __init__(self, status_code, body=None):
+        self.status_code = status_code
+        self.ok = status_code < 400
+        self._body = body or {}
+
+    def json(self):
+        return self._body
+
+
+class ServerAnswers:
+    """A session whose job token requests get the given answers, one per call."""
+
+    def __init__(self, *answers):
+        self._answers = list(answers)
+
+    def send_request(self, **kwargs):
+        return self._answers.pop(0)
+
+
+def job_token_answer(token):
+    return Answer(200, {"data": {"access_token": token, "expires_in": 1.5}})
+
+
+def test_a_server_outage_at_renewal_is_retried_and_the_token_file_is_updated(tmp_path):
+    path = tmp_path / "job_token"
+    write_job_token(path, "first")
+    session = ServerAnswers(Answer(503), job_token_answer("second"), Answer(401))
+    renewer = TokenRenewer(path, lambda: request_job_token(session, "task-1"), expires_in=1.5, retry_sec=0.1)
+    renewer.start()
+    renewer.join(timeout=20)
+    assert not renewer.is_alive(), "the refusal after the outage ends the renewer"
+    assert path.read_text() == "second"
+
+
+def test_a_refused_renewal_ends_the_renewer_without_a_retry(tmp_path):
+    path = tmp_path / "job_token"
+    write_job_token(path, "first")
+    session = ServerAnswers(Answer(401))
+    renewer = TokenRenewer(path, lambda: request_job_token(session, "task-1"), expires_in=1.5, retry_sec=0.1)
+    renewer.start()
+    renewer.join(timeout=20)
+    assert not renewer.is_alive()
+    assert path.read_text() == "first"
+
+
+def test_only_refusals_are_none_from_the_job_token_request():
+    assert request_job_token(ServerAnswers(Answer(403)), "task-1") is None
+    assert request_job_token(ServerAnswers(Answer(404)), "task-1") is None
+    assert request_job_token(ServerAnswers(job_token_answer("t")), "task-1") == ("t", 1.5)
+    for status in (500, 502, 503, 429):
+        try:
+            request_job_token(ServerAnswers(Answer(status)), "task-1")
+        except RuntimeError:
+            continue
+        raise AssertionError("HTTP {} must raise, not read as a refusal".format(status))
 
 
 def test_stop_ends_the_renewer_without_asking_the_server(tmp_path):

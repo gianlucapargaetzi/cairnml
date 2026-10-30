@@ -15,17 +15,24 @@ CONTAINER_DIR = "/root/.cairnml/job-token"
 RENEW_AT_FRACTION = 0.8
 # A renewal that failed for another reason (for example the network) is tried again after this many seconds.
 RETRY_SEC = 30
+# The answers that refuse the job's token for good (for example once the task has ended). Any other failure, such as
+# a 502 or 503 while the server restarts, is not a refusal and is raised, so that the renewer tries again.
+REFUSED_STATUS_CODES = (401, 403, 404)
 
 
 def request_job_token(session, task_id):
     """The job's token and its lifetime in seconds, issued by the server to this agent while the task runs here.
-    None when the server refuses, for example once the task has ended. Errors are raised."""
+    None when the server refuses for good (401, 403 or 404). Any other failure is raised."""
     res = session.send_request(
         service='devices', action='job_token', version='2.8', method=Request.def_method,
         json={'task': task_id},
     )
-    if res is None or not res.ok:
+    if res is None:
+        raise ConnectionError("no answer to the job token request of task {}".format(task_id))
+    if res.status_code in REFUSED_STATUS_CODES:
         return None
+    if not res.ok:
+        raise RuntimeError("job token request of task {} failed with HTTP {}".format(task_id, res.status_code))
     data = res.json()['data']
     return data['access_token'], data.get('expires_in', 3600)
 

@@ -5,8 +5,9 @@ from cairnml_agent.external.pyhocon import ConfigFactory
 
 
 class Reply:
-    def __init__(self, ok, body=None):
+    def __init__(self, ok, body=None, status_code=200):
         self.ok = ok
+        self.status_code = status_code
         self._body = body or {}
 
     def json(self):
@@ -39,7 +40,7 @@ def test_the_agent_asks_for_the_job_token_of_the_task_with_its_own_session():
 
 
 def test_a_refused_job_token_is_none_so_the_job_does_not_start():
-    session = FakeSession(Reply(False, {"meta": {"result_msg": "task is stopped"}}))
+    session = FakeSession(Reply(False, {"meta": {"result_msg": "task is stopped"}}, status_code=401))
     assert Worker._get_job_token(agent_worker(session), "task-1") == (None, None)
 
 
