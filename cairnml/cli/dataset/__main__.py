@@ -81,6 +81,17 @@ def do_push(args: argparse.Namespace) -> None:
         print(pushed)
 
 
+def do_doctor(args: argparse.Namespace) -> None:
+    checks = DatasetRepo(args.path).doctor()
+    labels = {True: "ok  ", False: "FAIL", None: "--  "}
+    for item in checks:
+        print(f"{labels[item['ok']]} {item['check']}: {item['message']}")
+    failed = [item for item in checks if item["ok"] is False]
+    if failed:
+        raise DatasetError(f"{len(failed)} check(s) failed: fix them, then run cairnml dataset doctor again")
+    print("\nNo problems found." if all(item["ok"] for item in checks) else "\nNothing failed.")
+
+
 def do_register(args: argparse.Namespace) -> None:
     result = DatasetRepo(args.path).register(name=args.name)
     print(f"Registered {result.get('name')}: {result.get('pull_request') or 'entry added'}")
@@ -123,6 +134,7 @@ def cli(argv: Optional[List[str]] = None) -> int:
     command("check", do_check, "check the data in its declared format and write the footprint")
     commit = command("commit", do_commit, "check the data, then commit it with its footprint")
     commit.add_argument("-m", "--message", required=True)
+    command("doctor", do_doctor, "check the set-up and the GitHub settings that publishing relies on")
     command("push", do_push, "upload the files, then publish the commit (through a pull request on the default branch)")
     register = command("register", do_register, "add the dataset to the registry (once; the server checks it)")
     register.add_argument("--name", help="registry name (default: the repository name)")

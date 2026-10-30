@@ -18,7 +18,7 @@ from .adapter import Adapter, SampleWriter
 from .cache import DatasetCache
 from .errors import DatasetError
 from .schema import SAMPLES_FILE, SchemaError, label_column, modality_column, read_manifest
-from .sources import source_for
+from .sources import parse_fetch, source_for
 
 
 @dataclass
@@ -29,6 +29,7 @@ class Pin:
     adapter: Optional[str] = None
     revision: Optional[str] = None
     overrides: List[Dict[str, Any]] = field(default_factory=list)
+    fetch: Optional[List[Dict[str, Any]]] = None  # web: the files to fetch, with checksums and unpacking
 
     def adapter_for(self, revision: str) -> str:
         """An override whose revisions include this one (by prefix) wins; otherwise the default adapter."""
@@ -48,17 +49,27 @@ def read_pin(tree: Path, name: str) -> Pin:
         known = sorted(p.stem for p in (tree / "datasets").glob("*.yaml"))
         raise DatasetError(f"no dataset {name!r} in the external-datasets repository; known: {', '.join(known) or 'none'}")
     data = yaml.safe_load(path.read_text()) or {}
+    # A web dataset may describe its files in ``fetch`` instead of ``link``: the addresses, checksums and unpacking.
+    fetch = None
+    if data.get("fetch") is not None:
+        if data.get("source") != "web":
+            raise DatasetError(f"{path.name}: fetch is only for a source of web")
+        if data.get("link"):
+            raise DatasetError(f"{path.name} sets both link and fetch: keep one of them")
+        fetch = parse_fetch(data["fetch"], path.name)
     # A dataset of our own (source: repo) says in its own repository how it is read; the others need an adapter here.
-    for key in ("source", "link") + (() if data.get("source") == "repo" else ("adapter",)):
+    keys = ("source",) if fetch is not None else ("source", "link")
+    for key in keys + (() if data.get("source") == "repo" else ("adapter",)):
         if not data.get(key):
             raise DatasetError(f"{path.name} must set {key!r}")
     return Pin(
         name=name,
         source=data["source"],
-        link=data["link"],
+        link=data.get("link") or [entry["url"] for entry in fetch],
         adapter=data.get("adapter"),
         revision=data.get("revision"),
         overrides=data.get("overrides") or [],
+        fetch=fetch,
     )
 
 
@@ -192,7 +203,7 @@ def get_external(
     if pin.source == "repo":
         return _get_own_dataset(cache, tree, sha, repo, pin, revision, alias)
     source = source_for(pin.source)
-    link = pin.link
+    link = pin.fetch if pin.fetch is not None else pin.link
     if pin.source == "local" and not Path(link.replace("file://", "", 1)).expanduser().is_absolute():
         link = str(tree / link)  # a folder inside the external-datasets repository itself
     resolved = source.resolve(link, revision or pin.revision)

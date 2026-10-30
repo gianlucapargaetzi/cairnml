@@ -13,7 +13,7 @@ import json
 import re
 import shutil
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from ..version import __version__
 from . import footprint, process
@@ -25,6 +25,7 @@ from .errors import DatasetError
 from .gitutil import Git
 
 DATA_DIR = "data"
+REQUIRED_CHECK = "verify"  # the check the default branch must require (the workflow's job)
 DVC_FILE = footprint.DVC_FILE
 WORKFLOW_FILE = ".github/workflows/dataset.yml"
 
@@ -53,6 +54,20 @@ def github_name(url: str) -> Optional[str]:
     """owner/name of a repository URL, from either the https or the ssh form."""
     match = re.search(r"[:/]([^/:]+/[^/]+?)(?:\.git)?/?$", url.strip())
     return match.group(1) if match else None
+
+
+def protection_problems(protection: Dict[str, Any]) -> List[str]:
+    """What is missing from the branch protection of a dataset repository, as sentences. Empty when it is right."""
+    problems = []
+    if protection.get("required_pull_request_reviews") is None:  # present, even with no approvals asked
+        problems.append("pull requests are not required before merging")
+    if (protection.get("allow_force_pushes") or {}).get("enabled"):
+        problems.append("force pushes are allowed")
+    checks = protection.get("required_status_checks") or {}
+    contexts = set(checks.get("contexts") or []) | {c.get("context") for c in checks.get("checks") or []}
+    if REQUIRED_CHECK not in contexts:
+        problems.append(f"the {REQUIRED_CHECK} check is not required")
+    return problems
 
 
 class DatasetRepo:
@@ -268,6 +283,97 @@ class DatasetRepo:
     def compare_url(self, branch: str) -> Optional[str]:
         name = github_name(self.git.remote_url() or "")
         return f"https://github.com/{name}/compare/{self.git.default_branch()}...{branch}?expand=1" if name else None
+
+    # doctor
+
+    def doctor(self) -> List[Dict[str, Any]]:
+        """Check what publishing needs, one entry per check: the set-up here and the GitHub settings that the footprint
+        check relies on. ``ok`` is True, False (a problem, with what to do) or None (nothing to check yet).
+
+        It reads the settings only; it does not change them.
+        """
+        checks: List[Dict[str, Any]] = []
+
+        def check(name: str, ok: Optional[bool], message: str) -> None:
+            checks.append({"check": name, "ok": ok, "message": message})
+
+        if not self.git.is_repo():
+            check("repository", False, "not a git repository: create one on GitHub, clone it, and run init in it")
+            return checks
+        repo = github_name(self.git.remote_url() or "")
+        if not repo:
+            check("origin", False, "no GitHub origin: clone the repository from GitHub, or add the remote")
+            return checks
+        check("origin", True, f"origin is {repo}")
+
+        setup = (self.path / ".dvc").is_dir() and (self.path / footprint.CONFIG_FILE).is_file()
+        check("set-up", setup, "dataset storage and dataset.yaml are in place" if setup
+              else "run: cairnml dataset init")
+        workflow = self.path / WORKFLOW_FILE
+        current = workflow.is_file() and workflow.read_text() == WORKFLOW
+        check("workflow", current, f"{WORKFLOW_FILE} is in place" if current
+              else "missing or out of date: run cairnml dataset check, then commit the change")
+        script = self.path / footprint.VERIFY_SCRIPT
+        current = script.is_file() and script.read_bytes() == Path(footprint.__file__).read_bytes()
+        check("verify script", current, f"{footprint.VERIFY_SCRIPT} matches this version" if current
+              else "missing or from another version: run cairnml dataset check, then commit the change")
+
+        if not self.git.remote_heads():
+            check("default branch", None, "the repository is empty: the first push creates its default branch, "
+                  "protect it after that and run doctor again")
+            return checks
+        default = self.git.default_branch()
+        if shutil.which("gh") is None:
+            check("GitHub command line", False, "gh is not installed: push prints the link to open the pull request "
+                  "instead. Install it from https://cli.github.com to let push open it and switch on auto-merge")
+            check("branch protection", None, f"cannot be read without gh: check {default} at "
+                  f"https://github.com/{repo}/settings/branches")
+            return checks
+        check("GitHub command line", True, "gh is installed")
+        try:
+            login = process.run(["gh", "auth", "status"], cwd=str(self.path))
+        except process.CommandTimeout as exc:
+            check("GitHub login", None, str(exc))
+            return checks
+        if login.returncode != 0:
+            check("GitHub login", False, "gh is not logged in: run gh auth login")
+            return checks
+        check("GitHub login", True, "gh is logged in")
+
+        settings, why = self._gh_api(f"repos/{repo}")
+        if settings is None:
+            check("auto-merge", None, f"could not read the repository settings: {why}")
+        elif settings.get("allow_auto_merge"):
+            check("auto-merge", True, "auto-merge is allowed, so push can switch it on")
+        else:
+            check("auto-merge", False, f"auto-merge is off: switch on 'Allow auto-merge' at "
+                  f"https://github.com/{repo}/settings")
+
+        protection, why = self._gh_api(f"repos/{repo}/branches/{default}/protection")
+        if protection is None and "Branch not protected" in why:
+            check("branch protection", False, f"{default} is not protected. At https://github.com/{repo}/settings/"
+                  f"branches require pull requests, block force pushes and require the {REQUIRED_CHECK} check")
+        elif protection is None:
+            check("branch protection", None, f"could not read the protection of {default}: {why}")
+        else:
+            problems = protection_problems(protection)
+            if problems:
+                check("branch protection", False, f"{default}: " + "; ".join(problems) + f" (see https://github.com/"
+                      f"{repo}/settings/branches)")
+            else:
+                check("branch protection", True, f"{default} requires pull requests, blocks force pushes and the "
+                      f"{REQUIRED_CHECK} check")
+        return checks
+
+    def _gh_api(self, path: str) -> Tuple[Optional[Dict[str, Any]], str]:
+        """The JSON answer of one GitHub API call through gh, or None and why it failed."""
+        try:
+            result = process.run(["gh", "api", path], cwd=str(self.path))
+        except process.CommandTimeout as exc:
+            return None, str(exc)
+        if result.returncode != 0:
+            return None, (result.stderr or result.stdout).strip() or f"gh api {path} failed"
+        return json.loads(result.stdout or "{}"), ""
 
     # register
 

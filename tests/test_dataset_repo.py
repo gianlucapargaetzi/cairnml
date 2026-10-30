@@ -8,6 +8,7 @@ import pytest
 
 from cairnml.datasets import Dataset, DatasetCache, DatasetError, DatasetRepo, SampleWriter
 from cairnml.datasets.dvcutil import Dvc
+from cairnml.datasets.repo import protection_problems
 
 
 @pytest.fixture(autouse=True)
@@ -359,3 +360,46 @@ def test_a_dataset_whose_footprint_does_not_hold_is_not_read(first, work, origin
     registry = _registry_with_entry(tmp_path, f"source: repo\nlink: {origin}\n")
     with pytest.raises(DatasetError, match="checksum"):
         Dataset.get_external("mine", repo=str(registry), cache=cache)
+
+
+def checks_by_name(repo):
+    return {item['check']: item for item in repo.doctor()}
+
+
+def test_doctor_lists_what_is_missing_before_the_set_up(work):
+    checks = checks_by_name(DatasetRepo(work))
+    assert checks['origin']['ok'] is True
+    assert checks['set-up']['ok'] is False and 'init' in checks['set-up']['message']
+    assert checks['verify script']['ok'] is False
+
+
+def test_doctor_says_when_the_repository_has_no_origin(tmp_path):
+    local = tmp_path / 'local'
+    subprocess.run(['git', 'init', '-q', str(local)], check=True)
+    checks = checks_by_name(DatasetRepo(local))
+    assert checks['origin']['ok'] is False
+
+
+def test_doctor_finds_a_set_up_repository_and_names_a_missing_gh(first, work, monkeypatch):
+    monkeypatch.setattr('cairnml.datasets.repo.shutil.which', lambda name: None)
+    checks = checks_by_name(DatasetRepo(work))
+    assert checks['set-up']['ok'] is True
+    assert checks['workflow']['ok'] is True
+    assert checks['verify script']['ok'] is True
+    assert checks['GitHub command line']['ok'] is False
+    assert 'Install it from' in checks['GitHub command line']['message']
+
+
+def test_protection_problems_name_each_missing_setting():
+    right = {
+        'required_pull_request_reviews': {},
+        'allow_force_pushes': {'enabled': False},
+        'required_status_checks': {'contexts': ['verify']},
+    }
+    assert protection_problems(right) == []
+    assert protection_problems({}) == [
+        'pull requests are not required before merging',
+        'the verify check is not required',
+    ]
+    forced = dict(right, allow_force_pushes={'enabled': True}, required_status_checks={'checks': [{'context': 'lint'}]})
+    assert protection_problems(forced) == ['force pushes are allowed', 'the verify check is not required']
