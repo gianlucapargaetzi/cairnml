@@ -11,7 +11,7 @@ from .._vendor.pathlib2 import Path
 from cairnml_agent import definitions
 from cairnml_agent.session import Session
 
-HEADER = 'CAIRNML-AGENT AI Orchestration DevOps'
+HEADER = 'CAIRNML-AGENT runs the jobs of a CairnML queue'
 
 
 class Parser(argparse.ArgumentParser):
@@ -372,7 +372,7 @@ def base_arguments(top_parser):
         help='CAIRNML-AGENT version number')
     top_parser.add_argument(
         '--config-file',
-        help='Use a different configuration file (default: "{}")'.format(definitions.CONFIG_FILE))
+        help='Use a different configuration file (default: "{}")'.format(definitions.AGENT_CONFIG_FILE))
     top_parser.add_argument('--debug', '-d', action='store_true', help='print debug information')
 
 

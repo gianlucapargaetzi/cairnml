@@ -17,6 +17,8 @@ CONFIG_DIR = normalize_path("~/.cairnml")
 TOKEN_CACHE_FILE = normalize_path("~/.cairnml.cairnml_agent.tmp")
 
 CONFIG_FILE_CANDIDATES = ["~/cairnml.conf"]
+# The agent's own configuration file, written by `cairnml-agent init`. Shown in help and messages.
+AGENT_CONFIG_FILE = "~/cairnml-agent.conf"
 
 
 def find_config_path():
