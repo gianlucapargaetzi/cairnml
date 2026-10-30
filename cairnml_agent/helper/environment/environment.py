@@ -1,7 +1,10 @@
+import sys
 from os import getenv, environ
 
 from .converters import text_to_bool
 from .entry import Entry, NotSet
+
+_warned_legacy_keys = set()
 
 
 class EnvEntry(Entry):
@@ -16,6 +19,14 @@ class EnvEntry(Entry):
 
     def _get(self, key):
         value = getenv(key, "")
+        if value and key != self.key and key not in _warned_legacy_keys:
+            # Old (ClearML-era) names still work, but each one is reported once per process.
+            _warned_legacy_keys.add(key)
+            print(
+                "warning: the environment variable {} is deprecated and will be removed; use {} instead".format(
+                    key, self.key),
+                file=sys.stderr,
+            )
         return value or NotSet
 
     def _set(self, key, value):

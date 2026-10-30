@@ -19,8 +19,13 @@ class LoginFailed(Exception):
     pass
 
 
+class LoginPortBusy(LoginFailed):
+    """The fixed loopback port is in use, so the browser sign-in cannot receive its reply here."""
+
+
 # The sign-in reply comes back to this fixed loopback port. The identity provider registers this exact
-# redirect address for cairnml-sdk; a port wildcard is not accepted by Keycloak 26.
+# redirect address for cairnml-sdk and does not accept a port wildcard (Keycloak 26), so the port cannot
+# be chosen per login. When another program holds it, the device code sign-in is used instead.
 LOGIN_PORT = 8765
 
 
@@ -50,12 +55,20 @@ def browser_login(
     class _Callback(BaseHTTPRequestHandler):
         def do_GET(self):  # noqa: N802 - the name http.server requires
             parts = urlsplit(self.path)
-            if parts.path == "/callback":
-                reply.update({key: values[0] for key, values in parse_qs(parts.query).items()})
-            self.send_response(200)
+            query = {key: values[0] for key, values in parse_qs(parts.query).items()}
+            # Only a reply for this login counts. Another request on the port (a stray or forged callback)
+            # is answered and ignored, so the wait goes on until the real reply or the timeout.
+            if parts.path == "/callback" and query.get("state") == state:
+                reply.update(query)
+                self.send_response(200)
+                self.send_header("Content-Type", "text/plain; charset=utf-8")
+                self.end_headers()
+                self.wfile.write(b"Signed in. You can close this tab.")
+                return
+            self.send_response(400 if parts.path == "/callback" else 404)
             self.send_header("Content-Type", "text/plain; charset=utf-8")
             self.end_headers()
-            self.wfile.write(b"Signed in. You can close this tab.")
+            self.wfile.write(b"This reply does not match a sign-in in progress.")
 
         def log_message(self, *args):  # keep the terminal quiet
             pass
@@ -63,7 +76,10 @@ def browser_login(
     try:
         listener = HTTPServer(("127.0.0.1", port), _Callback)
     except OSError as exc:
-        raise LoginFailed(f"cannot listen on 127.0.0.1:{port} for the sign-in reply: {exc}") from None
+        raise LoginPortBusy(
+            f"port {port} on 127.0.0.1 is in use by another program, and the sign-in cannot receive its reply "
+            f"there ({exc.strerror or exc})"
+        ) from None
     redirect = f"http://127.0.0.1:{port}/callback"
     query = urlencode({
         "response_type": "code",
@@ -93,8 +109,6 @@ def browser_login(
         raise LoginFailed(reply.get("error_description") or reply["error"])
     if "code" not in reply:
         raise LoginFailed("sign-in timed out")
-    if reply.get("state") != state:
-        raise LoginFailed("the sign-in reply did not match this request (state)")
 
     response = http.post(
         meta["token_endpoint"],

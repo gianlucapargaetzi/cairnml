@@ -1,6 +1,6 @@
 import pytest
 
-from cairnml_agent.idp.browser_login import LoginFailed
+from cairnml_agent.idp.browser_login import LoginFailed, LoginPortBusy
 from cairnml_agent.idp.device_login import device_login
 
 
@@ -75,8 +75,7 @@ def test_a_provider_without_the_device_grant_is_reported_clearly():
 
 
 def test_the_cli_uses_the_device_code_when_asked_or_when_no_browser_is_there(monkeypatch):
-    from cairnml_agent.commands import config as enrolment
-    from cairnml_agent.idp.browser_login import browser_login
+    from cairnml_agent.idp.device_login import browser_or_device_login
 
     import cairnml_agent.idp.device_login as mod
     monkeypatch.setattr(mod.sys, "platform", "linux")
@@ -86,5 +85,31 @@ def test_the_cli_uses_the_device_code_when_asked_or_when_no_browser_is_there(mon
     assert mod.choose_login(device=True) is device_login
 
     monkeypatch.setenv("DISPLAY", ":0")
-    assert mod.choose_login(device=False) is browser_login
+    assert mod.choose_login(device=False) is browser_or_device_login
     assert mod.choose_login(device=True) is device_login
+
+
+def test_a_busy_browser_port_falls_back_to_the_device_code(monkeypatch):
+    import cairnml_agent.idp.device_login as module
+
+    def busy_browser(issuer, client_id, **kwargs):
+        raise LoginPortBusy("port 8765 on 127.0.0.1 is in use")
+
+    messages = []
+    monkeypatch.setattr(module, "browser_login", busy_browser)
+    monkeypatch.setattr(module, "device_login", lambda issuer, client_id, out=print: "device-token")
+    token = module.browser_or_device_login("https://idp.example/realms/mlops", "cairnml-sdk", out=messages.append)
+    assert token == "device-token"
+    assert "port 8765" in messages[0] and "device code" in messages[0]
+
+
+def test_other_browser_failures_are_not_replaced_by_the_device_code(monkeypatch):
+    import cairnml_agent.idp.device_login as module
+
+    def refused(issuer, client_id, **kwargs):
+        raise LoginFailed("not allowed")
+
+    monkeypatch.setattr(module, "browser_login", refused)
+    monkeypatch.setattr(module, "device_login", lambda *a, **k: pytest.fail("device sign-in must not start"))
+    with pytest.raises(LoginFailed, match="not allowed"):
+        module.browser_or_device_login("https://idp.example/realms/mlops", "cairnml-sdk", out=lambda m: None)
