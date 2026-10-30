@@ -1916,7 +1916,9 @@ class Task(_Task):
             if not queue_id:
                 raise ValueError(f'Could not find queue named "{queue_name}"')
 
-        req = tasks.EnqueueRequest(task=task_id, queue=queue_id)
+        # the server answers queue_watched (servers from API 2.22) when no worker listens to the queue
+        watch_kwargs = {"verify_watched_queue": True} if Session.check_min_api_version("2.22") else {}
+        req = tasks.EnqueueRequest(task=task_id, queue=queue_id, **watch_kwargs)
         exception = None
         res = None
         try:
@@ -1932,10 +1934,16 @@ class Task(_Task):
                 raise exception
             task = cls.get_task(task_id=task) if isinstance(task, str) else task
             task.reset(set_started_on_success=False, force=True)
-            req = tasks.EnqueueRequest(task=task_id, queue=queue_id)
+            req = tasks.EnqueueRequest(task=task_id, queue=queue_id, **watch_kwargs)
             res = cls._send(session=session, req=req)
             if not res.ok():
                 raise ValueError(res.response)
+        if (res.response_data or {}).get("queue_watched") is False:
+            LoggerRoot.get_base_logger().warning(
+                f'No worker is listening to queue "{queue_name or queue_id}", so the task will wait in the queue. '
+                "Check the queue name, or start an agent for it with "
+                f"`cairnml-agent daemon --queue {queue_name or queue_id}`."
+            )
         resp = res.response
         return resp
 

@@ -19,6 +19,8 @@
 
 The CairnML SDK is the Python library you add to your training scripts. It records what a run does (parameters, metrics, logs and artifacts), sends runs to remote agents through job queues, and versions datasets so that every run knows the exact data it used.
 
+New to CairnML? Read [Start here](docs/start-here.md) first: it explains the four parts (server, SDK, agent, web app), which are required, and the order of setup.
+
 ## Features
 
 - Track a training script with a few lines: parameters, metrics, logs and artifacts are recorded on your server.
@@ -54,6 +56,10 @@ cairnml init http://<server-ip>
 
 Your browser opens the sign-in page. When the command prints `enrolled as ...`, this machine is connected. Each machine has its own key, so no access key is copied to it.
 
+The browser sign-in receives its reply on `127.0.0.1:8765`. The identity provider accepts only this redirect address for the CairnML client, so the port cannot be changed. If another program on the machine holds port 8765, `cairnml init` says so and signs in with a code instead (see `--device`). On a machine without a browser, `cairnml init --device` always uses the code.
+
+Environment variables named `TRAINS_*` (from the ClearML-based original) still work. Each one prints a deprecation warning once; use the `CAIRNML_*` name of the same setting.
+
 ## Commands
 
 Everything is one command, `cairnml`, with a subcommand for each tool. `cairnml <command> --help` shows the arguments of a command.
@@ -88,6 +94,17 @@ Task.enqueue(task, queue_name="default")
 ```
 
 The run appears in the web app under its project, with its parameters, metrics and artifacts.
+
+A task waits in its queue until a worker listens to it. `Task.enqueue` logs a warning when no worker listens to the queue, for example after a typing error in its name. To check it yourself:
+
+```python
+from cairnml import queues
+
+for queue in queues.list_queues():
+    print(queue.name)
+
+print(queues.workers_for_queue("default"))  # [] when no agent listens to it
+```
 
 ## The web app
 

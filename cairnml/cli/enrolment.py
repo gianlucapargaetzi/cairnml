@@ -15,9 +15,8 @@ from pathlib2 import Path
 
 from cairnml.backend_config.defs import LOCAL_CONFIG_FILE_OVERRIDE_VAR, LOCAL_CONFIG_FILES
 from cairnml.cli.config.__main__ import parse_known_host, write_config
-from cairnml.idp.browser_login import browser_login
 from cairnml.idp.device import DEVICE_KEY_PATH
-from cairnml.idp.device_login import device_login
+from cairnml.idp.device_login import browser_or_device_login, device_login
 from cairnml.idp.enrol import EnrolmentFailed, enrol, revoke_device, whoami
 from cairnml.utilities.pyhocon import ConfigFactory
 
@@ -58,8 +57,10 @@ def _browser_available() -> bool:
 
 
 def choose_login(device: bool):
-    """The browser sign-in, or the device code when asked for or when no browser is available here."""
-    return device_login if device or not _browser_available() else browser_login
+    """The browser sign-in, or the device code when asked for or when no browser is available here.
+
+    The browser sign-in falls back to the device code when its fixed loopback port is in use."""
+    return device_login if device or not _browser_available() else browser_or_device_login
 
 
 def init_main(argv=None) -> int:

@@ -76,7 +76,7 @@ def test_a_provider_without_the_device_grant_is_reported_clearly():
 
 def test_the_cli_uses_the_device_code_when_asked_or_when_no_browser_is_there(monkeypatch):
     from cairnml.cli import enrolment
-    from cairnml.idp.browser_login import browser_login
+    from cairnml.idp.device_login import browser_or_device_login
 
     monkeypatch.setattr(enrolment.sys, "platform", "linux")
     monkeypatch.delenv("DISPLAY", raising=False)
@@ -85,5 +85,32 @@ def test_the_cli_uses_the_device_code_when_asked_or_when_no_browser_is_there(mon
     assert enrolment.choose_login(device=True) is device_login
 
     monkeypatch.setenv("DISPLAY", ":0")
-    assert enrolment.choose_login(device=False) is browser_login
+    assert enrolment.choose_login(device=False) is browser_or_device_login
     assert enrolment.choose_login(device=True) is device_login
+
+
+def test_a_busy_browser_port_falls_back_to_the_device_code(monkeypatch):
+    from cairnml.idp import device_login as module
+    from cairnml.idp.browser_login import LoginPortBusy
+
+    def busy_browser(issuer, client_id, **kwargs):
+        raise LoginPortBusy("port 8765 on 127.0.0.1 is in use")
+
+    messages = []
+    monkeypatch.setattr(module, "browser_login", busy_browser)
+    monkeypatch.setattr(module, "device_login", lambda issuer, client_id, out=print: "device-token")
+    token = module.browser_or_device_login("https://idp.example/realms/mlops", "cairnml-sdk", out=messages.append)
+    assert token == "device-token"
+    assert "port 8765" in messages[0] and "device code" in messages[0]
+
+
+def test_other_browser_failures_are_not_replaced_by_the_device_code(monkeypatch):
+    from cairnml.idp import device_login as module
+
+    def refused(issuer, client_id, **kwargs):
+        raise LoginFailed("not allowed")
+
+    monkeypatch.setattr(module, "browser_login", refused)
+    monkeypatch.setattr(module, "device_login", lambda *a, **k: pytest.fail("device sign-in must not start"))
+    with pytest.raises(LoginFailed, match="not allowed"):
+        module.browser_or_device_login("https://idp.example/realms/mlops", "cairnml-sdk", out=lambda m: None)
