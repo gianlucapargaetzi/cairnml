@@ -387,7 +387,7 @@ def test_doctor_finds_a_set_up_repository_and_names_a_missing_gh(first, work, mo
     assert checks['workflow']['ok'] is True
     assert checks['verify script']['ok'] is True
     assert checks['GitHub command line']['ok'] is False
-    assert 'cli.github.com' in checks['GitHub command line']['message']
+    assert 'Install it from' in checks['GitHub command line']['message']
 
 
 def test_protection_problems_name_each_missing_setting():
