@@ -67,6 +67,15 @@ cairnml-agent daemon --queue default
 
 Run `cairnml-agent daemon --help` for the rest.
 
+## Trust model
+
+The agent runs the code of every job that reaches its queue, so decide who may enqueue jobs before you start it.
+
+- **Docker (`--docker`) is the isolated mode.** A job runs in its own container, which does not see the agent's device key (`~/.cairnml/agent/device.key`). Use it for any setup where jobs come from more than one person.
+- **Virtual environment (`--allow-venv`) is not isolated.** A job runs as the agent's own user, so it can read the device key. The key signs in as the admin who enrolled the agent, with a token that lasts until the device is revoked. The agent prints a warning when it starts this way. Use it only for code you fully trust.
+- A task's own Docker arguments cannot give its container host access. By default the agent drops switches such as `--privileged`, `--cap-add`, `--device`, host namespaces (`--pid`, `--ipc`, `--network`), mounts and volumes (`-v`, `--mount`), and host files (`--env-file`, `--log-opt`). The list is `forbidden_docker_args` in the agent configuration. Changing it is an administrator decision, and an empty list turns the check off.
+- Keep the agent's own folder (`~/.cairnml/agent`) out of any cache or mount you configure for jobs.
+
 ## Check it
 
 The **Workers** page of the web app lists this machine once it is running. Send a job to the queue, for example with `Task.enqueue` from the [SDK](https://github.com/gianlucapargaetzi/cairnml), and it starts on this machine.
