@@ -10,7 +10,7 @@ import time
 
 import requests
 
-from .browser_login import LoginFailed, pkce_pair
+from .browser_login import LoginFailed, LoginPortBusy, browser_login, pkce_pair
 
 DEVICE_GRANT = "urn:ietf:params:oauth:grant-type:device_code"
 
@@ -80,8 +80,17 @@ def _browser_available() -> bool:
     return bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
 
 
-def choose_login(device: bool):
-    """The browser sign-in, or the device code when asked for or when no browser is available here."""
-    from .browser_login import browser_login
+def browser_or_device_login(issuer, client_id, *, out=print, **kwargs):
+    """The browser sign-in. When its fixed loopback port is in use, the device code sign-in is used instead."""
+    try:
+        return browser_login(issuer, client_id, out=out, **kwargs)
+    except LoginPortBusy as exc:
+        out(f"{exc}. Signing in with the device code instead.")
+        return device_login(issuer, client_id, out=out)
 
-    return device_login if device or not _browser_available() else browser_login
+
+def choose_login(device: bool):
+    """The browser sign-in, or the device code when asked for or when no browser is available here.
+
+    The browser sign-in falls back to the device code when its fixed loopback port is in use."""
+    return device_login if device or not _browser_available() else browser_or_device_login

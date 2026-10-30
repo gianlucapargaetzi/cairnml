@@ -48,7 +48,7 @@ pip install cairnml-agent
 cairnml-agent init http://cairnml
 ```
 
-The argument is the server's address. The web app is at `<address>/cairnml` and the API at `<address>/cairnml/api`, which the command works out itself, so there are no ports to give. Your browser opens the sign-in page: sign in as an admin. A non-admin is refused, and no configuration is written. The configuration is stored in `~/cairnml-agent.conf`; the agent's git credentials and extra package indexes are set there by hand.
+The argument is the server's address. The web app is at `<address>/cairnml` and the API at `<address>/cairnml/api`, which the command works out itself, so there are no ports to give. Your browser opens the sign-in page: sign in as an admin. The browser sign-in receives its reply on `127.0.0.1:8765`, the only redirect address the identity provider accepts; if another program holds that port, the command signs in with a code instead. A non-admin is refused, and no configuration is written. The configuration is stored in `~/cairnml-agent.conf`; the agent's git credentials and extra package indexes are set there by hand.
 
 The agent enrols as its own device, with its own key (`~/.cairnml/agent/device.key`), apart from the SDK's `cairnml init`. `--name` names the machine, `--force` enrols it again (the previous device is revoked) and `-F <file>` uses another configuration file.
 
