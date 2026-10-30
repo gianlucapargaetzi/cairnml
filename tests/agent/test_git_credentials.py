@@ -110,7 +110,7 @@ def test_a_host_without_a_stored_credential_falls_back_to_the_configured_ones(ca
     session, _ = session_answering(Reply(ok=False))
     assert select_git_credential(session, "https://gitlab.example.com/team/repo.git", "task-1") is None
     out = capsys.readouterr().out
-    assert "gitlab.example.com" in out and TOKEN not in out
+    assert out == "The server has no Git credential for gitlab.example.com, using the configured credentials\n"
 
 
 def test_the_github_app_token_keeps_its_username():
