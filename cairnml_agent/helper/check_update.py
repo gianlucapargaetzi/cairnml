@@ -53,7 +53,7 @@ def _check_update_daemon():
                     print('CAIRNML-AGENT new package available: UPGRADE to v{} is recommended!\nRelease Notes:\n{}'.format(
                         latest_version[0], sep.join(latest_version[2])))
                 else:
-                    print('TRAINS-SERVER new version available: upgrade to v{} is recommended!'.format(
+                    print('CAIRNML-AGENT new version available: upgrade to v{} is recommended!'.format(
                         latest_version[0]))
         except Exception:
             pass
