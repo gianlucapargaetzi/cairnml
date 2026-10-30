@@ -69,6 +69,7 @@ Everything is one command, `cairnml`, with a subcommand for each tool. `cairnml 
 | `cairnml init <server>` | Enrol this machine with the server. `--name` names the machine, `--force` enrols again. |
 | `cairnml whoami` | Show who this machine signs in as |
 | `cairnml logout` | Revoke this machine's enrolment and remove its key |
+| `cairnml doctor` | Check the configuration, the server, the sign-in and the device key, one line per check. Exits with 1 when a check fails |
 | `cairnml dataset ...` | Versioned datasets on git and DVC (needs `cairnml[dataset]`) |
 | `cairnml task ...` | Launch any codebase on a machine running `cairnml-agent` |
 | `cairnml param-search ...` | Search for the best parameters for your models |
