@@ -22,7 +22,7 @@ CairnML Agent runs the jobs of a CairnML queue on this machine. It takes one job
 ## Features
 
 - Takes jobs from one or more queues.
-- Runs each job in its own container with `--docker`.
+- Runs each job in its own Docker container. Docker is required; jobs in a Python virtual environment on the host need `--allow-venv`, which is off by default.
 - Gives the agent the GPUs you choose with `--gpus`.
 - Gives every job its own short-lived token, so a job never receives the agent's own token.
 - Is enrolled once by an admin, who signs in when the browser opens.
@@ -32,7 +32,7 @@ CairnML Agent runs the jobs of a CairnML queue on this machine. It takes one job
 - Python 3.9 or newer
 - A running [CairnML server](https://github.com/gianlucapargaetzi/cairnml-server)
 - An admin account on that server, since only admins can enrol an agent
-- Docker, for jobs that run in containers (optional)
+- Docker (required; see `--allow-venv` for the exception)
 
 ## Installation
 
@@ -61,7 +61,8 @@ cairnml-agent daemon --queue default
 | Option | What it does |
 |---|---|
 | `--queue NAME` | The queue to take jobs from |
-| `--docker` | Run each job in a container |
+| `--docker` | Run each job in a container (required unless `--allow-venv` is given) |
+| `--allow-venv` | Allow jobs in a Python virtual environment on this host. Off by default: such a job can read the agent's device key |
 | `--gpus 0` | The GPUs the agent may use |
 
 Run `cairnml-agent daemon --help` for the rest.

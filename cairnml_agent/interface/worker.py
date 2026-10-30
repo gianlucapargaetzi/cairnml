@@ -71,6 +71,13 @@ DAEMON_ARGS = dict({
         'default': False,
         'group': 'Docker support',
     },
+    '--allow-venv': {
+        'help': 'Allow jobs to run in a Python virtual environment on this host instead of a Docker container. '
+                'Off by default. A job that runs this way can read the agent\'s device key and act as the '
+                'enrolling admin, so use it only for code you fully trust.',
+        'action': 'store_true',
+        'group': 'Docker support',
+    },
     '--force-current-version': {
         'help': 'Force cairnml-agent to use the current cairnml-agent version when running in the docker',
         'action': 'store_true',

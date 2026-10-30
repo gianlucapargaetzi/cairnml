@@ -171,6 +171,19 @@ DOCKER_DEFAULT_CONF_FILE = "~/default_cairnml.conf"
 sys_random = random.SystemRandom()
 
 
+def check_execution_mode(use_docker: bool, allow_venv: bool) -> None:
+    """
+    Jobs run in a Docker container. A Python virtual environment on the host is allowed only when the
+    agent is started with --allow-venv, because such a job can read the agent's own device key.
+    """
+    if not use_docker and not allow_venv:
+        raise ValueError(
+            "The agent runs jobs in Docker containers only. Start it with --docker. "
+            "To run jobs in a virtual environment on this host instead, pass --allow-venv "
+            "(not recommended: such a job can read the agent's device key)."
+        )
+
+
 @attr.s
 class LiteralScriptManager(object):
     """
@@ -2114,6 +2127,7 @@ class Worker(ServiceCommandSection):
 
     def daemon(self, queues, log_level, foreground=False, docker=False, detached=False, order_fairness=False, **kwargs):
         use_docker = docker not in (False, None)
+        allow_venv = bool(kwargs.get("allow_venv", False))
 
         podman = kwargs.get("podman", None)
         self._use_podman = podman not in (False, None)
@@ -2129,6 +2143,8 @@ class Worker(ServiceCommandSection):
                     "Running in docker+podman mode, different containers provided. "
                     "Please use --docker or --podman with container details, not both."
                 )
+
+        check_execution_mode(use_docker, allow_venv)
 
         # We use containers with podman - this is identical to
         # check that we have docker command if we need it
