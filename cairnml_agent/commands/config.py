@@ -16,6 +16,7 @@ from .._vendor.six.moves.urllib.parse import urlparse
 
 from cairnml_agent.backend_config.defs import LOCAL_CONFIG_FILE_OVERRIDE_VAR, LOCAL_CONFIG_FILES
 from cairnml_agent.external.pyhocon import ConfigFactory
+from cairnml_agent.idp.device_login import choose_login
 from cairnml_agent.idp.enrol import EnrolmentFailed, enrol
 
 
@@ -23,14 +24,14 @@ def default_config_file():
     return LOCAL_CONFIG_FILE_OVERRIDE_VAR.get() or LOCAL_CONFIG_FILES[-1]
 
 
-def main(server, name=None, force=False, file=None):
+def main(server, name=None, force=False, file=None, device=False):
     conf_file = Path(os.path.expanduser(file or default_config_file())).absolute()
     previous_device_id = _device_id_in(conf_file)
 
     api_server, _ = parse_known_host(urlparse(server))
     try:
         result = enrol(api_server or server, kind='agent', name=name, force=force,
-                       previous_device_id=previous_device_id)
+                       previous_device_id=previous_device_id, login=choose_login(device))
     except EnrolmentFailed as exc:
         print('error: {}'.format(exc), file=sys.stderr)
         return 1

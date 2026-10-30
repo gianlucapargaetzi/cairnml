@@ -283,6 +283,10 @@ COMMANDS = {
                 'help': 'Enrol again: the previous device is revoked and the key replaced',
                 'action': 'store_true',
             },
+            '--device': {
+                'help': 'Sign in with a code on another device instead of the browser (for headless machines)',
+                'action': 'store_true',
+            },
             '--file': {
                 'help': "Configuration file (default: the agent's ~/cairnml-agent.conf)",
                 'aliases': ['-F'],
