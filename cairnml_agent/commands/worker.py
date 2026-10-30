@@ -160,6 +160,7 @@ from cairnml_agent.helper.resource_monitor import ResourceMonitor
 from cairnml_agent.helper.runtime_verification import check_runtime, print_uptime_properties
 from cairnml_agent.helper.singleton import Singleton
 from cairnml_agent.helper.docker_args import DockerArgsSanitizer, DockerArgsTemplateResolver
+from cairnml_agent.idp.device import DEVICE_KEY_PATH, exposes_device_key, secure_folder
 from cairnml_agent.session import Session
 from .events import Events
 from cairnml_agent.commands import bootstrap
@@ -176,6 +177,30 @@ VENV_MODE_WARNING = (
     "(~/.cairnml/agent/device.key) and sign in as the admin who enrolled this agent, with a token that lasts until "
     "the device is revoked. Use it only for code you fully trust, or run the agent with --docker."
 )
+
+
+def check_job_mounts(host_paths) -> None:
+    """Refuse a folder mounted into a job that holds the agent's device key (the key, its folder or a folder above)."""
+    for path in host_paths:
+        if path and exposes_device_key(path):
+            raise ValueError(
+                "The job folder {} would give the job the agent's device key ({}). Choose a folder outside "
+                "{}.".format(path, DEVICE_KEY_PATH, DEVICE_KEY_PATH.parent)
+            )
+
+
+def job_environment(base_env, impersonated_token=None, job_token=None, job_token_file=None) -> dict:
+    """The environment of a job started on this host. The agent's own auth token is never passed on: the job gets
+    the task owner's token when impersonating, otherwise its own job token."""
+    env = dict(base_env)
+    for name in ENV_AGENT_AUTH_TOKEN.vars:
+        env.pop(name, None)
+    if impersonated_token:
+        env[ENV_AGENT_AUTH_TOKEN.vars[0]] = impersonated_token
+    else:
+        env["CAIRNML_JOB_TOKEN"] = job_token
+        env["CAIRNML_JOB_TOKEN_FILE"] = str(job_token_file)
+    return env
 
 
 def check_execution_mode(use_docker: bool, allow_venv: bool) -> Optional[str]:
@@ -1483,12 +1508,10 @@ class Worker(ServiceCommandSection):
                     session=task_session,
                 )
 
-            env = os.environ.copy()
-            if self._impersonate_as_task_owner:
-                env[ENV_AGENT_AUTH_TOKEN.vars[0]] = task_session.token
-            else:
-                env["CAIRNML_JOB_TOKEN"] = job_token
-                env["CAIRNML_JOB_TOKEN_FILE"] = str(job_token_file)
+            env = job_environment(
+                os.environ, impersonated_token=task_session.token if self._impersonate_as_task_owner else None,
+                job_token=job_token, job_token_file=job_token_file,
+            )
             if self._worker_tags:
                 env[ENV_WORKER_TAGS.vars[0]] = " ".join(shlex.quote(t) for t in self._worker_tags)
 
@@ -2150,6 +2173,8 @@ class Worker(ServiceCommandSection):
         venv_warning = check_execution_mode(use_docker, allow_venv)
         if venv_warning:
             print(venv_warning)
+        # only the agent's owner may read its folder, which holds the device key
+        secure_folder(DEVICE_KEY_PATH.parent)
 
         # We use containers with podman - this is identical to
         # check that we have docker command if we need it
@@ -4941,6 +4966,10 @@ class Worker(ServiceCommandSection):
             load_path("agent.docker_poetry_cache", "~/.cairnml/poetry-cache") if self.poetry.enabled else None
         )
         self.debug("host_poetry_cache: {}".format(host_poetry_cache))
+
+        check_job_mounts([
+            host_cache, host_pip_dl, host_vcs_cache, host_venvs_cache, host_apt_cache, host_pip_cache, host_poetry_cache,
+        ])
 
         # make sure all folders are valid
         if host_apt_cache:

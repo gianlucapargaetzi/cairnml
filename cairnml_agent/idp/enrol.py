@@ -13,7 +13,7 @@ import jwt
 import requests
 
 from .browser_login import browser_login
-from .device import DEVICE_KEY_PATH, device_assertion
+from .device import DEVICE_KEY_PATH, device_assertion, secure_folder
 from .keys import generate_private_key, public_key_pem, write_private_key
 
 
@@ -78,6 +78,7 @@ def whoami(server_url: str, device_id: str, key_path=None, http=None) -> dict:
 
 def _replace_key(key, key_path: Path) -> None:
     """The key is written to a temporary file and moved into place, so a failure leaves no half key."""
+    secure_folder(key_path.parent)
     tmp = key_path.with_name(key_path.name + ".tmp")
     tmp.unlink(missing_ok=True)
     write_private_key(tmp, key)
