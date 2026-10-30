@@ -19,10 +19,23 @@ def _print_group(title: str, changes: dict) -> None:
 
 
 def do_init(args: argparse.Namespace) -> None:
-    url = DatasetRepo(args.path).init(remote_url=args.remote, adapter=args.adapter, registry=args.registry)
+    url = DatasetRepo(args.path).init(
+        remote_url=args.remote, adapter=args.adapter, registry=args.registry, storage=args.storage
+    )
     how = f"through the adapter {args.adapter!r}" if args.adapter else "as they are (native format)"
-    print(f"Dataset repository set up. Files are stored at {url}; data/ is read {how} (see dataset.yaml).")
+    print(f"Dataset repository set up. Files are stored in {url}; data/ is read {how} (see dataset.yaml).")
     print("Copy your files into data/, then run: cairnml dataset status")
+
+
+def do_create(args: argparse.Namespace) -> None:
+    result = DatasetRepo.create(
+        args.path or args.name, args.name, args.source, private=not args.public, storage=args.storage,
+        adapter=args.adapter, registry=args.registry,
+    )
+    print(f"Created {result['url']} with the dataset in {result['where']}, committed {result['commit'][:10]} and "
+          f"pushed to {result['branch']}.")
+    print("Protect the default branch by hand (pull requests, no force pushes, the verify check): "
+          "cairnml dataset doctor shows what is missing.")
 
 
 def do_status(args: argparse.Namespace) -> None:
@@ -129,6 +142,9 @@ def cli(argv: Optional[List[str]] = None) -> int:
     init.add_argument("--remote", help="store the files here instead of in the server's dataset bucket")
     init.add_argument("--adapter", help="read data/ through this adapter of the registry (default: data/ is native)")
     init.add_argument("--registry", help="URL of the adapter registry (default: sdk.datasets.external_repo)")
+    init.add_argument("--storage", choices=["s3", "lfs"], default="s3",
+                      help="s3: files in the server's dataset bucket through DVC; lfs: files in the GitHub LFS of "
+                           "the repository (no DVC, no storage keys). Chosen once; the default is s3")
     command("status", do_status, "show the branch and what changed in data/")
     command("add", do_add, "record the current state of data/, including deleted files")
     command("check", do_check, "check the data in its declared format and write the footprint")
@@ -141,6 +157,17 @@ def cli(argv: Optional[List[str]] = None) -> int:
     get = command("get", do_get, "download a dataset version into the cache and print its folder")
     get.add_argument("repo", help="URL of the dataset repository")
     get.add_argument("commit", help="commit, branch or tag")
+    create = sub.add_parser(
+        "create", help="create the GitHub repository, copy the files in, check, commit and push, in one call"
+    )
+    create.set_defaults(func=do_create)
+    create.add_argument("name", help="name of the new GitHub repository")
+    create.add_argument("--from", dest="source", required=True, help="folder that holds the dataset files")
+    create.add_argument("--path", help="local folder for the repository (default: the name, in this folder)")
+    create.add_argument("--public", action="store_true", help="make the repository public (default: private)")
+    create.add_argument("--storage", choices=["s3", "lfs"], default="s3", help="where the files are stored (see init)")
+    create.add_argument("--adapter", help="read data/ through this adapter of the registry (default: data/ is native)")
+    create.add_argument("--registry", help="URL of the adapter registry (default: sdk.datasets.external_repo)")
     cache = sub.add_parser("cache", help="show or trim the local dataset cache")
     cache.set_defaults(func=do_cache)
     cache.add_argument("action", choices=["info", "clean", "limit"])

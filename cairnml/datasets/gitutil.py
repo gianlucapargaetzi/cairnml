@@ -3,6 +3,7 @@
 import base64
 import io
 import os
+import subprocess
 import tarfile
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Union
@@ -48,14 +49,14 @@ class Git:
     def _base(self) -> List[str]:
         return ["git"] + (["--git-dir", str(self.path)] if self.bare else ["-C", str(self.path)])
 
-    def run(self, *args: str, check: bool = True) -> str:
+    def run(self, *args: str, check: bool = True, strip: bool = True) -> str:
         try:
             result = process.run(self._base() + list(args), env=_env(self.token))
         except FileNotFoundError:
             raise GitError("git is not installed") from None
         if check and result.returncode != 0:
             raise GitError(f"git {' '.join(args)} failed: {(result.stderr or result.stdout).strip()}")
-        return result.stdout.strip()
+        return result.stdout.strip() if strip else result.stdout
 
     def ok(self, *args: str) -> bool:
         """True when the git command exits with 0."""
@@ -84,7 +85,7 @@ class Git:
 
     def porcelain(self) -> List[tuple]:
         """(index status, worktree status, path) for every changed or untracked path."""
-        out = self.run("status", "--porcelain", "-z", "--untracked-files=all")
+        out = self.run("status", "--porcelain", "-z", "--untracked-files=all", strip=False)
         entries = [e for e in out.split("\0") if e]
         rows = []
         skip = False
@@ -109,6 +110,47 @@ class Git:
 
     def add(self, paths: Sequence[str], force: bool = False) -> None:
         self.run("add", *(["-f"] if force else []), "--", *paths)
+
+    def staged_sizes(self, prefix: str) -> Dict[str, int]:
+        """Size in bytes of every file under ``prefix`` in the index, by path (the stored blob, so an LFS pointer is small)."""
+        out = self.run("ls-files", "-s", "-z", "--", prefix)
+        blobs = {}
+        for entry in [e for e in out.split("\0") if e]:
+            meta, _, path = entry.partition("\t")
+            blobs[path] = meta.split()[1]
+        if not blobs:
+            return {}
+        paths = list(blobs)
+        try:
+            proc = subprocess.run(
+                self._base() + ["cat-file", "--batch-check=%(objectsize)"],
+                input="".join(f"{blobs[p]}\n" for p in paths), capture_output=True, text=True, check=False,
+                env=_env(self.token),
+            )
+        except FileNotFoundError:
+            raise GitError("git is not installed") from None
+        if proc.returncode != 0:
+            raise GitError(f"git cat-file failed: {proc.stderr.strip()}")
+        return {path: int(size) for path, size in zip(paths, proc.stdout.split())}
+
+    def lfs(self, *args: str, transfer: bool = False) -> str:
+        """``git lfs <args>``. ``transfer`` marks a command that moves objects (it is not limited by the short timeout)."""
+        try:
+            result = process.run(
+                self._base() + ["lfs", *args], env=_env(self.token),
+                timeout=process.transfer_timeout() if transfer else -1,
+            )
+        except FileNotFoundError:
+            raise GitError("git is not installed") from None
+        if result.returncode != 0:
+            raise GitError(f"git lfs {' '.join(args)} failed: {(result.stderr or result.stdout).strip()}")
+        return result.stdout.strip()
+
+    def lfs_available(self) -> bool:
+        try:
+            return process.run(["git", "lfs", "version"], env=_env(None)).returncode == 0
+        except FileNotFoundError:
+            return False
 
     def commit(self, message: str) -> str:
         self.run("commit", "-q", "-m", message)
