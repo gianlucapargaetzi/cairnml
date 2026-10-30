@@ -10,6 +10,7 @@ import os.path
 import random
 import re
 import shlex
+import stat
 import shutil
 import signal
 import string
@@ -313,7 +314,16 @@ def build_local_wheel(source: Path, name: str) -> str:
             raise CommandFailedError("{} is not a source tree of {} (no pyproject.toml naming it, and no setup.py): "
                                      "the job containers need the local wheel built from it".format(source, name))
         out = Path(mkdtemp(prefix="cairnml-wheel-"))
-        subprocess.run([sys.executable, "-m", "pip", "wheel", "--no-deps", "-q", "-w", str(out), str(source)],
+        # pip writes egg-info and build output into the source tree, which may be read-only for this user (the
+        # agent can run from a tree owned by another user). Build from a copy so the tree is never written to.
+        build_src = Path(mkdtemp(prefix="cairnml-src-")) / source.name
+        shutil.copytree(source, build_src, ignore=shutil.ignore_patterns(
+            ".git", "build", "dist", "*.egg-info", "__pycache__"))
+        for root, dirs, files in os.walk(build_src):  # the copy keeps read-only modes, so make it writable for the build
+            for name in dirs + files + ["."]:
+                path = os.path.join(root, name)
+                os.chmod(path, os.stat(path).st_mode | stat.S_IWUSR)
+        subprocess.run([sys.executable, "-m", "pip", "wheel", "--no-deps", "-q", "-w", str(out), str(build_src)],
                        check=True, timeout=900)
         wheels = sorted(out.glob("*.whl"))
         if not wheels:

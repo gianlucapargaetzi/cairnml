@@ -50,3 +50,26 @@ def test_the_real_source_tree_of_this_agent_is_recognised():
     if not (root / "pyproject.toml").is_file():
         pytest.skip("not run from a source tree")
     assert worker.is_source_tree(root, "cairnml-agent")
+
+
+def test_a_read_only_source_tree_still_builds(tmp_path):
+    """The agent may run from a tree its user cannot write (the job containers still need its wheel)."""
+    import os
+    import stat
+
+    source = tmp_path / "cairnml-agent"
+    package = source / "cairnml_agent"
+    package.mkdir(parents=True)
+    (package / "__init__.py").write_text("")
+    (source / "pyproject.toml").write_text(
+        '[build-system]\nrequires = ["setuptools>=61"]\nbuild-backend = "setuptools.build_meta"\n\n'
+        '[project]\nname = "cairnml-agent"\nversion = "0.0.1"\n'
+    )
+    for root, dirs, files in os.walk(source):
+        for name in dirs + files:
+            os.chmod(os.path.join(root, name), stat.S_IRUSR | stat.S_IXUSR | stat.S_IRGRP | stat.S_IXGRP)
+        os.chmod(root, stat.S_IRUSR | stat.S_IXUSR | stat.S_IRGRP | stat.S_IXGRP)
+
+    wheel = worker.build_local_wheel(source, "cairnml-agent")
+    assert wheel.endswith(".whl")
+    assert not (source / "cairnml_agent.egg-info").exists()
