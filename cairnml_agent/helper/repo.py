@@ -94,20 +94,28 @@ class RepoInfo(object):
 RType = TypeVar("RType")
 
 
-def github_header(token):
-    """The HTTP header that carries a GitHub installation token (x-access-token), as git expects it."""
-    raw = b64encode("x-access-token:{}".format(token).encode("utf-8")).decode("utf-8")
+GITHUB_APP_USERNAME = "x-access-token"
+
+
+def basic_auth_header(username, secret):
+    """The HTTP header that carries a username and a secret as HTTP basic auth, as git expects it."""
+    raw = b64encode("{}:{}".format(username, secret).encode("utf-8")).decode("utf-8")
     return "AUTHORIZATION: basic {}".format(raw)
 
 
-def scrub_token(output, token):
+def github_header(token):
+    """The HTTP header that carries a GitHub installation token (x-access-token), as git expects it."""
+    return basic_auth_header(GITHUB_APP_USERNAME, token)
+
+
+def scrub_token(output, token, username=GITHUB_APP_USERNAME):
     """Remove the token, and every form of the header that carries it, from git output."""
     if not token:
         return output
     binary = isinstance(output, bytes)
     to_text = ensure_binary if binary else ensure_text
-    raw = b64encode("x-access-token:{}".format(token).encode("utf-8")).decode("utf-8")
-    for secret in (github_header(token), raw, token):
+    raw = b64encode("{}:{}".format(username, token).encode("utf-8")).decode("utf-8")
+    for secret in (basic_auth_header(username, token), raw, token):
         output = output.replace(to_text(secret), to_text("***"))
     return output
 
@@ -458,6 +466,7 @@ class VCS(object):
             raise
 
     _header_token = None
+    _header_username = GITHUB_APP_USERNAME
 
     def _normalize_output(self, result):
         """
@@ -473,7 +482,7 @@ class VCS(object):
             string_type(self.url),
             string_type(furl(self.url).remove(password=True).tostr()),
         )
-        return scrub_token(result, self._header_token)
+        return scrub_token(result, self._header_token, self._header_username)
 
     @staticmethod
     def _print_output(output):
@@ -726,17 +735,18 @@ class Git(VCS):
             fetch_args = []
         self.call("fetch", *fetch_args, cwd=self.location)
 
-    def use_header_token(self, token):
+    def use_header_token(self, token, username=GITHUB_APP_USERNAME):
         """
-        Authenticate every git command with a short-lived token sent as an HTTP header in the environment
+        Authenticate every git command with a token sent as HTTP basic auth in an HTTP header in the environment
         (GIT_CONFIG_COUNT). The token is never in the URL, on the command line or in a file, and no askpass
-        helper is used.
+        helper is used. A GitHub App token uses the username x-access-token; a stored Git credential uses its own.
         """
         self._header_token = token
+        self._header_username = username
         self.COMMAND_ENV.update(
             GIT_CONFIG_COUNT="1",
             GIT_CONFIG_KEY_0="http.extraheader",
-            GIT_CONFIG_VALUE_0=github_header(token),
+            GIT_CONFIG_VALUE_0=basic_auth_header(username, token),
         )
 
     def _git_pass_auth_wrapper(self, func, *args, **kwargs):
@@ -882,10 +892,11 @@ class Hg(VCS):
     )
 
 
-def fetch_git_token(session, task_id):
+def fetch_git_credential(session, task_id):
     """
-    The read-only token for the task's repository on GitHub, from the server. None when the repository
-    is not on GitHub or no GitHub App is configured, so the agent keeps its configured credentials.
+    The read-only Git credential for the task's repository, from the server: a GitHub App token on GitHub, or
+    the credential the administrator stored for the repository's host (and path prefix) on any other host.
+    Returns (username, secret), or None when the server has none, so the agent keeps its configured credentials.
     """
     res = session.send_request(
         service="devices", action="git_token", version="2.8", method=Request.def_method,
@@ -893,7 +904,45 @@ def fetch_git_token(session, task_id):
     )
     if res is None or not res.ok:
         return None
-    return res.json()["data"]["token"]
+    data = res.json()["data"]
+    return (data.get("username") or GITHUB_APP_USERNAME), data["token"]
+
+
+def fetch_git_token(session, task_id):
+    """
+    The read-only token for the task's repository, from the server (see fetch_git_credential). None when the
+    server has no credential for it.
+    """
+    credential = fetch_git_credential(session, task_id)
+    return credential[1] if credential else None
+
+
+def wants_stored_credential(repository_url):
+    """
+    Whether the agent asks the server for a Git credential for this repository URL. GitHub is always asked (the
+    server answers with the GitHub App or the stored credential). Any other host is asked only over HTTPS, so a
+    credential is never sent in clear text; over other schemes (ssh, plain http) the configured credentials are used.
+    """
+    parsed = furl(repository_url or "")
+    host = (parsed.host or "").lower()
+    if host == "github.com":
+        return True
+    return parsed.scheme == "https" and bool(host)
+
+
+def select_git_credential(session, repository_url, task_id):
+    """
+    The credential the agent uses to clone the task's repository, as (username, secret), or None when the
+    configured credentials (if any) are used instead. The server is asked only for the task, so an agent can
+    only obtain the credential of the repository it runs.
+    """
+    if not task_id or not wants_stored_credential(repository_url):
+        return None
+    credential = fetch_git_credential(session, task_id)
+    if credential is None:
+        print("The server has no Git credential for {}, using the configured credentials".format(
+            furl(repository_url).host))
+    return credential
 
 
 def clone_repository_cached(session, execution, destination, task_id=None):
@@ -903,7 +952,7 @@ def clone_repository_cached(session, execution, destination, task_id=None):
     :param execution: execution info
     :param destination: directory to clone to (in which a directory for the repository will be created)
     :param session: program session
-    :param task_id: the task being run; a GitHub repository is cloned with the server's token for it
+    :param task_id: the task being run; its repository is cloned with the Git credential the server gives for it
     :return: repository information
     :raises: CommandFailedError if git/hg is not installed
     """
@@ -944,10 +993,10 @@ def clone_repository_cached(session, execution, destination, task_id=None):
         )
         if not find_executable(vcs.executable_name):
             raise CommandFailedError(vcs.executable_not_found_error_help())
-        if task_id and parsed_url.host == "github.com" and isinstance(vcs, Git):
-            token = fetch_git_token(session, task_id)
-            if token:
-                vcs.use_header_token(token)
+        if isinstance(vcs, Git):
+            credential = select_git_credential(session, repo_url, task_id)
+            if credential:
+                vcs.use_header_token(credential[1], username=credential[0])
 
         if not standalone_mode:
             if session.config["agent.vcs_cache.enabled"] and cached_repo_path.exists():

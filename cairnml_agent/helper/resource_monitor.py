@@ -16,6 +16,7 @@ from .._vendor.pathlib2 import Path
 
 from cairnml_agent.definitions import ENV_WORKER_TAGS, ENV_GPU_FRACTIONS
 from cairnml_agent.session import Session
+from cairnml_agent.version import __version__
 
 try:
     from .gpu import gpustat
@@ -157,12 +158,19 @@ class ResourceMonitor(object):
 
     @staticmethod
     def _machine_capacity() -> dict:
-        """What the machine has in total: CPUs, RAM and disk in GB. Sent with each report, for the monitor."""
-        return {
-            "cpus": psutil.cpu_count() or 0,
-            "ram_gb": round(psutil.virtual_memory().total / 1024 ** 3, 2),
-            "disk_gb": round(psutil.disk_usage(os.path.expanduser("~")).total / 1024 ** 3, 2),
-        }
+        """What the machine has in total: CPUs, RAM and disk in GB. Sent with each report, for the monitor.
+        A value that cannot be read is left out, so the report is still sent."""
+        capacity = {}
+        for key, read in (
+            ("cpus", lambda: psutil.cpu_count() or 0),
+            ("ram_gb", lambda: round(psutil.virtual_memory().total / 1024 ** 3, 2)),
+            ("disk_gb", lambda: round(psutil.disk_usage(os.path.expanduser("~")).total / 1024 ** 3, 2)),
+        ):
+            try:
+                capacity[key] = read()
+            except Exception as ex:
+                log.warning("cannot read machine capacity %s: %s", key, ex)
+        return capacity
 
     def send_report(self, stats=None):
         report = dict(
@@ -172,6 +180,8 @@ class ResourceMonitor(object):
             worker=self._worker_id,
             tags=self._worker_tags,
             is_daemon=self._report_daemon,
+            # the agent's version, so the server can show which agents are out of date
+            agent_version=__version__,
             **self.get_report().to_dict()
         )
         log.debug("sending report: %s", report)
@@ -360,59 +370,61 @@ class ResourceMonitor(object):
         reported = 0
         try:
             while True:
-                last_report = time()
-                current_report_frequency = (
-                    self._report_frequency if reported != 0 else self._first_report_sec
-                )
-                while (time() - last_report) < current_report_frequency:
-                    # wait for self._sample_frequency seconds, if event set quit
-                    if self._exit_event.wait(1 / self._sample_frequency):
-                        return
-                    # noinspection PyBroadException
-                    try:
-                        self._update_readouts()
-                    except Exception as ex:
-                        log.error("failed getting machine stats: %s", report_error(ex))
-                        self._failure()
-
-                seconds_since_started += int(round(time() - last_report))
-                # check if we do not report any metric (so it means the last iteration will not be changed)
-
-                # if we do not have last_iteration, we just use seconds as iteration
-
-                # start reporting only when we figured out, if this is seconds based, or iterations based
-                average_readouts = self._get_average_readouts()
-                stats = {
-                    # 3 points after the dot
-                    key: round(value, 3) if isinstance(value, float) else [round(v, 3) for v in value]
-                    for key, value in average_readouts.items()
-                }
-
-                # send actual report
-                if self.send_report(stats):
-                    # clear readouts if this is update was sent
-                    self._clear_readouts()
-
-                # count reported iterations
-                reported += 1
-
-                if (
-                    self._cluster_report and
-                    self._cluster_report_interval_sec
-                    and time() - last_cluster_report > self._cluster_report_interval_sec
-                ):
-                    if self._cluster_report.pending:
+                try:
+                    last_report = time()
+                    current_report_frequency = (
+                        self._report_frequency if reported != 0 else self._first_report_sec
+                    )
+                    while (time() - last_report) < current_report_frequency:
+                        # wait for self._sample_frequency seconds, if event set quit
+                        if self._exit_event.wait(1 / self._sample_frequency):
+                            return
+                        # noinspection PyBroadException
                         try:
-                            lengths = [len(v) for k, v in stats.items() if k.startswith("gpu_")]
-                            self._cluster_report.max_gpus = max(lengths) if lengths else 0
+                            self._update_readouts()
                         except Exception as ex:
-                            print(f"Failed calculating pending cluster report: {ex}")
-                        finally:
-                            self._cluster_report.pending = False
+                            log.error("failed getting machine stats: %s", report_error(ex))
+                            self._failure()
 
-                    if self.send_cluster_report():
-                        last_cluster_report = time()
+                    seconds_since_started += int(round(time() - last_report))
+                    # check if we do not report any metric (so it means the last iteration will not be changed)
 
+                    # if we do not have last_iteration, we just use seconds as iteration
+
+                    # start reporting only when we figured out, if this is seconds based, or iterations based
+                    average_readouts = self._get_average_readouts()
+                    stats = {
+                        # 3 points after the dot
+                        key: round(value, 3) if isinstance(value, float) else [round(v, 3) for v in value]
+                        for key, value in average_readouts.items()
+                    }
+
+                    # send actual report
+                    if self.send_report(stats):
+                        # clear readouts if this is update was sent
+                        self._clear_readouts()
+
+                    # count reported iterations
+                    reported += 1
+
+                    if (
+                        self._cluster_report and
+                        self._cluster_report_interval_sec
+                        and time() - last_cluster_report > self._cluster_report_interval_sec
+                    ):
+                        if self._cluster_report.pending:
+                            try:
+                                lengths = [len(v) for k, v in stats.items() if k.startswith("gpu_")]
+                                self._cluster_report.max_gpus = max(lengths) if lengths else 0
+                            except Exception as ex:
+                                print(f"Failed calculating pending cluster report: {ex}")
+                            finally:
+                                self._cluster_report.pending = False
+
+                        if self.send_cluster_report():
+                            last_cluster_report = time()
+                except Exception as ex:
+                    log.exception("Error reporting monitoring info: %s", str(ex))
         except Exception as ex:
             log.exception("Error reporting monitoring info: %s", str(ex))
         finally:
