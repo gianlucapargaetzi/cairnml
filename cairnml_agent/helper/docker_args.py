@@ -106,10 +106,27 @@ class DockerArgsSanitizer:
     def get_list_of_switches(docker_args: List[str]) -> List[str]:
         args = []
         for token in docker_args:
-            if token.strip().startswith("-"):
-                args += [token.strip().split("=")[0].lstrip("-")]
+            args += DockerArgsSanitizer._token_switches(token)
 
         return args
+
+    @staticmethod
+    def _token_switches(token: str) -> List[str]:
+        """
+        The switch names one docker argument can set. Docker also reads "-v/:/host", "-v /:/host" and
+        "-itv/:/host" (a short switch with its value attached, or a cluster of short switches), so every letter
+        of a short cluster counts as a name. "--name=value" and "--name" give "name".
+        """
+        token = token.strip()
+        if not token.startswith("-"):
+            return []
+        names = []
+        for word in token.split():
+            if word.startswith("--"):
+                names.append(word.split("=")[0].lstrip("-"))
+            elif word.startswith("-"):
+                names.extend(word[1:].split("=")[0])
+        return names
 
     @staticmethod
     def filter_switches(
@@ -120,9 +137,7 @@ class DockerArgsSanitizer:
 
         assert not (include_switches and exclude_switches), "Either include_switches or exclude_switches but not both"
 
-        # shortcut if we are sure we have no matches
-        if not include_switches and (
-                not exclude_switches or not any("-{}".format(s) in " ".join(docker_args) for s in exclude_switches)):
+        if not include_switches and not exclude_switches:
             return docker_args
 
         args = []
@@ -130,20 +145,18 @@ class DockerArgsSanitizer:
 
         for token in docker_args:
             if token.strip().startswith("-"):
-                if "=" in token:
-                    switch = token.strip().split("=")[0]
-                    in_switch_args = False
-                else:
-                    switch = token
-                    in_switch_args = True
+                switch = token.strip().split("=")[0]
 
-                if not include_switches and switch.lstrip("-") in exclude_switches:
-                    # if in excluded, skip the switch and following arguments
-                    in_switch_args = False
-                elif not exclude_switches and switch.lstrip("-") not in include_switches:
+                if not include_switches:
+                    keep = not any(name in exclude_switches for name in DockerArgsSanitizer._token_switches(token))
+                else:
+                    keep = switch.lstrip("-") in include_switches
+
+                if not keep:
                     # if in excluded, skip the switch and following arguments
                     in_switch_args = False
                 else:
+                    in_switch_args = True
                     args += [token]
 
             elif in_switch_args:
