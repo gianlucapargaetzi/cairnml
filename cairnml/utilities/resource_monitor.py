@@ -415,7 +415,8 @@ class ResourceMonitor(BackgroundMonitor):
                         import traceback
 
                         msg += "\n" + traceback.format_exc()
-                    self._task.get_logger().report_text(msg)
+                    # to the task log only: on stdout it would follow the script's own last line
+                    self._task.get_logger().report_text(msg, print_console=False)
                     self._gpustat = None
 
         return stats
