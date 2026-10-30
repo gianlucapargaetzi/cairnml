@@ -1,0 +1,15 @@
+- generic [ref=f72e3]:
+  - banner [ref=f72e4]:
+    - generic [ref=f72e5]: cairnml
+  - main [ref=f72e6]:
+    - heading [level=1] [ref=f72e8]:
+      - paragraph [ref=f72e9]: Grant Access to CairnML SDK and agent (browser sign-in)
+    - generic [ref=f72e11]:
+      - heading "Do you grant these access privileges?" [level=3] [ref=f72e12]
+      - list [ref=f72e13]:
+        - listitem [ref=f72e14]: User profile
+        - listitem [ref=f72e15]: User roles
+        - listitem [ref=f72e16]: Email address
+      - generic [ref=f72e19]:
+        - button "Yes" [ref=f72e20] [cursor=pointer]
+        - button "No" [ref=f72e21] [cursor=pointer]

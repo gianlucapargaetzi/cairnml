@@ -1,0 +1,6 @@
+- generic [ref=f73e3]:
+  - banner [ref=f73e4]:
+    - generic [ref=f73e5]: cairnml
+  - main [ref=f73e6]:
+    - heading "Device Login Successful" [level=1] [ref=f73e8]
+    - paragraph [ref=f73e11]: You may close this browser window and go back to your device.
