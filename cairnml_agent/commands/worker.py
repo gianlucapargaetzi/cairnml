@@ -1546,12 +1546,6 @@ class Worker(ServiceCommandSection):
 
         return status
 
-    def _unregister(self, queues=()):
-        """Nothing to unregister: the worker belongs to the managed daemon (the scheduler), and a job's process must not
-        change it. The method went with the queues (commit 6dd4291), and its callers stayed; without this method a job
-        that ends raised AttributeError after its status was reported."""
-        return
-
     @staticmethod
     def get_task_session(user, company, main_session):
         """
