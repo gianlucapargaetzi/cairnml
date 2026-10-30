@@ -1,0 +1,125 @@
+"""cairnml doctor: check this machine's setup and print one line per check.
+
+    cairnml doctor [--file FILE]
+
+The checks run in this order, each with the next step when it fails:
+
+    config       the configuration file names a server
+    server       the server answers at that address
+    sign-in      this machine's device key signs in as a user on the server
+    device key   the device key exists, belongs to this user and is readable only by its owner
+
+The checks change nothing. The exit status is 0 when every check passes, 1 otherwise.
+"""
+import argparse
+import os
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+from typing import List, Optional
+
+import requests
+
+from cairnml.cli.enrolment import default_config_file, read_enrolment
+from cairnml.idp import enrol as idp_enrol
+from cairnml.idp.device import DEVICE_KEY_PATH
+from cairnml.idp.keys import read_private_key
+
+
+@dataclass
+class Check:
+    name: str
+    ok: Optional[bool]  # None when the check was skipped because an earlier check failed
+    message: str
+
+    def line(self) -> str:
+        status = "skip" if self.ok is None else ("ok" if self.ok else "FAIL")
+        return f"{status:<5}{self.name:<12}{self.message}"
+
+
+def _fail(name: str, message: str, next_step: str) -> Check:
+    return Check(name, False, f"{message} - next: {next_step}")
+
+
+def check_config(conf: Path) -> Check:
+    if not conf.is_file():
+        return _fail("config", f"no configuration file at {conf}", "cairnml init <server address>")
+    server, _, _ = read_enrolment(conf)
+    if not server:
+        return _fail("config", f"{conf} names no server", "cairnml init <server address>")
+    return Check("config", True, f"{conf} names {server}")
+
+
+def check_server(server: Optional[str], http=None) -> Check:
+    if not server:
+        return Check("server", None, "skipped: the configuration names no server")
+    try:
+        settings = idp_enrol._settings(http or requests.Session(), server)
+    except idp_enrol.EnrolmentFailed as exc:
+        return _fail("server", f"{server} refused the check ({exc})",
+                     "give the server address that cairnml init used, e.g. http://cairnml")
+    except requests.RequestException as exc:
+        return _fail("server", f"cannot reach {server} ({exc.__class__.__name__})",
+                     "check the address, that the server is running, and the port")
+    return Check("server", True, f"reachable at {server} (public address {settings.get('public_url', 'unknown')})")
+
+
+def check_device_key(key_path: Path) -> Check:
+    if not key_path.exists():
+        return _fail("device key", f"no device key at {key_path}", "cairnml init <server address>")
+    try:
+        read_private_key(key_path)
+    except PermissionError as exc:
+        return _fail("device key", str(exc), f"chmod 600 {key_path}")
+    except Exception as exc:  # the file is not a valid Ed25519 key
+        return _fail("device key", f"{key_path} cannot be read ({exc.__class__.__name__})",
+                     "cairnml init <server address> --force")
+    return Check("device key", True, f"{key_path} is readable by its owner only")
+
+
+def check_sign_in(server: Optional[str], device: Optional[str], key_check: Check, key_path: Path,
+                  http=None) -> Check:
+    if not server:
+        return Check("sign-in", None, "skipped: the configuration names no server")
+    if not device:
+        return _fail("sign-in", "this machine is not enrolled (signed out)", "cairnml init <server address>")
+    if not key_check.ok:
+        return Check("sign-in", None, "skipped: the device key is not usable")
+    try:
+        user = idp_enrol.whoami(server, device, key_path=key_path, http=http or requests.Session())
+    except idp_enrol.EnrolmentFailed as exc:
+        return _fail("sign-in", f"the server refused device {device} ({exc})",
+                     "cairnml init <server address> --force, to enrol this machine again")
+    except requests.RequestException as exc:
+        return _fail("sign-in", f"cannot reach {server} ({exc.__class__.__name__})",
+                     "fix the server check above first")
+    return Check("sign-in", True, f"signed in as {user.get('name', 'unknown')} ({user.get('role', 'unknown')}) "
+                                  f"with device {device}")
+
+
+def run_checks(conf: Path, key_path: Path = DEVICE_KEY_PATH, http=None) -> List[Check]:
+    """Run every check and return them in the order they are printed."""
+    server, device, _ = read_enrolment(conf)
+    config = check_config(conf)
+    server_check = check_server(server, http=http)
+    key = check_device_key(Path(key_path))
+    sign_in = check_sign_in(server, device, key, Path(key_path), http=http)
+    return [config, server_check, sign_in, key]
+
+
+def doctor_main(argv=None) -> int:
+    parser = argparse.ArgumentParser(prog="cairnml doctor",
+                                     description="Check this machine's setup: configuration, server, sign-in, "
+                                                 "device key.")
+    parser.add_argument("--file", "-F", default=default_config_file(),
+                        help="configuration file (default: %(default)s)")
+    args = parser.parse_args(argv)
+    conf = Path(os.path.expanduser(args.file)).absolute()
+    checks = run_checks(conf)
+    for check in checks:
+        print(check.line())
+    failed = [check for check in checks if check.ok is not True]
+    if failed:
+        print(f"{len(failed)} of {len(checks)} checks did not pass", file=sys.stderr)
+        return 1
+    return 0
