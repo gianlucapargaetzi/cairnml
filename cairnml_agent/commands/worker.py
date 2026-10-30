@@ -171,10 +171,18 @@ DOCKER_DEFAULT_CONF_FILE = "~/default_cairnml.conf"
 sys_random = random.SystemRandom()
 
 
-def check_execution_mode(use_docker: bool, allow_venv: bool) -> None:
+VENV_MODE_WARNING = (
+    "WARNING: --allow-venv runs jobs on this host as the agent's own user. A job can read the agent's device key "
+    "(~/.cairnml/agent/device.key) and sign in as the admin who enrolled this agent, with a token that lasts until "
+    "the device is revoked. Use it only for code you fully trust, or run the agent with --docker."
+)
+
+
+def check_execution_mode(use_docker: bool, allow_venv: bool) -> Optional[str]:
     """
     Jobs run in a Docker container. A Python virtual environment on the host is allowed only when the
     agent is started with --allow-venv, because such a job can read the agent's own device key.
+    Returns the warning to show when jobs run on the host, otherwise None.
     """
     if not use_docker and not allow_venv:
         raise ValueError(
@@ -182,6 +190,7 @@ def check_execution_mode(use_docker: bool, allow_venv: bool) -> None:
             "To run jobs in a virtual environment on this host instead, pass --allow-venv "
             "(not recommended: such a job can read the agent's device key)."
         )
+    return None if use_docker else VENV_MODE_WARNING
 
 
 @attr.s
@@ -2144,7 +2153,9 @@ class Worker(ServiceCommandSection):
                     "Please use --docker or --podman with container details, not both."
                 )
 
-        check_execution_mode(use_docker, allow_venv)
+        venv_warning = check_execution_mode(use_docker, allow_venv)
+        if venv_warning:
+            print(venv_warning)
 
         # We use containers with podman - this is identical to
         # check that we have docker command if we need it
@@ -5302,8 +5313,8 @@ class Worker(ServiceCommandSection):
         if stripped_switches:
             warn_msg = (
                 "cairnml-agent: ignoring docker argument(s) {}; "
-                "they would override the agent startup script and prevent the task from running"
-            ).format(", ".join("--{}".format(s) for s in stripped_switches))
+                "they would give the task access to the host or override the agent startup script"
+            ).format(", ".join(("-" if len(s) == 1 else "--") + s for s in stripped_switches))
             self.log.warning(warn_msg)
             if env_task_id:
                 self.send_logs(env_task_id, [warn_msg + '\n'], session=self._session)

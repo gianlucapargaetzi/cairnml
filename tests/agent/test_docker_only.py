@@ -16,3 +16,13 @@ def test_venv_mode_is_refused_by_default():
 
 def test_venv_mode_is_accepted_only_with_the_flag():
     check_execution_mode(use_docker=False, allow_venv=True)
+
+
+def test_venv_mode_with_the_flag_warns_about_the_device_key():
+    from cairnml_agent.commands.worker import VENV_MODE_WARNING
+    assert check_execution_mode(use_docker=False, allow_venv=True) == VENV_MODE_WARNING
+    assert "device key" in VENV_MODE_WARNING
+
+
+def test_docker_mode_has_no_warning():
+    assert check_execution_mode(use_docker=True, allow_venv=False) is None
