@@ -24,19 +24,29 @@ pip install "cairnml[dataset]"
 
 ## How a dataset is stored
 
-A dataset of your own is a git repository that works with DVC. The two tools hold different things:
+A dataset of your own is a git repository. Git holds the metadata and the files are held in one of two places, chosen
+once when the dataset is created and recorded in `dataset.yaml` (`storage: s3` or `storage: lfs`):
 
-- **Git** holds the metadata: `data.dvc` lists the files in `data/` by their content hash, `dataset.yaml` says how the
-  files are read, and `dataset.lock.json` is the footprint, the record that the data was checked. The verify script and
-  its workflow are in git too. Git holds no data files, so the repository stays small.
-- **DVC** holds the files themselves, in the dataset storage behind the CairnML server. `push` uploads the files before
-  it publishes the commit, so a commit on GitHub never refers to files that are not stored.
+- **Git** holds the metadata: `dataset.yaml` says how the files are read and where they are stored, and
+  `dataset.lock.json` is the footprint, the record that the data was checked. The verify script and its workflow are in
+  git too. With `storage: s3` git also holds `data.dvc`, which lists the files in `data/` by their content hash.
+- **The files** are held in one of two places:
+  - `storage: s3` (the default): DVC holds the files in the dataset storage behind the CairnML server. `push` uploads the
+    files before it publishes the commit, so a commit on GitHub never refers to files that are not stored.
+  - `storage: lfs`: the files are held in the GitHub LFS of the dataset repository (`.gitattributes` keeps `data/` in
+    LFS). No DVC and no storage keys are involved: a clone needs git and git-lfs only. `push` uploads the files to the
+    LFS of the repository before it publishes the commit. The footprint records the LFS object of every file.
+
+Choose `--storage lfs` when the repository can hold the files (GitHub LFS has its own storage and bandwidth limits);
+choose `s3` for data that should live in the server's bucket. Either way the storage cannot be changed afterwards.
 
 What follows from this:
 
 - **The commit is the version.** A run records the repository, the commit and the content hash of the data it used, so
   the run always shows which data it used. Pass a commit when you want to rerun the same data later.
 - **Old versions keep their files.** Removing a file makes a new commit; the earlier commit still refers to the old file.
+- **Fetching by hand.** A dataset in LFS is fetched with `git clone <repository>`, `git checkout <commit>` and
+  `git lfs pull`. A dataset in S3 is fetched with `cairnml dataset get <repository> <commit>`, which holds the keys.
 - **The checks need no data.** The footprint says what the data is, so the verify check in the repository reads git only.
 - **The default branch changes only through pull requests** that pass the verify check. `push` takes care of the branch
   and the pull request, given the settings `cairnml dataset doctor` checks.
@@ -44,10 +54,23 @@ What follows from this:
 
 ## Create a dataset of your own
 
-Create an empty repository on GitHub and clone it. Then, inside the clone:
+The shortest way is one command. It creates a private repository on GitHub with the GitHub command line (`gh`, logged in
+with `gh auth login`), copies the files in, checks them, commits and pushes:
 
 ```bash
-cairnml dataset init                     # git tracking, file storage and dataset.yaml
+cairnml dataset create cars-data --from /path/to/measurements --storage lfs
+cairnml dataset doctor                   # once: check the GitHub settings; protect the default branch as it says
+cairnml dataset register                 # once: add the dataset to the registry
+```
+
+`--public` makes the repository public, `--path` chooses the local folder (default: the name), and `--adapter` and
+`--registry` say how the data is read (see below). The command stops with a message if the check fails; fix the data and
+run `cairnml dataset commit` and `cairnml dataset push` in that folder.
+
+To use a repository you have already created on GitHub, clone it. Then, inside the clone:
+
+```bash
+cairnml dataset init --storage lfs       # git tracking, the storage and dataset.yaml (s3 is the default)
 cp -r /path/to/measurements data/        # copy your files into data/
 cairnml dataset status                   # what is new, changed or deleted
 cairnml dataset add                      # record data/ as it is now

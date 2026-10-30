@@ -5,7 +5,9 @@ size, file count and content hash that DVC wrote to ``data.dvc``, says in which 
 through an adapter), and ends with a checksum of everything above it. ``verify`` recomputes what it can from files that
 are in git, so it needs no data, no server and no key:
 
-- ``data.dvc`` and the lock agree, so the data has not changed since the check
+- ``data.dvc`` and the lock agree, so the data has not changed since the check. A dataset with ``storage: lfs`` has no
+  ``data.dvc``: its lock records the files of ``data/`` as the LFS objects their pointer files name (see
+  :func:`lfs_record`), and ``verify`` recomputes that record from the pointers
 - the checksum matches the lock's content, so the lock was not edited by hand without recomputing it
 - ``dataset.yaml`` and the lock name the same format
 - the repository holds only the files a dataset repository may hold, none of them large
@@ -21,18 +23,23 @@ import json
 import os
 import re
 import sys
-from typing import Any, Dict, List, Mapping, Optional
+from typing import Any, Dict, List, Mapping, Optional, Tuple
 
 FOOTPRINT_VERSION = 1
 LOCK_FILE = "dataset.lock.json"
 CONFIG_FILE = "dataset.yaml"
 DVC_FILE = "data.dvc"
+ATTRIBUTES_FILE = ".gitattributes"
 VERIFY_SCRIPT = ".cairnml/verify.py"
 MAX_TRACKED_BYTES = 1024 * 1024
+POINTER_MAX_BYTES = 1024  # an LFS pointer file is about 130 bytes; a larger file in git was not stored in LFS
+STORAGES = ("s3", "lfs")  # s3: the files are in DVC's bucket; lfs: in the GitHub LFS of the dataset repository
+LFS_POINTER = b"version https://git-lfs.github.com/spec/v1\n"
+LFS_PATTERN = "data/** filter=lfs diff=lfs merge=lfs -text"
 
-# What may be tracked by git at the top of a dataset repository. The data itself is in DVC.
+# What may be tracked by git at the top of a dataset repository. The data itself is in DVC or in LFS.
 ALLOWED_TOP_LEVEL = {
-    DVC_FILE, CONFIG_FILE, LOCK_FILE, ".gitignore", ".dvcignore", ".dvc", ".github", ".cairnml",
+    DVC_FILE, CONFIG_FILE, LOCK_FILE, ".gitignore", ".dvcignore", ".dvc", ".github", ".cairnml", ATTRIBUTES_FILE,
     "README.md", "README", "LICENSE", "LICENSE.md", "NOTICE", "docs",
 }
 
@@ -68,6 +75,14 @@ def parse_config(text: str) -> Dict[str, str]:
     return config
 
 
+def storage_kind(config: Mapping[str, str]) -> str:
+    """Where the files of ``data/`` live: ``s3`` (DVC, the default) or ``lfs`` (GitHub LFS of the repository)."""
+    value = config.get("storage", "s3")
+    if value not in STORAGES:
+        raise ValueError(f"dataset.yaml says storage: {value!r}; use storage: s3 or storage: lfs")
+    return value
+
+
 def config_format(config: Mapping[str, str]) -> Dict[str, str]:
     """The format ``dataset.yaml`` asks for: ``{"kind": "native"}`` or ``{"kind": "adapter", "name": ..., ...}``."""
     kind, adapter = config.get("format"), config.get("adapter")
@@ -93,47 +108,115 @@ def checksum(body: Mapping[str, Any]) -> str:
 
 
 def build_lock(
-    dvc: Mapping[str, Any],
+    dvc: Optional[Mapping[str, Any]],
     fmt: Mapping[str, str],
     samples: int,
     modalities: Mapping[str, str],
     labels: Mapping[str, str],
     tool_version: str,
+    lfs: Optional[Mapping[str, Any]] = None,
 ) -> Dict[str, Any]:
+    """The lock. The content is ``dvc`` (from data.dvc) for s3 storage, or ``lfs`` (see :func:`lfs_record`) for lfs."""
     body: Dict[str, Any] = {
         "version": FOOTPRINT_VERSION,
-        "dvc": dict(dvc),
         "format": dict(fmt),
         "samples": int(samples),
         "modalities": dict(modalities),
         "labels": dict(labels),
         "tool_version": tool_version,
     }
+    if lfs is not None:
+        body["lfs"] = dict(lfs)
+    else:
+        body["dvc"] = dict(dvc or {})
     body["footprint"] = checksum(body)
     return body
+
+
+def _lfs_object(path: str) -> Tuple[str, int]:
+    """The sha256 and size of one file of data/. A pointer file gives the object it names; any other file is hashed."""
+    size = os.path.getsize(path)
+    if size < POINTER_MAX_BYTES:
+        with open(path, "rb") as handle:
+            head = handle.read()
+        if head.startswith(LFS_POINTER):
+            oid = re.search(rb"^oid sha256:([0-9a-f]{64})$", head, re.M)
+            length = re.search(rb"^size (\d+)$", head, re.M)
+            if not oid or not length:
+                raise ValueError(f"{path} is an LFS pointer without an oid and a size")
+            return oid.group(1).decode(), int(length.group(1))
+    digest = hashlib.sha256()
+    with open(path, "rb") as handle:
+        for block in iter(lambda: handle.read(1 << 20), b""):
+            digest.update(block)
+    return digest.hexdigest(), size
+
+
+def lfs_record(root: str) -> Dict[str, Any]:
+    """The content of ``data/`` for a dataset in LFS: ``hash`` (sha256 of the sorted list of path, object and size),
+    ``size`` (bytes) and ``nfiles``. The files may be pointers (a checkout without ``git lfs pull``) or their content;
+    both give the same record.
+    """
+    base = os.path.join(root, "data")
+    rows = []
+    for folder, dirs, names in os.walk(base):
+        dirs.sort()
+        for name in names:
+            path = os.path.join(folder, name)
+            oid, size = _lfs_object(path)
+            rows.append((os.path.relpath(path, base).replace(os.sep, "/"), oid, size))
+    rows.sort()
+    listing = "".join(f"{path}\t{oid}\t{size}\n" for path, oid, size in rows)
+    return {
+        "hash": hashlib.sha256(listing.encode()).hexdigest(),
+        "size": sum(size for _p, _o, size in rows),
+        "nfiles": len(rows),
+    }
 
 
 def _blank(files: Mapping[str, Optional[bytes]], name: str) -> bool:
     return files.get(name) is None
 
 
-def verify_files(files: Mapping[str, Optional[bytes]], sizes: Mapping[str, int]) -> List[str]:
+def uses_lfs(files: Mapping[str, Optional[bytes]]) -> bool:
+    """True when ``dataset.yaml`` (in ``files``) says the data is stored in LFS."""
+    if _blank(files, CONFIG_FILE):
+        return False
+    try:
+        return storage_kind(parse_config(files[CONFIG_FILE].decode())) == "lfs"
+    except (ValueError, UnicodeDecodeError):
+        return False
+
+
+def verify_files(
+    files: Mapping[str, Optional[bytes]],
+    sizes: Mapping[str, int],
+    lfs: Optional[Mapping[str, Any]] = None,
+) -> List[str]:
     """What is wrong with a dataset repository, as sentences that say what to do. Empty when it is fine.
 
     :param files: the content of ``data.dvc``, ``dataset.yaml`` and ``dataset.lock.json`` (None when missing)
     :param sizes: size in bytes of every file tracked by git, by path
+    :param lfs: for a dataset in LFS, the :func:`lfs_record` of ``data/`` (None when it could not be read)
     """
     problems: List[str] = []
-    for name, hint in ((DVC_FILE, "run 'cairnml dataset add'"), (CONFIG_FILE, "run 'cairnml dataset init'"),
-                       (LOCK_FILE, "run 'cairnml dataset commit' to check the data and write it")):
-        if _blank(files, name):
-            problems.append(f"{name} is missing: {hint}")
+    if _blank(files, CONFIG_FILE):
+        problems.append(f"{CONFIG_FILE} is missing: run 'cairnml dataset init'")
+    if _blank(files, LOCK_FILE):
+        problems.append(f"{LOCK_FILE} is missing: run 'cairnml dataset commit' to check the data and write it")
+    if not _blank(files, CONFIG_FILE) and not uses_lfs(files) and _blank(files, DVC_FILE):
+        problems.append(f"{DVC_FILE} is missing: run 'cairnml dataset add'")
     if problems:
         return problems
+    try:
+        config = parse_config(files[CONFIG_FILE].decode())
+        storage = storage_kind(config)
+    except (ValueError, UnicodeDecodeError) as exc:
+        return [f"cannot read the dataset files: {exc}"]
 
     try:
-        dvc = parse_dvc_file(files[DVC_FILE].decode())
-        wanted = config_format(parse_config(files[CONFIG_FILE].decode()))
+        dvc = parse_dvc_file(files[DVC_FILE].decode()) if storage == "s3" else None
+        wanted = config_format(config)
         lock = json.loads(files[LOCK_FILE].decode())
     except (ValueError, UnicodeDecodeError) as exc:
         return [f"cannot read the dataset files: {exc}"]
@@ -144,11 +227,19 @@ def verify_files(files: Mapping[str, Optional[bytes]], sizes: Mapping[str, int])
         problems.append(f"{LOCK_FILE} has version {lock.get('version')!r}; this tool reads {FOOTPRINT_VERSION}")
     if lock.get("footprint") != checksum(lock):
         problems.append(f"the checksum in {LOCK_FILE} does not match its content: it was edited; run 'cairnml dataset check'")
-    if lock.get("dvc") != dvc:
+    if storage == "s3" and lock.get("dvc") != dvc:
         problems.append(
             f"{LOCK_FILE} was written for other data than {DVC_FILE} holds "
             f"(lock: {lock.get('dvc')}, data.dvc: {dvc}): the data changed after the check; run 'cairnml dataset commit'"
         )
+    if storage == "lfs":
+        if lfs is None:
+            problems.append("the files in data/ could not be read as LFS objects; run 'cairnml dataset add'")
+        elif lock.get("lfs") != dict(lfs):
+            problems.append(
+                f"{LOCK_FILE} was written for other data than data/ holds (lock: {lock.get('lfs')}, data/: {dict(lfs)}): "
+                f"the data changed after the check; run 'cairnml dataset commit'"
+            )
     fmt = lock.get("format") or {}
     if fmt.get("kind") != wanted.get("kind") or fmt.get("name") != wanted.get("name"):
         problems.append(f"{LOCK_FILE} was made for format {fmt} but {CONFIG_FILE} asks for {wanted}; run 'cairnml dataset check'")
@@ -159,6 +250,8 @@ def verify_files(files: Mapping[str, Optional[bytes]], sizes: Mapping[str, int])
 
     for path, size in sorted(sizes.items()):
         top = path.split("/", 1)[0]
+        if top == "data" and storage == "lfs":
+            continue  # the files of data/ are LFS pointers, checked through the record above
         if top not in ALLOWED_TOP_LEVEL:
             problems.append(f"{path} is tracked by git; only the dataset files may be (put data in data/, which DVC tracks)")
         elif top == "data":
@@ -197,7 +290,14 @@ def read_files(root: str) -> Dict[str, Optional[bytes]]:
 def verify(root: str = ".") -> List[str]:
     """Verify the dataset repository in a folder. ``root`` is a checkout of the repository, not of its data."""
     sizes = {p: s for p, s in tracked_sizes(root).items() if not p.startswith(".dvc/")}
-    return verify_files(read_files(root), sizes)
+    files = read_files(root)
+    if not uses_lfs(files):
+        return verify_files(files, sizes)
+    try:
+        record = lfs_record(root)
+    except ValueError as exc:
+        return [str(exc)]
+    return verify_files(files, sizes, record)
 
 
 def main(argv: Optional[List[str]] = None) -> int:

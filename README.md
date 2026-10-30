@@ -25,7 +25,7 @@ New to CairnML? Read [Start here](docs/start-here.md) first: it explains the fou
 
 - Track a training script with a few lines: parameters, metrics, logs and artifacts are recorded on your server.
 - Send a recorded run to an agent on another machine through a job queue.
-- Version datasets with git and DVC, and record the dataset commit on every run.
+- Version datasets with git, with the files in DVC storage or in GitHub LFS, and record the dataset commit on every run.
 - Read public datasets through adapters from the [dataset registry](https://github.com/gianlucapargaetzi/cairnml-dataset-registry), with the source revision recorded.
 
 ## Prerequisites
@@ -70,7 +70,7 @@ Everything is one command, `cairnml`, with a subcommand for each tool. `cairnml 
 | `cairnml whoami` | Show who this machine signs in as |
 | `cairnml logout` | Revoke this machine's enrolment and remove its key |
 | `cairnml doctor` | Check the configuration, the server, the sign-in and the device key, one line per check. Exits with 1 when a check fails |
-| `cairnml dataset ...` | Versioned datasets on git and DVC (needs `cairnml[dataset]`) |
+| `cairnml dataset ...` | Versioned datasets on git, with the files in DVC or in GitHub LFS (needs `cairnml[dataset]`). `create` makes a dataset in one call |
 | `cairnml task ...` | Launch any codebase on a machine running `cairnml-agent` |
 | `cairnml param-search ...` | Search for the best parameters for your models |
 | `cairnml debug ...` | Debugging tools for the SDK |
@@ -143,6 +143,22 @@ for sample in data.samples("train"):
 ```
 
 Both calls record the dataset and its revision on the run. To create a dataset of your own, see [docs/datasets.md](docs/datasets.md).
+
+## Datasets: git, with the files in DVC or in LFS
+
+A dataset is a git repository with a `data/` folder. Git holds the metadata and the commit is the version: a run records the repository, the commit and the content hash, so it always shows the data it used. The files are held in one of two places, chosen once when the dataset is created and recorded in its `dataset.yaml`:
+
+- `storage: s3` (the default): DVC holds the files in the dataset storage of the CairnML server. A dataset is read with `Dataset.get`, which needs the short-lived keys the server gives.
+- `storage: lfs`: the files are in the GitHub LFS of the dataset repository. Nothing but git and git-lfs is needed. A dataset is fetched with `git clone <repository>`, `git checkout <commit>` and `git lfs pull`; `Dataset.fetch_commands()` returns these commands.
+
+Every commit carries a footprint (`dataset.lock.json`): the record that the data was checked in the format `dataset.yaml` declares. A dataset repository's default branch takes changes only through pull requests that pass the `verify` check.
+
+Create a dataset in one call, with the GitHub command line logged in:
+
+```bash
+cairnml dataset create cars-data --from ./measurements --storage lfs
+cairnml dataset doctor   # then protect the default branch as the doctor says
+```
 
 ## Next steps
 
