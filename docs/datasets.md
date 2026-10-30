@@ -22,6 +22,26 @@ CairnML versions the datasets your runs use. A dataset of your own is a git repo
 pip install "cairnml[dataset]"
 ```
 
+## How a dataset is stored
+
+A dataset of your own is a git repository that works with DVC. The two tools hold different things:
+
+- **Git** holds the metadata: `data.dvc` lists the files in `data/` by their content hash, `dataset.yaml` says how the
+  files are read, and `dataset.lock.json` is the footprint, the record that the data was checked. The verify script and
+  its workflow are in git too. Git holds no data files, so the repository stays small.
+- **DVC** holds the files themselves, in the dataset storage behind the CairnML server. `push` uploads the files before
+  it publishes the commit, so a commit on GitHub never refers to files that are not stored.
+
+What follows from this:
+
+- **The commit is the version.** A run records the repository, the commit and the content hash of the data it used, so
+  the run always shows which data it used. Pass a commit when you want to rerun the same data later.
+- **Old versions keep their files.** Removing a file makes a new commit; the earlier commit still refers to the old file.
+- **The checks need no data.** The footprint says what the data is, so the verify check in the repository reads git only.
+- **The default branch changes only through pull requests** that pass the verify check. `push` takes care of the branch
+  and the pull request, given the settings `cairnml dataset doctor` checks.
+- **Nothing secret is stored on your machine.** DVC gets short-lived keys from the server when it needs them.
+
 ## Create a dataset of your own
 
 Create an empty repository on GitHub and clone it. Then, inside the clone:
@@ -32,6 +52,7 @@ cp -r /path/to/measurements data/        # copy your files into data/
 cairnml dataset status                   # what is new, changed or deleted
 cairnml dataset add                      # record data/ as it is now
 cairnml dataset commit -m "March measurements"   # check the data and commit it with its footprint
+cairnml dataset doctor                   # once: check the set-up and the GitHub settings
 cairnml dataset push                     # send the files, then the commit, as a pull request
 cairnml dataset register                 # once: add the dataset to the registry
 ```
@@ -49,7 +70,16 @@ Every dataset says how its files are read in `dataset.yaml`, which holds one of 
 
 ## Publish a dataset
 
-Protect the default branch of the dataset repository: require pull requests, block force pushes, and require the `verify` check. `push` then sends your commit to a branch named `incoming/<commit>` and opens a pull request, which merges automatically once the check passes. Without the GitHub command line (`gh`), `push` prints the link to open the pull request yourself. The first push to an empty repository goes straight to its default branch.
+Protect the default branch of the dataset repository: require pull requests, block force pushes, and require the `verify` check. Allow auto-merge in the repository settings too. `push` then sends your commit to a branch named `incoming/<commit>` and opens a pull request, which merges automatically once the check passes. Without the GitHub command line (`gh`), `push` prints the link to open the pull request yourself. The first push to an empty repository goes straight to its default branch.
+
+`cairnml dataset doctor` checks this before you publish. It lists each check as `ok`, `FAIL` or `--` (nothing to check yet), with what to do for each failure:
+
+- the repository has an origin on GitHub, and the dataset set-up, `dataset.yaml`, the verify workflow and the verify script are in place and current;
+- the GitHub command line (`gh`) is installed and logged in;
+- auto-merge is allowed in the repository settings;
+- the default branch requires pull requests, blocks force pushes and requires the `verify` check.
+
+The doctor only reads these settings; it never changes them. Set them on the repository's settings page, which the doctor links to.
 
 `push` refuses a commit whose footprint does not hold.
 
@@ -102,6 +132,28 @@ overrides:                      # another adapter for revisions whose layout cha
 ```
 
 A `web` source takes a list of addresses under `link`. A zip archive among them is unpacked into a folder named after it.
+
+A web dataset can describe its files in a `fetch` list instead of `link`. Each entry gives the address of one file, the checksum the publisher gives for it, and how to unpack it:
+
+```yaml
+# datasets/images.yaml
+source: web
+adapter: images
+fetch:
+  - url: https://example.org/images.tar.gz
+    checksum: sha256:<64 hex digits>   # optional: md5:<32 hex digits> or sha256:<64 hex digits>
+    unpack: tar.gz                     # optional: none, zip, tar.gz or gz
+  - url: https://example.org/labels.gz
+    checksum: md5:<32 hex digits>
+    unpack: gz
+```
+
+- `url` is an `https://`, `http://` or `file://` address. Use `fetch` or `link`, not both.
+- `checksum` is optional. When it is given, the file is verified after the download, and a file that does not match is refused: the run fails with a message that names the file. When every file has a checksum, the revision of the dataset is a hash of the checksums, and the server is not asked for anything. A file without a checksum is identified by the server's ETag and size instead, and is not verified.
+- `unpack` defaults to `zip` for a file that ends in `.zip`, and to `none` otherwise. `tar.gz` and `zip` unpack into a folder named after the archive (`images.tar.gz` becomes `images/`). `gz` decompresses one file, written next to the archive under its name without `.gz`. The archive is removed after it is unpacked.
+- The pin file is checked when it is read. A wrong checksum, an unknown key or an unknown `unpack` is reported with the file name before anything is downloaded.
+
+Each file is downloaded once into the cache, as for every source. The run records the revision and the adapter, as it does for any dataset from the registry.
 
 ## Write an adapter
 

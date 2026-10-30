@@ -56,6 +56,10 @@ cairnml init http://<server-ip>
 
 Your browser opens the sign-in page. When the command prints `enrolled as ...`, this machine is connected. Each machine has its own key, so no access key is copied to it.
 
+The browser sign-in receives its reply on `127.0.0.1:8765`. The identity provider accepts only this redirect address for the CairnML client, so the port cannot be changed. If another program on the machine holds port 8765, `cairnml init` says so and signs in with a code instead (see `--device`). On a machine without a browser, `cairnml init --device` always uses the code.
+
+Environment variables named `TRAINS_*` (from the ClearML-based original) still work. Each one prints a deprecation warning once; use the `CAIRNML_*` name of the same setting.
+
 ## Commands
 
 Everything is one command, `cairnml`, with a subcommand for each tool. `cairnml <command> --help` shows the arguments of a command.
