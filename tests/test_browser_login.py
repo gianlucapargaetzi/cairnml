@@ -160,3 +160,31 @@ def test_the_sign_in_always_asks_for_the_credentials():
     open_browser, seen = browser(approve)
     browser_login(ISSUER, "cairnml-sdk", session=FakeIdp(), open_browser=open_browser, timeout=20)
     assert seen["prompt"] == "login"
+
+
+def test_an_ephemeral_port_is_used_and_the_redirect_carries_the_bound_port():
+    open_browser, seen = browser(approve)
+    token = browser_login(ISSUER, "cairnml-sdk", session=FakeIdp(), open_browser=open_browser, timeout=20, port=0)
+    assert token == "idp-token"
+    redirect_port = int(seen["redirect_uri"].rsplit(":", 1)[1].split("/")[0])
+    assert redirect_port != 0
+
+
+def test_the_port_can_be_configured_through_the_environment(monkeypatch):
+    from cairnml.idp.browser_login import configured_login_port
+
+    monkeypatch.delenv("CAIRNML_LOGIN_PORT", raising=False)
+    assert configured_login_port() == 8765
+    monkeypatch.setenv("CAIRNML_LOGIN_PORT", "0")
+    assert configured_login_port() == 0
+    monkeypatch.setenv("CAIRNML_LOGIN_PORT", "8800")
+    assert configured_login_port() == 8800
+
+
+@pytest.mark.parametrize("value", ["http", "70000", "-1"])
+def test_an_invalid_configured_port_is_reported(monkeypatch, value):
+    from cairnml.idp.browser_login import configured_login_port
+
+    monkeypatch.setenv("CAIRNML_LOGIN_PORT", value)
+    with pytest.raises(LoginFailed, match="CAIRNML_LOGIN_PORT"):
+        configured_login_port()

@@ -31,6 +31,7 @@ from .defs import (
 )
 from .defs import is_config_file
 from .entry import Entry, NotSet
+from .environment import check_legacy_config_file, read_env_with_legacy
 from .errors import ConfigurationError
 from .log import initialize as initialize_log, logger
 from .utils import get_options
@@ -75,7 +76,7 @@ class Config:
         self._folder_name = config_folder or DEFAULT_CONFIG_FOLDER
         self._roots = []
         self._config = ConfigTree()
-        self._env = env or os.environ.get("CAIRNML_ENV", os.environ.get("TRAINS_ENV", Environment.default))
+        self._env = env or read_env_with_legacy("CAIRNML_ENV", "TRAINS_ENV") or Environment.default
         self.config_paths = set()
         self.is_server = is_server
         self._overrides_configs = None
@@ -159,6 +160,8 @@ class Config:
             local_config_files = [expanduser(local_config_override)]
 
         # merge configuration from local configuration files
+        for file_path in local_config_files:
+            check_legacy_config_file(expanduser(file_path))
         if local_config_files:
             config = functools.reduce(
                 lambda cfg, file_path: ConfigTree.merge_configs(

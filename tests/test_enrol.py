@@ -122,3 +122,14 @@ def test_a_wrong_address_says_which_address_to_give(tmp_path):
     server.post = lambda url, json=None, headers=None, timeout=None: Response(405, {})
     with pytest.raises(EnrolmentFailed, match="give the address of the server"):
         enrol(API, http=server, login=login, key_path=tmp_path / "device.key")
+
+
+def test_the_key_folder_is_created_for_its_owner_only(tmp_path):
+    import stat
+
+    from cairnml.idp.device import secure_folder
+
+    folder = tmp_path / "a" / ".cairnml"
+    secure_folder(folder)
+    assert folder.is_dir()
+    assert stat.S_IMODE(folder.stat().st_mode) == 0o700
