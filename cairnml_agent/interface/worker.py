@@ -296,6 +296,16 @@ COMMANDS = {
             },
         },
     },
+    'doctor': {
+        'help': 'Check this agent machine: configuration, server, Docker, Docker daemon, GitHub App',
+        'args': {
+            '--file': {
+                'help': "Configuration file (default: the agent's ~/cairnml-agent.conf)",
+                'aliases': ['-F'],
+                'default': None,
+            },
+        },
+    },
     'install-bootstrap': {
         'help': 'Install or update the cairnml-agent-bootstrap package (default from GitHub Releases)',
         'args': {

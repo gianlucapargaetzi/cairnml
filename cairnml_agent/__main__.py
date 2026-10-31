@@ -28,6 +28,11 @@ def run_command(parser, args, command_name):
         parser.remove_top_level_results(args_dict)
         return commands.install_bootstrap(**args_dict)
 
+    # doctor only reads the configuration and checks the machine; it needs no session of its own
+    if command_name and command_name.lower() in ('doctor',):
+        from cairnml_agent.commands import doctor
+        return doctor.doctor_main(file=getattr(args, 'file', None))
+
     if command_name and command_name.lower() in ('config', 'init'):
         command_class = commands.Config
     elif len(command_name.split('.')) < 2:
