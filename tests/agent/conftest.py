@@ -49,3 +49,13 @@ def cairnml_agentyaml(tmpdir):
 #         self.let(test_object)
 #         file.write(yaml.dump(test_object))
 #         return file.strpath
+
+
+def pytest_collection_modifyitems(config, items):
+    """Skip the tests that need a running CairnML server, unless the run selects them with -m integration."""
+    if "integration" in (config.getoption("-m") or ""):
+        return
+    skip = pytest.mark.skip(reason="needs a running CairnML server: run with -m integration")
+    for item in items:
+        if item.get_closest_marker("integration"):
+            item.add_marker(skip)
