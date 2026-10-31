@@ -46,6 +46,14 @@ For the dataset tools as well:
 pip install "cairnml[dataset]"
 ```
 
+To run the SDK's tests from a checkout, install it into a virtual environment together with pytest, then run the tests (the same commands CI runs):
+
+```bash
+python3 -m venv .venv && . .venv/bin/activate
+python -m pip install -e ".[dataset]" pytest
+python -m pytest -q tests
+```
+
 ## Connect to your server
 
 ```bash

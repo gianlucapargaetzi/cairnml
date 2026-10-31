@@ -3,6 +3,8 @@ import os
 import subprocess
 import sys
 
+import pytest
+
 import cairnml
 from cairnml import Task
 from cairnml.backend_api.session import Session
@@ -45,5 +47,9 @@ def test_access_keys_in_the_environment_do_not_sign_a_session_in(tmp_path):
     env.pop("CAIRNML_CONFIG_FILE", None)
     code = "from cairnml.backend_api.session import Session; Session()"
     result = subprocess.run([sys.executable, "-c", code], env=env, capture_output=True, text=True, timeout=120)
+    if "ModuleNotFoundError" in result.stderr:
+        # The child cannot import the SDK's own dependencies: the environment is not the one requirements.txt describes.
+        pytest.fail("a declared dependency is missing from this environment; install the SDK with "
+                    "'pip install -e .' (see requirements.txt):\n" + result.stderr[-800:])
     assert result.returncode != 0
     assert "MissingConfigError" in result.stderr or "MissingConfigError" in result.stdout
