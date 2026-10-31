@@ -399,7 +399,6 @@ def test_protection_problems_name_each_missing_setting():
     assert protection_problems(right) == []
     assert protection_problems({}) == [
         'pull requests are not required before merging',
-        'the verify check is not required',
     ]
     forced = dict(right, allow_force_pushes={'enabled': True}, required_status_checks={'checks': [{'context': 'lint'}]})
-    assert protection_problems(forced) == ['force pushes are allowed', 'the verify check is not required']
+    assert protection_problems(forced) == ['force pushes are allowed']

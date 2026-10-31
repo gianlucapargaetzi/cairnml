@@ -5,7 +5,6 @@ from typing import List, Optional
 
 from cairnml.datasets import DatasetCache, DatasetError, DatasetRepo, Dataset
 from cairnml.datasets.cache import parse_size
-from cairnml.datasets.repo import REQUIRED_CHECK
 
 
 def _print_group(title: str, changes: dict) -> None:
@@ -40,13 +39,10 @@ def do_create(args: argparse.Namespace) -> None:
         print("Branch protection skipped (--no-protect). Protect the default branch by hand: "
               "cairnml dataset doctor shows what is missing.")
     elif protection["ok"]:
-        check = (f"the {REQUIRED_CHECK} check is required" if protection["check"]
-                 else f"no {REQUIRED_CHECK} check is required yet (its first run had not reported); "
-                      "run cairnml dataset doctor after it has")
-        print(f"Protected {result['branch']}: pull requests required, force pushes and deletions blocked, {check}.")
+        print(f"Protected {result['branch']}: pull requests required, force pushes and deletions blocked.")
     else:
         print(f"Warning: {result['branch']} is NOT protected: {protection['problem']}.\n"
-              "Protect it by hand (pull requests, no force pushes or deletions, the verify check), "
+              "Protect it by hand (pull requests, no force pushes or deletions), "
               "or run cairnml dataset create again with administration rights; cairnml dataset doctor shows what is missing.")
 
 
