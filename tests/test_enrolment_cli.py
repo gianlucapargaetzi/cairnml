@@ -47,6 +47,25 @@ def test_init_reports_a_refusal_and_writes_nothing(tmp_path, capsys):
     assert "only an admin" in capsys.readouterr().err
 
 
+def test_init_prints_the_upgrade_notice_once_on_stderr(tmp_path, capsys):
+    conf = tmp_path / "cairnml.conf"
+    notice = "the SDK (cairnml) 0.0.1 is older than this server's minimum 0.0.2: upgrade cairnml."
+    result = Enrolment(device_id="dev_9", server_url=PUBLIC, web_url="", user="alice", upgrade=notice)
+    with mock.patch.object(enrolment, "enrol", return_value=result):
+        assert enrolment.init_main([PUBLIC, "--file", str(conf)]) == 0
+    captured = capsys.readouterr()
+    assert captured.err.count("upgrade cairnml") == 1
+    assert "upgrade" not in captured.out
+
+
+def test_init_prints_no_notice_when_the_sdk_is_current(tmp_path, capsys):
+    conf = tmp_path / "cairnml.conf"
+    result = Enrolment(device_id="dev_9", server_url=PUBLIC, web_url="", user="alice")
+    with mock.patch.object(enrolment, "enrol", return_value=result):
+        enrolment.init_main([PUBLIC, "--file", str(conf)])
+    assert capsys.readouterr().err == ""
+
+
 def test_whoami_says_so_when_not_enrolled(tmp_path, capsys):
     assert enrolment.whoami_main(["--file", str(tmp_path / "cairnml.conf")]) == 1
     assert "not enrolled" in capsys.readouterr().err

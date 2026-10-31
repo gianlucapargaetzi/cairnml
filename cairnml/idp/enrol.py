@@ -12,9 +12,14 @@ from typing import Optional
 import jwt
 import requests
 
+from ..version import __version__
 from .browser_login import browser_login
 from .device import DEVICE_KEY_PATH, device_assertion, secure_folder
 from .keys import generate_private_key, public_key_pem, write_private_key
+
+# The server compares this with its minimum version and answers an old client with the upgrade header.
+CLIENT_HEADER = "X-CairnML-Client"
+UPGRADE_HEADER = "X-CairnML-Upgrade"
 
 
 class EnrolmentFailed(Exception):
@@ -27,11 +32,17 @@ class Enrolment:
     server_url: str
     web_url: str
     user: str
+    upgrade: str = ""  # the server's upgrade notice for this SDK, empty when it is current
 
 
-def _call(http, url, body, token=None):
-    headers = {"Authorization": f"Bearer {token}"} if token else None
+def _call(http, url, body, token=None, upgrades=None):
+    headers = {CLIENT_HEADER: f"cairnml-{__version__}"}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
     response = http.post(url, json=body, headers=headers, timeout=30)
+    notice = (getattr(response, "headers", None) or {}).get(UPGRADE_HEADER)
+    if upgrades is not None and notice:
+        upgrades.append(notice)
     try:
         reply = response.json()
     except ValueError:
@@ -50,8 +61,8 @@ def _base(server: str) -> str:
     return server.rstrip("/") + "/v2.8/"
 
 
-def _settings(http, server: str) -> dict:
-    return _call(http, _base(server) + "devices.idp_settings", {})
+def _settings(http, server: str, upgrades=None) -> dict:
+    return _call(http, _base(server) + "devices.idp_settings", {}, upgrades=upgrades)
 
 
 def _token_for_device(http, server_url: str, device_id: str, key_path: Path) -> str:
@@ -66,6 +77,22 @@ def revoke_device(server_url: str, device_id: str, key_path=None, http=None) -> 
     key_path = Path(key_path or DEVICE_KEY_PATH)
     token = _token_for_device(http, server_url, device_id, key_path)
     _call(http, _base(server_url) + "devices.revoke", {"id": device_id}, token=token)
+
+
+def list_devices(server_url: str, device_id: str, key_path=None, http=None) -> list:
+    """The devices of the user this device signs in as (all devices, for an admin), from the server."""
+    http = http or requests.Session()
+    key_path = Path(key_path or DEVICE_KEY_PATH)
+    token = _token_for_device(http, server_url, device_id, key_path)
+    return _call(http, _base(server_url) + "devices.get_all", {}, token=token)["devices"]
+
+
+def revoke_other_device(server_url: str, device_id: str, target_id: str, key_path=None, http=None) -> dict:
+    """Revoke another device of the same user, signing in with this device's key."""
+    http = http or requests.Session()
+    key_path = Path(key_path or DEVICE_KEY_PATH)
+    token = _token_for_device(http, server_url, device_id, key_path)
+    return _call(http, _base(server_url) + "devices.revoke", {"id": target_id}, token=token)
 
 
 def whoami(server_url: str, device_id: str, key_path=None, http=None) -> dict:
@@ -106,7 +133,8 @@ def enrol(
     if (key_path.exists() or previous_device_id) and not force:
         raise EnrolmentFailed("this machine is already enrolled; use --force to enroll again")
     http = http or requests.Session()
-    settings = _settings(http, server)
+    upgrades = []
+    settings = _settings(http, server, upgrades=upgrades)
     server_url = settings["public_url"].rstrip("/")
 
     if force and previous_device_id and key_path.exists():
@@ -114,7 +142,8 @@ def enrol(
             revoke_device(server_url, previous_device_id, key_path=key_path, http=http)
             out(f"revoked the previous device {previous_device_id}")
         except EnrolmentFailed as exc:
-            out(f"warning: the previous device could not be revoked ({exc}); revoke it in the web app")
+            out(f"warning: the previous device could not be revoked ({exc}); revoke it later with "
+                f"'cairnml devices revoke {previous_device_id}' or in the web app under Settings > Devices")
 
     token = login(settings["issuer"], settings["sdk_client_id"], out=out)
     user = jwt.decode(token, options={"verify_signature": False}).get("preferred_username", "")
@@ -125,6 +154,7 @@ def enrol(
         _base(server_url) + "devices.enroll",
         {"kind": kind, "name": name or _hostname(), "public_key": public_key_pem(key)},
         token=token,
+        upgrades=upgrades,
     )
     _replace_key(key, key_path)
     return Enrolment(
@@ -132,6 +162,7 @@ def enrol(
         server_url=server_url,
         web_url=settings.get("web_url", ""),
         user=user,
+        upgrade=upgrades[0] if upgrades else "",
     )
 
 

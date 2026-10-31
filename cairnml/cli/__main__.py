@@ -16,6 +16,7 @@ COMMANDS = {
     "whoami": ("cairnml.cli.enrolment", "whoami_main", "show who this machine signs in as"),
     "logout": ("cairnml.cli.enrolment", "logout_main", "revoke this machine's enrolment and remove its key"),
     "doctor": ("cairnml.cli.doctor", "doctor_main", "check this machine's setup: config, server, sign-in, key"),
+    "devices": ("cairnml.cli.devices", "devices_main", "list or revoke the devices enrolled under your sign-in"),
     "dataset": ("cairnml.cli.dataset.__main__", "main", "versioned datasets on git and DVC"),
     "task": ("cairnml.cli.task.__main__", "main", "launch any codebase on a machine running cairnml-agent"),
     "param-search": ("cairnml.cli.hpo.__main__", "main", "search for the best parameters for your models"),

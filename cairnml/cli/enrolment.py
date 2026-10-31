@@ -89,6 +89,8 @@ def init_main(argv=None) -> int:
 
     write_config(conf, result.server_url, result.web_url, result.device_id)
     print(f"enrolled as {result.user or 'unknown user'} on {result.server_url} (device {result.device_id})")
+    if result.upgrade:
+        print(f"warning: {result.upgrade}", file=sys.stderr)
     return 0
 
 

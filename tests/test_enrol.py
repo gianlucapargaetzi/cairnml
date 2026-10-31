@@ -6,6 +6,7 @@ import pytest
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 from cairnml.idp import enrol as enrol_module
+from cairnml.version import __version__
 from cairnml.idp.enrol import EnrolmentFailed, enrol, enrol_device, revoke_device
 from cairnml.idp.device import save_device_key
 from cairnml.idp.keys import load_public_key
@@ -20,18 +21,22 @@ def token_for(user):
 
 
 class Response:
-    def __init__(self, status_code, body):
+    def __init__(self, status_code, body, headers=None):
         self.status_code = status_code
         self._body = body
+        self.headers = headers or {}
 
     def json(self):
         return self._body
 
 
 class FakeServer:
-    def __init__(self, enrol_reply=(200, {"data": {"id": "dev_1", "kind": "client"}}), revoke_reply=(200, {"data": {}})):
+    def __init__(self, enrol_reply=(200, {"data": {"id": "dev_1", "kind": "client"}}), revoke_reply=(200, {"data": {}}),
+                 settings_headers=None, list_reply=None):
         self.enrol_reply = enrol_reply
         self.revoke_reply = revoke_reply
+        self.settings_headers = settings_headers
+        self.list_reply = list_reply or (200, {"data": {"devices": []}})
         self.calls = []
 
     def post(self, url, json=None, headers=None, timeout=None):
@@ -39,7 +44,10 @@ class FakeServer:
         if url.endswith("devices.idp_settings"):
             return Response(200, {"data": {"issuer": "https://idp.example/realms/mlops",
                                            "sdk_client_id": "cairnml-sdk",
-                                           "public_url": PUBLIC, "web_url": "http://cairnml:8080"}})
+                                           "public_url": PUBLIC, "web_url": "http://cairnml:8080"}},
+                            self.settings_headers)
+        if url.endswith("devices.get_all"):
+            return Response(*self.list_reply)
         if url.endswith("devices.exchange"):
             return Response(200, {"data": {"access_token": "device-token"}})
         if url.endswith("devices.revoke"):
@@ -63,7 +71,8 @@ def test_enrolment_uses_the_servers_public_address_and_registers_the_key(tmp_pat
     assert result.user == "alice"
     url, body, headers = server.calls[-1]
     assert url == PUBLIC + "/v2.8/devices.enroll"
-    assert headers == {"Authorization": "Bearer " + token_for("alice")}
+    assert headers["Authorization"] == "Bearer " + token_for("alice")
+    assert headers["X-CairnML-Client"] == f"cairnml-{__version__}"
     assert body["kind"] == "client" and body["name"] == "laptop"
     public: Ed25519PublicKey = load_public_key(body["public_key"])
     assert public is not None
@@ -114,7 +123,7 @@ def test_sign_out_revokes_the_device_with_its_own_key(tmp_path):
     url, body, headers = server.calls[-1]
     assert url == PUBLIC + "/v2.8/devices.revoke"
     assert body == {"id": "dev_1"}
-    assert headers == {"Authorization": "Bearer device-token"}
+    assert headers["Authorization"] == "Bearer device-token"
 
 
 def test_a_wrong_address_says_which_address_to_give(tmp_path):
@@ -133,3 +142,34 @@ def test_the_key_folder_is_created_for_its_owner_only(tmp_path):
     secure_folder(folder)
     assert folder.is_dir()
     assert stat.S_IMODE(folder.stat().st_mode) == 0o700
+
+
+UPGRADE = ("the SDK (cairnml) 0.0.1 is older than this server's minimum 0.0.2: upgrade cairnml. "
+           "See https://github.com/gianlucapargaetzi/cairnml-server/blob/main/README.md#compatibility")
+
+
+def test_an_old_sdk_gets_the_servers_upgrade_notice_from_the_init_response(tmp_path):
+    server = FakeServer(settings_headers={"X-CairnML-Upgrade": UPGRADE})
+    result = enrol(API, http=server, login=login, key_path=tmp_path / "device.key")
+    assert result.upgrade == UPGRADE
+    assert result.device_id == "dev_1"
+
+
+def test_a_current_sdk_gets_no_upgrade_notice(tmp_path):
+    result = enrol(API, http=FakeServer(), login=login, key_path=tmp_path / "device.key")
+    assert result.upgrade == ""
+
+
+def test_the_upgrade_notice_is_taken_once_when_several_responses_carry_it(tmp_path):
+    server = FakeServer(settings_headers={"X-CairnML-Upgrade": UPGRADE})
+    server.enrol_reply = (200, {"data": {"id": "dev_1", "kind": "client"}})
+    original = server.post
+
+    def post_with_header(url, json=None, headers=None, timeout=None):
+        reply = original(url, json=json, headers=headers, timeout=timeout)
+        reply.headers = {"X-CairnML-Upgrade": UPGRADE}
+        return reply
+
+    server.post = post_with_header
+    result = enrol(API, http=server, login=login, key_path=tmp_path / "device.key")
+    assert result.upgrade == UPGRADE
