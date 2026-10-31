@@ -14,9 +14,12 @@ from uuid import uuid4
 from cairnml_agent.backend_api.services import tasks
 from cairnml_agent.backend_api.session.client import APIClient
 from pathlib2 import Path
+import pytest
 from pytest import fixture
 
 from cairnml_agent.helper.process import Argv
+
+pytestmark = pytest.mark.integration  # needs a running CairnML server, see tests/conftest.py
 
 logging.getLogger("urllib3").setLevel(logging.CRITICAL)
 log = logging.getLogger(__name__)

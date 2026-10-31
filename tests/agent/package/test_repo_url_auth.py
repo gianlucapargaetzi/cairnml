@@ -1,5 +1,6 @@
 import pytest
 
+from cairnml_agent.external.pyhocon import ConfigTree
 from cairnml_agent.helper.repo import Git
 
 NO_CHANGE = object()
@@ -81,7 +82,8 @@ def param(url, expected, user=False, password=False):
 
 
 def test(url, user, password, expected):
-    config = {"agent": {"git_user": user, "git_pass": password}}
+    # The agent reads its configuration as a ConfigTree; a plain dict does not resolve dotted keys.
+    config = ConfigTree(agent=ConfigTree(git_user=user, git_pass=password))
     result = Git.add_auth(config, url)
     expected = result if expected is NO_CHANGE else expected
     assert result == expected
