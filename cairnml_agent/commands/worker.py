@@ -218,6 +218,14 @@ def check_execution_mode(use_docker: bool, allow_venv: bool) -> Optional[str]:
     return None if use_docker else VENV_MODE_WARNING
 
 
+def run_mode_for(use_docker: bool, allow_venv: bool) -> str:
+    """The mode the agent runs jobs in, as reported to the server: a Docker container, a virtual environment
+    on the host (--allow-venv), or the host itself."""
+    if use_docker:
+        return "docker"
+    return "venv" if allow_venv else "host"
+
+
 @attr.s
 class LiteralScriptManager(object):
     """
@@ -1106,6 +1114,7 @@ class Worker(ServiceCommandSection):
         self._host_ssh_cache = None
         self._truncate_task_output_files = bool(self._session.config.get("agent.truncate_task_output_files", False))
         self._use_podman = False
+        self._run_mode = None  # "docker", "venv" or "host", set when the daemon starts
 
         # True - supported
         # None - not initialized
@@ -2173,6 +2182,7 @@ class Worker(ServiceCommandSection):
         venv_warning = check_execution_mode(use_docker, allow_venv)
         if venv_warning:
             print(venv_warning)
+        self._run_mode = run_mode_for(use_docker, allow_venv)
         # only the agent's owner may read its folder, which holds the device key
         secure_folder(DEVICE_KEY_PATH.parent)
 
@@ -2479,6 +2489,7 @@ class Worker(ServiceCommandSection):
             report_frequency_sec=self._machine_update_interval,
             worker_tags=None if self._services_mode else self._worker_tags,
             report_daemon=self.is_daemon,
+            run_mode=self._run_mode,
         )
         self.monitor.set_report(report)
         self.monitor.start()

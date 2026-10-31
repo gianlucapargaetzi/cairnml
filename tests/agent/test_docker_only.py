@@ -2,7 +2,7 @@
 
 import pytest
 
-from cairnml_agent.commands.worker import check_execution_mode
+from cairnml_agent.commands.worker import check_execution_mode, run_mode_for
 
 
 def test_docker_mode_is_accepted():
@@ -26,3 +26,9 @@ def test_venv_mode_with_the_flag_warns_about_the_device_key():
 
 def test_docker_mode_has_no_warning():
     assert check_execution_mode(use_docker=True, allow_venv=False) is None
+
+
+def test_the_status_report_names_the_run_mode():
+    assert run_mode_for(use_docker=True, allow_venv=False) == "docker"
+    assert run_mode_for(use_docker=False, allow_venv=True) == "venv"
+    assert run_mode_for(use_docker=False, allow_venv=False) == "host"
