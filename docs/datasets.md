@@ -59,13 +59,21 @@ with `gh auth login`), copies the files in, checks them, commits and pushes:
 
 ```bash
 cairnml dataset create cars-data --from /path/to/measurements --storage lfs
-cairnml dataset doctor                   # once: check the GitHub settings; protect the default branch as it says
+cairnml dataset doctor                   # once: check the GitHub settings
 cairnml dataset register                 # once: add the dataset to the registry
 ```
 
 `--public` makes the repository public, `--path` chooses the local folder (default: the name), and `--adapter` and
 `--registry` say how the data is read (see below). The command stops with a message if the check fails; fix the data and
 run `cairnml dataset commit` and `cairnml dataset push` in that folder.
+
+After the first push, `create` protects the default branch of the new repository: pull requests are required (no
+approvals needed, and administrators are not held to them), force pushes and deletions are blocked, and the `verify`
+check is required once its first run has reported (it waits up to a minute for it). Setting this up needs
+**administration rights on the repository**: the Administration permission for a token, or the admin role for your
+login. Without them, `create` still makes and publishes the repository, and prints a warning that the branch is not
+protected and which permission is missing. Pass `--no-protect` to skip the step and protect the branch yourself, as
+`cairnml dataset doctor` describes.
 
 To use a repository you have already created on GitHub, clone it. Then, inside the clone:
 
@@ -100,7 +108,7 @@ Protect the default branch of the dataset repository: require pull requests, blo
 - the repository has an origin on GitHub, and the dataset set-up, `dataset.yaml`, the verify workflow and the verify script are in place and current;
 - the GitHub command line (`gh`) is installed and logged in;
 - auto-merge is allowed in the repository settings;
-- the default branch requires pull requests, blocks force pushes and requires the `verify` check.
+- the default branch requires pull requests, blocks force pushes and deletions, and requires the `verify` check (`create` sets this up, see above).
 
 The doctor only reads these settings; it never changes them. Set them on the repository's settings page, which the doctor links to.
 

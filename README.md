@@ -157,8 +157,10 @@ Create a dataset in one call, with the GitHub command line logged in:
 
 ```bash
 cairnml dataset create cars-data --from ./measurements --storage lfs
-cairnml dataset doctor   # then protect the default branch as the doctor says
+cairnml dataset doctor   # checks the GitHub settings, including the branch protection
 ```
+
+`create` also protects the default branch of the new repository (pull requests, no force pushes or deletions, the `verify` check). This needs administration rights on the repository; without them it warns and carries on. Pass `--no-protect` to skip it. See [docs/datasets.md](docs/datasets.md).
 
 ## Next steps
 
