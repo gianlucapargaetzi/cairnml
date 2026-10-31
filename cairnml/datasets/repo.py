@@ -14,7 +14,6 @@ footprint check.
 import json
 import re
 import shutil
-import time
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
@@ -29,9 +28,6 @@ from .gitutil import Git
 
 DATA_DIR = "data"
 DEFAULT_BRANCH = "main"
-REQUIRED_CHECK = "verify"  # the check the default branch must require (the workflow's job)
-CHECK_WAIT_SEC = 60.0  # how long create waits for the first run of the check before it protects without it
-CHECK_POLL_SEC = 5.0
 DVC_FILE = footprint.DVC_FILE
 WORKFLOW_FILE = ".github/workflows/dataset.yml"
 
@@ -84,10 +80,10 @@ def create_repository(name: str, private: bool = True) -> str:
     return url + ".git"
 
 
-def protection_body(required_check: Optional[str]) -> Dict[str, Any]:
+def protection_body() -> Dict[str, Any]:
     """The branch protection that create sets on the default branch (the body of the GitHub API call)."""
     return {
-        "required_status_checks": {"strict": False, "contexts": [required_check]} if required_check else None,
+        "required_status_checks": None,  # no check is required: a required check that never reports blocks merges
         "enforce_admins": False,  # administrators are not held to the review either
         "required_pull_request_reviews": {
             "required_approving_review_count": 0,  # pull requests are required, no approval is
@@ -109,10 +105,6 @@ def protection_problems(protection: Dict[str, Any]) -> List[str]:
         problems.append("force pushes are allowed")
     if (protection.get("allow_deletions") or {}).get("enabled"):
         problems.append("deleting the branch is allowed")
-    checks = protection.get("required_status_checks") or {}
-    contexts = set(checks.get("contexts") or []) | {c.get("context") for c in checks.get("checks") or []}
-    if REQUIRED_CHECK not in contexts:
-        problems.append(f"the {REQUIRED_CHECK} check is not required")
     return problems
 
 
@@ -493,7 +485,7 @@ class DatasetRepo:
         protection, why = self._gh_api(f"repos/{repo}/branches/{default}/protection")
         if protection is None and "Branch not protected" in why:
             check("branch protection", False, f"{default} is not protected. At https://github.com/{repo}/settings/"
-                  f"branches require pull requests, block force pushes and deletions, and require the {REQUIRED_CHECK} check. "
+                  f"branches require pull requests, block force pushes and deletions. "
                   "cairnml dataset create sets this up (it needs administration rights)")
         elif protection is None:
             check("branch protection", None, f"could not read the protection of {default}: {why}")
@@ -503,8 +495,7 @@ class DatasetRepo:
                 check("branch protection", False, f"{default}: " + "; ".join(problems) + f" (see https://github.com/"
                       f"{repo}/settings/branches)")
             else:
-                check("branch protection", True, f"{default} requires pull requests, blocks force pushes and deletions, and the "
-                      f"{REQUIRED_CHECK} check")
+                check("branch protection", True, f"{default} requires pull requests and blocks force pushes and deletions")
         return checks
 
     def _gh_api(self, path: str) -> Tuple[Optional[Dict[str, Any]], str]:
@@ -519,43 +510,32 @@ class DatasetRepo:
 
     # protect
 
-    def protect(self, head: str) -> Dict[str, Any]:
+    def protect(self) -> Dict[str, Any]:
         """Protect the default branch of a new repository, through gh. Needs administration rights on the repository.
 
-        Waits up to ``CHECK_WAIT_SEC`` for the first run of the verify workflow, so that the check is required when it
-        exists. Returns ``ok``, ``check`` (the required check, or None when there is none) and ``problem`` (why the
-        protection was not set, or None). It never raises: create reports the problem and carries on.
+        Pull requests are required, force pushes and deletions are blocked, and no status check is required.
+        Returns ``ok`` and ``problem`` (why the protection was not set, or None). It never raises: create reports
+        the problem and carries on.
         """
-        failed: Dict[str, Any] = {"ok": False, "check": None}
         name = github_name(self.git.remote_url() or "")
         if not name:
-            return {**failed, "problem": "origin is not a GitHub repository, so there is no branch to protect"}
+            return {"ok": False, "problem": "origin is not a GitHub repository, so there is no branch to protect"}
         if shutil.which("gh") is None:
-            return {**failed, "problem": "the GitHub command line (gh) is not installed"}
-        deadline = time.monotonic() + CHECK_WAIT_SEC
+            return {"ok": False, "problem": "the GitHub command line (gh) is not installed"}
         try:
-            while True:
-                runs, why = self._gh_api(f"repos/{name}/commits/{head}/check-runs")
-                if runs is None:
-                    return {**failed, "problem": f"could not read the checks of the first commit: {why}"}
-                names = {run.get("name") for run in runs.get("check_runs") or []}
-                if REQUIRED_CHECK in names or time.monotonic() >= deadline:
-                    break
-                time.sleep(CHECK_POLL_SEC)
-            check = REQUIRED_CHECK if REQUIRED_CHECK in names else None
             made = process.run(
                 ["gh", "api", "-X", "PUT", f"repos/{name}/branches/{DEFAULT_BRANCH}/protection", "--input", "-"],
-                cwd=str(self.path), stdin=json.dumps(protection_body(check)),
+                cwd=str(self.path), stdin=json.dumps(protection_body()),
             )
         except process.CommandTimeout as exc:
-            return {**failed, "problem": str(exc)}
+            return {"ok": False, "problem": str(exc)}
         if made.returncode != 0:
             text = (made.stderr or made.stdout).strip() or "gh api failed"
             if "403" in text:
                 text = (f"needs administration rights on {name} (the Administration permission for a token, or the "
                         f"admin role for a login); gh said: {text}")
-            return {**failed, "problem": text}
-        return {"ok": True, "check": check, "problem": None}
+            return {"ok": False, "problem": text}
+        return {"ok": True, "problem": None}
 
     # register
 
@@ -625,7 +605,7 @@ class DatasetRepo:
         repo.add()
         commit = repo.commit("Add dataset")
         pushed = repo.push()
-        protection = repo.protect(pushed["commit"]) if protect else None
+        protection = repo.protect() if protect else None
         return {
             "url": url, "storage": storage, "where": where, "commit": commit, "branch": pushed["branch"],
             "protection": protection,

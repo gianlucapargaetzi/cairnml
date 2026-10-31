@@ -11,7 +11,6 @@ import pytest
 
 from cairnml.cli.dataset import __main__ as dataset_cli
 from cairnml.datasets import DatasetRepo, SampleWriter
-from cairnml.datasets import repo as repo_module
 from cairnml.datasets.repo import protection_body, protection_problems
 
 pytestmark = pytest.mark.skipif(
@@ -25,9 +24,6 @@ body = sys.stdin.read() if "--input" in args else ""
 with open(os.environ["FAKE_GH_LOG"], "a") as log:
     log.write(json.dumps({{"args": args, "body": body}}) + "\\n")
 if args[:1] == ["auth"]:
-    sys.exit(0)
-if args[:1] == ["api"] and "check-runs" in args[1]:
-    print(os.environ.get("FAKE_GH_CHECKS", '{{"check_runs": []}}'))
     sys.exit(0)
 if args[:1] == ["api"] and "-X" in args:
     sys.stderr.write(os.environ.get("FAKE_GH_PUT_ERR", ""))
@@ -45,7 +41,7 @@ def git_identity(monkeypatch):
 
 @pytest.fixture
 def fake_gh(tmp_path, monkeypatch):
-    """A gh that logs each call to a file and answers the check-runs read and the protection write."""
+    """A gh that logs each call to a file and answers the protection write."""
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
     script = bin_dir / "gh"
@@ -54,8 +50,6 @@ def fake_gh(tmp_path, monkeypatch):
     log = tmp_path / "gh.log"
     monkeypatch.setenv("PATH", f"{bin_dir}{os.pathsep}{os.environ['PATH']}")
     monkeypatch.setenv("FAKE_GH_LOG", str(log))
-    monkeypatch.setattr(repo_module, "CHECK_WAIT_SEC", 0.0)
-    monkeypatch.setattr(repo_module, "CHECK_POLL_SEC", 0.0)
 
     def calls():
         return [json.loads(line) for line in log.read_text().splitlines()] if log.exists() else []
@@ -92,30 +86,25 @@ def protection_calls(calls):
     return [c for c in calls() if "-X" in c["args"]]
 
 
-def test_create_protects_main_and_requires_the_check_once_it_has_run(tmp_path, origin, source, fake_gh, monkeypatch):
-    monkeypatch.setenv("FAKE_GH_CHECKS", json.dumps({"check_runs": [{"name": "verify"}]}))
+def test_create_protects_main_at_once_with_pull_requests_and_no_required_check(tmp_path, origin, source, fake_gh):
     result = create(tmp_path, origin, source)
-    assert result["protection"] == {"ok": True, "check": "verify", "problem": None}
+    assert result["protection"] == {"ok": True, "problem": None}
     (put,) = protection_calls(fake_gh)
     assert put["args"][:4] == ["api", "-X", "PUT", "repos/acme/cars/branches/main/protection"]
     body = json.loads(put["body"])
-    assert body["required_status_checks"] == {"strict": False, "contexts": ["verify"]}
+    assert body["required_status_checks"] is None
     assert body["required_pull_request_reviews"]["required_approving_review_count"] == 0
     assert body["enforce_admins"] is False
     assert body["allow_force_pushes"] is False and body["allow_deletions"] is False
     assert body["restrictions"] is None
     assert protection_problems({
         "required_pull_request_reviews": {}, "allow_force_pushes": {"enabled": False},
-        "allow_deletions": {"enabled": False}, "required_status_checks": {"contexts": ["verify"]},
+        "allow_deletions": {"enabled": False},
     }) == []
 
 
-def test_without_a_check_run_the_branch_is_protected_with_no_required_check(tmp_path, origin, source, fake_gh):
-    result = create(tmp_path, origin, source)
-    assert result["protection"] == {"ok": True, "check": None, "problem": None}
-    (put,) = protection_calls(fake_gh)
-    assert json.loads(put["body"])["required_status_checks"] is None
-    assert protection_body(None)["required_status_checks"] is None
+def test_the_protection_body_requires_no_status_check():
+    assert protection_body()["required_status_checks"] is None
 
 
 def test_a_403_is_a_warning_that_names_the_permission_and_does_not_fail_the_create(tmp_path, origin, source, fake_gh, monkeypatch):
@@ -123,7 +112,7 @@ def test_a_403_is_a_warning_that_names_the_permission_and_does_not_fail_the_crea
     monkeypatch.setenv("FAKE_GH_PUT_ERR", "gh: Must have admin rights to Repository. (HTTP 403)")
     result = create(tmp_path, origin, source)
     assert result["commit"] and result["branch"] == "main"  # the dataset is published anyway
-    assert result["protection"]["ok"] is False and result["protection"]["check"] is None
+    assert result["protection"]["ok"] is False
     assert "administration rights" in result["protection"]["problem"] and "403" in result["protection"]["problem"]
     assert (tmp_path / "local" / "data" / "one.txt").exists()
 

@@ -67,9 +67,10 @@ cairnml dataset register                 # once: add the dataset to the registry
 `--registry` say how the data is read (see below). The command stops with a message if the check fails; fix the data and
 run `cairnml dataset commit` and `cairnml dataset push` in that folder.
 
-After the first push, `create` protects the default branch of the new repository: pull requests are required (no
-approvals needed, and administrators are not held to them), force pushes and deletions are blocked, and the `verify`
-check is required once its first run has reported (it waits up to a minute for it). Setting this up needs
+Right after the first push, `create` protects the default branch of the new repository: pull requests are required
+(no approvals needed, and administrators are not held to them), and force pushes and deletions are blocked. No status
+check is required by this step; to make merges wait for the `verify` check, add it as a required check on the
+repository's settings page. Setting this up needs
 **administration rights on the repository**: the Administration permission for a token, or the admin role for your
 login. Without them, `create` still makes and publishes the repository, and prints a warning that the branch is not
 protected and which permission is missing. Pass `--no-protect` to skip the step and protect the branch yourself, as
@@ -101,14 +102,14 @@ Every dataset says how its files are read in `dataset.yaml`, which holds one of 
 
 ## Publish a dataset
 
-Protect the default branch of the dataset repository: require pull requests, block force pushes, and require the `verify` check. Allow auto-merge in the repository settings too. `push` then sends your commit to a branch named `incoming/<commit>` and opens a pull request, which merges automatically once the check passes. Without the GitHub command line (`gh`), `push` prints the link to open the pull request yourself. The first push to an empty repository goes straight to its default branch.
+Protect the default branch of the dataset repository: require pull requests, block force pushes and deletions, and, if you want merges to wait for it, require the `verify` check. Allow auto-merge in the repository settings too. `push` then sends your commit to a branch named `incoming/<commit>` and opens a pull request, which merges automatically once the check passes. Without the GitHub command line (`gh`), `push` prints the link to open the pull request yourself. The first push to an empty repository goes straight to its default branch.
 
 `cairnml dataset doctor` checks this before you publish. It lists each check as `ok`, `FAIL` or `--` (nothing to check yet), with what to do for each failure:
 
 - the repository has an origin on GitHub, and the dataset set-up, `dataset.yaml`, the verify workflow and the verify script are in place and current;
 - the GitHub command line (`gh`) is installed and logged in;
 - auto-merge is allowed in the repository settings;
-- the default branch requires pull requests, blocks force pushes and deletions, and requires the `verify` check (`create` sets this up, see above).
+- the default branch requires pull requests and blocks force pushes and deletions (`create` sets this up, see above).
 
 The doctor only reads these settings; it never changes them. Set them on the repository's settings page, which the doctor links to.
 
