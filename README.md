@@ -71,7 +71,7 @@ Everything is one command, `cairnml`, with a subcommand for each tool. `cairnml 
 | `cairnml logout` | Revoke this machine's enrolment and remove its key |
 | `cairnml devices list` | List the devices enrolled under your sign-in: id, name, owner, last seen and state. An admin sees every device |
 | `cairnml devices revoke <id>` | Revoke an enrolled device, so its key stops working. Asks first; `--yes` skips the question |
-| `cairnml doctor` | Check the configuration, the server, the sign-in, the device key and the object storage (port 9000), one line per check. Exits with 1 when a check fails |
+| `cairnml doctor` | Check the configuration, the server, the SDK version against the server minimum, the sign-in, the device key, the queues (a queue without a listening worker is a warning) and the object storage (port 9000), one line per check. Exits with 1 when a check fails |
 | `cairnml dataset ...` | Versioned datasets on git, with the files in DVC or in GitHub LFS (needs `cairnml[dataset]`). `create` makes a dataset in one call |
 | `cairnml task ...` | Launch any codebase on a machine running `cairnml-agent` |
 | `cairnml param-search ...` | Search for the best parameters for your models |
