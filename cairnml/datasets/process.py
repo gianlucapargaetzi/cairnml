@@ -47,6 +47,7 @@ def run(
     env: Optional[Dict[str, str]] = None,
     timeout: Optional[float] = -1,
     text: bool = True,
+    stdin: Optional[str] = None,
 ) -> "subprocess.CompletedProcess":
     """Run a command and capture its output. ``timeout=-1`` (the default) means the short-command limit;
     ``None`` means no limit. Raises :class:`CommandTimeout` when the limit is reached, and lets
@@ -54,7 +55,7 @@ def run(
     limit = command_timeout() if timeout == -1 else timeout
     try:
         return subprocess.run(
-            list(args), cwd=cwd, env=env, capture_output=True, text=text, check=False, timeout=limit
+            list(args), cwd=cwd, env=env, input=stdin, capture_output=True, text=text, check=False, timeout=limit
         )
     except subprocess.TimeoutExpired:
         raise CommandTimeout(

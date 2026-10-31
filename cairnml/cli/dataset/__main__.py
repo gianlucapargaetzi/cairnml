@@ -5,6 +5,7 @@ from typing import List, Optional
 
 from cairnml.datasets import DatasetCache, DatasetError, DatasetRepo, Dataset
 from cairnml.datasets.cache import parse_size
+from cairnml.datasets.repo import REQUIRED_CHECK
 
 
 def _print_group(title: str, changes: dict) -> None:
@@ -30,12 +31,23 @@ def do_init(args: argparse.Namespace) -> None:
 def do_create(args: argparse.Namespace) -> None:
     result = DatasetRepo.create(
         args.path or args.name, args.name, args.source, private=not args.public, storage=args.storage,
-        adapter=args.adapter, registry=args.registry,
+        adapter=args.adapter, registry=args.registry, protect=not args.no_protect,
     )
     print(f"Created {result['url']} with the dataset in {result['where']}, committed {result['commit'][:10]} and "
           f"pushed to {result['branch']}.")
-    print("Protect the default branch by hand (pull requests, no force pushes, the verify check): "
-          "cairnml dataset doctor shows what is missing.")
+    protection = result["protection"]
+    if protection is None:
+        print("Branch protection skipped (--no-protect). Protect the default branch by hand: "
+              "cairnml dataset doctor shows what is missing.")
+    elif protection["ok"]:
+        check = (f"the {REQUIRED_CHECK} check is required" if protection["check"]
+                 else f"no {REQUIRED_CHECK} check is required yet (its first run had not reported); "
+                      "run cairnml dataset doctor after it has")
+        print(f"Protected {result['branch']}: pull requests required, force pushes and deletions blocked, {check}.")
+    else:
+        print(f"Warning: {result['branch']} is NOT protected: {protection['problem']}.\n"
+              "Protect it by hand (pull requests, no force pushes or deletions, the verify check), "
+              "or run cairnml dataset create again with administration rights; cairnml dataset doctor shows what is missing.")
 
 
 def do_status(args: argparse.Namespace) -> None:
@@ -168,6 +180,8 @@ def cli(argv: Optional[List[str]] = None) -> int:
     create.add_argument("--storage", choices=["s3", "lfs"], default="s3", help="where the files are stored (see init)")
     create.add_argument("--adapter", help="read data/ through this adapter of the registry (default: data/ is native)")
     create.add_argument("--registry", help="URL of the adapter registry (default: sdk.datasets.external_repo)")
+    create.add_argument("--no-protect", action="store_true",
+                        help="do not protect the default branch (needs administration rights on the repository)")
     cache = sub.add_parser("cache", help="show or trim the local dataset cache")
     cache.set_defaults(func=do_cache)
     cache.add_argument("action", choices=["info", "clean", "limit"])
