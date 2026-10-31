@@ -3,6 +3,7 @@
     cairnml init <server>      enrol this machine with the server
     cairnml doctor             check this machine's setup, one line per check
     cairnml dataset ...        versioned datasets on git and DVC
+    cairnml import prepare     package a training run folder as a ZIP for import
 
 Each subcommand is the tool it names; this module only hands it the rest of the command line.
 """
@@ -21,6 +22,7 @@ COMMANDS = {
     "task": ("cairnml.cli.task.__main__", "main", "launch any codebase on a machine running cairnml-agent"),
     "param-search": ("cairnml.cli.hpo.__main__", "main", "search for the best parameters for your models"),
     "debug": ("cairnml.cli.debug.__main__", "main", "debugging tools for the CairnML SDK"),
+    "import": ("cairnml.cli.import_run.__main__", "main", "prepare a training run folder as a ZIP for import"),
 }
 
 
