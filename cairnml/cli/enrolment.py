@@ -19,6 +19,28 @@ from cairnml.idp.device import DEVICE_KEY_PATH
 from cairnml.idp.device_login import browser_or_device_login, device_login
 from cairnml.idp.enrol import EnrolmentFailed, enrol, revoke_device, whoami
 from cairnml.utilities.pyhocon import ConfigFactory
+from cairnml.version import __version__
+
+# The server compares the client version in this header with its minimum and answers an old client with the
+# upgrade header, which says what to upgrade.
+CLIENT_HEADER = "X-CairnML-Client"
+UPGRADE_HEADER = "X-CairnML-Upgrade"
+
+
+class ClientSession:
+    """The HTTP session of the device calls: it names this SDK in every call and keeps the server's upgrade notice."""
+
+    def __init__(self, session=None):
+        self._session = session or requests.Session()
+        self.upgrade = ""  # the first upgrade notice the server sent, empty when this SDK is current
+
+    def post(self, url, json=None, headers=None, timeout=None):
+        headers = {CLIENT_HEADER: f"cairnml-{__version__}", **(headers or {})}
+        response = self._session.post(url, json=json, headers=headers, timeout=timeout)
+        notice = (getattr(response, "headers", None) or {}).get(UPGRADE_HEADER)
+        if notice and not self.upgrade:
+            self.upgrade = notice
+        return response
 
 
 def default_config_file() -> str:
@@ -77,9 +99,10 @@ def init_main(argv=None) -> int:
     conf = Path(os.path.expanduser(args.file)).absolute()
     _, previous, _ = read_enrolment(conf)
     api_server, _ = parse_known_host(urlparse(args.server))
+    client = ClientSession()
     try:
         result = enrol(api_server or args.server, name=args.name, force=args.force, previous_device_id=previous,
-                       login=choose_login(args.device))
+                       login=choose_login(args.device), http=client)
     except EnrolmentFailed as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
@@ -89,6 +112,8 @@ def init_main(argv=None) -> int:
 
     write_config(conf, result.server_url, result.web_url, result.device_id)
     print(f"enrolled as {result.user or 'unknown user'} on {result.server_url} (device {result.device_id})")
+    if client.upgrade:
+        print(f"warning: {client.upgrade}", file=sys.stderr)
     return 0
 
 
