@@ -50,8 +50,13 @@ def test_init_reports_a_refusal_and_writes_nothing(tmp_path, capsys):
 def test_init_prints_the_upgrade_notice_once_on_stderr(tmp_path, capsys):
     conf = tmp_path / "cairnml.conf"
     notice = "the SDK (cairnml) 0.0.1 is older than this server's minimum 0.0.2: upgrade cairnml."
-    result = Enrolment(device_id="dev_9", server_url=PUBLIC, web_url="", user="alice", upgrade=notice)
-    with mock.patch.object(enrolment, "enrol", return_value=result):
+    result = Enrolment(device_id="dev_9", server_url=PUBLIC, web_url="", user="alice")
+
+    def enrol_with_notice(*args, http=None, **kwargs):
+        http.upgrade = notice
+        return result
+
+    with mock.patch.object(enrolment, "enrol", side_effect=enrol_with_notice):
         assert enrolment.init_main([PUBLIC, "--file", str(conf)]) == 0
     captured = capsys.readouterr()
     assert captured.err.count("upgrade cairnml") == 1

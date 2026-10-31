@@ -13,9 +13,25 @@ from pathlib2 import Path
 
 import requests
 
-from cairnml.cli.enrolment import _config_arg, read_enrolment
+from cairnml.cli.enrolment import ClientSession, _config_arg, read_enrolment
 from cairnml.idp.device import DEVICE_KEY_PATH
-from cairnml.idp.enrol import EnrolmentFailed, list_devices, revoke_other_device
+from cairnml.idp.enrol import EnrolmentFailed, _base, _call, _token_for_device
+
+
+def list_devices(server_url: str, device_id: str, key_path=None, http=None) -> list:
+    """The devices of the user this device signs in as (all devices, for an admin), from the server."""
+    http = http or ClientSession()
+    key_path = Path(key_path or DEVICE_KEY_PATH)
+    token = _token_for_device(http, server_url, device_id, key_path)
+    return _call(http, _base(server_url) + "devices.get_all", {}, token=token)["devices"]
+
+
+def revoke_other_device(server_url: str, device_id: str, target_id: str, key_path=None, http=None) -> dict:
+    """Revoke another device of the same user, signing in with this device's key."""
+    http = http or ClientSession()
+    key_path = Path(key_path or DEVICE_KEY_PATH)
+    token = _token_for_device(http, server_url, device_id, key_path)
+    return _call(http, _base(server_url) + "devices.revoke", {"id": target_id}, token=token)
 
 
 def _state(device: dict) -> str:
