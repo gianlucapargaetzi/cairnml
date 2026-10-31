@@ -26,6 +26,7 @@ def monitor_with(session, report):
     monitor._worker_id = "agent-1"
     monitor._worker_tags = ["gpu"]
     monitor._report_daemon = True
+    monitor._run_mode = "docker"
     return monitor
 
 
@@ -53,6 +54,22 @@ def test_an_idle_agent_still_reports_its_queues_and_version():
     assert report["queues"] == ["default"]
     assert "task" not in report
     assert report["agent_version"] == __version__
+
+
+def test_a_report_says_where_the_agent_runs_jobs():
+    session = Recording()
+    monitor = monitor_with(session, ResourceMonitor.StatusReport(queues=["default"]))
+    monitor._run_mode = "venv"
+    monitor.send_report()
+    assert session.sent[0][2]["run_mode"] == "venv"
+
+
+def test_a_report_without_a_known_run_mode_sends_none():
+    session = Recording()
+    monitor = monitor_with(session, ResourceMonitor.StatusReport(queues=["default"]))
+    monitor._run_mode = None
+    monitor.send_report()
+    assert session.sent[0][2]["run_mode"] is None
 
 
 def test_an_unreadable_machine_capacity_does_not_stop_the_report(monkeypatch):
