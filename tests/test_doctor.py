@@ -10,9 +10,13 @@ SERVER = "http://cairnml"
 PUBLIC = "http://cairnml:8008"
 
 
+UPGRADE = "the SDK (cairnml) 0.0.1 is older than this server's minimum 0.0.2: upgrade cairnml"
+
+
 class FakeResponse:
-    def __init__(self, status_code, data=None, message=""):
+    def __init__(self, status_code, data=None, message="", headers=None):
         self.status_code = status_code
+        self.headers = headers or {}
         self._body = {"data": data} if status_code == 200 else {"meta": {"result_msg": message}}
 
     def json(self):
@@ -22,10 +26,13 @@ class FakeResponse:
 class FakeServer:
     """Answers the devices and users calls the doctor makes, like the CairnML API does."""
 
-    def __init__(self, reachable=True, enrolled=True, user=None):
+    def __init__(self, reachable=True, enrolled=True, user=None, queues=None, workers=None, old_client=False):
         self.reachable = reachable
         self.enrolled = enrolled
         self.user = user or {"name": "alice", "role": "admin"}
+        self.queues = [{"id": "q1", "name": "default"}] if queues is None else queues
+        self.workers = [{"id": "w1", "queues": [{"name": "default"}]}] if workers is None else workers
+        self.old_client = old_client
         self.calls = []
 
     def post(self, url, json=None, headers=None, timeout=None):
@@ -33,13 +40,19 @@ class FakeServer:
             raise requests.ConnectionError("refused")
         self.calls.append(url.rsplit("/", 1)[-1])
         if url.endswith("devices.idp_settings"):
-            return FakeResponse(200, {"public_url": PUBLIC, "issuer": "x", "sdk_client_id": "cairnml-sdk"})
+            headers = {"X-CairnML-Upgrade": UPGRADE} if self.old_client else None
+            return FakeResponse(200, {"public_url": PUBLIC, "issuer": "x", "sdk_client_id": "cairnml-sdk"},
+                                headers=headers)
         if url.endswith("devices.exchange"):
             if not self.enrolled:
                 return FakeResponse(401, message="device is revoked")
             return FakeResponse(200, {"access_token": "token"})
         if url.endswith("users.get_current_user"):
             return FakeResponse(200, {"user": self.user})
+        if url.endswith("queues.get_all"):
+            return FakeResponse(200, {"queues": self.queues})
+        if url.endswith("workers.get_all"):
+            return FakeResponse(200, {"workers": self.workers})
         return FakeResponse(404, message="unknown endpoint")
 
 
@@ -80,7 +93,7 @@ def test_a_healthy_machine_passes_every_check(tmp_path):
     conf = write_conf(tmp_path / "cairnml.conf")
     key = make_key(tmp_path / "device.key")
     checks = doctor.run_checks(conf, key_path=key, http=FakeServer())
-    assert [c.name for c in checks] == ["config", "server", "sign-in", "device key", "storage"]
+    assert [c.name for c in checks] == ["config", "server", "version", "sign-in", "device key", "queues", "storage"]
     assert all(c.ok is True for c in checks), [c.line() for c in checks]
     assert "alice (admin)" in by_name(checks)["sign-in"].message
 
@@ -148,7 +161,7 @@ def test_the_command_prints_one_line_per_check_and_exits_zero_when_all_pass(tmp_
     with _patched(doctor, key, FakeServer()):
         assert doctor.doctor_main(["--file", str(conf)]) == 0
     lines = capsys.readouterr().out.strip().splitlines()
-    assert len(lines) == 5
+    assert len(lines) == 7
     assert lines[0].startswith("ok")
     assert all(line.startswith("ok") for line in lines)
 
@@ -212,3 +225,49 @@ class _patched:
 
     def __exit__(self, *exc):
         self.module.run_checks = self._orig
+
+
+def test_an_sdk_below_the_server_minimum_gets_a_warning_with_the_upgrade_step(tmp_path):
+    conf = write_conf(tmp_path / "cairnml.conf")
+    key = make_key(tmp_path / "device.key")
+    checks = by_name(doctor.run_checks(conf, key_path=key, http=FakeServer(old_client=True)))
+    assert checks["version"].ok is True and checks["version"].warning is True
+    assert "minimum 0.0.2" in checks["version"].message
+    assert "pip install -U cairnml" in checks["version"].message
+    assert checks["version"].line().startswith("warn")
+
+
+def test_a_current_sdk_passes_the_version_check(tmp_path):
+    conf = write_conf(tmp_path / "cairnml.conf")
+    key = make_key(tmp_path / "device.key")
+    checks = by_name(doctor.run_checks(conf, key_path=key, http=FakeServer()))
+    assert checks["version"].ok is True and checks["version"].warning is False
+
+
+def test_a_queue_without_a_listening_worker_is_a_warning_with_the_remedy(tmp_path):
+    conf = write_conf(tmp_path / "cairnml.conf")
+    key = make_key(tmp_path / "device.key")
+    server = FakeServer(queues=[{"id": "q1", "name": "default"}, {"id": "q2", "name": "gpu"}],
+                        workers=[{"id": "w1", "queues": [{"name": "default"}]}])
+    checks = by_name(doctor.run_checks(conf, key_path=key, http=server))
+    assert checks["queues"].ok is True and checks["queues"].warning is True
+    assert "no worker listens to gpu" in checks["queues"].message
+    assert "cairnml-agent daemon --queue" in checks["queues"].message
+    assert checks["queues"].line().startswith("warn")
+
+
+def test_queues_with_workers_pass_and_no_worker_listening_warns_for_each(tmp_path):
+    conf = write_conf(tmp_path / "cairnml.conf")
+    key = make_key(tmp_path / "device.key")
+    served = by_name(doctor.run_checks(conf, key_path=key, http=FakeServer()))["queues"]
+    assert served.ok is True and served.warning is False
+    unserved = by_name(doctor.run_checks(conf, key_path=key, http=FakeServer(workers=[])))["queues"]
+    assert unserved.warning is True and "no worker listens to default" in unserved.message
+
+
+def test_a_warning_does_not_fail_the_command(tmp_path, capsys):
+    conf = write_conf(tmp_path / "cairnml.conf")
+    key = make_key(tmp_path / "device.key")
+    with _patched(doctor, key, FakeServer(workers=[])):
+        assert doctor.doctor_main(["--file", str(conf)]) == 0
+    assert "warn" in capsys.readouterr().out

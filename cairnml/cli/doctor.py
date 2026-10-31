@@ -6,11 +6,14 @@ The checks run in this order, each with the next step when it fails:
 
     config       the configuration file names a server
     server       the server answers at that address
+    version      this SDK is at least the server's minimum version (warning when the server sends an upgrade notice)
     sign-in      this machine's device key signs in as a user on the server
     device key   the device key exists, belongs to this user and is readable only by its owner
+    queues       every queue on the server has a worker listening to it (warning for each queue without one)
     storage      the object storage of the server accepts connections on port 9000 (artifacts, datasets)
 
-The checks change nothing. The exit status is 0 when every check passes, 1 otherwise.
+A warning is printed as "warn" and does not change the exit status. The checks change nothing. The exit status is 0
+when no check fails, 1 otherwise.
 """
 import argparse
 import os
@@ -23,10 +26,11 @@ from urllib.parse import urlparse
 
 import requests
 
-from cairnml.cli.enrolment import default_config_file, read_enrolment
+from cairnml.cli.enrolment import ClientSession, default_config_file, read_enrolment
 from cairnml.idp import enrol as idp_enrol
 from cairnml.idp.device import DEVICE_KEY_PATH
 from cairnml.idp.keys import read_private_key
+from cairnml.version import __version__
 
 
 STORAGE_PORT = 9000
@@ -41,9 +45,10 @@ class Check:
     name: str
     ok: Optional[bool]  # None when the check was skipped because an earlier check failed
     message: str
+    warning: bool = False  # a passing check that needs the person's attention
 
     def line(self) -> str:
-        status = "skip" if self.ok is None else ("ok" if self.ok else "FAIL")
+        status = "skip" if self.ok is None else ("FAIL" if not self.ok else ("warn" if self.warning else "ok"))
         return f"{status:<5}{self.name:<12}{self.message}"
 
 
@@ -122,14 +127,57 @@ def check_storage(server: Optional[str]) -> Check:
     return Check("storage", True, f"object storage accepts connections at {host}:{STORAGE_PORT}")
 
 
+def check_version(server_check: Check, client) -> Check:
+    """The server answers an SDK older than its minimum with an upgrade notice; a current SDK gets none."""
+    if server_check.ok is not True:
+        return Check("version", None, "skipped: the server did not answer")
+    notice = getattr(client, "upgrade", "")
+    if notice:
+        return Check("version", True, f"SDK {__version__} is below the server's minimum: {notice} "
+                                      "- next: pip install -U cairnml", warning=True)
+    return Check("version", True, f"SDK {__version__} is at or above the server's minimum")
+
+
+def check_queues(server: Optional[str], device: Optional[str], sign_in: Check, key_path: Path, http=None) -> Check:
+    """Every queue of the server should have a worker listening to it; a queue without one is a warning."""
+    if not server:
+        return Check("queues", None, "skipped: the configuration names no server")
+    if sign_in.ok is not True or not device:
+        return Check("queues", None, "skipped: sign-in did not pass")
+    session = http or requests.Session()
+    try:
+        token = idp_enrol._token_for_device(session, server, device, key_path)
+        base = idp_enrol._base(server)
+        queues = idp_enrol._call(session, base + "queues.get_all", {}, token=token).get("queues") or []
+        workers = idp_enrol._call(session, base + "workers.get_all", {}, token=token).get("workers") or []
+    except idp_enrol.EnrolmentFailed as exc:
+        return _fail("queues", f"the server refused the queue list ({exc})",
+                     "check that this user may see the queues in the web app")
+    except requests.RequestException as exc:
+        return _fail("queues", f"cannot reach {server} ({exc.__class__.__name__})", "fix the server check first")
+    names = [q.get("name", "") for q in queues]
+    listening = {q.get("name", "") for worker in workers for q in (worker.get("queues") or [])}
+    if not names:
+        return Check("queues", True, "the server has no queue yet", warning=True)
+    unserved = [name for name in names if name not in listening]
+    if unserved:
+        return Check("queues", True, f"no worker listens to {', '.join(unserved)} - next: run "
+                                     f"cairnml-agent daemon --queue <name> on a machine with Docker",
+                     warning=True)
+    return Check("queues", True, f"{len(names)} queue(s), each with a listening worker")
+
+
 def run_checks(conf: Path, key_path: Path = DEVICE_KEY_PATH, http=None) -> List[Check]:
     """Run every check and return them in the order they are printed."""
     server, device, _ = read_enrolment(conf)
+    client = ClientSession(http)  # keeps the server's upgrade notice for the version check
     config = check_config(conf)
-    server_check = check_server(server, http=http)
+    server_check = check_server(server, http=client)
+    version = check_version(server_check, client)
     key = check_device_key(Path(key_path))
-    sign_in = check_sign_in(server, device, key, Path(key_path), http=http)
-    return [config, server_check, sign_in, key, check_storage(server)]
+    sign_in = check_sign_in(server, device, key, Path(key_path), http=client)
+    queues = check_queues(server, device, sign_in, Path(key_path), http=client)
+    return [config, server_check, version, sign_in, key, queues, check_storage(server)]
 
 
 def doctor_main(argv=None) -> int:
