@@ -1,3 +1,4 @@
+import pytest
 import requests
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
@@ -53,6 +54,24 @@ def make_key(path):
     return path
 
 
+@pytest.fixture(autouse=True)
+def storage_open(monkeypatch):
+    """The object storage answers on port 9000 unless a test says otherwise."""
+    opened = []
+
+    def open_port(host, port):
+        opened.append((host, port))
+        return _Connection()
+
+    monkeypatch.setattr(doctor, "_open_port", open_port)
+    return opened
+
+
+class _Connection:
+    def close(self):
+        pass
+
+
 def by_name(checks):
     return {c.name: c for c in checks}
 
@@ -61,7 +80,7 @@ def test_a_healthy_machine_passes_every_check(tmp_path):
     conf = write_conf(tmp_path / "cairnml.conf")
     key = make_key(tmp_path / "device.key")
     checks = doctor.run_checks(conf, key_path=key, http=FakeServer())
-    assert [c.name for c in checks] == ["config", "server", "sign-in", "device key"]
+    assert [c.name for c in checks] == ["config", "server", "sign-in", "device key", "storage"]
     assert all(c.ok is True for c in checks), [c.line() for c in checks]
     assert "alice (admin)" in by_name(checks)["sign-in"].message
 
@@ -129,9 +148,32 @@ def test_the_command_prints_one_line_per_check_and_exits_zero_when_all_pass(tmp_
     with _patched(doctor, key, FakeServer()):
         assert doctor.doctor_main(["--file", str(conf)]) == 0
     lines = capsys.readouterr().out.strip().splitlines()
-    assert len(lines) == 4
+    assert len(lines) == 5
     assert lines[0].startswith("ok")
     assert all(line.startswith("ok") for line in lines)
+
+
+def test_the_storage_check_fails_with_the_port_and_the_next_step(tmp_path, monkeypatch):
+    conf = write_conf(tmp_path / "cairnml.conf", server="http://cairnml:8008")
+    key = make_key(tmp_path / "device.key")
+
+    def blocked(host, port):
+        raise ConnectionRefusedError("refused")
+
+    monkeypatch.setattr(doctor, "_open_port", blocked)
+    checks = by_name(doctor.run_checks(conf, key_path=key, http=FakeServer()))
+    assert checks["server"].ok is True  # the API answers; only the storage port is blocked
+    assert checks["storage"].ok is False
+    assert "cairnml:9000" in checks["storage"].message
+    assert "port 9000" in checks["storage"].message
+    assert "firewall" in checks["storage"].message
+
+
+def test_the_storage_check_uses_the_host_of_the_server_and_port_9000(tmp_path, storage_open):
+    conf = write_conf(tmp_path / "cairnml.conf", server="http://cairnml:8008")
+    key = make_key(tmp_path / "device.key")
+    doctor.run_checks(conf, key_path=key, http=FakeServer())
+    assert storage_open == [("cairnml", 9000)]
 
 
 def test_the_command_exits_one_and_names_the_failures(tmp_path, capsys):
