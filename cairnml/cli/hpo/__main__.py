@@ -43,8 +43,8 @@ def setup_parser(parser: ArgumentParser) -> None:
         "--task-name",
         type=str,
         default=None,
-        help="The name of Task (experiment). "
-        "If task_name is None, the Python experiment script's file name is used.",
+        help="The name of the task. "
+        "If task_name is None, the Python script's file name is used.",
     )
     group.add_argument(
         "--task-id",
@@ -186,7 +186,7 @@ def setup_parser(parser: ArgumentParser) -> None:
         "--max-number-of-concurrent-tasks",
         type=int,
         default=None,
-        help="The maximum number of concurrent Tasks (experiments) running at the same time.",
+        help="The maximum number of tasks running at the same time.",
     )
     parser.add_argument(
         "--args",
@@ -200,7 +200,7 @@ def setup_parser(parser: ArgumentParser) -> None:
         "--local",
         action="store_true",
         default=False,
-        help="If set, run the experiments locally, Notice no new python environment will be created, "
+        help="If set, run the tasks locally, Notice no new python environment will be created, "
         "--script must point to a local file entrypoint and all arguments must be passed with --args",
     )
 
@@ -344,7 +344,7 @@ def cli() -> None:
     top_experiments_cnt = 10
     if args.save_top_k_tasks_only != -1 and top_experiments_cnt > args.save_top_k_tasks_only:
         top_experiments_cnt = args.save_top_k_tasks_only
-    print(f"Top {top_experiments_cnt} experiments are: ")
+    print(f"Top {top_experiments_cnt} tasks are: ")
     top_exp = optimizer.get_top_experiments(top_k=top_experiments_cnt)
     print([t.id for t in top_exp])
     optimizer.stop()
