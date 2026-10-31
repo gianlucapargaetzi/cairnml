@@ -8,15 +8,18 @@ The checks run in this order, each with the next step when it fails:
     server       the server answers at that address
     sign-in      this machine's device key signs in as a user on the server
     device key   the device key exists, belongs to this user and is readable only by its owner
+    storage      the object storage of the server accepts connections on port 9000 (artifacts, datasets)
 
 The checks change nothing. The exit status is 0 when every check passes, 1 otherwise.
 """
 import argparse
 import os
+import socket
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional
+from urllib.parse import urlparse
 
 import requests
 
@@ -24,6 +27,13 @@ from cairnml.cli.enrolment import default_config_file, read_enrolment
 from cairnml.idp import enrol as idp_enrol
 from cairnml.idp.device import DEVICE_KEY_PATH
 from cairnml.idp.keys import read_private_key
+
+
+STORAGE_PORT = 9000
+
+
+def _open_port(host: str, port: int):
+    return socket.create_connection((host, port), timeout=5)
 
 
 @dataclass
@@ -97,6 +107,21 @@ def check_sign_in(server: Optional[str], device: Optional[str], key_check: Check
                                   f"with device {device}")
 
 
+def check_storage(server: Optional[str]) -> Check:
+    """Open a connection to the object storage, which the server runs on the host of its address, port 9000."""
+    if not server:
+        return Check("storage", None, "skipped: the configuration names no server")
+    host = urlparse(server).hostname
+    if not host:
+        return Check("storage", None, "skipped: the server address names no host")
+    try:
+        _open_port(host, STORAGE_PORT).close()
+    except OSError as exc:
+        return _fail("storage", f"cannot open {host}:{STORAGE_PORT} to the object storage ({exc.__class__.__name__})",
+                     f"open port {STORAGE_PORT} on {host} in the firewall, then run the check again")
+    return Check("storage", True, f"object storage accepts connections at {host}:{STORAGE_PORT}")
+
+
 def run_checks(conf: Path, key_path: Path = DEVICE_KEY_PATH, http=None) -> List[Check]:
     """Run every check and return them in the order they are printed."""
     server, device, _ = read_enrolment(conf)
@@ -104,13 +129,13 @@ def run_checks(conf: Path, key_path: Path = DEVICE_KEY_PATH, http=None) -> List[
     server_check = check_server(server, http=http)
     key = check_device_key(Path(key_path))
     sign_in = check_sign_in(server, device, key, Path(key_path), http=http)
-    return [config, server_check, sign_in, key]
+    return [config, server_check, sign_in, key, check_storage(server)]
 
 
 def doctor_main(argv=None) -> int:
     parser = argparse.ArgumentParser(prog="cairnml doctor",
                                      description="Check this machine's setup: configuration, server, sign-in, "
-                                                 "device key.")
+                                                 "device key, object storage.")
     parser.add_argument("--file", "-F", default=default_config_file(),
                         help="configuration file (default: %(default)s)")
     args = parser.parse_args(argv)
