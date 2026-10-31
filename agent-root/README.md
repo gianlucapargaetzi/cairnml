@@ -52,6 +52,14 @@ The argument is the server's address. The web app is at `<address>/cairnml` and 
 
 The agent enrols as its own device, with its own key (`~/.cairnml/agent/device.key`), apart from the SDK's `cairnml init`. `--name` names the machine, `--force` enrols it again (the previous device is revoked) and `-F <file>` uses another configuration file.
 
+## Check the machine
+
+```bash
+cairnml-agent doctor
+```
+
+It prints one line per check and the next step for each failure: the configuration names a server, the server answers, Docker is installed, the Docker daemon runs for this user, and the server has a GitHub App. A missing GitHub App is a warning: jobs from github.com repositories are refused until it is set up. Warnings do not change the exit status (0 when no check fails, 1 otherwise). The checks change nothing. `-F <file>` checks another configuration file.
+
 ## Start the agent
 
 ```bash
