@@ -120,8 +120,8 @@ print(queues.workers_for_queue("default"))  # [] when no agent listens to it
 
 Open `http://<server-ip>/cairnml/` and sign in. The menu has these sections:
 
-- **Dashboard:** projects and recent experiments
-- **Projects:** the tasks, experiments and models of each project
+- **Dashboard:** projects and recent tasks
+- **Projects:** the tasks and models of each project
 - **Datasets:** dataset versions
 - **Pipelines** and **Reports**
 - **Workers & Queues:** the machines running agents, and the jobs waiting for them
