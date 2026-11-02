@@ -15,7 +15,7 @@ from .adapter import SampleWriter
 from .cache import DatasetCache
 from .errors import DatasetError
 from .external import _default_repo, load_adapter, load_local_adapter, registry_tree
-from .schema import MANIFEST_FILE, SAMPLES_FILE, SchemaError, read_manifest, validate_rows
+from .schema import MANIFEST_FILE, SAMPLES_FILE, SchemaError, from_arrow_value, label_column, read_manifest, validate_rows
 
 
 def run_check(data_dir: Path, config: Mapping[str, str], cache: Optional[DatasetCache] = None) -> Dict[str, Any]:
@@ -41,6 +41,10 @@ def _validate_table(table_dir: Path, source_root: Path, who: str) -> Dict[str, A
     if not rows:
         raise DatasetError(f"{who}: the sample table is empty")
     try:
+        for row in rows:  # back to the form the adapter writes: a tabular label is a dict, not a list of cells
+            for name, kind in manifest["labels"].items():
+                if label_column(name) in row:
+                    row[label_column(name)] = from_arrow_value(kind, row[label_column(name)])
         validate_rows(rows, manifest["modalities"], manifest["labels"], root=source_root)
     except SchemaError as exc:
         raise DatasetError(f"{who}: {exc}") from None

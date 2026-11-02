@@ -237,8 +237,26 @@ class CocoDetection(Adapter):
 Every adapter produces the same shape: one row per sample, with an id, a split, the files of each modality and the labels.
 
 - Modalities are named files, for example `image` and `depth`. Types: `image`, `depth`, `audio`, `video`, `text`, `table`, `file`.
-- Labels are named and typed. Types: `class`, `bbox2d`, `mask2d`, `json`.
+- Labels are named and typed. Types: `class`, `bbox2d`, `mask2d`, `json`, `number`, `tabular`.
 - Boxes are always `[x1, y1, x2, y2]` in pixels, with `x2 > x1` and `y2 > y1`.
+- `number` is one finite number. `tabular` is a dict of named columns: each value is a finite number or a string, the
+  same column names in every sample, and at least one column. A value that is missing is written as `None`.
+
+A table of features and a target, as in a CSV file, needs no JSON text:
+
+```python
+class Greenhouse(Adapter):
+    modalities = {"table": "table"}
+    labels = {"features": "tabular", "energy": "number"}
+
+    def run(self, source, writer):
+        for row in read_rows(source / "greenhouse.csv"):
+            features = {"temp": row["temp"], "humidity": row["humidity"], "plant": row["plant"]}
+            writer.add(row["id"], row["split"], {"table": row["file"]}, {"features": features, "energy": row["energy"]})
+```
+
+A tabular label is stored in `samples.parquet` as a list of cells, one per column, each with `column`, `number` and `text`
+(one of the last two is set). Numbers come back as floats. `sample.label("features")` returns the dict again.
 
 ## The cache
 

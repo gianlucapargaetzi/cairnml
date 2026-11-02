@@ -6,7 +6,7 @@ import subprocess
 
 import pytest
 
-from cairnml.datasets import Dataset, DatasetCache, DatasetError
+from cairnml.datasets import Dataset, DatasetCache, DatasetError, SampleWriter
 from cairnml.datasets.schema import SchemaError, validate_rows
 from cairnml.datasets.sources import HuggingFace, LocalFolder
 
@@ -187,6 +187,50 @@ class TestSchema:
         bad = [{"box": [10, 10, 5, 5], "label": "car"}]
         with pytest.raises(SchemaError, match="x2 > x1"):
             validate_rows(self.rows(**{"label.bbox2d": bad}), *self.SPEC)
+
+
+class TestTabularLabels:
+    SPEC = ({"table": "table"}, {"features": "tabular", "energy": "number"})
+
+    def rows(self, **overrides):
+        row = {
+            "sample_id": "a", "split": "train", "modality.table": "a.csv",
+            "label.features": {"temp": 21.5, "plant": "tomato"}, "label.energy": 12.3,
+        }
+        row.update(overrides)
+        return [row]
+
+    def test_a_valid_tabular_sample_passes(self):
+        validate_rows(self.rows(), *self.SPEC)
+
+    @pytest.mark.parametrize("bad", [[], "temp=1", {}, {"": 1.0}, {"temp": True}, {"temp": float("nan")}, {"temp": [1]}])
+    def test_a_tabular_value_must_be_named_numbers_or_text(self, bad):
+        with pytest.raises(SchemaError, match="features"):
+            validate_rows(self.rows(**{"label.features": bad}), *self.SPEC)
+
+    def test_every_sample_has_the_same_columns(self):
+        second = {"sample_id": "b", "split": "val", "modality.table": "b.csv", "label.features": {"temp": 1.0}}
+        with pytest.raises(SchemaError, match="first sample has"):
+            validate_rows(self.rows() + [second], *self.SPEC)
+
+    def test_a_number_label_must_be_finite(self):
+        with pytest.raises(SchemaError, match="finite number"):
+            validate_rows(self.rows(**{"label.energy": float("inf")}), *self.SPEC)
+        with pytest.raises(SchemaError, match="finite number"):
+            validate_rows(self.rows(**{"label.energy": "12.3"}), *self.SPEC)
+
+    def test_tabular_and_number_labels_round_trip_through_the_table(self, tmp_path):
+        from cairnml.datasets.external import ExternalDataset
+
+        (tmp_path / "a.csv").write_text("x\n1\n")
+        writer = SampleWriter(tmp_path, *self.SPEC, source_root=tmp_path)
+        writer.add("a", "train", {"table": "a.csv"}, {"features": {"temp": 21, "plant": "tomato"}, "energy": 12.3})
+        writer.add("b", "val", {"table": "a.csv"}, {"features": {"temp": 2.5, "plant": "basil"}, "energy": 0.0})
+        writer.close({"dataset": "greenhouse"})
+        data = ExternalDataset({"name": "greenhouse"}, tmp_path, tmp_path)
+        first, second = list(data.samples())
+        assert first.label("features") == {"temp": 21.0, "plant": "tomato"}
+        assert second.label("energy") == 0.0 and second.label("features")["plant"] == "basil"
 
 
 class TestSources:

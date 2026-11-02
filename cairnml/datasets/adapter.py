@@ -28,6 +28,7 @@ from .schema import (
     check_spec,
     label_column,
     modality_column,
+    to_arrow_value,
     validate_rows,
     write_manifest,
 )
@@ -69,7 +70,11 @@ class SampleWriter:
         columns = [("sample_id", pa.string()), ("split", pa.string())]
         columns += [(modality_column(n), pa.string()) for n in self.modalities]
         columns += [(label_column(n), arrow_type(k)) for n, k in self.labels.items()]
-        table = pa.Table.from_pylist(self._rows, schema=pa.schema(columns))
+        rows = [
+            {**row, **{label_column(n): to_arrow_value(k, row[label_column(n)]) for n, k in self.labels.items()}}
+            for row in self._rows
+        ]
+        table = pa.Table.from_pylist(rows, schema=pa.schema(columns))
         pq.write_table(table, self.out / SAMPLES_FILE)
         write_manifest(self.out, self.modalities, self.labels, extra or {})
         return len(self._rows)

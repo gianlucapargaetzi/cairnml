@@ -487,6 +487,26 @@ def test_a_broken_local_adapter_error_names_it(work, storage, cache, source, mes
         repo.check()
 
 
+def test_a_local_adapter_writes_tabular_labels_without_json_text(work, storage, cache):
+    adapter = (
+        "from cairnml.datasets import Adapter\n"
+        "import csv\n"
+        "class Greenhouse(Adapter):\n"
+        "    modalities = {'table': 'table'}\n"
+        "    labels = {'features': 'tabular', 'energy': 'number'}\n"
+        "    def run(self, source, writer):\n"
+        "        for row in csv.DictReader(open(source / 'cars.csv', newline='')):\n"
+        "            features = {'temp': float(row['id']), 'plant': row['class']}\n"
+        "            writer.add(row['id'], row['split'], {'table': row['file']}, {'features': features, 'energy': 12.5})\n"
+    )
+    repo = local_dataset(work, storage, cache, adapter_source=adapter)
+    repo.add()
+    lock = repo.check()
+    assert lock["labels"] == {"features": "tabular", "energy": "number"}
+    manifest = json.loads((repo.path / "manifest.json").read_text())
+    assert manifest["labels"] == {"features": "tabular", "energy": "number"}
+
+
 def test_a_local_adapter_that_is_missing_is_named(work, storage, cache):
     repo = local_dataset(work, storage, cache)
     (work / "adapter.py").unlink()

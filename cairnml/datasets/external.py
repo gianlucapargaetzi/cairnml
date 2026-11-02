@@ -18,7 +18,7 @@ from ._shared import git_token, mirror, record, resolve_commit
 from .adapter import Adapter, SampleWriter
 from .cache import DatasetCache
 from .errors import DatasetError
-from .schema import SAMPLES_FILE, SchemaError, label_column, modality_column, read_manifest
+from .schema import SAMPLES_FILE, SchemaError, from_arrow_value, label_column, modality_column, read_manifest
 from .sources import parse_fetch, source_for
 
 
@@ -113,9 +113,10 @@ def _instantiate(path: Path, module_name: str, label: str, where: str) -> Adapte
 
 
 class Sample:
-    def __init__(self, row: Dict[str, Any], root: Path) -> None:
+    def __init__(self, row: Dict[str, Any], root: Path, labels: Optional[Dict[str, str]] = None) -> None:
         self._row = row
         self._root = root
+        self._labels = labels or {}
 
     @property
     def id(self) -> str:
@@ -131,7 +132,8 @@ class Sample:
         return value if "://" in value else self._root / value
 
     def label(self, name: str):
-        return self._row[label_column(name)]
+        """The label: a dict of columns for a tabular label, a number for number, else as the adapter wrote it."""
+        return from_arrow_value(self._labels.get(name, ""), self._row[label_column(name)])
 
 
 class ExternalDataset:
@@ -166,7 +168,7 @@ class ExternalDataset:
     def samples(self, split: Optional[str] = None) -> Iterator[Sample]:
         for row in self.table.to_pylist():
             if split is None or row["split"] == split:
-                yield Sample(row, self.root)
+                yield Sample(row, self.root, self.labels)
 
 
 def _default_repo() -> str:
