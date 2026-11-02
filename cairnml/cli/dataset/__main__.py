@@ -22,7 +22,12 @@ def do_init(args: argparse.Namespace) -> None:
     url = DatasetRepo(args.path).init(
         remote_url=args.remote, adapter=args.adapter, registry=args.registry, storage=args.storage
     )
-    how = f"through the adapter {args.adapter!r}" if args.adapter else "as they are (native format)"
+    if args.adapter == "local":
+        how = "through adapter.py in this repository"
+    elif args.adapter:
+        how = f"through the adapter {args.adapter!r}"
+    else:
+        how = "as they are (native format)"
     print(f"Dataset repository set up. Files are stored in {url}; data/ is read {how} (see dataset.yaml).")
     print("Copy your files into data/, then run: cairnml dataset status")
 
@@ -77,7 +82,7 @@ def do_add(args: argparse.Namespace) -> None:
 def do_check(args: argparse.Namespace) -> None:
     lock = DatasetRepo(args.path).check()
     fmt = lock["format"]
-    how = "native" if fmt["kind"] == "native" else f"adapter {fmt['name']}"
+    how = {"native": "native", "local": "local adapter adapter.py"}.get(fmt["kind"], f"adapter {fmt['name']}")
     print(f"The data passes ({how}): {lock['samples']} samples, {lock['dvc']['nfiles']} files. "
           f"dataset.lock.json is written and staged.")
 
@@ -148,8 +153,10 @@ def cli(argv: Optional[List[str]] = None) -> int:
 
     init = command("init", do_init, "set up git tracking and file storage in a cloned repository")
     init.add_argument("--remote", help="store the files here instead of in the server's dataset bucket")
-    init.add_argument("--adapter", help="read data/ through this adapter of the registry (default: data/ is native)")
-    init.add_argument("--registry", help="URL of the adapter registry (default: sdk.datasets.external_repo)")
+    init.add_argument("--adapter", help="read data/ through this adapter of the registry, or 'local' for adapter.py at the "
+                                        "top of this repository (default: data/ is native)")
+    init.add_argument("--registry", help="URL of the adapter registry (default: sdk.datasets.external_repo); not used "
+                                         "with --adapter local")
     init.add_argument("--storage", choices=["s3", "lfs"], default="s3",
                       help="s3: files in the server's dataset bucket through DVC; lfs: files in the GitHub LFS of "
                            "the repository (no DVC, no storage keys). Chosen once; the default is s3")
@@ -174,8 +181,11 @@ def cli(argv: Optional[List[str]] = None) -> int:
     create.add_argument("--path", help="local folder for the repository (default: the name, in this folder)")
     create.add_argument("--public", action="store_true", help="make the repository public (default: private)")
     create.add_argument("--storage", choices=["s3", "lfs"], default="s3", help="where the files are stored (see init)")
-    create.add_argument("--adapter", help="read data/ through this adapter of the registry (default: data/ is native)")
-    create.add_argument("--registry", help="URL of the adapter registry (default: sdk.datasets.external_repo)")
+    create.add_argument("--adapter", help="read data/ through this adapter of the registry, or 'local' for the file "
+                                          "adapter.py in --from, which goes to the top of the repository, not data/ "
+                                          "(default: data/ is native)")
+    create.add_argument("--registry", help="URL of the adapter registry (default: sdk.datasets.external_repo); not used "
+                                           "with --adapter local")
     create.add_argument("--no-protect", action="store_true",
                         help="do not protect the default branch (needs administration rights on the repository)")
     cache = sub.add_parser("cache", help="show or trim the local dataset cache")

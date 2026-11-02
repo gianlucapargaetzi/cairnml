@@ -108,3 +108,83 @@ def test_the_script_runs_alone_and_exits_non_zero_on_problems(tmp_path):
 def test_the_checksum_of_a_fixed_lock_is_the_same_in_the_sdk_and_on_the_server():
     """The server holds a copy of this module to verify a dataset before it is registered. Both suites pin this value."""
     assert lock_for()["footprint"] == "275fe1c61757148538b8b2c964aac9c60daca857b04b8fce4e0dbf037118d2f4"
+
+
+# The local adapter: the lock records the sha256 of adapter.py
+
+
+ADAPTER = b"from cairnml.datasets import Adapter\nclass A(Adapter):\n    modalities = {}\n    labels = {}\n"
+
+
+def local_lock(adapter: bytes = ADAPTER, samples: int = 3):
+    fmt = {"kind": "local", "name": "local", "adapter_sha256": fp.sha256_bytes(adapter)}
+    return fp.build_lock(fp.parse_dvc_file(DVC), fmt, samples, {"image": "image"}, {"class": "class"}, "2.1.13")
+
+
+def local_files(lock, adapter=ADAPTER):
+    found = files(lock, config="adapter: local\n")
+    found[fp.ADAPTER_FILE] = adapter
+    return found
+
+
+def test_a_local_lock_passes_with_its_adapter():
+    assert fp.verify_files(local_files(local_lock()), {"adapter.py": len(ADAPTER)}) == []
+
+
+def test_an_adapter_changed_after_the_check_is_found():
+    problems = fp.verify_files(local_files(local_lock(), adapter=ADAPTER + b"# edited\n"), {})
+    assert len(problems) == 1 and "checked with another adapter.py" in problems[0] and "commit" in problems[0]
+
+
+def test_a_missing_local_adapter_is_found():
+    found = files(local_lock(), config="adapter: local\n")
+    found[fp.ADAPTER_FILE] = None
+    assert any("adapter.py is missing" in p for p in fp.verify_files(found, {}))
+
+
+def test_a_local_lock_without_the_hash_is_refused():
+    lock = local_lock()
+    del lock["format"]["adapter_sha256"]
+    lock["footprint"] = fp.checksum(lock)
+    assert any("which adapter.py was checked" in p for p in fp.verify_files(local_files(lock), {}))
+
+
+def test_the_hash_is_compared_strictly():
+    lock = local_lock()
+    lock["format"]["adapter_sha256"] = lock["format"]["adapter_sha256"].upper()
+    lock["footprint"] = fp.checksum(lock)
+    assert any("which adapter.py was checked" in p for p in fp.verify_files(local_files(lock), {}))
+
+
+def test_a_reader_that_does_not_read_the_adapter_checks_the_shape_only():
+    """The server reads the three footprint files; it does not hold adapter.py, so the hash is not compared there."""
+    assert fp.verify_files(files(local_lock(adapter=b"changed"), config="adapter: local\n"), {}) == []
+
+
+def test_a_registry_adapter_lock_without_an_adapter_hash_still_passes():
+    lock = lock_for(config="adapter: coco\n")
+    assert "adapter_sha256" not in lock["format"]
+    assert fp.verify_files(files(lock, config="adapter: coco\n"), {}) == []
+
+
+def test_an_adapter_py_in_a_registry_dataset_is_found():
+    problems = fp.verify_files(
+        dict(files(), **{fp.ADAPTER_FILE: ADAPTER}), {"adapter.py": len(ADAPTER)}
+    )
+    assert any("adapter.py is tracked by git" in p for p in problems)
+
+
+def test_adapter_local_takes_no_registry():
+    with pytest.raises(ValueError, match="remove the registry line"):
+        fp.config_format(fp.parse_config("adapter: local\nregistry: https://example.org/r.git\n"))
+    assert fp.config_format(fp.parse_config("adapter: local\n")) == {"kind": "local", "name": "local"}
+
+
+def test_verify_reads_adapter_py_from_the_folder(tmp_path):
+    (tmp_path / "data.dvc").write_text(DVC)
+    (tmp_path / "dataset.yaml").write_text("storage: s3\nadapter: local\n")
+    (tmp_path / "adapter.py").write_bytes(ADAPTER)
+    (tmp_path / "dataset.lock.json").write_text(json.dumps(local_lock()))
+    assert fp.verify(str(tmp_path)) == []
+    (tmp_path / "adapter.py").write_bytes(ADAPTER + b"# edited\n")
+    assert any("another adapter.py" in p for p in fp.verify(str(tmp_path)))

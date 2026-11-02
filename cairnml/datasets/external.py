@@ -9,6 +9,7 @@ the revision that was used is always recorded.
 import importlib.util
 import json
 import shutil
+import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional, Tuple
@@ -77,18 +78,37 @@ def load_adapter(tree: Path, adapter_name: str) -> Adapter:
     path = tree / "adapters" / f"{adapter_name}.py"
     if not path.exists():
         raise DatasetError(f"adapter {adapter_name!r} is not in the external-datasets repository (adapters/{path.name})")
-    spec = importlib.util.spec_from_file_location(f"cairnml_adapter_{adapter_name}", path)
+    return _instantiate(path, f"cairnml_adapter_{adapter_name}", f"adapter {adapter_name!r}", f"adapters/{path.name}")
+
+
+def load_local_adapter(path: Path) -> Adapter:
+    """The adapter of a dataset that says ``adapter: local``: the class in ``adapter.py`` at the top of its repository.
+
+    The file is loaded under a unique module name that is not put in ``sys.modules``, and the repository is not put on
+    ``sys.path``, so nothing leaks from one dataset to the next. Loading runs the file's code: only call this for a
+    repository the user trusts (see the footprint module for who does).
+    """
+    if not path.is_file():
+        raise DatasetError(
+            f"local adapter '{path.name}' is missing: dataset.yaml says adapter: local, so put {path.name} at the top of "
+            f"the dataset repository"
+        )
+    return _instantiate(path, f"cairnml_local_adapter_{uuid.uuid4().hex}", f"local adapter '{path.name}'", path.name)
+
+
+def _instantiate(path: Path, module_name: str, label: str, where: str) -> Adapter:
+    spec = importlib.util.spec_from_file_location(module_name, path)
     module = importlib.util.module_from_spec(spec)
     try:
         spec.loader.exec_module(module)
     except Exception as exc:
-        raise DatasetError(f"adapter {adapter_name!r} cannot be loaded: {exc}") from exc
+        raise DatasetError(f"{label} cannot be loaded: {exc}") from exc
     found = [
         obj for obj in vars(module).values()
         if isinstance(obj, type) and issubclass(obj, Adapter) and obj is not Adapter and obj.__module__ == module.__name__
     ]
     if len(found) != 1:
-        raise DatasetError(f"adapters/{path.name} must define exactly one Adapter class, found {len(found)}")
+        raise DatasetError(f"{where} must define exactly one Adapter class, found {len(found)}")
     return found[0]()
 
 
@@ -252,6 +272,14 @@ def _get_own_dataset(cache, tree, sha, repo, pin, revision, alias) -> ExternalDa
         )
     lock = json.loads((checkout / footprint.LOCK_FILE).read_text())
     fmt = lock["format"]
+    if fmt["kind"] == "local":
+        # Its adapter.py is code of the dataset's own repository. Reading an entry must not run it: the registry and
+        # the machine that reads the dataset would execute code they did not review. Use Dataset.get and the files.
+        raise DatasetError(
+            f"{pin.link}@{resolved[:10]} is read by its own {footprint.ADAPTER_FILE} (adapter: {footprint.LOCAL_ADAPTER}), "
+            f"which a registry entry does not run. Read the files with Dataset.get, or run the adapter with "
+            f"cairnml dataset check in a clone of the repository"
+        )
     adapter_name = fmt.get("name") if fmt["kind"] == "adapter" else None
     if adapter_name is None:
         output = dataset.path  # native: the standard sample table is in data/ itself

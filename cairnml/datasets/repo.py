@@ -145,10 +145,16 @@ class DatasetRepo:
         ``storage`` is ``s3`` (DVC, in the server's dataset bucket, or in ``remote_url``) or ``lfs`` (the GitHub LFS of
         this repository; ``remote_url`` does not apply). The choice is recorded in ``dataset.yaml`` and cannot be
         changed afterwards. ``adapter`` names the adapter that reads the data into the standard format; without one the
-        data in ``data/`` must be in that format already (native). Returns where the files are stored.
+        data in ``data/`` must be in that format already (native). ``adapter="local"`` takes ``adapter.py`` at the top of
+        the repository, which needs no ``registry``. Returns where the files are stored.
         """
         if storage not in footprint.STORAGES:
             raise DatasetError(f"storage must be s3 or lfs, not {storage!r}")
+        if adapter == footprint.LOCAL_ADAPTER and registry:
+            raise DatasetError(
+                f"adapter {footprint.LOCAL_ADAPTER} reads {footprint.ADAPTER_FILE} in this repository, so a registry does "
+                f"not apply to it: leave out --registry"
+            )
         if not self.git.is_repo():
             raise DatasetError(
                 f"{self.path} is not a git repository: create the repository on GitHub, clone it, and run init in it"
@@ -329,6 +335,8 @@ class DatasetRepo:
         added = [footprint.LOCK_FILE, footprint.MANIFEST_FILE, footprint.CONFIG_FILE, ".cairnml", ".github"]
         if storage == "lfs":
             added.append(footprint.ATTRIBUTES_FILE)
+        if result["format"]["kind"] == "local":
+            added.append(footprint.ADAPTER_FILE)  # the lock records its hash: the commit must hold this exact file
         self.git.add(added)
         return lock
 
@@ -352,9 +360,13 @@ class DatasetRepo:
             except ValueError as exc:
                 return [str(exc)]
         problems = footprint.verify_files(files, self.git.tracked_sizes(), lfs)
-        dirty = self.git.run("status", "--porcelain", "--", DVC_FILE, footprint.CONFIG_FILE, footprint.LOCK_FILE)
+        dirty = self.git.run(
+            "status", "--porcelain", "--", DVC_FILE, footprint.CONFIG_FILE, footprint.LOCK_FILE, footprint.ADAPTER_FILE
+        )
         if dirty:
-            problems.append("data.dvc, dataset.yaml or dataset.lock.json has uncommitted changes; run 'cairnml dataset commit'")
+            problems.append(
+                "data.dvc, dataset.yaml, dataset.lock.json or adapter.py has uncommitted changes; run 'cairnml dataset commit'"
+            )
         changes = self._changes()
         if lfs is not None and (changes["untracked"] or any(changes["uncommitted"].values())):
             problems.append("data/ has changes that are not committed; run 'cairnml dataset commit'")
@@ -602,6 +614,12 @@ class DatasetRepo:
             raise DatasetError(f"{source} is not a folder: give the folder that holds the dataset files")
         if target.exists() and any(target.iterdir()):
             raise DatasetError(f"{target} exists and is not empty: choose another --path")
+        local = adapter == footprint.LOCAL_ADAPTER
+        if local and not (source_dir / footprint.ADAPTER_FILE).is_file():
+            raise DatasetError(
+                f"{source} has no {footprint.ADAPTER_FILE}: with adapter: {footprint.LOCAL_ADAPTER} the adapter is that file, "
+                f"which goes to the top of the repository and not into data/"
+            )
         url = create_remote(name, private)
         target.mkdir(parents=True, exist_ok=True)
         git = Git.init(target)
@@ -609,7 +627,14 @@ class DatasetRepo:
         git.run("remote", "add", "origin", url)
         repo = DatasetRepo(target)
         where = repo.init(adapter=adapter, registry=registry, storage=storage)
-        shutil.copytree(source_dir, target / DATA_DIR, dirs_exist_ok=True)
+
+        def skip_top_adapter(folder, names):
+            # the adapter is taken out of the top folder only: a file of the same name below it is data
+            return [footprint.ADAPTER_FILE] if Path(folder) == source_dir else []
+
+        if local:
+            shutil.copyfile(source_dir / footprint.ADAPTER_FILE, target / footprint.ADAPTER_FILE)
+        shutil.copytree(source_dir, target / DATA_DIR, dirs_exist_ok=True, ignore=skip_top_adapter if local else None)
         repo.add()
         commit = repo.commit("Add dataset")
         pushed = repo.push()
