@@ -53,3 +53,18 @@ def fetch_git_token(repository: str, task_id: str, session=None) -> Optional[str
     if not response.ok:
         raise DatasetError(f"the server refused a token for {repository}: {response.text.strip()}")
     return (response.json().get("data") or {}).get("token")
+
+
+def fetch_dataset_list(session=None) -> dict:
+    """The server's list of the dataset repositories the GitHub App can read (datasets.list): ``datasets`` and
+    ``refreshed_at``. The server answers from a cached snapshot, so this does not reach GitHub. Raises DatasetError when
+    the server cannot be asked, for instance when there is no CairnML login."""
+    try:
+        response = _session(session).send_request(service="datasets", action="list", json={})
+        if not response.ok:
+            raise DatasetError(f"the server refused the dataset list: {response.text.strip()}")
+        return response.json().get("data") or {}
+    except DatasetError:
+        raise
+    except Exception as exc:  # no login, no network, a malformed answer: all mean the server cannot answer
+        raise DatasetError(f"the server could not be asked for the dataset list ({exc})") from None

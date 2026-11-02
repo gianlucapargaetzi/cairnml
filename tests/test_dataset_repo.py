@@ -4,6 +4,7 @@ import json
 import re
 import subprocess
 import sys
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -11,6 +12,7 @@ import pytest
 from cairnml.cli.dataset import __main__ as dataset_cli
 from cairnml.datasets import Dataset, DatasetCache, DatasetError, DatasetRepo, SampleWriter, footprint
 from cairnml.datasets.dvcutil import Dvc
+from cairnml.datasets import credentials
 from cairnml.datasets.repo import protection_problems
 
 
@@ -433,8 +435,21 @@ def test_a_job_gets_no_token_for_a_public_repository_and_reads_it_anonymously(fi
     assert capsys.readouterr().out == ""
 
 
-def checks_by_name(repo):
-    return {item['check']: item for item in repo.doctor()}
+def unreachable_server():
+    raise DatasetError("the server could not be asked for the dataset list")
+
+
+def served(datasets, refreshed_at=None):
+    """A stub for the server's datasets.list answer, so the doctor makes no network call."""
+    return lambda: {"datasets": datasets, "refreshed_at": refreshed_at}
+
+
+def fresh_stamp():
+    return datetime.now(timezone.utc).isoformat()
+
+
+def checks_by_name(repo, list_datasets=unreachable_server):
+    return {item['check']: item for item in repo.doctor(list_datasets=list_datasets)}
 
 
 def test_doctor_lists_what_is_missing_before_the_set_up(work):
@@ -459,6 +474,69 @@ def test_doctor_finds_a_set_up_repository_and_names_a_missing_gh(first, work, mo
     assert checks['verify script']['ok'] is True
     assert checks['GitHub command line']['ok'] is False
     assert 'Install it from' in checks['GitHub command line']['message']
+
+
+def test_the_app_is_found_on_a_listed_repository(work):
+    # The origin is .../acme/cars.git, so the repository is acme/cars; the server's spelling may differ in case
+    check = checks_by_name(DatasetRepo(work), served([{"repository": "Acme/Cars"}], fresh_stamp()))["App installed"]
+    assert check["ok"] is True
+    assert check["message"] == "the GitHub App can read acme/cars, and its dataset.yaml is valid"
+
+
+def test_a_repository_the_app_cannot_read_fails_the_app_check(work):
+    listed = [{"repository": "acme/other"}]
+    check = checks_by_name(DatasetRepo(work), served(listed, fresh_stamp()))["App installed"]
+    assert check["ok"] is False
+    assert check["message"] == (
+        "the GitHub App is not installed on acme/cars, or the repository has no dataset.yaml yet: install the App on "
+        "this repository (see the dataset docs)")
+
+
+def test_the_app_check_says_nothing_was_checked_when_the_server_cannot_answer(work):
+    check = checks_by_name(DatasetRepo(work))["App installed"]
+    assert check["ok"] is None
+    assert check["message"] == "the server is not reachable or not logged in; nothing checked"
+
+
+def test_an_old_dataset_list_is_named_in_the_app_check_message(work):
+    old = (datetime.now(timezone.utc) - timedelta(hours=3)).isoformat()
+    check = checks_by_name(DatasetRepo(work), served([], old))["App installed"]
+    assert check["ok"] is False
+    assert f"last rebuilt at {old}, more than an hour ago" in check["message"]
+
+
+def test_the_dataset_list_is_asked_of_the_server_with_the_login(monkeypatch):
+    asked = []
+
+    class Answer:
+        ok = True
+        text = ""
+
+        def json(self):
+            return {"data": {"datasets": [{"repository": "acme/cars"}], "refreshed_at": None}}
+
+    class Session:
+        def send_request(self, service, action, json):
+            asked.append((service, action, json))
+            return Answer()
+
+    assert credentials.fetch_dataset_list(Session()) == {"datasets": [{"repository": "acme/cars"}], "refreshed_at": None}
+    assert asked == [("datasets", "list", {})]
+
+
+def test_the_dataset_list_is_unavailable_without_a_login_or_when_refused(monkeypatch):
+    class NoLogin:
+        def send_request(self, service, action, json):
+            raise ValueError("CairnML host was not set")
+
+    class Refused:
+        def send_request(self, service, action, json):
+            return type("Answer", (), {"ok": False, "text": "401 unauthorized"})()
+
+    with pytest.raises(DatasetError, match="could not be asked"):
+        credentials.fetch_dataset_list(NoLogin())
+    with pytest.raises(DatasetError, match="401 unauthorized"):
+        credentials.fetch_dataset_list(Refused())
 
 
 def test_protection_problems_name_each_missing_setting():

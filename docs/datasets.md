@@ -131,11 +131,15 @@ would otherwise run code from the repository.
 
 ## Publish a dataset
 
+The organisation that runs CairnML generates its own GitHub App, once. It is not shared between organisations: every repository that a job or an agent reads needs the App installed, and that includes each dataset repository. Install it on a dataset repository before you publish to it; `cairnml dataset doctor` tells you when it is missing.
+
 Protect the default branch of the dataset repository: require pull requests, block force pushes and deletions, and, if you want merges to wait for it, require the `verify` check. Allow auto-merge in the repository settings too. `push` then sends your commit to a branch named `incoming/<commit>` and opens a pull request, which merges automatically once the check passes. Without the GitHub command line (`gh`), `push` prints the link to open the pull request yourself. The first push to an empty repository goes straight to its default branch.
 
 `cairnml dataset doctor` checks this before you publish. It lists each check as `ok`, `FAIL` or `--` (nothing to check yet), with what to do for each failure:
 
-- the repository has an origin on GitHub, and the dataset set-up, `dataset.yaml`, the verify workflow and the verify script are in place and current;
+- the repository has an origin on GitHub;
+- the GitHub App is installed on the repository and its `dataset.yaml` is valid. The doctor asks the server, with your CairnML login, whether it lists the repository. It shows `--` when the server cannot be reached or you are not logged in. Otherwise a `FAIL` means the App is not installed on the repository, or the repository has no `dataset.yaml` yet. The server's list is a snapshot rebuilt about once an hour; the doctor says so when it is older, and does not refresh it;
+- the dataset set-up, `dataset.yaml`, the verify workflow and the verify script are in place and current;
 - the GitHub command line (`gh`) is installed and logged in;
 - auto-merge is allowed in the repository settings;
 - the default branch requires pull requests and blocks force pushes and deletions (`create` sets this up, see above).
@@ -149,6 +153,8 @@ The doctor only reads these settings; it never changes them. Set them on the rep
 Your own datasets are not in the registry. They are discovered through the GitHub App installation: a repository the
 GitHub App is installed on, with a `dataset.yaml`, is a dataset you can read with `Dataset.get(<repository>, <commit>)`. The GitHub App is needed
 for private repositories and for discovery. A public repository needs no login and no GitHub App.
+
+The organisation that runs CairnML generates its own GitHub App once; it is not shared between organisations. The App must be installed on every repository that jobs or agents read, including each dataset repository. A repository that is not listed by the server is not discovered: check that the App is installed on it and that its default branch has a `dataset.yaml`. `cairnml dataset doctor` runs this check when it can reach the server.
 
 The [dataset registry](https://github.com/gianlucapargaetzi/cairnml-dataset-registry) holds public datasets and adapters
 only. Nothing is added to it for your own datasets.
