@@ -1,6 +1,7 @@
 """The dataset workflow end to end on local git and DVC storage: init, add, commit, push, get, cache."""
 
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -189,7 +190,7 @@ def test_a_version_in_use_is_not_evicted(first, origin, cache):
     assert not dataset.path.exists()
 
 
-# The footprint, check, push and register
+# The footprint, check and push
 
 
 def test_data_that_is_neither_native_nor_read_by_an_adapter_cannot_be_checked(work, storage):
@@ -309,26 +310,6 @@ def test_an_adapter_that_finds_nothing_blocks_the_check(tmp_path, work, storage,
         repo.check()
 
 
-def test_register_needs_the_commit_to_be_on_the_default_branch(first, work, monkeypatch):
-    from cairnml.datasets import repo as repo_module
-
-    repo, _sha = first
-    calls = []
-    monkeypatch.setattr(repo_module, "register_dataset", lambda origin, name=None, session=None: calls.append((origin, name)) or {"name": "cars"})
-    write(work, "c.txt", b"charlie")
-    native(work)
-    repo.add()
-    repo.commit("add c")
-    repo.push()  # goes to incoming/<sha>, not to the default branch
-    with pytest.raises(DatasetError, match="not on .* of the remote"):
-        repo.register()
-    assert calls == []
-    default = repo.git.default_branch()
-    repo.git.push_to(default)  # the pull request is merged
-    assert repo.register(name="cars-data") == {"name": "cars"}
-    assert calls and calls[0][1] == "cars-data"
-
-
 def _registry_with_entry(tmp_path, entry: str):
     registry = tmp_path / "server" / "acme" / "registry.git"
     subprocess.run(["git", "init", "-q", "--bare", str(registry)], check=True)
@@ -342,26 +323,112 @@ def _registry_with_entry(tmp_path, entry: str):
     return registry
 
 
-def test_a_registered_dataset_of_our_own_is_read_through_its_registry_entry(first, origin, tmp_path, cache):
-    _repo, sha = first
+def test_a_registry_entry_of_our_own_is_refused_with_the_way_to_read_it(origin, tmp_path, cache):
     registry = _registry_with_entry(tmp_path, f"source: repo\nlink: {origin}\n")
-    data = Dataset.get_external("mine", repo=str(registry), cache=cache)
-    assert data.adapter == "native" and data.revision == sha
-    assert sorted(s.id for s in data.samples()) == ["a.txt", "sub/b.txt"]
-    assert next(data.samples()).modality("file").read_bytes() in (b"alpha", b"bravo")
-
-
-def test_a_dataset_whose_footprint_does_not_hold_is_not_read(first, work, origin, tmp_path, cache):
-    repo, _sha = first
-    lock = work / "dataset.lock.json"
-    body = json.loads(lock.read_text())
-    body["samples"] = 99
-    lock.write_text(json.dumps(body))
-    subprocess.run(["git", "-C", str(work), "commit", "-qam", "edit the lock by hand"], check=True)
-    repo.git.push()  # around the tool, onto the default branch
-    registry = _registry_with_entry(tmp_path, f"source: repo\nlink: {origin}\n")
-    with pytest.raises(DatasetError, match="checksum"):
+    with pytest.raises(DatasetError) as refused:
         Dataset.get_external("mine", repo=str(registry), cache=cache)
+    message = str(refused.value)
+    assert "source: repo" in message and "not in the registry" in message
+    assert f'Dataset.get("{origin}", "<commit>")' in message
+
+
+def test_a_registry_entry_of_our_own_does_not_run_a_local_adapter(first_local_work, origin, tmp_path, cache, monkeypatch):
+    registry = _registry_with_entry(tmp_path, f"source: repo\nlink: {origin}\n")
+    mark = tmp_path / "ran"
+    monkeypatch.setenv("CAIRNML_TEST_MARK", str(mark))
+    with pytest.raises(DatasetError, match="source: repo"):
+        Dataset.get_external("mine", repo=str(registry), cache=cache)
+    assert not mark.exists()
+
+
+def test_the_register_command_is_gone(capsys):
+    assert not hasattr(DatasetRepo, "register")
+    with pytest.raises(SystemExit) as exited:
+        dataset_cli.cli(["register", "--path", "."])
+    assert exited.value.code == 2
+    assert "invalid choice: 'register'" in capsys.readouterr().err
+
+
+def test_a_repository_without_dataset_yaml_is_not_a_dataset(tmp_path, cache, monkeypatch):
+    origin = tmp_path / "plain.git"
+    subprocess.run(["git", "init", "-q", "--bare", str(origin)], check=True)
+    clone = tmp_path / "plain"
+    subprocess.run(["git", "clone", "-q", str(origin), str(clone)], check=True, capture_output=True)
+    (clone / "README.md").write_text("not a dataset\n")
+    subprocess.run(["git", "-C", str(clone), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(clone), "commit", "-qm", "readme"], check=True)
+    subprocess.run(["git", "-C", str(clone), "push", "-q", "origin", "HEAD"], check=True, capture_output=True)
+    sha = subprocess.run(["git", "-C", str(clone), "rev-parse", "HEAD"], check=True, capture_output=True, text=True).stdout.strip()
+
+    def no_download(*_args, **_kwargs):
+        raise AssertionError("the data was downloaded")
+
+    monkeypatch.setattr(Dataset, "_download", no_download)
+    with pytest.raises(DatasetError, match=rf"{re.escape(str(origin))} is not a CairnML dataset: dataset.yaml is missing at {sha[:10]}"):
+        Dataset.get(str(origin), sha, cache=cache)
+
+
+def test_a_public_repository_is_read_without_any_credential(first, origin, tmp_path, cache, monkeypatch):
+    """A public repository is cloned over https with no token: no login, no server call, no GitHub App.
+
+    The public address is rewritten to the local origin through git's insteadOf setting, so git runs for real and no
+    network is used. Every git command is recorded: none may carry a token, and the server is never asked."""
+    from cairnml import Task
+    from cairnml.datasets import gitutil
+
+    _repo, sha = first
+    public = "https://github.com/acme/cars-data.git"
+    monkeypatch.setenv("GIT_CONFIG_COUNT", "1")
+    monkeypatch.setenv("GIT_CONFIG_KEY_0", f"url.{origin}.insteadOf")
+    monkeypatch.setenv("GIT_CONFIG_VALUE_0", public)
+    for name in ("CAIRNML_JOB_TOKEN", "CAIRNML_JOB_TOKEN_FILE"):
+        monkeypatch.delenv(name, raising=False)
+    seen = []
+    real_env = gitutil._env
+
+    def recording_env(token=None):
+        seen.append(token)
+        return real_env(token)
+
+    def no_session(*_args, **_kwargs):
+        raise AssertionError("the server was asked")
+
+    monkeypatch.setattr(gitutil, "_env", recording_env)
+    monkeypatch.setattr(Task, "_get_default_session", staticmethod(no_session))
+    dataset = Dataset.get(public, sha, cache=cache, record=False)
+    assert (dataset.path / "a.txt").read_bytes() == b"alpha"
+    assert seen and all(token is None for token in seen)
+
+
+def test_a_job_gets_no_token_for_a_public_repository_and_reads_it_anonymously(first, origin, cache, monkeypatch):
+    """In a job the server answers the token request for a public repository with no token: the read is anonymous."""
+    from cairnml import Task
+
+    _repo, sha = first
+    public = "https://github.com/acme/cars-data.git"
+    monkeypatch.setenv("GIT_CONFIG_COUNT", "1")
+    monkeypatch.setenv("GIT_CONFIG_KEY_0", f"url.{origin}.insteadOf")
+    monkeypatch.setenv("GIT_CONFIG_VALUE_0", public)
+    monkeypatch.setenv("CAIRNML_JOB_TOKEN", "job")
+    monkeypatch.setenv("CAIRNML_TASK_ID", "task-1")
+    asked = []
+
+    class Answer:
+        ok = True
+        text = ""
+
+        def json(self):
+            return {"data": {"token": None}}
+
+    class Session:
+        def send_request(self, service, action, json):
+            asked.append((service, action, json))
+            return Answer()
+
+    monkeypatch.setattr(Task, "_get_default_session", staticmethod(lambda: Session()))
+    dataset = Dataset.get(public, sha, cache=cache, record=False)
+    assert (dataset.path / "a.txt").exists()
+    assert asked == [("devices", "git_token", {"task": "task-1", "repository": public})]
 
 
 def checks_by_name(repo):
@@ -541,15 +608,6 @@ def test_an_edited_local_adapter_fails_the_footprint_check(work, storage, cache)
     assert any("was checked with another adapter.py" in p and "commit" in p for p in problems), problems
     with pytest.raises(DatasetError, match="another adapter.py"):
         repo.push()
-
-
-def test_a_registry_entry_does_not_run_a_local_adapter(first_local_work, origin, tmp_path, cache, monkeypatch):
-    registry = _registry_with_entry(tmp_path, f"source: repo\nlink: {origin}\n")
-    mark = tmp_path / "ran"
-    monkeypatch.setenv("CAIRNML_TEST_MARK", str(mark))
-    with pytest.raises(DatasetError, match="is read by its own adapter.py .*does not run"):
-        Dataset.get_external("mine", repo=str(registry), cache=cache)
-    assert not mark.exists()
 
 
 def test_reading_a_local_dataset_with_get_does_not_run_its_adapter(first_local_work, origin, tmp_path, cache, monkeypatch):

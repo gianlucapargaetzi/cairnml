@@ -7,7 +7,6 @@ the revision that was used is always recorded.
 """
 
 import importlib.util
-import json
 import shutil
 import uuid
 from dataclasses import dataclass, field
@@ -50,6 +49,12 @@ def read_pin(tree: Path, name: str) -> Pin:
         known = sorted(p.stem for p in (tree / "datasets").glob("*.yaml"))
         raise DatasetError(f"no dataset {name!r} in the external-datasets repository; known: {', '.join(known) or 'none'}")
     data = yaml.safe_load(path.read_text()) or {}
+    if data.get("source") == "repo":
+        link = data.get("link") or "<repository>"
+        raise DatasetError(
+            f"{path.name} names {link} as a dataset of its own (source: repo). Own datasets are not in the registry: "
+            f'read them with Dataset.get("{link}", "<commit>")'
+        )
     # A web dataset may describe its files in ``fetch`` instead of ``link``: the addresses, checksums and unpacking.
     fetch = None
     if data.get("fetch") is not None:
@@ -58,9 +63,8 @@ def read_pin(tree: Path, name: str) -> Pin:
         if data.get("link"):
             raise DatasetError(f"{path.name} sets both link and fetch: keep one of them")
         fetch = parse_fetch(data["fetch"], path.name)
-    # A dataset of our own (source: repo) says in its own repository how it is read; the others need an adapter here.
     keys = ("source",) if fetch is not None else ("source", "link")
-    for key in keys + (() if data.get("source") == "repo" else ("adapter",)):
+    for key in keys + ("adapter",):
         if not data.get(key):
             raise DatasetError(f"{path.name} must set {key!r}")
     return Pin(
@@ -224,8 +228,6 @@ def get_external(
     tree, sha = registry_tree(cache, repo, commit)
 
     pin = read_pin(tree, name)
-    if pin.source == "repo":
-        return _get_own_dataset(cache, tree, sha, repo, pin, revision, alias)
     source = source_for(pin.source)
     link = pin.fetch if pin.fetch is not None else pin.link
     if pin.source == "local" and not Path(link.replace("file://", "", 1)).expanduser().is_absolute():
@@ -253,56 +255,6 @@ def get_external(
     cache.evict()
     record(alias or name, {"kind": "external", **info})
     return ExternalDataset(info, output, source_root)
-
-
-def _get_own_dataset(cache, tree, sha, repo, pin, revision, alias) -> ExternalDataset:
-    """A dataset of our own: its repository says how it is read, and its footprint says it was checked."""
-    from . import footprint
-    from .dataset import Dataset
-
-    git = mirror(cache, pin.link, git_token(pin.link))
-    wanted = revision or pin.revision
-    if wanted is None:
-        git.fetch_all()
-        resolved = git.resolve("HEAD")
-    else:
-        resolved = resolve_commit(git, pin.link, wanted)
-    dataset = Dataset.get(pin.link, resolved, cache=cache, record=False)
-    checkout = dataset.path.parent
-    problems = footprint.verify(str(checkout))
-    if problems:
-        raise DatasetError(
-            f"{pin.link}@{resolved[:10]} does not pass its footprint check:\n  - " + "\n  - ".join(problems)
-        )
-    lock = json.loads((checkout / footprint.LOCK_FILE).read_text())
-    fmt = lock["format"]
-    if fmt["kind"] == "local":
-        # Its adapter.py is code of the dataset's own repository. Reading an entry must not run it: the registry and
-        # the machine that reads the dataset would execute code they did not review. Use Dataset.get and the files.
-        raise DatasetError(
-            f"{pin.link}@{resolved[:10]} is read by its own {footprint.ADAPTER_FILE} (adapter: {footprint.LOCAL_ADAPTER}), "
-            f"which a registry entry does not run. Read the files with Dataset.get, or run the adapter with "
-            f"cairnml dataset check in a clone of the repository"
-        )
-    adapter_name = fmt.get("name") if fmt["kind"] == "adapter" else None
-    if adapter_name is None:
-        output = dataset.path  # native: the standard sample table is in data/ itself
-    else:
-        output = cache.root / "checkouts" / f"own__{pin.name}" / f"{sha[:12]}-{resolved[:12]}"
-        if not cache.is_ready(output):
-            _build(cache, tree, adapter_name, dataset.path, output, pin, resolved, sha, repo)
-        cache.touch(output)
-    info = {
-        "name": pin.name,
-        "external_repo": repo,
-        "repo_commit": sha,
-        "source": "repo",
-        "link": pin.link,
-        "revision": resolved,
-        "adapter": adapter_name or "native",
-    }
-    record(alias or pin.name, {"kind": "own", **info, "content_hash": lock["dvc"]["hash"]})
-    return ExternalDataset(info, output, dataset.path)
 
 
 def _ensure_source(cache: DatasetCache, source, link: str, revision: str) -> Path:

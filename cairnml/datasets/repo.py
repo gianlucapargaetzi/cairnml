@@ -21,7 +21,7 @@ from ..version import __version__
 from . import footprint, process
 from .cache import DatasetCache
 from .check import run_check
-from .credentials import StorageKeys, fetch_storage_keys, register_dataset
+from .credentials import StorageKeys, fetch_storage_keys
 from .dvcutil import Dvc
 from .errors import DatasetError
 from .gitutil import Git
@@ -568,27 +568,6 @@ class DatasetRepo:
                         f"admin role for a login); gh said: {text}")
             return {"ok": False, "problem": text}
         return {"ok": True, "problem": None}
-
-    # register
-
-    def register(self, name: Optional[str] = None, session: Any = None) -> Dict[str, Any]:
-        """Register this dataset in the dataset registry, once. The server checks its footprint at the default branch."""
-        self._require_setup()
-        origin = self.git.remote_url()
-        if not origin:
-            raise DatasetError("the repository has no origin")
-        self.git.fetch_origin()
-        default = self.git.default_branch()
-        head = self.git.head()
-        if not head or not self.git.remote_contains(head, default):
-            raise DatasetError(
-                f"this commit is not on {default} of the remote yet: push it, merge the pull request, "
-                f"then register"
-            )
-        problems = self.problems()
-        if problems:
-            raise DatasetError("this dataset does not pass its footprint check:\n  - " + "\n  - ".join(problems))
-        return register_dataset(origin, name=name, session=session)
 
     def _apply_keys(self) -> None:
         url = self.dvc.remote_url()

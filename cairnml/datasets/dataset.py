@@ -83,6 +83,10 @@ class Dataset:
         cache = cache or DatasetCache.default()
         git = mirror(cache, repo, git_token(repo))
         sha = resolve_commit(git, repo, commit)
+        if not git.ok("cat-file", "-e", f"{sha}:{footprint.CONFIG_FILE}"):
+            raise DatasetError(
+                f"{repo} is not a CairnML dataset: {footprint.CONFIG_FILE} is missing at {sha[:10]}"
+            )
 
         checkout = cache.checkout_dir(repo, sha)
         if not cache.is_ready(checkout):
