@@ -400,8 +400,9 @@ def test_a_public_repository_is_read_without_any_credential(first, origin, tmp_p
     assert seen and all(token is None for token in seen)
 
 
-def test_a_job_gets_no_token_for_a_public_repository_and_reads_it_anonymously(first, origin, cache, monkeypatch):
-    """In a job the server answers the token request for a public repository with no token: the read is anonymous."""
+def test_a_job_gets_no_token_for_a_public_repository_and_reads_it_anonymously(first, origin, cache, monkeypatch, capsys):
+    """In a job the server answers the token request for a public repository with no token: the read is anonymous,
+    and nothing is printed about a missing credential."""
     from cairnml import Task
 
     _repo, sha = first
@@ -429,6 +430,7 @@ def test_a_job_gets_no_token_for_a_public_repository_and_reads_it_anonymously(fi
     dataset = Dataset.get(public, sha, cache=cache, record=False)
     assert (dataset.path / "a.txt").exists()
     assert asked == [("devices", "git_token", {"task": "task-1", "repository": public})]
+    assert capsys.readouterr().out == ""
 
 
 def checks_by_name(repo):
