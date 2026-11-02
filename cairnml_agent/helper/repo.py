@@ -892,20 +892,36 @@ class Hg(VCS):
     )
 
 
+def request_git_token(session, task_id):
+    """The server's answer to the Git credential request for the task's repository, or None when there is no answer."""
+    return session.send_request(
+        service="devices", action="git_token", version="2.8", method=Request.def_method,
+        json={"task": task_id},
+    )
+
+
+def git_credential_from_answer(res):
+    """
+    (username, secret) from a successful answer. A public repository is answered with a null token: it has no
+    credential, so None is returned and the repository is cloned without an authorization header.
+    """
+    data = res.json()["data"]
+    token = data.get("token")
+    if not token:
+        return None
+    return (data.get("username") or GITHUB_APP_USERNAME), token
+
+
 def fetch_git_credential(session, task_id):
     """
     The read-only Git credential for the task's repository, from the server: a GitHub App token on GitHub, or
     the credential the administrator stored for the repository's host (and path prefix) on any other host.
-    Returns (username, secret), or None when the server has none, so the agent keeps its configured credentials.
+    Returns (username, secret), or None when the server gives no credential (a public repository, or no answer).
     """
-    res = session.send_request(
-        service="devices", action="git_token", version="2.8", method=Request.def_method,
-        json={"task": task_id},
-    )
+    res = request_git_token(session, task_id)
     if res is None or not res.ok:
         return None
-    data = res.json()["data"]
-    return (data.get("username") or GITHUB_APP_USERNAME), data["token"]
+    return git_credential_from_answer(res)
 
 
 def fetch_git_token(session, task_id):
@@ -938,11 +954,12 @@ def select_git_credential(session, repository_url, task_id):
     """
     if not task_id or not wants_stored_credential(repository_url):
         return None
-    credential = fetch_git_credential(session, task_id)
-    if credential is None:
+    res = request_git_token(session, task_id)
+    if res is None or not res.ok:
         print("The server has no Git credential for {}, using the configured credentials".format(
             furl(repository_url).host))
-    return credential
+        return None
+    return git_credential_from_answer(res)
 
 
 def clone_repository_cached(session, execution, destination, task_id=None):
