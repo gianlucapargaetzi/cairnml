@@ -2,11 +2,13 @@
 
 import json
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
 
-from cairnml.datasets import Dataset, DatasetCache, DatasetError, DatasetRepo, SampleWriter
+from cairnml.cli.dataset import __main__ as dataset_cli
+from cairnml.datasets import Dataset, DatasetCache, DatasetError, DatasetRepo, SampleWriter, footprint
 from cairnml.datasets.dvcutil import Dvc
 from cairnml.datasets.repo import protection_problems
 
@@ -414,3 +416,174 @@ def test_check_writes_a_manifest_with_modalities_labels_and_splits(first):
     assert manifest["splits"] == {"train": 2}
     assert manifest["modalities"] == {"file": "file"} and manifest["labels"] == {}
     assert footprint.verify(str(repo.path)) == []
+
+
+# The local adapter: adapter.py at the top of the repository, no registry
+
+
+CARS_CSV = b"id,split,file,class\n1,train,a.txt,sedan\n2,val,sub/b.txt,truck\n"
+
+CSV_ADAPTER = (
+    "import csv\n"
+    "import os\n"
+    "from cairnml.datasets import Adapter\n"
+    "if os.environ.get('CAIRNML_TEST_MARK'):\n"  # proves whether the file was run (see the registry test)
+    "    open(os.environ['CAIRNML_TEST_MARK'], 'w').close()\n"
+    "class CarsCsv(Adapter):\n"
+    "    modalities = {'file': 'file'}\n"
+    "    labels = {'class': 'class'}\n"
+    "    def run(self, source, writer):\n"
+    "        with open(source / 'cars.csv', newline='') as handle:\n"
+    "            for row in csv.DictReader(handle):\n"
+    "                writer.add(row['id'], row['split'], {'file': row['file']}, {'class': row['class']})\n"
+)
+
+
+def local_dataset(work: Path, storage: Path, cache, adapter_source: str = CSV_ADAPTER) -> DatasetRepo:
+    repo = DatasetRepo(work, cache=cache)
+    repo.init(remote_url=str(storage), adapter="local")
+    write(work, "cars.csv", CARS_CSV)
+    write(work, "a.txt", b"alpha")
+    write(work, "sub/b.txt", b"bravo")
+    (work / "adapter.py").write_text(adapter_source)
+    return repo
+
+
+def test_a_local_adapter_reads_a_csv_and_the_check_passes(work, storage, cache):
+    repo = local_dataset(work, storage, cache)
+    assert "adapter: local" in (work / "dataset.yaml").read_text()
+    assert "registry" not in (work / "dataset.yaml").read_text()
+    repo.add()
+    lock = repo.check()
+    digest = footprint.sha256_bytes((work / "adapter.py").read_bytes())
+    assert lock["format"] == {"kind": "local", "name": "local", "adapter_sha256": digest}
+    assert lock["samples"] == 2 and lock["labels"] == {"class": "class"}
+    assert not [name for name in sys.modules if name.startswith("cairnml_local_adapter_")]  # nothing kept
+    repo.commit("with a local adapter")
+    assert repo.problems() == []
+    tracked = subprocess.run(["git", "-C", str(work), "ls-files", "adapter.py"], capture_output=True, text=True)
+    assert tracked.stdout.strip() == "adapter.py"
+
+
+@pytest.mark.parametrize(
+    "source, message",
+    [
+        ("def run(:\n", "local adapter 'adapter.py' cannot be loaded"),
+        ("from cairnml.datasets import Adapter\nx = 1\n", "adapter.py must define exactly one Adapter class, found 0"),
+        (
+            CSV_ADAPTER.replace("row['class']", "row['colour']"),
+            "local adapter 'adapter.py' could not read data/: KeyError",
+        ),
+        (
+            CSV_ADAPTER.replace("{'file': row['file']}", "{'picture': row['file']}"),
+            "local adapter 'adapter.py': .*modalities",
+        ),
+    ],
+)
+def test_a_broken_local_adapter_error_names_it(work, storage, cache, source, message):
+    repo = local_dataset(work, storage, cache, adapter_source=source)
+    repo.add()
+    with pytest.raises(DatasetError, match=message):
+        repo.check()
+
+
+def test_checking_a_local_dataset_leaves_no_pycache_in_the_repository(work, storage, cache):
+    repo = local_dataset(work, storage, cache)
+    repo.add()
+    repo.check()
+    repo.commit("with a local adapter")
+    assert not list(work.rglob("__pycache__"))
+    assert "__pycache__" not in " ".join(repo.status()["untracked"])
+    assert repo.problems() == []
+
+
+def test_init_ignores_pycache_in_gitignore_and_dvcignore(work, storage):
+    DatasetRepo(work).init(remote_url=str(storage))
+    assert "__pycache__/" in (work / ".gitignore").read_text().splitlines()
+    assert "__pycache__/" in (work / ".dvcignore").read_text().splitlines()
+
+
+def test_a_local_adapter_writes_tabular_labels_without_json_text(work, storage, cache):
+    adapter = (
+        "from cairnml.datasets import Adapter\n"
+        "import csv\n"
+        "class Greenhouse(Adapter):\n"
+        "    modalities = {'table': 'table'}\n"
+        "    labels = {'features': 'tabular', 'energy': 'number'}\n"
+        "    def run(self, source, writer):\n"
+        "        for row in csv.DictReader(open(source / 'cars.csv', newline='')):\n"
+        "            features = {'temp': float(row['id']), 'plant': row['class']}\n"
+        "            writer.add(row['id'], row['split'], {'table': row['file']}, {'features': features, 'energy': 12.5})\n"
+    )
+    repo = local_dataset(work, storage, cache, adapter_source=adapter)
+    repo.add()
+    lock = repo.check()
+    assert lock["labels"] == {"features": "tabular", "energy": "number"}
+    manifest = json.loads((repo.path / "manifest.json").read_text())
+    assert manifest["labels"] == {"features": "tabular", "energy": "number"}
+
+
+def test_a_local_adapter_that_is_missing_is_named(work, storage, cache):
+    repo = local_dataset(work, storage, cache)
+    (work / "adapter.py").unlink()
+    repo.add()
+    with pytest.raises(DatasetError, match="local adapter 'adapter.py' is missing"):
+        repo.check()
+
+
+def test_an_edited_local_adapter_fails_the_footprint_check(work, storage, cache):
+    repo = local_dataset(work, storage, cache)
+    repo.add()
+    repo.commit("first")
+    (work / "adapter.py").write_text(CSV_ADAPTER + "# a later change\n")
+    subprocess.run(["git", "-C", str(work), "commit", "-qam", "change the adapter by hand"], check=True)
+    problems = repo.problems()
+    assert any("was checked with another adapter.py" in p and "commit" in p for p in problems), problems
+    with pytest.raises(DatasetError, match="another adapter.py"):
+        repo.push()
+
+
+def test_a_registry_entry_does_not_run_a_local_adapter(first_local_work, origin, tmp_path, cache, monkeypatch):
+    registry = _registry_with_entry(tmp_path, f"source: repo\nlink: {origin}\n")
+    mark = tmp_path / "ran"
+    monkeypatch.setenv("CAIRNML_TEST_MARK", str(mark))
+    with pytest.raises(DatasetError, match="is read by its own adapter.py .*does not run"):
+        Dataset.get_external("mine", repo=str(registry), cache=cache)
+    assert not mark.exists()
+
+
+def test_reading_a_local_dataset_with_get_does_not_run_its_adapter(first_local_work, origin, tmp_path, cache, monkeypatch):
+    _repo, sha = first_local_work
+    mark = tmp_path / "ran"
+    monkeypatch.setenv("CAIRNML_TEST_MARK", str(mark))
+    dataset = Dataset.get(str(origin), sha, cache=cache, record=False)
+    assert (dataset.path / "a.txt").read_bytes() == b"alpha"
+    assert not mark.exists()
+
+
+@pytest.fixture
+def first_local_work(work, storage, cache):
+    repo = local_dataset(work, storage, cache)
+    return repo, publish(repo, "first")
+
+
+def test_init_with_the_local_adapter_writes_the_line_and_needs_no_registry(work, storage):
+    code = dataset_cli.cli(["init", "--path", str(work), "--remote", str(storage), "--adapter", "local"])
+    assert code == 0
+    config = (work / "dataset.yaml").read_text()
+    assert "adapter: local\n" in config and "registry" not in config
+
+
+def test_init_with_a_registry_and_the_local_adapter_is_refused(work, storage):
+    code = dataset_cli.cli(
+        ["init", "--path", str(work), "--remote", str(storage), "--adapter", "local", "--registry", "https://x/y.git"]
+    )
+    assert code == 1
+    assert not (work / "dataset.yaml").exists()
+
+
+def test_init_with_a_registry_adapter_keeps_its_line_and_writes_no_registry(work, storage):
+    code = dataset_cli.cli(["init", "--path", str(work), "--remote", str(storage), "--adapter", "coco"])
+    assert code == 0
+    config = (work / "dataset.yaml").read_text()
+    assert "adapter: coco\n" in config and "registry" not in config

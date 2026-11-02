@@ -64,8 +64,9 @@ cairnml dataset register                 # once: add the dataset to the registry
 ```
 
 `--public` makes the repository public, `--path` chooses the local folder (default: the name), and `--adapter` and
-`--registry` say how the data is read (see below). The command stops with a message if the check fails; fix the data and
-run `cairnml dataset commit` and `cairnml dataset push` in that folder.
+`--registry` say how the data is read (see below). With `--adapter local`, the `adapter.py` in the `--from` folder is the
+adapter: it goes to the top of the repository, and the other files go to `data/`. The command stops with a message if the
+check fails; fix the data and run `cairnml dataset commit` and `cairnml dataset push` in that folder.
 
 Right after the first push, `create` protects the default branch of the new repository: pull requests are required
 (no approvals needed, and administrators are not held to them), and force pushes and deletions are blocked. No status
@@ -93,12 +94,38 @@ cairnml dataset register                 # once: add the dataset to the registry
 
 ## How the data is read
 
-Every dataset says how its files are read in `dataset.yaml`, which holds one of two lines:
+Every dataset says how its files are read in `dataset.yaml`, which holds one of three forms:
 
 - `format: native`: `data/` already contains the standard sample table, `samples.parquet` with `manifest.json`.
 - `adapter: <name>`, with `registry: <url>`: an adapter from the registry reads the files in `data/` into the standard format. `cairnml dataset init --adapter <name> --registry <url>` writes this line for you.
+- `adapter: local`: the adapter is `adapter.py` at the top of the repository, next to `dataset.yaml`, and no registry is needed. `cairnml dataset init --adapter local` writes this line for you.
 
 `cairnml dataset check` reads `data/` the way `dataset.yaml` says and reports what is wrong. A dataset that is neither native nor read by an adapter cannot be committed.
+
+### The local adapter
+
+A local adapter is a file of your own. It defines one `Adapter` subclass, with `modalities`, `labels` and `run`, exactly as a registry adapter does. For example, for a `data/cars.csv` with the columns `id,split,image,class` (image paths relative to `data/`):
+
+```python
+# adapter.py, at the top of the dataset repository
+import csv
+from cairnml.datasets import Adapter
+
+class CarsCsv(Adapter):
+    modalities = {"image": "image"}
+    labels = {"class": "class"}
+
+    def run(self, source, writer):
+        with open(source / "cars.csv", newline="") as handle:
+            for row in csv.DictReader(handle):
+                writer.add(row["id"], row["split"], {"image": row["image"]}, {"class": row["class"]})
+```
+
+The adapter runs only when you check the data on your machine (`cairnml dataset check`, `commit` and `create`). The footprint
+records the sha256 of `adapter.py`, so a change to the adapter after the check is found by `cairnml dataset push` and by the
+repository's CI check, which reads the hash and does not run the adapter. The data must then be checked again. Reading a dataset with
+`Dataset.get` does not run the adapter, and a registry entry that points to a local adapter is refused, because the registry
+would otherwise run code from the repository.
 
 ## Publish a dataset
 
@@ -210,8 +237,26 @@ class CocoDetection(Adapter):
 Every adapter produces the same shape: one row per sample, with an id, a split, the files of each modality and the labels.
 
 - Modalities are named files, for example `image` and `depth`. Types: `image`, `depth`, `audio`, `video`, `text`, `table`, `file`.
-- Labels are named and typed. Types: `class`, `bbox2d`, `mask2d`, `json`.
+- Labels are named and typed. Types: `class`, `bbox2d`, `mask2d`, `json`, `number`, `tabular`.
 - Boxes are always `[x1, y1, x2, y2]` in pixels, with `x2 > x1` and `y2 > y1`.
+- `number` is one finite number. `tabular` is a dict of named columns: each value is a finite number or a string, the
+  same column names in every sample, and at least one column. A value that is missing is written as `None`.
+
+A table of features and a target, as in a CSV file, needs no JSON text:
+
+```python
+class Greenhouse(Adapter):
+    modalities = {"table": "table"}
+    labels = {"features": "tabular", "energy": "number"}
+
+    def run(self, source, writer):
+        for row in read_rows(source / "greenhouse.csv"):
+            features = {"temp": row["temp"], "humidity": row["humidity"], "plant": row["plant"]}
+            writer.add(row["id"], row["split"], {"table": row["file"]}, {"features": features, "energy": row["energy"]})
+```
+
+A tabular label is stored in `samples.parquet` as a list of cells, one per column, each with `column`, `number` and `text`
+(one of the last two is set). Numbers come back as floats. `sample.label("features")` returns the dict again.
 
 ## The cache
 

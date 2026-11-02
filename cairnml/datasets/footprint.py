@@ -37,6 +37,8 @@ POINTER_MAX_BYTES = 1024  # an LFS pointer file is about 130 bytes; a larger fil
 STORAGES = ("s3", "lfs")  # s3: the files are in DVC's bucket; lfs: in the GitHub LFS of the dataset repository
 LFS_POINTER = b"version https://git-lfs.github.com/spec/v1\n"
 LFS_PATTERN = "data/** filter=lfs diff=lfs merge=lfs -text"
+ADAPTER_FILE = "adapter.py"  # with adapter: local, the adapter at the top of the repository; its sha256 is in the lock
+LOCAL_ADAPTER = "local"  # the name ``adapter:`` takes for an adapter in the repository, instead of one from a registry
 
 # What may be tracked by git at the top of a dataset repository. The data itself is in DVC or in LFS.
 ALLOWED_TOP_LEVEL = {
@@ -45,6 +47,7 @@ ALLOWED_TOP_LEVEL = {
 }
 
 _SHA = re.compile(r"[0-9a-f]{7,40}")
+_SHA256 = re.compile(r"[0-9a-f]{64}")
 
 
 # Reading the two small text files, without a YAML library
@@ -85,10 +88,16 @@ def storage_kind(config: Mapping[str, str]) -> str:
 
 
 def config_format(config: Mapping[str, str]) -> Dict[str, str]:
-    """The format ``dataset.yaml`` asks for: ``{"kind": "native"}`` or ``{"kind": "adapter", "name": ..., ...}``."""
+    """The format ``dataset.yaml`` asks for: ``{"kind": "native"}``, ``{"kind": "local", "name": "local"}`` (the adapter
+    is ``adapter.py`` in the repository) or ``{"kind": "adapter", "name": ..., ...}`` (from the registry)."""
     kind, adapter = config.get("format"), config.get("adapter")
     if adapter and kind not in (None, "adapter"):
         raise ValueError("dataset.yaml sets both 'format: native' and an adapter; use one of them")
+    if adapter == LOCAL_ADAPTER:
+        if config.get("registry"):
+            raise ValueError(f"dataset.yaml says adapter: {LOCAL_ADAPTER} and names a registry: the adapter is {ADAPTER_FILE} "
+                             f"in this repository, so remove the registry line")
+        return {"kind": "local", "name": LOCAL_ADAPTER}
     if adapter:
         result = {"kind": "adapter", "name": adapter}
         if config.get("registry"):
@@ -100,6 +109,11 @@ def config_format(config: Mapping[str, str]) -> Dict[str, str]:
 
 
 # The footprint
+
+
+def sha256_bytes(data: bytes) -> str:
+    """The sha256 of a file's content, as the lock records the adapter of a local dataset."""
+    return hashlib.sha256(data).hexdigest()
 
 
 def checksum(body: Mapping[str, Any]) -> str:
@@ -196,7 +210,8 @@ def verify_files(
 ) -> List[str]:
     """What is wrong with a dataset repository, as sentences that say what to do. Empty when it is fine.
 
-    :param files: the content of ``data.dvc``, ``dataset.yaml`` and ``dataset.lock.json`` (None when missing)
+    :param files: the content of ``data.dvc``, ``dataset.yaml``, ``dataset.lock.json`` and, for a local adapter,
+        ``adapter.py`` (None when missing). A key that is not in ``files`` at all is not read, so its content is not checked
     :param sizes: size in bytes of every file tracked by git, by path
     :param lfs: for a dataset in LFS, the :func:`lfs_record` of ``data/`` (None when it could not be read)
     """
@@ -223,6 +238,7 @@ def verify_files(
         return [f"cannot read the dataset files: {exc}"]
     if not isinstance(lock, dict):
         return [f"{LOCK_FILE} is not a JSON object"]
+    local = wanted.get("kind") == "local"
 
     if lock.get("version") != FOOTPRINT_VERSION:
         problems.append(f"{LOCK_FILE} has version {lock.get('version')!r}; this tool reads {FOOTPRINT_VERSION}")
@@ -246,14 +262,29 @@ def verify_files(
         problems.append(f"{LOCK_FILE} was made for format {fmt} but {CONFIG_FILE} asks for {wanted}; run 'cairnml dataset check'")
     if fmt.get("kind") == "adapter" and not _SHA.fullmatch(str(fmt.get("registry_commit", ""))):
         problems.append(f"{LOCK_FILE} does not say which commit of the adapter registry was used")
+    if fmt.get("kind") == "local" and not _SHA256.fullmatch(str(fmt.get("adapter_sha256", ""))):
+        problems.append(f"{LOCK_FILE} does not say which {ADAPTER_FILE} was checked")
+    if local and ADAPTER_FILE in files:
+        # The caller read adapter.py (the SDK and the script in the repository do). The server reads the three
+        # footprint files only, so it checks the shape of the field above and not the content here.
+        content = files[ADAPTER_FILE]
+        if content is None:
+            problems.append(f"{ADAPTER_FILE} is missing: dataset.yaml says adapter: {LOCAL_ADAPTER}, so the adapter must be "
+                            f"at the top of the repository")
+        elif fmt.get("adapter_sha256") != sha256_bytes(content):
+            problems.append(
+                f"{LOCK_FILE} was checked with another {ADAPTER_FILE} (lock: {fmt.get('adapter_sha256')}, "
+                f"{ADAPTER_FILE}: {sha256_bytes(content)}): the adapter changed after the check; run 'cairnml dataset commit'"
+            )
     if not isinstance(lock.get("samples"), int) or lock["samples"] < 1:
         problems.append(f"{LOCK_FILE} reports no samples: the data was not read into the standard format")
 
+    allowed = ALLOWED_TOP_LEVEL | {ADAPTER_FILE} if local else ALLOWED_TOP_LEVEL
     for path, size in sorted(sizes.items()):
         top = path.split("/", 1)[0]
         if top == "data" and storage == "lfs":
             continue  # the files of data/ are LFS pointers, checked through the record above
-        if top not in ALLOWED_TOP_LEVEL:
+        if top not in allowed:
             problems.append(f"{path} is tracked by git; only the dataset files may be (put data in data/, which DVC tracks)")
         elif top == "data":
             problems.append(f"{path} is tracked by git; data/ belongs to DVC")
@@ -281,8 +312,10 @@ def tracked_sizes(root: str) -> Dict[str, int]:
 
 
 def read_files(root: str) -> Dict[str, Optional[bytes]]:
+    """The content of the files the footprint is about; None when a file is missing. ``adapter.py`` is read too, so a
+    local adapter is checked against the lock."""
     files: Dict[str, Optional[bytes]] = {}
-    for name in (DVC_FILE, CONFIG_FILE, LOCK_FILE):
+    for name in (DVC_FILE, CONFIG_FILE, LOCK_FILE, ADAPTER_FILE):
         path = os.path.join(root, name)
         files[name] = open(path, "rb").read() if os.path.isfile(path) else None
     return files

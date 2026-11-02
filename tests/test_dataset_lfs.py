@@ -204,3 +204,47 @@ def test_a_checkout_without_lfs_pull_verifies_to_the_same_record(lfs_repo, work,
     assert (clone / "data" / "a.bin").read_bytes().startswith(footprint.LFS_POINTER)
     assert footprint.verify(str(clone)) == []
     assert footprint.lfs_record(str(clone)) == footprint.lfs_record(str(work))
+
+
+def test_create_takes_the_local_adapter_from_the_source_folder_to_the_top(tmp_path, origin):
+    prepared = tmp_path / "prepared"  # the folder --from names: its files go to data/, adapter.py to the top
+    prepared.mkdir()
+    (prepared / "cars.csv").write_bytes(b"id,split,file,class\n1,train,a.txt,sedan\n")
+    (prepared / "a.txt").write_bytes(b"alpha")
+    (prepared / "adapter.py").write_text(
+        "import csv\n"
+        "from cairnml.datasets import Adapter\n"
+        "class Cars(Adapter):\n"
+        "    modalities = {'file': 'file'}\n"
+        "    labels = {'class': 'class'}\n"
+        "    def run(self, source, writer):\n"
+        "        for row in csv.DictReader(open(source / 'cars.csv', newline='')):\n"
+        "            writer.add(row['id'], row['split'], {'file': row['file']}, {'class': row['class']})\n"
+    )
+    calls = []
+
+    def fake_remote(name, private):
+        calls.append(name)
+        return str(origin)
+
+    result = DatasetRepo.create(
+        tmp_path / "local", "cars", prepared, storage="lfs", adapter="local", create_remote=fake_remote, protect=False
+    )
+    assert calls == ["cars"] and result["branch"] == "main"
+    assert (tmp_path / "local" / "adapter.py").read_bytes() == (prepared / "adapter.py").read_bytes()
+    assert not (tmp_path / "local" / "data" / "adapter.py").exists()
+    assert (tmp_path / "local" / "data" / "cars.csv").exists()
+    assert footprint.verify(str(tmp_path / "local")) == []
+
+
+def test_create_with_the_local_adapter_needs_the_file_before_it_makes_a_remote(tmp_path):
+    prepared = tmp_path / "prepared"
+    prepared.mkdir()
+    (prepared / "a.txt").write_bytes(b"alpha")
+    calls = []
+    with pytest.raises(DatasetError, match="has no adapter.py"):
+        DatasetRepo.create(
+            tmp_path / "local", "cars", prepared, storage="lfs", adapter="local",
+            create_remote=lambda name, private: calls.append(name) or "unused",
+        )
+    assert calls == []
