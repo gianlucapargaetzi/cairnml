@@ -118,11 +118,6 @@ def do_doctor(args: argparse.Namespace) -> None:
     print("\nNo problems found." if all(item["ok"] for item in checks) else "\nNothing failed.")
 
 
-def do_register(args: argparse.Namespace) -> None:
-    result = DatasetRepo(args.path).register(name=args.name)
-    print(f"Registered {result.get('name')}: {result.get('pull_request') or 'entry added'}")
-
-
 def do_get(args: argparse.Namespace) -> None:
     dataset = Dataset.get(args.repo, args.commit)
     print(dataset.path)
@@ -167,8 +162,6 @@ def cli(argv: Optional[List[str]] = None) -> int:
     commit.add_argument("-m", "--message", required=True)
     command("doctor", do_doctor, "check the set-up and the GitHub settings that publishing relies on")
     command("push", do_push, "upload the files, then publish the commit (through a pull request on the default branch)")
-    register = command("register", do_register, "add the dataset to the registry (once; the server checks it)")
-    register.add_argument("--name", help="registry name (default: the repository name)")
     get = command("get", do_get, "download a dataset version into the cache and print its folder")
     get.add_argument("repo", help="URL of the dataset repository")
     get.add_argument("commit", help="commit, branch or tag")

@@ -55,20 +55,16 @@ def fetch_git_token(repository: str, task_id: str, session=None) -> Optional[str
     return (response.json().get("data") or {}).get("token")
 
 
-def _server_message(response) -> str:
+def fetch_dataset_list(session=None) -> dict:
+    """The server's list of the dataset repositories the GitHub App can read (datasets.list): ``datasets`` and
+    ``refreshed_at``. The server answers from a cached snapshot, so this does not reach GitHub. Raises DatasetError when
+    the server cannot be asked, for instance when there is no CairnML login."""
     try:
-        meta = response.json().get("meta") or {}
-        return meta.get("result_msg") or response.text.strip()
-    except ValueError:
-        return response.text.strip()
-
-
-def register_dataset(repository: str, name: Optional[str] = None, session=None) -> dict:
-    """Ask the server to add a dataset repository to the dataset registry. It checks the footprint itself."""
-    body = {"repository": repository}
-    if name:
-        body["name"] = name
-    response = _session(session).send_request(service="dataset_registry", action="register", json=body)
-    if not response.ok:
-        raise DatasetError(f"the server did not register {repository}: {_server_message(response)}")
-    return response.json().get("data") or {}
+        response = _session(session).send_request(service="datasets", action="list", json={})
+        if not response.ok:
+            raise DatasetError(f"the server refused the dataset list: {response.text.strip()}")
+        return response.json().get("data") or {}
+    except DatasetError:
+        raise
+    except Exception as exc:  # no login, no network, a malformed answer: all mean the server cannot answer
+        raise DatasetError(f"the server could not be asked for the dataset list ({exc})") from None

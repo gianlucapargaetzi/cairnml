@@ -14,6 +14,7 @@ footprint check.
 import json
 import re
 import shutil
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
@@ -21,7 +22,7 @@ from ..version import __version__
 from . import footprint, process
 from .cache import DatasetCache
 from .check import run_check
-from .credentials import StorageKeys, fetch_storage_keys, register_dataset
+from .credentials import StorageKeys, fetch_dataset_list, fetch_storage_keys
 from .dvcutil import Dvc
 from .errors import DatasetError
 from .gitutil import Git
@@ -51,6 +52,22 @@ jobs:
           python-version: "3.12"
       - run: python .cairnml/verify.py
 """
+
+
+def list_age_note(refreshed_at: Optional[str]) -> str:
+    """What the App check says about how old the server's cached dataset list is. Empty when it is recent."""
+    if not refreshed_at:
+        return " (the server's dataset list has not been rebuilt yet, so a recent installation may be missing from it)"
+    try:
+        moment = datetime.fromisoformat(refreshed_at)
+    except ValueError:
+        return ""
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=timezone.utc)
+    if datetime.now(timezone.utc) - moment > timedelta(hours=1):
+        return (f" (the server's dataset list was last rebuilt at {refreshed_at}, more than an hour ago, so a recent "
+                "installation may be missing from it)")
+    return ""
 
 
 def github_name(url: str) -> Optional[str]:
@@ -446,10 +463,11 @@ class DatasetRepo:
 
     # doctor
 
-    def doctor(self) -> List[Dict[str, Any]]:
+    def doctor(self, list_datasets: Optional[Callable[[], Dict[str, Any]]] = None) -> List[Dict[str, Any]]:
         """Check what publishing needs, one entry per check: the set-up here and the GitHub settings that the footprint
         check relies on. ``ok`` is True, False (a problem, with what to do) or None (nothing to check yet).
 
+        ``list_datasets`` answers the server's dataset list (see credentials.fetch_dataset_list); the App check uses it.
         It reads the settings only; it does not change them.
         """
         checks: List[Dict[str, Any]] = []
@@ -465,6 +483,8 @@ class DatasetRepo:
             check("origin", False, "no GitHub origin: clone the repository from GitHub, or add the remote")
             return checks
         check("origin", True, f"origin is {repo}")
+        ok, message = self._app_installed(repo, list_datasets or fetch_dataset_list)
+        check("App installed", ok, message)
 
         setup = (self.path / footprint.CONFIG_FILE).is_file() and (
             (self.path / ".dvc").is_dir() or self.storage() == "lfs")
@@ -530,6 +550,20 @@ class DatasetRepo:
                 check("branch protection", True, f"{default} requires pull requests and blocks force pushes and deletions")
         return checks
 
+    def _app_installed(self, repo: str, list_datasets: Callable[[], Dict[str, Any]]) -> Tuple[Optional[bool], str]:
+        """Whether the GitHub App can read the repository: it is listed by the server, which lists only the repositories
+        the App is installed on that have a valid dataset.yaml. The cached list is not refreshed here."""
+        try:
+            answer = list_datasets()
+        except DatasetError:
+            return None, "the server is not reachable or not logged in; nothing checked"
+        note = list_age_note(answer.get("refreshed_at"))
+        listed = any(str(item.get("repository", "")).lower() == repo.lower() for item in answer.get("datasets") or [])
+        if listed:
+            return True, f"the GitHub App can read {repo}, and its dataset.yaml is valid{note}"
+        return False, (f"the GitHub App is not installed on {repo}, or the repository has no dataset.yaml yet: install "
+                       f"the App on this repository (see the dataset docs){note}")
+
     def _gh_api(self, path: str) -> Tuple[Optional[Dict[str, Any]], str]:
         """The JSON answer of one GitHub API call through gh, or None and why it failed."""
         try:
@@ -568,27 +602,6 @@ class DatasetRepo:
                         f"admin role for a login); gh said: {text}")
             return {"ok": False, "problem": text}
         return {"ok": True, "problem": None}
-
-    # register
-
-    def register(self, name: Optional[str] = None, session: Any = None) -> Dict[str, Any]:
-        """Register this dataset in the dataset registry, once. The server checks its footprint at the default branch."""
-        self._require_setup()
-        origin = self.git.remote_url()
-        if not origin:
-            raise DatasetError("the repository has no origin")
-        self.git.fetch_origin()
-        default = self.git.default_branch()
-        head = self.git.head()
-        if not head or not self.git.remote_contains(head, default):
-            raise DatasetError(
-                f"this commit is not on {default} of the remote yet: push it, merge the pull request, "
-                f"then register"
-            )
-        problems = self.problems()
-        if problems:
-            raise DatasetError("this dataset does not pass its footprint check:\n  - " + "\n  - ".join(problems))
-        return register_dataset(origin, name=name, session=session)
 
     def _apply_keys(self) -> None:
         url = self.dvc.remote_url()

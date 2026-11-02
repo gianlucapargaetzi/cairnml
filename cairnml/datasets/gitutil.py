@@ -183,13 +183,6 @@ class Git:
                 return line.split("refs/heads/", 1)[1].split()[0]
         return "main"
 
-    def remote_contains(self, commit: str, branch: str) -> bool:
-        """True when origin/<branch>, as last fetched, holds the commit."""
-        return self.ok("merge-base", "--is-ancestor", commit, f"origin/{branch}")
-
-    def fetch_origin(self) -> None:
-        self.run("fetch", "-q", "origin", check=False)
-
     def is_pushed(self, commit: str = "HEAD") -> bool:
         return bool(self.run("branch", "-r", "--contains", commit, check=False))
 
