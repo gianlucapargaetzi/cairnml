@@ -402,3 +402,15 @@ def test_protection_problems_name_each_missing_setting():
     ]
     forced = dict(right, allow_force_pushes={'enabled': True}, required_status_checks={'checks': [{'context': 'lint'}]})
     assert protection_problems(forced) == ['force pushes are allowed']
+
+
+def test_check_writes_a_manifest_with_modalities_labels_and_splits(first):
+    from cairnml.datasets import footprint
+
+    repo, _sha = first
+    manifest = json.loads((repo.path / "manifest.json").read_text())
+    assert manifest["schema_version"] == 1
+    assert manifest["samples"] == 2
+    assert manifest["splits"] == {"train": 2}
+    assert manifest["modalities"] == {"file": "file"} and manifest["labels"] == {}
+    assert footprint.verify(str(repo.path)) == []

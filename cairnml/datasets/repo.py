@@ -317,8 +317,16 @@ class DatasetRepo:
             dvc_info, result["format"], result["samples"], result["modalities"], result["labels"], __version__, lfs=lfs
         )
         (self.path / footprint.LOCK_FILE).write_text(json.dumps(lock, indent=2, sort_keys=True) + "\n")
+        manifest = {
+            "schema_version": 1,
+            "modalities": result["modalities"],
+            "labels": result["labels"],
+            "samples": result["samples"],
+            "splits": result["splits"],
+        }
+        (self.path / footprint.MANIFEST_FILE).write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
         self._write_tooling()
-        added = [footprint.LOCK_FILE, footprint.CONFIG_FILE, ".cairnml", ".github"]
+        added = [footprint.LOCK_FILE, footprint.MANIFEST_FILE, footprint.CONFIG_FILE, ".cairnml", ".github"]
         if storage == "lfs":
             added.append(footprint.ATTRIBUTES_FILE)
         self.git.add(added)
