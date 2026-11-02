@@ -30,6 +30,7 @@ DATA_DIR = "data"
 DEFAULT_BRANCH = "main"
 DVC_FILE = footprint.DVC_FILE
 WORKFLOW_FILE = ".github/workflows/dataset.yml"
+IGNORED = ("__pycache__/",)  # bytecode is never part of a dataset: init puts these in the ignore lists of the repository
 
 WORKFLOW = """name: dataset
 
@@ -176,7 +177,7 @@ class DatasetRepo:
                 lines.append(f"registry: {registry}\n")
         else:
             lines.append("format: native\n")
-        added = [footprint.CONFIG_FILE, ".cairnml", ".github"]
+        added = [footprint.CONFIG_FILE, ".cairnml", ".github", ".gitignore"]
         if storage == "lfs":
             if remote_url is not None:
                 raise DatasetError("--remote applies to s3 storage only: an lfs dataset keeps its files in the GitHub LFS")
@@ -199,10 +200,21 @@ class DatasetRepo:
             self.dvc.set_remote(remote_url, endpoint=endpoint, region=region)
             where = remote_url
             added += [".dvc", ".dvcignore"]
+            self._ignore(".dvcignore")
+        self._ignore(".gitignore")
         (self.path / footprint.CONFIG_FILE).write_text("".join(lines))
         self._write_tooling()
         self.git.add(added)
         return where
+
+    def _ignore(self, name: str) -> None:
+        """Add the IGNORED patterns to an ignore file of the repository, keeping its other lines."""
+        target = self.path / name
+        existing = target.read_text() if target.is_file() else ""
+        missing = [pattern for pattern in IGNORED if pattern not in existing.splitlines()]
+        if missing:
+            separator = "" if not existing or existing.endswith("\n") else "\n"
+            target.write_text(existing + separator + "".join(pattern + "\n" for pattern in missing))
 
     def _write_attributes(self) -> None:
         """Keep every file of data/ in LFS: the pattern is added to .gitattributes, which is tracked."""

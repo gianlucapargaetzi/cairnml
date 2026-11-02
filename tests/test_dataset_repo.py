@@ -487,6 +487,22 @@ def test_a_broken_local_adapter_error_names_it(work, storage, cache, source, mes
         repo.check()
 
 
+def test_checking_a_local_dataset_leaves_no_pycache_in_the_repository(work, storage, cache):
+    repo = local_dataset(work, storage, cache)
+    repo.add()
+    repo.check()
+    repo.commit("with a local adapter")
+    assert not list(work.rglob("__pycache__"))
+    assert "__pycache__" not in " ".join(repo.status()["untracked"])
+    assert repo.problems() == []
+
+
+def test_init_ignores_pycache_in_gitignore_and_dvcignore(work, storage):
+    DatasetRepo(work).init(remote_url=str(storage))
+    assert "__pycache__/" in (work / ".gitignore").read_text().splitlines()
+    assert "__pycache__/" in (work / ".dvcignore").read_text().splitlines()
+
+
 def test_a_local_adapter_writes_tabular_labels_without_json_text(work, storage, cache):
     adapter = (
         "from cairnml.datasets import Adapter\n"

@@ -100,7 +100,9 @@ def _instantiate(path: Path, module_name: str, label: str, where: str) -> Adapte
     spec = importlib.util.spec_from_file_location(module_name, path)
     module = importlib.util.module_from_spec(spec)
     try:
-        spec.loader.exec_module(module)
+        # Compiled from the source in memory: the import would write __pycache__ next to the file, into the repository.
+        code = compile(path.read_bytes(), str(path), "exec", dont_inherit=True)
+        exec(code, module.__dict__)
     except Exception as exc:
         raise DatasetError(f"{label} cannot be loaded: {exc}") from exc
     found = [
