@@ -52,6 +52,10 @@ What follows from this:
   and the pull request, given the settings `cairnml dataset doctor` checks.
 - **Nothing secret is stored on your machine.** DVC gets short-lived keys from the server when it needs them.
 
+A repository is a dataset when its root holds `dataset.yaml` at the commit you read. `dataset.lock.json` (and `data.dvc`
+for `s3`) is the footprint that records the check. `DATASET.md` is optional: the web app shows it as the dataset's page.
+The SDK never requires it and never reads it to read data, and `cairnml dataset` does not create it.
+
 ## Create a dataset of your own
 
 The shortest way is one command. It creates a private repository on GitHub with the GitHub command line (`gh`, logged in
@@ -60,7 +64,6 @@ with `gh auth login`), copies the files in, checks them, commits and pushes:
 ```bash
 cairnml dataset create cars-data --from /path/to/measurements --storage lfs
 cairnml dataset doctor                   # once: check the GitHub settings
-cairnml dataset register                 # once: add the dataset to the registry
 ```
 
 `--public` makes the repository public, `--path` chooses the local folder (default: the name), and `--adapter` and
@@ -87,7 +90,6 @@ cairnml dataset add                      # record data/ as it is now
 cairnml dataset commit -m "March measurements"   # check the data and commit it with its footprint
 cairnml dataset doctor                   # once: check the set-up and the GitHub settings
 cairnml dataset push                     # send the files, then the commit, as a pull request
-cairnml dataset register                 # once: add the dataset to the registry
 ```
 
 `add` records the whole of `data/`: new and changed files are included, and files you removed are removed from the dataset. Older commits keep their files, so an earlier version stays available.
@@ -124,7 +126,7 @@ class CarsCsv(Adapter):
 The adapter runs only when you check the data on your machine (`cairnml dataset check`, `commit` and `create`). The footprint
 records the sha256 of `adapter.py`, so a change to the adapter after the check is found by `cairnml dataset push` and by the
 repository's CI check, which reads the hash and does not run the adapter. The data must then be checked again. Reading a dataset with
-`Dataset.get` does not run the adapter, and a registry entry that points to a local adapter is refused, because the registry
+`Dataset.get` does not run the adapter, and a registry entry never reads a repository of your own, because the registry
 would otherwise run code from the repository.
 
 ## Publish a dataset
@@ -142,9 +144,14 @@ The doctor only reads these settings; it never changes them. Set them on the rep
 
 `push` refuses a commit whose footprint does not hold.
 
-## Register a dataset
+## Discovery and access
 
-`cairnml dataset register` asks the server to add the dataset to the registry. The server reads the default branch of the repository, verifies the footprint, and opens a pull request in the registry with the new entry. Registration happens once. A repository that is already registered, or waiting in a pull request, is refused. Its commit must already be on the default branch.
+Your own datasets are not in the registry. They are discovered through the GitHub App installation: a repository the
+GitHub App is installed on, with a `dataset.yaml`, is a dataset you can read with `Dataset.get(<repository>, <commit>)`. The GitHub App is needed
+for private repositories and for discovery. A public repository needs no login and no GitHub App.
+
+The [dataset registry](https://github.com/gianlucapargaetzi/cairnml-dataset-registry) holds public datasets and adapters
+only. Nothing is added to it for your own datasets.
 
 ## Use a dataset in a script
 
@@ -157,11 +164,15 @@ data = Dataset.get("https://github.com/acme/cars-data.git", "3f2a9c1")   # a com
 print(data.path)   # a folder with the files
 ```
 
+The repository can be a URL or a local path. If it has no `dataset.yaml` at that commit, `Dataset.get` refuses it before
+anything is downloaded: `<repository> is not a CairnML dataset: dataset.yaml is missing at <commit>`.
+
 The files are downloaded once into your cache and reused by every later run on the machine. The task records the repository, the commit and the content hash, so the run always shows which data it used. Pass a commit hash rather than a branch when you want to rerun the same data later.
 
 ## Use a public dataset from the registry
 
-A public dataset has an entry in the registry: a pin file in `datasets/` that names its source and its adapter. Read it by name:
+A public dataset has an entry in the registry: a pin file in `datasets/` that names its source and its adapter. Read it by name.
+An entry that names a repository of your own (`source: repo`) is refused: read that repository with `Dataset.get` instead.
 
 ```python
 from cairnml.datasets import Dataset
@@ -272,7 +283,13 @@ On an agent, mount the cache into the job containers, so it survives between job
 
 ## Access
 
-DVC gets short-lived keys for the dataset storage from the server, so no access key is stored on your machine. Git uses your own login. In a job, the agent gets a read-only token for the registry and for the dataset repositories its entries point to, and for no other repository.
+DVC gets short-lived keys for the dataset storage from the server, so no access key is stored on your machine. Git uses
+your own login outside a job. In a job, the agent gets a read-only token for any repository the GitHub App is installed on.
+
+- A **public repository** is read over https with no token: no login and no GitHub App.
+- A **private repository** needs the GitHub App. Outside a job, your own git login is used; inside a job, the token the server issues.
+- A dataset in **LFS** needs only git and git-lfs, so a public one needs no login at all.
+- A dataset in **S3** gets its storage keys from the server, so reading it needs a CairnML login, even when its repository is public.
 
 ## Having problems
 
