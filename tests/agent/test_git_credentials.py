@@ -113,6 +113,16 @@ def test_a_host_without_a_stored_credential_falls_back_to_the_configured_ones(ca
     assert out == "The server has no Git credential for gitlab.example.com, using the configured credentials\n"
 
 
+def test_a_public_repository_has_no_credential_and_no_message(capsys):
+    session, _ = session_answering(Reply(data={"token": None, "expires_at": None, "username": None}))
+    assert select_git_credential(session, "https://gitlab.example.com/team/repo.git", "task-1") is None
+    assert fetch_git_credential(session, "task-1") is None
+    assert capsys.readouterr().out == ""
+
+    session, _ = session_answering(Reply(data={"token": TOKEN, "username": "oauth2"}))
+    assert select_git_credential(session, "https://gitlab.example.com/team/repo.git", "task-1") == ("oauth2", TOKEN)
+
+
 def test_the_github_app_token_keeps_its_username():
     session, _ = session_answering(Reply(data={"token": TOKEN, "username": "x-access-token"}))
     assert fetch_git_credential(session, "task-1") == ("x-access-token", TOKEN)
