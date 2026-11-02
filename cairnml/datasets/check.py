@@ -43,7 +43,10 @@ def _validate_table(table_dir: Path, source_root: Path, who: str) -> Dict[str, A
         validate_rows(rows, manifest["modalities"], manifest["labels"], root=source_root)
     except SchemaError as exc:
         raise DatasetError(f"{who}: {exc}") from None
-    return {"samples": len(rows), "modalities": manifest["modalities"], "labels": manifest["labels"]}
+    splits: Dict[str, int] = {}
+    for row in rows:
+        splits[row["split"]] = splits.get(row["split"], 0) + 1
+    return {"samples": len(rows), "modalities": manifest["modalities"], "labels": manifest["labels"], "splits": splits}
 
 
 def _check_native(data_dir: Path) -> Dict[str, Any]:

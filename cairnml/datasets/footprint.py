@@ -27,6 +27,7 @@ from typing import Any, Dict, List, Mapping, Optional, Tuple
 
 FOOTPRINT_VERSION = 1
 LOCK_FILE = "dataset.lock.json"
+MANIFEST_FILE = "manifest.json"  # what the Datasets page shows: modalities, labels, samples and splits, written at check
 CONFIG_FILE = "dataset.yaml"
 DVC_FILE = "data.dvc"
 ATTRIBUTES_FILE = ".gitattributes"
@@ -40,7 +41,7 @@ LFS_PATTERN = "data/** filter=lfs diff=lfs merge=lfs -text"
 # What may be tracked by git at the top of a dataset repository. The data itself is in DVC or in LFS.
 ALLOWED_TOP_LEVEL = {
     DVC_FILE, CONFIG_FILE, LOCK_FILE, ".gitignore", ".dvcignore", ".dvc", ".github", ".cairnml", ATTRIBUTES_FILE,
-    "README.md", "README", "LICENSE", "LICENSE.md", "NOTICE", "docs",
+    "README.md", "README", "DATASET.md", "LICENSE", "LICENSE.md", "NOTICE", "docs", MANIFEST_FILE,
 }
 
 _SHA = re.compile(r"[0-9a-f]{7,40}")
