@@ -74,7 +74,7 @@ DAEMON_ARGS = dict({
     '--allow-venv': {
         'help': 'Allow jobs to run in a Python virtual environment on this host instead of a Docker container. '
                 'Off by default. A job that runs this way can read the agent\'s device key and act as the '
-                'enrolling admin, so use it only for code you fully trust.',
+                'enrolling user, so use it only for code you fully trust.',
         'action': 'store_true',
         'group': 'Docker support',
     },
@@ -272,7 +272,7 @@ COMMANDS = {
         'help': 'Check daemon configuration and print it',
     },
     'init': {
-        'help': 'Enrol this agent machine with the CairnML server (an admin signs in)',
+        'help': 'Enrol this agent machine with the CairnML server (you sign in)',
         'args': {
             'server': {
                 'help': "The server's address, e.g. http://cairnml",

@@ -174,7 +174,7 @@ sys_random = random.SystemRandom()
 
 VENV_MODE_WARNING = (
     "WARNING: --allow-venv runs jobs on this host as the agent's own user. A job can read the agent's device key "
-    "(~/.cairnml/agent/device.key) and sign in as the admin who enrolled this agent, with a token that lasts until "
+    "(~/.cairnml/agent/device.key) and sign in as the user who enrolled this agent, with a token that lasts until "
     "the device is revoked. Use it only for code you fully trust, or run the agent with --docker."
 )
 
