@@ -1,7 +1,6 @@
 """cairnml-agent init <server>: enrol this agent machine with the server. Reads the server address from the command line.
 
-It does what cairnml init of the CairnML SDK does, with one difference: the machine is enrolled as an agent, and only an
-admin may do that. The server address is parsed the same way (parse_known_host is the SDK's, copied so the agent does
+It does what cairnml init of the CairnML SDK does, with one difference: the machine is enrolled as an agent. Any signed-in user may do that; the agent then acts with that user's role. The server address is parsed the same way (parse_known_host is the SDK's, copied so the agent does
 not depend on the SDK).
 """
 from __future__ import print_function
