@@ -63,7 +63,7 @@ If a machine has no browser, `cairnml init` and `cairnml-agent init` show a shor
 | **Model** | A model kept in the web app for a project. |
 | **Dataset** | A versioned set of data. Versions are git commits (and DVC data) recorded with each run. |
 | **Enrolment** | Connecting a machine to the server with its own key. Each SDK or agent machine enrols once; no access key is copied. |
-| **Admin** | A user with the `cairnml-admin` role. Only admins enrol agents and manage the server. |
+| **Admin** | A user with the `cairnml-admin` role. Admins manage the server. Any signed-in user can enrol an agent. |
 | **Registry** | The dataset registry: adapters that read public datasets. |
 
 ## Next steps
