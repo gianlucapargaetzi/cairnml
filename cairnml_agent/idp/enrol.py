@@ -18,7 +18,11 @@ from .keys import generate_private_key, public_key_pem, write_private_key
 
 
 class EnrolmentFailed(Exception):
-    pass
+    """A refusal or a failure. status is the HTTP status of the server's answer, None when there was none."""
+
+    def __init__(self, message, status=None):
+        super().__init__(message)
+        self.status = status
 
 
 @dataclass
@@ -42,7 +46,7 @@ def _call(http, url, body, token=None):
             message = f"error {response.status_code}"
             if response.status_code in (404, 405):
                 message += ": this is not the CairnML API address; give the address of the server, e.g. http://cairnml"
-        raise EnrolmentFailed(message)
+        raise EnrolmentFailed(message, status=response.status_code)
     return reply["data"]
 
 
@@ -85,6 +89,25 @@ def _replace_key(key, key_path: Path) -> None:
     os.replace(tmp, key_path)
 
 
+def _existing_enrolment(http, server_url: str, device_id, key_path: Path) -> Optional[bool]:
+    """Whether this machine's enrolment still works on this server.
+
+    True: the server accepts the device's key, so the machine is enrolled. False: the server refuses the device (another
+    server, a revoked or deleted device, or no key), so the old enrolment is stale. None: the server could not say.
+    """
+    if not device_id or not key_path.exists():
+        return False
+    try:
+        _token_for_device(http, server_url, device_id, key_path)
+    except EnrolmentFailed as exc:
+        return None if exc.status is None or exc.status >= 500 else False
+    except (OSError, ValueError):
+        return False  # the key cannot be read or used, so there are no valid credentials
+    except requests.RequestException:
+        return None
+    return True
+
+
 def enrol(
     server: str,
     *,
@@ -103,11 +126,16 @@ def enrol(
     so the old person's key stops working.
     """
     key_path = Path(key_path or DEVICE_KEY_PATH)
-    if (key_path.exists() or previous_device_id) and not force:
-        raise EnrolmentFailed("this machine is already enrolled; use --force to enroll again")
     http = http or requests.Session()
     settings = _settings(http, server)
     server_url = settings["public_url"].rstrip("/")
+    if (key_path.exists() or previous_device_id) and not force:
+        state = _existing_enrolment(http, server_url, previous_device_id, key_path)
+        if state is True:
+            raise EnrolmentFailed(f"this machine is already enrolled with {server_url}; use --force to enroll again")
+        if state is None:
+            raise EnrolmentFailed(f"cannot check the existing enrolment: {server_url} did not answer; try again, or use --force")
+        # False: the server does not accept this device, so the enrolment is stale. Enrol again.
 
     if force and previous_device_id and key_path.exists():
         try:

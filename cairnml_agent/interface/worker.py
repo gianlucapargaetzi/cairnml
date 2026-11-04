@@ -290,7 +290,7 @@ COMMANDS = {
                 'action': 'store_true',
             },
             '--file': {
-                'help': "Configuration file (default: the agent's ~/cairnml-agent.conf)",
+                'help': "Configuration file (default: the agent's ~/.cairnml/agent/cairnml-agent.conf)",
                 'aliases': ['-F'],
                 'default': None,
             },
@@ -300,7 +300,7 @@ COMMANDS = {
         'help': 'Check this agent machine: configuration, server, Docker, Docker daemon, GitHub App',
         'args': {
             '--file': {
-                'help': "Configuration file (default: the agent's ~/cairnml-agent.conf)",
+                'help': "Configuration file (default: the agent's ~/.cairnml/agent/cairnml-agent.conf)",
                 'aliases': ['-F'],
                 'default': None,
             },

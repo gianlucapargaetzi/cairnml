@@ -12,7 +12,7 @@ def subcommand_parser(name):
 
 def test_the_config_file_help_names_the_file_the_agent_writes():
     text = re.sub(r'\s+', '', get_parser().format_help())  # the help wraps the path onto two lines
-    assert '~/cairnml-agent.conf' in text
+    assert '~/.cairnml/agent/cairnml-agent.conf' in text
     assert '~/cairnml.conf' not in text
 
 
