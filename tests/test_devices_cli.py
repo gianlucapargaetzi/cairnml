@@ -8,6 +8,7 @@ from cairnml.cli import __main__ as cli
 from cairnml.cli import devices
 from cairnml.idp.device import save_device_key
 from cairnml.idp.enrol import EnrolmentFailed
+from cairnml.version import __version__
 from cairnml.cli.enrolment import ClientSession
 
 PUBLIC = "http://cairnml:8008"
@@ -165,7 +166,7 @@ def test_every_call_names_this_sdk_and_keeps_the_upgrade_notice(tmp_path):
     client.post("http://cairnml/v2.8/devices.idp_settings", json={}, headers=None, timeout=30)
     client.post("http://cairnml/v2.8/devices.get_all", json={}, headers={"Authorization": "Bearer t"}, timeout=30)
     first_headers = inner.post.call_args_list[0].kwargs["headers"]
-    assert first_headers == {"X-CairnML-Client": "cairnml-0.0.2"}
-    assert inner.post.call_args_list[1].kwargs["headers"] == {"X-CairnML-Client": "cairnml-0.0.2",
+    assert first_headers == {"X-CairnML-Client": f"cairnml-{__version__}"}
+    assert inner.post.call_args_list[1].kwargs["headers"] == {"X-CairnML-Client": f"cairnml-{__version__}",
                                                              "Authorization": "Bearer t"}
     assert client.upgrade == notice
