@@ -47,10 +47,19 @@ def default_config_file() -> str:
     override = LOCAL_CONFIG_FILE_OVERRIDE_VAR.get()
     if override:
         return override
-    for f in LOCAL_CONFIG_FILES:
+    for f in reversed(LOCAL_CONFIG_FILES):
         if os.path.exists(os.path.expanduser(os.path.expandvars(f))):
             return f
     return LOCAL_CONFIG_FILES[-1]
+
+
+def _previous_device_id(conf: Path) -> Optional[str]:
+    """The device id of an earlier enrolment of this machine: from the file it is written to, or from an older file."""
+    for f in [conf] + [Path(os.path.expanduser(os.path.expandvars(x))) for x in LOCAL_CONFIG_FILES]:
+        _, device, _ = read_enrolment(f)
+        if device:
+            return device
+    return None
 
 
 def read_enrolment(conf: Path) -> Tuple[Optional[str], Optional[str], dict]:
@@ -97,7 +106,7 @@ def init_main(argv=None) -> int:
     args = parser.parse_args(argv)
 
     conf = Path(os.path.expanduser(args.file)).absolute()
-    _, previous, _ = read_enrolment(conf)
+    previous = _previous_device_id(conf)
     api_server, _ = parse_known_host(urlparse(args.server))
     client = ClientSession()
     try:

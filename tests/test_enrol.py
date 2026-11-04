@@ -29,9 +29,11 @@ class Response:
 
 
 class FakeServer:
-    def __init__(self, enrol_reply=(200, {"data": {"id": "dev_1", "kind": "client"}}), revoke_reply=(200, {"data": {}})):
+    def __init__(self, enrol_reply=(200, {"data": {"id": "dev_1", "kind": "client"}}), revoke_reply=(200, {"data": {}}),
+                 exchange_reply=(200, {"data": {"access_token": "device-token"}})):
         self.enrol_reply = enrol_reply
         self.revoke_reply = revoke_reply
+        self.exchange_reply = exchange_reply
         self.calls = []
 
     def post(self, url, json=None, headers=None, timeout=None):
@@ -41,7 +43,7 @@ class FakeServer:
                                            "sdk_client_id": "cairnml-sdk",
                                            "public_url": PUBLIC, "web_url": "http://cairnml:8080"}})
         if url.endswith("devices.exchange"):
-            return Response(200, {"data": {"access_token": "device-token"}})
+            return Response(*self.exchange_reply)
         if url.endswith("devices.revoke"):
             return Response(*self.revoke_reply)
         return Response(*self.enrol_reply)
@@ -70,14 +72,44 @@ def test_enrolment_uses_the_servers_public_address_and_registers_the_key(tmp_pat
     assert key_path.exists()
 
 
-def test_an_enrolled_machine_is_refused_without_force(tmp_path):
+def test_an_enrolment_the_server_accepts_is_refused_without_force(tmp_path):
     key_path = tmp_path / "device.key"
-    key_path.write_text("existing")
+    save_device_key(key_path, Ed25519PrivateKey.generate())
+    before = key_path.read_bytes()
     server = FakeServer()
-    with pytest.raises(EnrolmentFailed, match="already enrolled"):
-        enrol(API, http=server, login=login, key_path=key_path)
-    assert key_path.read_text() == "existing"
+    with pytest.raises(EnrolmentFailed, match="already enrolled") as info:
+        enrol(API, http=server, login=login, key_path=key_path, previous_device_id="dev_old")
+    assert info.value.status is None
+    assert key_path.read_bytes() == before
     assert not any(url.endswith("devices.enroll") for url, _, _ in server.calls)
+
+
+def test_a_stale_enrolment_the_server_refuses_is_replaced(tmp_path):
+    """A key and device id from an earlier server, which this server does not accept: enrol again."""
+    key_path = tmp_path / "device.key"
+    key_path.write_text("old key")
+    server = FakeServer(exchange_reply=(401, {"meta": {"result_msg": "unknown device"}}))
+    result = enrol(API, http=server, login=login, key_path=key_path, previous_device_id="dev_old")
+    assert result.device_id == "dev_1"
+    assert key_path.read_text() != "old key"
+
+
+def test_an_enrolment_without_a_device_id_is_stale(tmp_path):
+    key_path = tmp_path / "device.key"
+    key_path.write_text("old key")
+    server = FakeServer()
+    enrol(API, http=server, login=login, key_path=key_path)
+    assert key_path.read_text() != "old key"
+
+
+def test_an_enrolment_that_cannot_be_checked_is_not_called_enrolled(tmp_path):
+    key_path = tmp_path / "device.key"
+    save_device_key(key_path, Ed25519PrivateKey.generate())
+    before = key_path.read_bytes()
+    server = FakeServer(exchange_reply=(503, {"meta": {"result_msg": "down"}}))
+    with pytest.raises(EnrolmentFailed, match="cannot check the existing enrolment"):
+        enrol(API, http=server, login=login, key_path=key_path, previous_device_id="dev_old")
+    assert key_path.read_bytes() == before
 
 
 def test_force_revokes_the_previous_device_first(tmp_path):
