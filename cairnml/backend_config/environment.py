@@ -37,8 +37,8 @@ def read_env_with_legacy(current: str, legacy: str) -> str:
 
 
 def check_legacy_config_file(path: str) -> None:
-    """Warn once when the ClearML-era configuration file name `trains.conf` is read."""
-    if Path(path).name == "trains.conf":
+    """Warn once when the ClearML-era configuration file `trains.conf` exists and is read."""
+    if Path(path).name == "trains.conf" and Path(path).is_file():
         warn_deprecated_once(
             "trains.conf",
             f"the configuration file {path} is deprecated and will be removed; rename it to cairnml.conf",

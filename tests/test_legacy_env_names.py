@@ -45,14 +45,20 @@ def test_the_current_environment_name_is_preferred_without_a_warning(monkeypatch
     assert "deprecated" not in capsys.readouterr().err
 
 
-def test_the_trains_config_file_warns_once_and_cairnml_conf_does_not(capsys):
-    from cairnml.backend_config.environment import check_legacy_config_file
+def test_the_trains_config_file_warns_once_and_cairnml_conf_does_not(tmp_path, capsys):
+    from cairnml.backend_config import environment
 
-    check_legacy_config_file("/home/someone/trains.conf")
-    check_legacy_config_file("/home/someone/trains.conf")
+    environment._warned_legacy_keys.discard("trains.conf")
+    check_legacy_config_file = environment.check_legacy_config_file
+
+    trains, cairnml = tmp_path / "trains.conf", tmp_path / "cairnml.conf"
+    trains.write_text("")
+    cairnml.write_text("")
+    check_legacy_config_file(str(trains))
+    check_legacy_config_file(str(trains))
     err = capsys.readouterr().err
     assert err.count("trains.conf is deprecated") == 1
     assert "rename it to cairnml.conf" in err
 
-    check_legacy_config_file("/home/someone/cairnml.conf")
+    check_legacy_config_file(str(cairnml))
     assert "cairnml.conf" not in capsys.readouterr().err
