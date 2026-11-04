@@ -22,7 +22,8 @@ LOCAL_CONFIG_PATHS = [
 
 LOCAL_CONFIG_FILES = [
     expanduser("~/trains.conf"),  # used for workstation configuration (end-users, workers)
-    expanduser("~/cairnml.conf"),  # used for workstation configuration (end-users, workers)
+    expanduser("~/cairnml.conf"),  # the earlier location, still read so that existing installs keep working
+    expanduser("~/.cairnml/cairnml.conf"),  # written by cairnml init, next to the device key (last = preferred)
 ]
 """ Local config files (not paths) """
 

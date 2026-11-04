@@ -66,7 +66,7 @@ Your browser opens the sign-in page. When the command prints `enrolled as ...`, 
 
 The browser sign-in receives its reply on `127.0.0.1:8765`. The identity provider accepts only this redirect address for the CairnML client. Set `CAIRNML_LOGIN_PORT` to another port only if the identity provider also accepts that redirect address; `0` lets the system pick a free port, which the identity provider rejects today. If another program on the machine holds the port, `cairnml init` says so and signs in with a code instead (see `--device`). On a machine without a browser, `cairnml init --device` always uses the code.
 
-Environment variables named `TRAINS_*` and the configuration file `~/trains.conf` (from the ClearML-based original) still work. Each one prints a deprecation warning once; use the `CAIRNML_*` name of the same setting, and rename `~/trains.conf` to `~/cairnml.conf`.
+Environment variables named `TRAINS_*` and the configuration file `~/trains.conf` (from the ClearML-based original) still work. Each one prints a deprecation warning once; use the `CAIRNML_*` name of the same setting, and rename `~/trains.conf` to `~/.cairnml/cairnml.conf`. `cairnml init` writes `~/.cairnml/cairnml.conf`, next to the device key; the earlier `~/cairnml.conf` is still read.
 
 ## Commands
 

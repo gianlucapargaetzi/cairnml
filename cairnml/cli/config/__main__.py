@@ -22,6 +22,7 @@ def write_config(conf_file, api_host: str, web_host: str, device_id: Optional[st
         return
     # noinspection PyBroadException
     try:
+        Path(str(conf_file)).parent.mkdir(parents=True, exist_ok=True)
         with open(str(conf_file), "wt") as f:
             header = (
                 "# CairnML SDK configuration file\n"
