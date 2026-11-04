@@ -25,7 +25,7 @@ def default_config_file():
 
 def main(server, name=None, force=False, file=None, device=False):
     conf_file = Path(os.path.expanduser(file or default_config_file())).absolute()
-    previous_device_id = _device_id_in(conf_file)
+    previous_device_id = _previous_device_id(conf_file)
 
     api_server, _ = parse_known_host(urlparse(server))
     try:
@@ -42,6 +42,15 @@ def main(server, name=None, force=False, file=None, device=False):
         return 1
     print('enrolled as {} on {} (device {})'.format(result.user or 'unknown user', result.server_url, result.device_id))
     return 0
+
+
+def _previous_device_id(conf_file):
+    """The device id of an earlier enrolment: from the file it is written to, or from an older file."""
+    for f in [conf_file] + [Path(os.path.expanduser(os.path.expandvars(x))) for x in LOCAL_CONFIG_FILES]:
+        device = _device_id_in(f)
+        if device:
+            return device
+    return None
 
 
 def _device_id_in(conf_file):
@@ -67,6 +76,7 @@ def write_config(conf_file, api_host, web_host, device_id):
         return False
     # noinspection PyBroadException
     try:
+        conf_file.parent.mkdir(parents=True, exist_ok=True)
         with open(str(conf_file), 'wt') as f:
             header = '# CAIRNML-AGENT configuration file\n' \
                      'api {\n' \
