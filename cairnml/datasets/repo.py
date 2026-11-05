@@ -22,7 +22,7 @@ from . import footprint, process
 from .cache import DatasetCache
 from .check import run_check
 from ._shared import git_token, on_github
-from .credentials import StorageKeys, fetch_dataset_list, fetch_storage_keys
+from .credentials import StorageKeys, fetch_dataset_list, fetch_storage_keys, register_dataset
 from .dvcutil import Dvc
 from .errors import DatasetError
 from .gitutil import Git
@@ -626,12 +626,16 @@ class DatasetRepo:
         registry: Optional[str] = None,
         create_remote: Callable[[str, bool], str] = create_repository,
         protect: bool = True,
+        register: Callable[[str], None] = register_dataset,
     ) -> Dict[str, Any]:
-        """Create the GitHub repository, set it up, copy the files of ``source`` into ``data/``, check, commit and push.
+        """Create the GitHub repository, add it to CairnML as the person's dataset, set it up, copy the files of ``source``
+        into ``data/``, check, commit and push.
 
-        The one call a new dataset needs. After the first push the default branch is protected (see :meth:`protect`),
-        unless ``protect`` is False; a failure there is reported in ``protection`` and does not undo the create.
-        ``create_remote`` makes the repository and returns its address for git.
+        The one call a new dataset needs. ``create_remote`` makes the repository and returns its address for git;
+        ``register`` adds it to the server, which then gives the person the token that pushes to it. A refusal there
+        stops the create, with the server's reason. After the first push the default branch is protected (see
+        :meth:`protect`), unless ``protect`` is False; a failure there is reported in ``protection`` and does not undo the
+        create.
         """
         source_dir, target = Path(source), Path(path)
         if not source_dir.is_dir():
@@ -645,6 +649,12 @@ class DatasetRepo:
                 f"which goes to the top of the repository and not into data/"
             )
         url = create_remote(name, private)
+        try:
+            register(url)
+        except DatasetError as exc:
+            raise DatasetError(
+                f"{url} was created on GitHub, but CairnML did not add it, so nothing was set up or pushed: {exc}"
+            ) from None
         target.mkdir(parents=True, exist_ok=True)
         git = Git.init(target)
         git.run("symbolic-ref", "HEAD", f"refs/heads/{DEFAULT_BRANCH}")

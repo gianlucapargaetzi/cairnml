@@ -78,7 +78,8 @@ def source(tmp_path):
 
 def create(tmp_path, origin, source, **kwargs):
     return DatasetRepo.create(
-        tmp_path / "local", "cars", source, storage="lfs", create_remote=lambda name, private: str(origin), **kwargs
+        tmp_path / "local", "cars", source, storage="lfs", create_remote=lambda name, private: str(origin),
+        register=lambda url: None, **kwargs
     )
 
 

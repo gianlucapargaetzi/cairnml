@@ -175,10 +175,13 @@ def test_create_makes_the_remote_and_publishes_in_one_call(tmp_path, origin):
         calls.append((name, private))
         return str(origin)  # the bare repository stands in for the new GitHub repository
 
+    registered = []
     result = DatasetRepo.create(
-        tmp_path / "local", "cars", source, storage="lfs", create_remote=fake_remote
+        tmp_path / "local", "cars", source, storage="lfs", create_remote=fake_remote,
+        register=lambda url: registered.append(url),
     )
     assert calls == [("cars", True)]
+    assert registered == [str(origin)]  # the new repository is added to CairnML before its first push
     assert result["storage"] == "lfs" and result["branch"] == "main"
     assert (tmp_path / "local" / "data" / "one.bin").read_bytes() == b"1" * 3000
     heads = subprocess.run(["git", "-C", str(origin), "branch", "--list"], capture_output=True, text=True).stdout
@@ -228,7 +231,8 @@ def test_create_takes_the_local_adapter_from_the_source_folder_to_the_top(tmp_pa
         return str(origin)
 
     result = DatasetRepo.create(
-        tmp_path / "local", "cars", prepared, storage="lfs", adapter="local", create_remote=fake_remote, protect=False
+        tmp_path / "local", "cars", prepared, storage="lfs", adapter="local", create_remote=fake_remote, protect=False,
+        register=lambda url: None,
     )
     assert calls == ["cars"] and result["branch"] == "main"
     assert (tmp_path / "local" / "adapter.py").read_bytes() == (prepared / "adapter.py").read_bytes()

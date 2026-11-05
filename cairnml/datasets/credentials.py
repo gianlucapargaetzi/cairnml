@@ -63,16 +63,34 @@ def fetch_git_token(repository: str, task_id: str, session=None) -> Optional[str
     return (response.json().get("data") or {}).get("token")
 
 
+def _person_request(session, action: str, json: dict):
+    """A datasets request made for a person, with the login. Without a login the reason is said in the error."""
+    try:
+        return _session(session).send_request(service="datasets", action=action, version="2.40", json=json)
+    except Exception as exc:
+        raise DatasetError(
+            f"the server could not be asked ({exc}): datasets need a CairnML login, because the server issues the Git "
+            "tokens of a dataset to the person signed in"
+        ) from None
+
+
 def fetch_person_git_token(repository: str, level: str, session=None) -> Optional[str]:
     """A GitHub token for one dataset repository, for a person's machine, at ``level`` (``read`` or ``read_write``), from
     the server (datasets.git_token). The server gives the level the person holds on the dataset, and refuses the rest.
     None for a public repository, which needs no token to read. ``repository`` is the repository URL."""
-    response = _session(session).send_request(
-        service="datasets", action="git_token", version="2.40", json={"repository": repository, "level": level}
-    )
+    response = _person_request(session, "git_token", {"repository": repository, "level": level})
     if not response.ok:
         raise DatasetError(f"the server refused a token for {repository}: {response.text.strip()}")
     return (response.json().get("data") or {}).get("token")
+
+
+def register_dataset(url: str, session=None) -> None:
+    """Adds a new GitHub repository to CairnML as a dataset of the person signed in (datasets.add: kind repo, visibility
+    user), so that the owner can be given the token that pushes to it. Raises DatasetError with the server's reason when
+    the server refuses."""
+    response = _person_request(session, "add", {"kind": "repo", "url": url, "visibility": "user"})
+    if not response.ok:
+        raise DatasetError(f"the server did not add {url} as a dataset: {response.text.strip()}")
 
 
 def fetch_dataset_list(session=None) -> dict:

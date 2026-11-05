@@ -572,6 +572,46 @@ def test_a_push_to_a_remote_that_is_not_github_asks_the_server_for_nothing(work,
     assert DatasetRepo(work)._push_git().token is None
 
 
+def test_a_refusal_to_add_the_new_repository_stops_the_create_with_the_reason(tmp_path):
+    source = tmp_path / "source"
+    source.mkdir()
+    (source / "a.txt").write_bytes(b"alpha")
+
+    def refused(url):
+        raise DatasetError("the server did not add https://github.com/acme/cars.git as a dataset: no access")
+
+    with pytest.raises(DatasetError, match="was created on GitHub, but CairnML did not add it.*no access"):
+        DatasetRepo.create(tmp_path / "new", "cars", source, create_remote=lambda name, private: "https://github.com/acme/cars.git",
+                           register=refused, protect=False)
+    assert not (tmp_path / "new").exists()
+
+
+def test_adding_a_repository_asks_the_server_as_a_user_dataset(monkeypatch):
+    asked = []
+
+    class Answer:
+        ok = True
+        text = ""
+
+    class Session:
+        def send_request(self, service, action, json, version=None):
+            asked.append((service, action, json, version))
+            return Answer()
+
+    credentials.register_dataset("https://github.com/acme/cars.git", Session())
+
+    assert asked == [("datasets", "add", {"kind": "repo", "url": "https://github.com/acme/cars.git", "visibility": "user"}, "2.40")]
+
+
+def test_a_person_without_a_login_is_told_why_datasets_need_one(monkeypatch):
+    class NoLogin:
+        def send_request(self, service, action, json, version=None):
+            raise ValueError("CairnML host was not set")
+
+    with pytest.raises(DatasetError, match="datasets need a CairnML login"):
+        credentials.fetch_person_git_token("https://github.com/acme/cars.git", "read", NoLogin())
+
+
 def test_protection_problems_name_each_missing_setting():
     right = {
         'required_pull_request_reviews': {},
