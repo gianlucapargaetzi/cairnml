@@ -31,6 +31,8 @@ class Enrolment:
     server_url: str
     web_url: str
     user: str
+    notice: str = ""
+    """ What the server asks the person who enrols to know; empty for a client """
 
 
 def _call(http, url, body, token=None):
@@ -161,12 +163,16 @@ def enrol(
         server_url=server_url,
         web_url=settings.get("web_url", ""),
         user=user,
+        notice=device.get("notice", ""),
     )
 
 
 def enrol_device(api_host, *, kind="client", http=None, login=browser_login, key_path=None, name=None, out=print):
     """The agent's entry point: returns the device id. The server address is the server's public one."""
-    return enrol(api_host, kind=kind, http=http, login=login, key_path=key_path, name=name, out=out).device_id
+    result = enrol(api_host, kind=kind, http=http, login=login, key_path=key_path, name=name, out=out)
+    if result.notice:
+        out(f"note: {result.notice}")
+    return result.device_id
 
 
 def _hostname() -> str:
