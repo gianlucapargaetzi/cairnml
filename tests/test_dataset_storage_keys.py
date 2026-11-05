@@ -5,7 +5,7 @@ from types import SimpleNamespace
 import pytest
 
 from cairnml.datasets import DatasetError
-from cairnml.datasets.credentials import fetch_storage_keys
+from cairnml.datasets.credentials import StorageKeys, fetch_storage_keys
 
 ANSWER = {
     "endpoint": "http://store:9000",
@@ -49,3 +49,13 @@ def test_an_answer_without_the_prefix_is_refused():
 
     with pytest.raises(DatasetError, match="prefix"):
         fetch_storage_keys(repository="acme/cars", level="read_write", session=FakeSession(data))
+
+
+def test_the_secret_and_the_session_token_do_not_appear_in_the_repr():
+    keys = StorageKeys(**{**ANSWER, "secret_key": "sekret-value-123", "session_token": "token-value-456"})
+
+    text = repr(keys)
+
+    assert "sekret-value-123" not in text
+    assert "token-value-456" not in text
+    assert ANSWER["access_key"] in text

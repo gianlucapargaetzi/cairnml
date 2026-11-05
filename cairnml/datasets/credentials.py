@@ -1,7 +1,7 @@
 """Keys and tokens the server hands out for datasets, so no one copies an access key to a machine."""
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional
 
 from .errors import DatasetError
@@ -15,8 +15,8 @@ class StorageKeys:
     prefix: str
     """ the bucket path of the dataset, bucket name first (dataset/<company>/<owner>/<name>): the remote is s3:// + this """
     access_key: str
-    secret_key: str
-    session_token: str
+    secret_key: str = field(repr=False)
+    session_token: str = field(repr=False)
     expires_at: str
 
 
