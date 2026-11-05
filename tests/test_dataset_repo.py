@@ -4,7 +4,6 @@ import json
 import re
 import subprocess
 import sys
-from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -371,10 +370,11 @@ def test_a_repository_without_dataset_yaml_is_not_a_dataset(tmp_path, cache, mon
 
 
 def test_a_public_repository_is_read_without_any_credential(first, origin, tmp_path, cache, monkeypatch):
-    """A public repository is cloned over https with no token: no login, no server call, no GitHub App.
+    """A public repository is cloned over https with no token. On a person's machine the server is asked for a read
+    token, and for a public repository it answers with none (datasets.git_token).
 
     The public address is rewritten to the local origin through git's insteadOf setting, so git runs for real and no
-    network is used. Every git command is recorded: none may carry a token, and the server is never asked."""
+    network is used. Every git command is recorded: none may carry a token."""
     from cairnml import Task
     from cairnml.datasets import gitutil
 
@@ -386,19 +386,30 @@ def test_a_public_repository_is_read_without_any_credential(first, origin, tmp_p
     for name in ("CAIRNML_JOB_TOKEN", "CAIRNML_JOB_TOKEN_FILE"):
         monkeypatch.delenv(name, raising=False)
     seen = []
+    asked = []
     real_env = gitutil._env
 
     def recording_env(token=None):
         seen.append(token)
         return real_env(token)
 
-    def no_session(*_args, **_kwargs):
-        raise AssertionError("the server was asked")
+    class Answer:
+        ok = True
+        text = ""
+
+        def json(self):
+            return {"data": {"token": None}}
+
+    class Session:
+        def send_request(self, service, action, json, version=None):
+            asked.append((service, action, json))
+            return Answer()
 
     monkeypatch.setattr(gitutil, "_env", recording_env)
-    monkeypatch.setattr(Task, "_get_default_session", staticmethod(no_session))
+    monkeypatch.setattr(Task, "_get_default_session", staticmethod(lambda: Session()))
     dataset = Dataset.get(public, sha, cache=cache, record=False)
     assert (dataset.path / "a.txt").read_bytes() == b"alpha"
+    assert asked == [("datasets", "git_token", {"repository": public, "level": "read"})]
     assert seen and all(token is None for token in seen)
 
 
@@ -424,7 +435,7 @@ def test_a_job_gets_no_token_for_a_public_repository_and_reads_it_anonymously(fi
             return {"data": {"token": None}}
 
     class Session:
-        def send_request(self, service, action, json):
+        def send_request(self, service, action, json, version=None):
             asked.append((service, action, json))
             return Answer()
 
@@ -439,13 +450,9 @@ def unreachable_server():
     raise DatasetError("the server could not be asked for the dataset list")
 
 
-def served(datasets, refreshed_at=None):
-    """A stub for the server's datasets.list answer, so the doctor makes no network call."""
-    return lambda: {"datasets": datasets, "refreshed_at": refreshed_at}
-
-
-def fresh_stamp():
-    return datetime.now(timezone.utc).isoformat()
+def served(datasets):
+    """A stub for the server's datasets.visible answer, so the doctor makes no network call."""
+    return lambda: {"datasets": datasets}
 
 
 def checks_by_name(repo, list_datasets=unreachable_server):
@@ -478,18 +485,25 @@ def test_doctor_finds_a_set_up_repository_and_names_a_missing_gh(first, work, mo
 
 def test_the_app_is_found_on_a_listed_repository(work):
     # The origin is .../acme/cars.git, so the repository is acme/cars; the server's spelling may differ in case
-    check = checks_by_name(DatasetRepo(work), served([{"repository": "Acme/Cars"}], fresh_stamp()))["App installed"]
+    check = checks_by_name(DatasetRepo(work), served([{"ref": "Acme/Cars", "kind": "repo", "state": "ok"}]))["App installed"]
     assert check["ok"] is True
-    assert check["message"] == "the GitHub App can read acme/cars, and its dataset.yaml is valid"
+    assert check["message"] == "the server lists acme/cars as a dataset you can read"
 
 
-def test_a_repository_the_app_cannot_read_fails_the_app_check(work):
-    listed = [{"repository": "acme/other"}]
-    check = checks_by_name(DatasetRepo(work), served(listed, fresh_stamp()))["App installed"]
+def test_a_repository_the_server_does_not_list_fails_the_app_check(work):
+    listed = [{"ref": "acme/other", "kind": "repo", "state": "ok"}]
+    check = checks_by_name(DatasetRepo(work), served(listed))["App installed"]
     assert check["ok"] is False
     assert check["message"] == (
-        "the GitHub App is not installed on acme/cars, or the repository has no dataset.yaml yet: install the App on "
-        "this repository (see the dataset docs)")
+        "the server does not list acme/cars: the GitHub App may not be installed on it, or the repository has no "
+        "dataset.yaml yet (see the dataset docs)")
+
+
+def test_a_listed_repository_the_server_cannot_read_says_why(work):
+    listed = [{"ref": "acme/cars", "kind": "repo", "state": "no_access", "state_message": "no access to dataset cars"}]
+    check = checks_by_name(DatasetRepo(work), served(listed))["App installed"]
+    assert check["ok"] is False
+    assert check["message"] == "the server lists acme/cars but cannot read it: no access to dataset cars"
 
 
 def test_the_app_check_says_nothing_was_checked_when_the_server_cannot_answer(work):
@@ -498,45 +512,64 @@ def test_the_app_check_says_nothing_was_checked_when_the_server_cannot_answer(wo
     assert check["message"] == "the server is not reachable or not logged in; nothing checked"
 
 
-def test_an_old_dataset_list_is_named_in_the_app_check_message(work):
-    old = (datetime.now(timezone.utc) - timedelta(hours=3)).isoformat()
-    check = checks_by_name(DatasetRepo(work), served([], old))["App installed"]
-    assert check["ok"] is False
-    assert f"last rebuilt at {old}, more than an hour ago" in check["message"]
-
-
 def test_the_dataset_list_is_asked_of_the_server_with_the_login(monkeypatch):
     asked = []
+    listed = {"datasets": [{"ref": "acme/cars", "kind": "repo", "state": "ok"}]}
 
     class Answer:
         ok = True
         text = ""
 
         def json(self):
-            return {"data": {"datasets": [{"repository": "acme/cars"}], "refreshed_at": None}}
+            return {"data": listed}
 
     class Session:
-        def send_request(self, service, action, json):
+        def send_request(self, service, action, json, version=None):
             asked.append((service, action, json))
             return Answer()
 
-    assert credentials.fetch_dataset_list(Session()) == {"datasets": [{"repository": "acme/cars"}], "refreshed_at": None}
-    assert asked == [("datasets", "list", {})]
+    assert credentials.fetch_dataset_list(Session()) == listed
+    assert asked == [("datasets", "visible", {})]
 
 
 def test_the_dataset_list_is_unavailable_without_a_login_or_when_refused(monkeypatch):
     class NoLogin:
-        def send_request(self, service, action, json):
+        def send_request(self, service, action, json, version=None):
             raise ValueError("CairnML host was not set")
 
     class Refused:
-        def send_request(self, service, action, json):
+        def send_request(self, service, action, json, version=None):
             return type("Answer", (), {"ok": False, "text": "401 unauthorized"})()
 
     with pytest.raises(DatasetError, match="could not be asked"):
         credentials.fetch_dataset_list(NoLogin())
     with pytest.raises(DatasetError, match="401 unauthorized"):
         credentials.fetch_dataset_list(Refused())
+
+
+def test_a_push_to_github_uses_the_servers_write_token_for_that_repository(work, monkeypatch):
+    from cairnml.datasets import repo as repo_module
+
+    subprocess.run(["git", "-C", str(work), "remote", "set-url", "origin", "https://github.com/acme/cars.git"], check=True)
+    asked = []
+
+    def server_token(repository, level):
+        asked.append((repository, level))
+        return "write-token"
+
+    monkeypatch.setattr(repo_module, "git_token", server_token)
+    pusher = DatasetRepo(work)._push_git()
+
+    assert asked == [("https://github.com/acme/cars.git", "read_write")]
+    assert pusher.token == "write-token"
+
+
+def test_a_push_to_a_remote_that_is_not_github_asks_the_server_for_nothing(work, monkeypatch):
+    from cairnml.datasets import repo as repo_module
+
+    monkeypatch.setattr(repo_module, "git_token", lambda *_args: pytest.fail("the server was asked for a token"))
+
+    assert DatasetRepo(work)._push_git().token is None
 
 
 def test_protection_problems_name_each_missing_setting():

@@ -14,7 +14,6 @@ footprint check.
 import json
 import re
 import shutil
-from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
@@ -22,6 +21,7 @@ from ..version import __version__
 from . import footprint, process
 from .cache import DatasetCache
 from .check import run_check
+from ._shared import git_token, on_github
 from .credentials import StorageKeys, fetch_dataset_list, fetch_storage_keys
 from .dvcutil import Dvc
 from .errors import DatasetError
@@ -52,22 +52,6 @@ jobs:
           python-version: "3.12"
       - run: python .cairnml/verify.py
 """
-
-
-def list_age_note(refreshed_at: Optional[str]) -> str:
-    """What the App check says about how old the server's cached dataset list is. Empty when it is recent."""
-    if not refreshed_at:
-        return " (the server's dataset list has not been rebuilt yet, so a recent installation may be missing from it)"
-    try:
-        moment = datetime.fromisoformat(refreshed_at)
-    except ValueError:
-        return ""
-    if moment.tzinfo is None:
-        moment = moment.replace(tzinfo=timezone.utc)
-    if datetime.now(timezone.utc) - moment > timedelta(hours=1):
-        return (f" (the server's dataset list was last rebuilt at {refreshed_at}, more than an hour ago, so a recent "
-                "installation may be missing from it)")
-    return ""
 
 
 def github_name(url: str) -> Optional[str]:
@@ -424,12 +408,21 @@ class DatasetRepo:
         branch = self.git.branch()
         heads = self.git.remote_heads()
         default = self.git.default_branch() if heads else branch
+        pusher = self._push_git()
         if heads and branch == default:
             target = f"incoming/{head[:10]}"
-            self.git.push_to(target)
+            pusher.push_to(target)
             return {"commit": head, "branch": target, **self._open_pull_request(target, default)}
-        self.git.push_to(branch)
+        pusher.push_to(branch)
         return {"commit": head, "branch": branch, "pull_request": None, "problem": None, "auto_merge": None}
+
+    def _push_git(self) -> Git:
+        """The git that publishes the commit to origin. On GitHub the token is the server's, at read_write, for this
+        repository only: the server gives it for the level the person holds on the dataset, and refuses otherwise. A
+        public repository or another host has no such token, and the person's own git login is used."""
+        origin = self.git.remote_url() or ""
+        token = git_token(origin, "read_write") if on_github(origin) else None
+        return Git(self.path, token=token)
 
     def _open_pull_request(self, branch: str, base: str) -> Dict[str, Any]:
         """Open a pull request and ask for auto-merge, through the GitHub command line.
@@ -551,18 +544,20 @@ class DatasetRepo:
         return checks
 
     def _app_installed(self, repo: str, list_datasets: Callable[[], Dict[str, Any]]) -> Tuple[Optional[bool], str]:
-        """Whether the GitHub App can read the repository: it is listed by the server, which lists only the repositories
-        the App is installed on that have a valid dataset.yaml. The cached list is not refreshed here."""
+        """Whether the server lists the repository as a dataset this user can read (datasets.visible): its state is ok.
+        A listed repository the server cannot read says why. The server's records are read, not changed."""
         try:
             answer = list_datasets()
         except DatasetError:
             return None, "the server is not reachable or not logged in; nothing checked"
-        note = list_age_note(answer.get("refreshed_at"))
-        listed = any(str(item.get("repository", "")).lower() == repo.lower() for item in answer.get("datasets") or [])
-        if listed:
-            return True, f"the GitHub App can read {repo}, and its dataset.yaml is valid{note}"
-        return False, (f"the GitHub App is not installed on {repo}, or the repository has no dataset.yaml yet: install "
-                       f"the App on this repository (see the dataset docs){note}")
+        rows = [item for item in answer.get("datasets") or []
+                if item.get("kind") == "repo" and str(item.get("ref", "")).lower() == repo.lower()]
+        if any(item.get("state") == "ok" for item in rows):
+            return True, f"the server lists {repo} as a dataset you can read"
+        if rows:
+            return False, f"the server lists {repo} but cannot read it: {rows[0].get('state_message') or 'no access'}"
+        return False, (f"the server does not list {repo}: the GitHub App may not be installed on it, or the repository "
+                       "has no dataset.yaml yet (see the dataset docs)")
 
     def _gh_api(self, path: str) -> Tuple[Optional[Dict[str, Any]], str]:
         """The JSON answer of one GitHub API call through gh, or None and why it failed."""

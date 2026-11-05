@@ -81,7 +81,7 @@ class Dataset:
         :param record: write the dataset onto the current task (default). Callers that record it themselves pass False.
         """
         cache = cache or DatasetCache.default()
-        git = mirror(cache, repo, git_token(repo))
+        git = mirror(cache, repo, git_token(repo, "read"))
         sha = resolve_commit(git, repo, commit)
         if not git.ok("cat-file", "-e", f"{sha}:{footprint.CONFIG_FILE}"):
             raise DatasetError(
