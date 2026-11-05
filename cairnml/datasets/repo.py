@@ -130,7 +130,7 @@ class DatasetRepo:
     def __init__(
         self,
         path: Union[str, Path] = ".",
-        keys: Optional[Callable[[], StorageKeys]] = None,
+        keys: Optional[Callable[..., StorageKeys]] = None,
         cache: Optional[DatasetCache] = None,
     ) -> None:
         self.path = Path(path).resolve()
@@ -207,11 +207,11 @@ class DatasetRepo:
         else:
             endpoint = region = None
             if remote_url is None:
-                keys = self._keys()
                 name = github_name(origin)
                 if not name:
                     raise DatasetError(f"cannot read the repository name from {origin}")
-                remote_url, endpoint, region = f"s3://{keys.bucket}/{name}", keys.endpoint, keys.region
+                keys = self._keys(repository=name, level="read_write")
+                remote_url, endpoint, region = f"s3://{keys.prefix}", keys.endpoint, keys.region
             self.dvc.init()
             self.dvc.config("core.analytics", "false", local=False)
             self.dvc.set_remote(remote_url, endpoint=endpoint, region=region)
@@ -606,7 +606,11 @@ class DatasetRepo:
     def _apply_keys(self) -> None:
         url = self.dvc.remote_url()
         if url and url.startswith("s3://"):
-            keys = self._keys()
+            origin = self.git.remote_url() or ""
+            name = github_name(origin)
+            if not name:
+                raise DatasetError(f"cannot read the repository name from {origin}")
+            keys = self._keys(repository=name, level="read_write")
             self.dvc.set_credentials(keys.access_key, keys.secret_key, keys.session_token)
 
     def _require_setup(self) -> None:

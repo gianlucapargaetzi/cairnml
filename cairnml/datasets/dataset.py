@@ -16,7 +16,7 @@ from .credentials import fetch_storage_keys
 from .dvcutil import Dvc
 from .errors import DatasetError
 from .gitutil import Git
-from .repo import DATA_DIR, DVC_FILE
+from .repo import DATA_DIR, DVC_FILE, github_name
 
 if TYPE_CHECKING:
     from .external import ExternalDataset
@@ -127,7 +127,10 @@ class Dataset:
             dvc.set_cache(cache.dvc_dir)
             url = dvc.remote_url()
             if url and url.startswith("s3://"):
-                keys = fetch_storage_keys()
+                name = github_name(repo)
+                if not name:
+                    raise DatasetError(f"cannot read the repository name from {repo}")
+                keys = fetch_storage_keys(repository=name, level="read")
                 dvc.set_credentials(keys.access_key, keys.secret_key, keys.session_token)
             if (checkout / DVC_FILE).exists():
                 try:

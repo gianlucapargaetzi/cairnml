@@ -12,6 +12,8 @@ class StorageKeys:
     endpoint: str
     region: str
     bucket: str
+    prefix: str
+    """ the bucket path of the dataset, bucket name first (dataset/<company>/<owner>/<name>): the remote is s3:// + this """
     access_key: str
     secret_key: str
     session_token: str
@@ -26,9 +28,15 @@ def _session(session=None):
     return Task._get_default_session()
 
 
-def fetch_storage_keys(session=None) -> StorageKeys:
-    """Short-lived keys for the dataset bucket. They work for DVC and expire on their own."""
-    response = _session(session).send_request(service="datachunks", action="dataset_credentials", json={})
+def fetch_storage_keys(repository: str, level: str, session=None) -> StorageKeys:
+    """Short-lived keys for one dataset's prefix in the bucket, at ``level`` (``read`` or ``read_write``). They work
+    for DVC on that prefix only, and expire on their own. ``repository`` is owner/name on GitHub."""
+    response = _session(session).send_request(
+        service="datachunks",
+        action="dataset_credentials",
+        version="2.40",
+        json={"repository": repository, "level": level},
+    )
     if not response.ok:
         raise DatasetError(f"the server refused the storage keys for datasets: {response.text.strip()}")
     data = response.json().get("data") or {}
