@@ -252,3 +252,43 @@ def test_create_with_the_local_adapter_needs_the_file_before_it_makes_a_remote(t
             create_remote=lambda name, private: calls.append(name) or "unused",
         )
     assert calls == []
+
+
+def test_the_lfs_push_to_github_carries_the_servers_write_token_not_the_git_login(lfs_repo, work, monkeypatch):
+    """The LFS objects go to GitHub with the token the server issues at read_write for this repository, the same one the
+    commit push uses. The git login is not used. The remote is the GitHub address, and the two network calls of the
+    push (listing the remote branches, and pushing the commit) are recorded, not made, so the test runs offline."""
+    from cairnml.datasets import gitutil
+    from cairnml.datasets import repo as repo_module
+
+    github = "https://github.com/acme/cars.git"
+    subprocess.run(["git", "-C", str(work), "remote", "set-url", "origin", github], check=True)
+    asked = []
+
+    def server_token(repository, level):
+        asked.append((repository, level))
+        return "write-token"
+
+    lfs_calls = []
+
+    def recording_lfs(self, *args, transfer=False):
+        lfs_calls.append((args, self.token))
+        return ""
+
+    pushes = []
+
+    def recording_push_to(self, branch, source="HEAD"):
+        pushes.append((branch, self.token))
+
+    monkeypatch.setattr(repo_module, "git_token", server_token)
+    monkeypatch.setattr(gitutil.Git, "lfs", recording_lfs)
+    monkeypatch.setattr(gitutil.Git, "remote_heads", lambda self: [])
+    monkeypatch.setattr(gitutil.Git, "push_to", recording_push_to)
+    native(work)
+    lfs_repo.add()
+    lfs_repo.commit("first")
+    lfs_repo.push()
+
+    assert asked == [(github, "read_write")]
+    assert [token for args, token in lfs_calls if args[:2] == ("push", "origin")] == ["write-token"]
+    assert pushes and all(token == "write-token" for _branch, token in pushes)

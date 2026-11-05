@@ -399,8 +399,9 @@ class DatasetRepo:
         problems = self.problems()
         if problems:
             raise DatasetError("this dataset does not pass its footprint check:\n  - " + "\n  - ".join(problems))
+        pusher = self._push_git()
         if self.storage() == "lfs":
-            self.git.lfs("push", "origin", head, transfer=True)
+            pusher.lfs("push", "origin", head, transfer=True)
         else:
             self._apply_keys()
             self.dvc.push()
@@ -408,7 +409,6 @@ class DatasetRepo:
         branch = self.git.branch()
         heads = self.git.remote_heads()
         default = self.git.default_branch() if heads else branch
-        pusher = self._push_git()
         if heads and branch == default:
             target = f"incoming/{head[:10]}"
             pusher.push_to(target)
@@ -417,9 +417,10 @@ class DatasetRepo:
         return {"commit": head, "branch": branch, "pull_request": None, "problem": None, "auto_merge": None}
 
     def _push_git(self) -> Git:
-        """The git that publishes the commit to origin. On GitHub the token is the server's, at read_write, for this
-        repository only: the server gives it for the level the person holds on the dataset, and refuses otherwise. A
-        public repository or another host has no such token, and the person's own git login is used."""
+        """The git that publishes the commit and its LFS objects to origin. On GitHub the token is the server's, at
+        read_write, for this repository only: the server gives it for the level the person holds on the dataset, and
+        refuses otherwise. A public repository or another host has no such token, and the person's own git login is
+        used."""
         origin = self.git.remote_url() or ""
         token = git_token(origin, "read_write") if on_github(origin) else None
         return Git(self.path, token=token)
