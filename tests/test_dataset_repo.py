@@ -725,3 +725,21 @@ def test_init_with_a_registry_adapter_keeps_its_line_and_writes_no_registry(work
     assert code == 0
     config = (work / "dataset.yaml").read_text()
     assert "adapter: coco\n" in config and "registry" not in config
+
+
+def test_init_asks_for_keys_at_read_write_and_builds_the_remote_from_the_prefix(work):
+    from cairnml.datasets.credentials import StorageKeys
+
+    asked = []
+
+    def keys(**kwargs):
+        asked.append(kwargs)
+        return StorageKeys(endpoint="http://store:9000", region="us-east-1", bucket="dataset",
+                           prefix="dataset/c1/acme/cars", access_key="AK", secret_key="SK",
+                           session_token="ST", expires_at="later")
+
+    repo = DatasetRepo(work, keys=keys)
+    repo.init()
+
+    assert asked == [{"repository": "acme/cars", "level": "read_write"}]
+    assert repo.dvc.remote_url() == "s3://dataset/c1/acme/cars"
