@@ -25,7 +25,7 @@ pip install "cairnml[dataset]"
 ## How a dataset is stored
 
 A dataset of your own is a git repository. Git holds the metadata and the files are held in one of two places, chosen
-once when the dataset is created and recorded in `dataset.yaml` (`storage: s3` or `storage: lfs`):
+once, by `cairnml dataset remote add`, and recorded in `dataset.yaml` (`storage: s3` or `storage: lfs`):
 
 - **Git** holds the metadata: `dataset.yaml` says how the files are read and where they are stored, and
   `dataset.lock.json` is the footprint, the record that the data was checked. The verify script and its workflow are in
@@ -37,8 +37,9 @@ once when the dataset is created and recorded in `dataset.yaml` (`storage: s3` o
     LFS). No DVC and no storage keys are involved: a clone needs git and git-lfs only. `push` uploads the files to the
     LFS of the repository before it publishes the commit. The footprint records the LFS object of every file.
 
-Choose `--storage lfs` when the repository can hold the files (GitHub LFS has its own storage and bandwidth limits);
-choose `s3` for data that should live in the server's bucket. Either way the storage cannot be changed afterwards.
+Choose `--lfs` on `remote add` when the repository can hold the files (GitHub LFS has its own storage and bandwidth
+limits); the default is `s3`, for data that should live in the server's bucket. Either way the storage cannot be changed
+afterwards.
 
 What follows from this:
 
@@ -80,17 +81,45 @@ login. Without them, `create` still makes and publishes the repository, and prin
 protected and which permission is missing. Pass `--no-protect` to skip the step and protect the branch yourself, as
 `cairnml dataset doctor` describes.
 
-To use a repository you have already created on GitHub, clone it. Then, inside the clone:
+To set a dataset up by hand, work locally first and connect it to GitHub after. Create the repository on GitHub
+yourself (empty), then, in a new folder:
 
 ```bash
-cairnml dataset init --storage lfs       # git tracking, the storage and dataset.yaml (s3 is the default)
-cp -r /path/to/measurements data/        # copy your files into data/
+cairnml dataset init --adapter local     # a git repository, and how data/ is read. No remote and no storage yet
+cp -r /path/to/measurements data/        # copy your files into data/ (and adapter.py to the top, for --adapter local)
+cairnml dataset remote add <url> --credential <id>   # origin, the storage (s3, or --lfs), the dataset on the server. Once
 cairnml dataset status                   # what is new, changed or deleted
-cairnml dataset add                      # record data/ as it is now
+cairnml dataset add                      # record data/ as it is now (needs the storage: remote add comes first)
 cairnml dataset commit -m "March measurements"   # check the data and commit it with its footprint
 cairnml dataset doctor                   # once: check the set-up and the GitHub settings
 cairnml dataset push                     # send the files, then the commit, as a pull request
 ```
+
+`init` and the other local commands never reach the network or the server. Only `remote add` and `push` do.
+
+### Credentials
+
+A dataset is read with the credential it was added with, and with no other. The credential is one of your own GitHub Apps
+or personal tokens, or the company's GitHub App. List the ones you can use:
+
+```bash
+cairnml credential list                  # the id, type, name, scope (yours or company), owner and state of each
+```
+
+- `remote add --credential <id>` (and `create --credential <id>`) gives the credential the server reads the dataset with.
+- A dataset with **no credential is public**. If the repository is private and has none, `remote add` prints a warning and
+  the dataset cannot be read until one is added.
+- `cairnml dataset add-credential <id>` sets the credential later, on the dataset of the origin. Its owner or an admin may
+  do it. `add-credential` with no id makes the dataset public. The web app cannot set it yet.
+- A personal token reads the dataset only: it cannot be limited to one repository, so `read_write` needs a GitHub App.
+- A private dataset whose credential cannot read the repository, or that has none, cannot be read at all.
+- A job reads a dataset with the dataset's own credential, and no other. It may read the dataset only when the one who
+  queued the job can see it, or its project holds it through an allocation. Project grants on credentials do not apply
+  to datasets.
+
+`add`, `commit` and `push` refuse until `remote add` has run. `remote add` checks that the repository can be reached with
+the credential it was given. If it cannot, it prints a warning, not an error: choose another credential, and install
+your organisation's CairnML GitHub App on the repository, which is the recommended way for the server and jobs to read it.
 
 `add` records the whole of `data/`: new and changed files are included, and files you removed are removed from the dataset. Older commits keep their files, so an earlier version stays available.
 
@@ -299,7 +328,7 @@ On an agent, mount the cache into the job containers, so it survives between job
 ## Access
 
 DVC gets short-lived keys for the dataset storage from the server, so no access key is stored on your machine. Git uses
-your own login outside a job. In a job, the agent gets a read-only token for any repository the GitHub App is installed on.
+your own login outside a job. In a job, the agent gets a read-only token made with the credential the dataset holds (see Credentials), not with any access shared with the project: project grants are for code.
 
 - A **public repository** is read over https with no token: no login and no GitHub App.
 - A **private repository** needs the GitHub App. Outside a job, your own git login is used; inside a job, the token the server issues.

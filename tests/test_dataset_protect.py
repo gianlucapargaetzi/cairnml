@@ -33,6 +33,11 @@ sys.exit(2)
 
 
 @pytest.fixture(autouse=True)
+def reachable_by_default(monkeypatch):
+    """The reachability check of remote add asks the server; the tests say the repository is reachable."""
+    monkeypatch.setattr("cairnml.datasets.repo.fetch_person_git_token", lambda url, level: None)
+
+@pytest.fixture(autouse=True)
 def git_identity(monkeypatch):
     for name, value in (("NAME", "Tester"), ("EMAIL", "tester@example.com")):
         monkeypatch.setenv(f"GIT_AUTHOR_{name}", value)
@@ -79,7 +84,7 @@ def source(tmp_path):
 def create(tmp_path, origin, source, **kwargs):
     return DatasetRepo.create(
         tmp_path / "local", "cars", source, storage="lfs", create_remote=lambda name, private: str(origin),
-        register=lambda url: None, **kwargs
+        register=lambda url, credential=None: None, **kwargs
     )
 
 
@@ -129,7 +134,7 @@ def test_the_cli_passes_no_protect_on(monkeypatch, tmp_path):
 
     def fake_create(path, name, source, **kwargs):
         seen.update(kwargs)
-        return {"url": "u", "where": "w", "commit": "c" * 40, "branch": "main", "protection": None}
+        return {"url": "u", "where": "w", "commit": "c" * 40, "branch": "main", "protection": None, "warnings": []}
 
     monkeypatch.setattr(dataset_cli.DatasetRepo, "create", staticmethod(fake_create))
     dataset_cli.cli(["create", "cars", "--from", str(tmp_path), "--no-protect"])

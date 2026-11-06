@@ -19,26 +19,45 @@ def _print_group(title: str, changes: dict) -> None:
 
 
 def do_init(args: argparse.Namespace) -> None:
-    url = DatasetRepo(args.path).init(
-        remote_url=args.remote, adapter=args.adapter, registry=args.registry, storage=args.storage
-    )
+    DatasetRepo(args.path).init(adapter=args.adapter, registry=args.registry)
     if args.adapter == "local":
         how = "through adapter.py in this repository"
     elif args.adapter:
         how = f"through the adapter {args.adapter!r}"
     else:
         how = "as they are (native format)"
-    print(f"Dataset repository set up. Files are stored in {url}; data/ is read {how} (see dataset.yaml).")
-    print("Copy your files into data/, then run: cairnml dataset status")
+    print(f"Dataset set up locally, with no remote and no storage yet. data/ is read {how} (see dataset.yaml).")
+    print("Copy your files into data/, then run: cairnml dataset remote add <url>")
+
+
+def do_remote_add(args: argparse.Namespace) -> None:
+    repo = DatasetRepo(args.path)
+    where = repo.remote_add(args.url, lfs=args.lfs, credential=args.credential)
+    kind = "the GitHub LFS of the repository" if args.lfs else "the server's dataset storage (DVC)"
+    print(f"Origin is {args.url}; the files are stored in {kind} ({where}). Registered with the server"
+          f"{' with credential ' + args.credential if args.credential else ''}.")
+    for warning in repo.warnings:
+        print(f"Warning: {warning}")
+    print("Next: cairnml dataset add, then cairnml dataset commit -m \"message\"")
+
+
+def do_add_credential(args: argparse.Namespace) -> None:
+    dataset = DatasetRepo(args.path).add_credential(args.credential or None)
+    if args.credential:
+        print(f"{dataset.get('ref', 'The dataset')} is read with credential {args.credential}.")
+    else:
+        print(f"{dataset.get('ref', 'The dataset')} has no credential: it is read as a public repository.")
 
 
 def do_create(args: argparse.Namespace) -> None:
     result = DatasetRepo.create(
         args.path or args.name, args.name, args.source, private=not args.public, storage=args.storage,
-        adapter=args.adapter, registry=args.registry, protect=not args.no_protect,
+        adapter=args.adapter, registry=args.registry, protect=not args.no_protect, credential=args.credential,
     )
     print(f"Created {result['url']} with the dataset in {result['where']}, committed {result['commit'][:10]} and "
           f"pushed to {result['branch']}.")
+    for warning in result["warnings"]:
+        print(f"Warning: {warning}")
     protection = result["protection"]
     if protection is None:
         print("Branch protection skipped (--no-protect). Protect the default branch by hand: "
@@ -146,15 +165,28 @@ def cli(argv: Optional[List[str]] = None) -> int:
         p.add_argument("--path", default=".", help="the dataset repository (default: the current folder)")
         return p
 
-    init = command("init", do_init, "set up git tracking and file storage in a cloned repository")
-    init.add_argument("--remote", help="store the files here instead of in the server's dataset bucket")
+    init = command("init", do_init, "set up a dataset in this folder, locally: git, and how data/ is read")
     init.add_argument("--adapter", help="read data/ through this adapter of the registry, or 'local' for adapter.py at the "
                                         "top of this repository (default: data/ is native)")
     init.add_argument("--registry", help="URL of the adapter registry (default: sdk.datasets.external_repo); not used "
                                          "with --adapter local")
-    init.add_argument("--storage", choices=["s3", "lfs"], default="s3",
-                      help="s3: files in the server's dataset bucket through DVC; lfs: files in the GitHub LFS of "
-                           "the repository (no DVC, no storage keys). Chosen once; the default is s3")
+    remote = sub.add_parser("remote", help="connect the dataset to its GitHub repository and choose its storage")
+    remote_sub = remote.add_subparsers(dest="remote_command", required=True)
+    remote_add = remote_sub.add_parser("add", help="make the repository the origin, choose the storage, register it "
+                                                  "with the server (once)")
+    remote_add.set_defaults(func=do_remote_add)
+    remote_add.add_argument("url", help="URL of the GitHub repository, already created")
+    remote_add.add_argument("--lfs", action="store_true",
+                            help="keep the files in the GitHub LFS of the repository instead of the server's dataset "
+                                 "storage (no DVC, no storage keys). Chosen once")
+    remote_add.add_argument("--credential", help="the credential the dataset is read with (an id from cairnml credential "
+                                                 "list). Without one the dataset is public, and a private one needs one "
+                                                 "added with add-credential")
+    remote_add.add_argument("--path", default=".", help="the dataset repository (default: the current folder)")
+    credential_cmd = command("add-credential", do_add_credential,
+                             "set the credential the dataset is read with on the server (its owner or an admin)")
+    credential_cmd.add_argument("credential", nargs="?", default="",
+                                help="a credential id from cairnml credential list; leave out to make the dataset public")
     command("status", do_status, "show the branch and what changed in data/")
     command("add", do_add, "record the current state of data/, including deleted files")
     command("check", do_check, "check the data in its declared format and write the footprint")
@@ -173,6 +205,7 @@ def cli(argv: Optional[List[str]] = None) -> int:
     create.add_argument("--from", dest="source", required=True, help="folder that holds the dataset files")
     create.add_argument("--path", help="local folder for the repository (default: the name, in this folder)")
     create.add_argument("--public", action="store_true", help="make the repository public (default: private)")
+    create.add_argument("--credential", help="the credential the dataset is read with (an id from cairnml credential list)")
     create.add_argument("--storage", choices=["s3", "lfs"], default="s3", help="where the files are stored (see init)")
     create.add_argument("--adapter", help="read data/ through this adapter of the registry, or 'local' for the file "
                                           "adapter.py in --from, which goes to the top of the repository, not data/ "

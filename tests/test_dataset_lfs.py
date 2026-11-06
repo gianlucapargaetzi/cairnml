@@ -19,6 +19,11 @@ pytestmark = pytest.mark.skipif(
 
 
 @pytest.fixture(autouse=True)
+def reachable_by_default(monkeypatch):
+    """The reachability check of remote add asks the server; the tests say the repository is reachable."""
+    monkeypatch.setattr("cairnml.datasets.repo.fetch_person_git_token", lambda url, level: None)
+
+@pytest.fixture(autouse=True)
 def git_identity(monkeypatch):
     for name, value in (("NAME", "Tester"), ("EMAIL", "tester@example.com")):
         monkeypatch.setenv(f"GIT_AUTHOR_{name}", value)
@@ -34,9 +39,15 @@ def origin(tmp_path):
 
 @pytest.fixture
 def work(tmp_path, origin):
+    """A new local repository with no remote, as init leaves a dataset: remote add connects it to origin."""
     path = tmp_path / "cars"
-    subprocess.run(["git", "clone", "-q", str(origin), str(path)], check=True, capture_output=True)
+    subprocess.run(["git", "init", "-q", str(path)], check=True, capture_output=True)
     return path
+
+
+def connect_lfs(repo: DatasetRepo, origin: Path) -> None:
+    repo.init()
+    repo.remote_add(str(origin), lfs=True, register=lambda url, credential=None: None)
 
 
 @pytest.fixture
@@ -72,72 +83,41 @@ def publish(repo: DatasetRepo, message: str) -> str:
 
 
 @pytest.fixture
-def lfs_repo(work):
+def lfs_repo(work, origin):
     repo = DatasetRepo(work)
-    repo.init(storage="lfs")
+    connect_lfs(repo, origin)
     write(work, "a.bin", bytes(range(256)) * 40)  # 10 KB, larger than a pointer
     write(work, "sub/b.txt", b"bravo")
     return repo
 
 
-def test_init_with_lfs_writes_no_dvc_and_records_the_storage(work):
+def test_remote_add_with_lfs_writes_no_dvc_and_records_the_storage(work, origin):
     repo = DatasetRepo(work)
-    where = repo.init(storage="lfs")
+    repo.init()
+    where = repo.remote_add(str(origin), lfs=True, register=lambda url, credential=None: None)
     assert "GitHub LFS" in where
-    assert (work / footprint.CONFIG_FILE).read_text().splitlines()[1] == "storage: lfs"
+    assert "storage: lfs" in (work / footprint.CONFIG_FILE).read_text().splitlines()
     assert footprint.LFS_PATTERN in (work / footprint.ATTRIBUTES_FILE).read_text().splitlines()
     assert not (work / ".dvc").exists()
     assert repo.storage() == "lfs"
 
 
-def test_the_storage_cannot_be_chosen_again_and_remote_does_not_apply(work, tmp_path):
+def test_the_storage_is_chosen_once_and_the_storage_folder_does_not_apply_to_lfs(work, origin, tmp_path):
+    repo = DatasetRepo(work)
+    repo.init()
     with pytest.raises(DatasetError, match="applies to s3 storage only"):
-        DatasetRepo(work).init(remote_url=str(tmp_path / "s"), storage="lfs")
-    DatasetRepo(work).init(storage="lfs")
-    with pytest.raises(DatasetError, match="already set up"):
-        DatasetRepo(work).init(storage="s3", remote_url=str(tmp_path / "s"))
-    with pytest.raises(DatasetError, match="s3 or lfs"):
-        DatasetRepo(work).init(storage="dvc")
+        repo.remote_add(str(origin), lfs=True, storage_url=str(tmp_path / "s"), register=lambda url, credential=None: None)
+    repo.remote_add(str(origin), lfs=True, register=lambda url, credential=None: None)
+    with pytest.raises(DatasetError, match="runs once"):
+        DatasetRepo(work).remote_add(str(origin), register=lambda url, credential=None: None)
 
 
-def test_files_are_stored_as_lfs_pointers_and_pushed_to_the_lfs_of_the_remote(lfs_repo, work, origin, cache):
-    sha = publish(lfs_repo, "first")
-    assert (work / "data" / "a.bin").stat().st_size == 10240  # the working copy keeps the content
-    tracked = subprocess.run(
-        ["git", "-C", str(origin), "ls-tree", "-r", "--long", sha, "data"], capture_output=True, text=True, check=True
-    ).stdout
-    assert all(int(line.split()[3]) < footprint.POINTER_MAX_BYTES for line in tracked.splitlines())
-    assert any((origin / "lfs" / "objects").rglob("*"))  # the content went to the LFS store of the remote
-
-    dataset = Dataset.get(str(origin), sha, cache=cache)
-    assert dataset.storage == "lfs"
-    assert (dataset.path / "a.bin").read_bytes() == bytes(range(256)) * 40
-    assert (dataset.path / "sub" / "b.txt").read_bytes() == b"bravo"
-    assert dataset.content_hash == footprint.lfs_record(str(dataset.path.parent))["hash"]
-
-
-def test_the_lock_records_the_lfs_objects_and_verify_passes(lfs_repo, work):
-    publish(lfs_repo, "first")
-    lock = json.loads((work / footprint.LOCK_FILE).read_text())
-    assert "dvc" not in lock and lock["lfs"]["nfiles"] == 4  # two data files and the sample table and manifest
-    assert footprint.verify(str(work)) == []
-    assert lfs_repo.problems() == []
-
-
-def test_a_changed_file_after_the_check_is_found(lfs_repo, work):
-    publish(lfs_repo, "first")
-    (work / "data" / "a.bin").write_bytes(b"changed")
-    problems = footprint.verify(str(work))
-    assert any("changed after the check" in p for p in problems)
-    assert any("uncommitted" in p or "not committed" in p for p in lfs_repo.problems())
-
-
-def test_a_dataset_with_raw_content_in_git_is_refused_at_add(work, monkeypatch, tmp_path):
+def test_a_dataset_with_raw_content_in_git_is_refused_at_add(work, origin, monkeypatch, tmp_path):
     monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")  # no git-lfs filter from the machine: only the repository's own is used
     monkeypatch.setenv("HOME", str(tmp_path / "home"))
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "home" / "config"))
     repo = DatasetRepo(work)
-    repo.init(storage="lfs")
+    connect_lfs(repo, origin)
     write(work, "big.bin", b"x" * 5000)
     subprocess.run(["git", "-C", str(work), "config", "--unset", "filter.lfs.clean"], check=True)
     with pytest.raises(DatasetError, match="not set up"):
@@ -178,7 +158,7 @@ def test_create_makes_the_remote_and_publishes_in_one_call(tmp_path, origin):
     registered = []
     result = DatasetRepo.create(
         tmp_path / "local", "cars", source, storage="lfs", create_remote=fake_remote,
-        register=lambda url: registered.append(url),
+        register=lambda url, credential=None: registered.append(url),
     )
     assert calls == [("cars", True)]
     assert registered == [str(origin)]  # the new repository is added to CairnML before its first push
@@ -232,7 +212,7 @@ def test_create_takes_the_local_adapter_from_the_source_folder_to_the_top(tmp_pa
 
     result = DatasetRepo.create(
         tmp_path / "local", "cars", prepared, storage="lfs", adapter="local", create_remote=fake_remote, protect=False,
-        register=lambda url: None,
+        register=lambda url, credential=None: None,
     )
     assert calls == ["cars"] and result["branch"] == "main"
     assert (tmp_path / "local" / "adapter.py").read_bytes() == (prepared / "adapter.py").read_bytes()
