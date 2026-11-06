@@ -1,14 +1,17 @@
 """External datasets: pin file, adapter choice, canonical format, caching, and the errors that name the adapter."""
 
+import importlib.metadata
 import json
 import shutil
 import subprocess
+import types
 
 import pytest
 
 from cairnml.datasets import Dataset, DatasetCache, DatasetError, SampleWriter
+from cairnml.datasets.external import Pin, _ensure_source, adapter_requirements, requirements_digest
 from cairnml.datasets.schema import SchemaError, validate_rows
-from cairnml.datasets.sources import HuggingFace, LocalFolder
+from cairnml.datasets.sources import LocalFolder
 
 ADAPTER_V1 = '''
 import json
@@ -234,14 +237,6 @@ class TestTabularLabels:
 
 
 class TestSources:
-    def test_hugging_face_links_are_read_in_both_forms(self):
-        for link in ("hf://datasets/org/name", "https://huggingface.co/datasets/org/name", "org/name"):
-            assert HuggingFace._repo_id(link) == "org/name"
-
-    def test_a_full_sha_is_used_as_it_is(self):
-        sha = "a" * 40
-        assert HuggingFace().resolve("org/name", sha) == sha
-
     def test_a_local_folder_must_still_match_a_requested_hash(self, tmp_path):
         (tmp_path / "f").write_text("1")
         wanted = LocalFolder().resolve(str(tmp_path), None)
@@ -272,3 +267,132 @@ def test_without_a_commit_the_latest_one_is_used_and_recorded(external, cache, s
     data = Dataset.get_external("toy", repo=external["url"], cache=cache)
     assert data.repo_commit == latest
     assert Dataset.get_external("toy", external["commit"], repo=external["url"], cache=cache).repo_commit == external["commit"]
+
+
+# A source that is fetched by the adapter: ``fetch`` copies the folder named by the link, ``resolve`` is the revision.
+def remote_adapter(requirements=(), fetch=True):
+    head = f"REQUIREMENTS = {list(requirements)!r}\nimport shutil\n"
+    head += "def resolve(link, revision):\n    return revision or 'rev-1'\n"
+    if fetch:
+        head += "def fetch(link, revision, dest):\n    shutil.copytree(link, dest)\n"
+    return head + ADAPTER_V1
+
+
+def publish(external, files):
+    """Commit files to the external-datasets repository and push. Returns the new commit."""
+    work = external["work"]
+    for path, text in files.items():
+        (work / path).write_text(text)
+    git(work, "add", "-A")
+    git(work, "commit", "-qm", "change")
+    git(work, "push", "-q", "origin", "HEAD")
+    return git(work, "rev-parse", "HEAD")
+
+
+def remote_pin(source, adapter="remote_v1"):
+    return f"source: remote\nlink: {source}\nadapter: {adapter}\n"
+
+
+def test_a_source_that_is_not_local_is_fetched_by_its_adapter(external, cache, source):
+    commit = publish(external, {
+        "datasets/remote.yaml": remote_pin(source),
+        "adapters/remote_v1.py": remote_adapter(),
+    })
+    data = Dataset.get_external("remote", commit, repo=external["url"], cache=cache)
+    assert data.source == "remote" and data.revision == "rev-1"
+    assert [s.id for s in data.samples()] == ["a", "b"]
+    # The files were copied by the adapter's fetch into the cache, not read from the folder they came from.
+    assert data.root.is_relative_to(cache.root) and data.root != source
+    assert (data.root / "a.png").read_bytes() == b"a"
+
+
+def test_a_source_without_a_fetch_in_its_adapter_is_refused(external, cache, source):
+    commit = publish(external, {
+        "datasets/remote.yaml": remote_pin(source, adapter="toy_v1"),
+    })
+    with pytest.raises(DatasetError, match="adapter 'toy_v1' has no fetch for source 'remote'"):
+        Dataset.get_external("remote", commit, revision="rev-1", repo=external["url"], cache=cache)
+
+
+def test_a_missing_requirement_is_refused_with_the_install_command(external, cache, source):
+    commit = publish(external, {
+        "datasets/remote.yaml": remote_pin(source),
+        "adapters/remote_v1.py": remote_adapter(["cairnml-no-such-package==1.0"]),
+    })
+    with pytest.raises(DatasetError) as error:
+        Dataset.get_external("remote", commit, repo=external["url"], cache=cache)
+    assert 'pip install "cairnml-no-such-package==1.0"' in str(error.value)
+    assert "cairnml-no-such-package 1.0" in str(error.value)
+
+
+def test_a_requirement_at_another_version_is_refused_with_the_install_command(external, cache, source):
+    installed = importlib.metadata.version("pytest")
+    wanted = "0.0.1" if installed != "0.0.1" else "0.0.2"
+    commit = publish(external, {
+        "datasets/remote.yaml": remote_pin(source),
+        "adapters/remote_v1.py": remote_adapter([f"pytest=={wanted}"]),
+    })
+    with pytest.raises(DatasetError) as error:
+        Dataset.get_external("remote", commit, repo=external["url"], cache=cache)
+    assert f"pytest is {installed}" in str(error.value)
+    assert f'pip install "pytest=={wanted}"' in str(error.value)
+
+
+def test_an_installed_requirement_at_its_exact_version_is_accepted(external, cache, source):
+    installed = importlib.metadata.version("pytest")
+    commit = publish(external, {
+        "datasets/remote.yaml": remote_pin(source),
+        "adapters/remote_v1.py": remote_adapter([f"pytest=={installed}"]),
+    })
+    assert len(Dataset.get_external("remote", commit, repo=external["url"], cache=cache)) == 2
+
+
+def test_a_requirement_must_be_an_exact_pin():
+    module = types.ModuleType("adapter")
+    module.REQUIREMENTS = ["pytest>=1"]
+    with pytest.raises(DatasetError, match="must be an exact pin"):
+        adapter_requirements(module, "toy")
+    assert adapter_requirements(types.ModuleType("none"), "toy") == []
+
+
+def test_the_cache_key_changes_when_the_requirements_change():
+    assert requirements_digest([]) != requirements_digest(["pytest==9.1.1"])
+    assert requirements_digest(["pytest==9.1.1"]) != requirements_digest(["pytest==9.1.1", "six==1.16.0"])
+    assert requirements_digest(["pytest==9.1.1", "six==1.16.0"]) == requirements_digest(["pytest==9.1.1", "six==1.16.0"])
+
+
+def test_the_built_output_is_keyed_by_the_requirements(external, cache, source):
+    installed = importlib.metadata.version("pytest")
+    commit = publish(external, {
+        "datasets/remote.yaml": remote_pin(source),
+        "adapters/remote_v1.py": remote_adapter([f"pytest=={installed}"]),
+    })
+    data = Dataset.get_external("remote", commit, repo=external["url"], cache=cache)
+    assert data.path.name.endswith(requirements_digest([f"pytest=={installed}"]))
+    assert data.path.name != f"{commit[:12]}-{data.revision[:12]}-{requirements_digest([])}"
+
+
+def test_a_fetch_runs_once_per_revision_and_a_failed_one_leaves_nothing(cache):
+    calls = []
+
+    def fetch(link, revision, dest):
+        calls.append((link, revision))
+        dest.mkdir(parents=True)
+        (dest / "f.txt").write_text(link)
+
+    def broken(link, revision, dest):
+        dest.mkdir(parents=True)
+        raise OSError("network down")
+
+    def pin(link):
+        return Pin(name="remote", source="remote", adapter="remote_v1", link=link)
+
+    url = "https://example.org/a"
+    folder = _ensure_source(cache, pin(url), fetch, url, "r1")
+    assert (folder / "f.txt").read_text() == url
+    _ensure_source(cache, pin(url), fetch, url, "r1")
+    assert calls == [(url, "r1")]
+
+    with pytest.raises(OSError):
+        _ensure_source(cache, pin("https://example.org/b"), broken, "https://example.org/b", "r2")
+    assert not list(cache.root.glob("checkouts/src__remote-*/r2"))

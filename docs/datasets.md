@@ -198,18 +198,18 @@ The commit of the registry fixes both the pin file, which says where the data co
 
 ```yaml
 # datasets/coco-det.yaml
-source: huggingface              # or git, local, or web
+source: huggingface              # what the adapter fetches from; local means a folder used where it is
 link: hf://datasets/org/coco-det
-adapter: coco_det               # the adapter that reads the files
+adapter: coco_det               # the adapter that reads the files, and fetches them
 revision: null                  # optional: pin the source's own revision
 overrides:                      # another adapter for revisions whose layout changed
   - revisions: ["9b1c4e7"]
     adapter: coco_det_v2
 ```
 
-A `web` source takes a list of addresses under `link`. A zip archive among them is unpacked into a folder named after it.
-
-A web dataset can describe its files in a `fetch` list instead of `link`. Each entry gives the address of one file, the checksum the publisher gives for it, and how to unpack it:
+The SDK does not download anything itself. A source other than `local` is fetched by its adapter, so the adapter says how its
+source is reached. `link` is what the adapter's `fetch` receives: an address, or a list of addresses. A web dataset can list
+its files with a `fetch` list instead of `link`, and the adapter reads that list:
 
 ```yaml
 # datasets/images.yaml
@@ -217,26 +217,35 @@ source: web
 adapter: images
 fetch:
   - url: https://example.org/images.tar.gz
-    checksum: sha256:<64 hex digits>   # optional: md5:<32 hex digits> or sha256:<64 hex digits>
-    unpack: tar.gz                     # optional: none, zip, tar.gz or gz
-  - url: https://example.org/labels.gz
-    checksum: md5:<32 hex digits>
-    unpack: gz
+    checksum: sha256:<64 hex digits>
+    unpack: tar.gz
 ```
 
-- `url` is an `https://`, `http://` or `file://` address. Use `fetch` or `link`, not both.
-- `checksum` is optional. When it is given, the file is verified after the download, and a file that does not match is refused: the run fails with a message that names the file. When every file has a checksum, the revision of the dataset is a hash of the checksums, and the server is not asked for anything. A file without a checksum is identified by the server's ETag and size instead, and is not verified.
-- `unpack` defaults to `zip` for a file that ends in `.zip`, and to `none` otherwise. `tar.gz` and `zip` unpack into a folder named after the archive (`images.tar.gz` becomes `images/`). `gz` decompresses one file, written next to the archive under its name without `.gz`. The archive is removed after it is unpacked.
-- The pin file is checked when it is read. A wrong checksum, an unknown key or an unknown `unpack` is reported with the file name before anything is downloaded.
+Use `fetch` or `link`, not both. A `local` source is a folder of the registry itself, or of the machine, and is read where it is.
 
-Each file is downloaded once into the cache, as for every source. The run records the revision and the adapter, as it does for any dataset from the registry.
+Each source is downloaded once into the cache, as for every dataset. The run records the revision and the adapter, as it does for any dataset from the registry.
 
 ## Write an adapter
 
-An adapter is a small class in the registry's `adapters/` folder. It declares the modalities and labels it produces, and then adds one sample at a time:
+An adapter is a small module in the registry's `adapters/` folder. It holds everything about its dataset:
+
+- `REQUIREMENTS`: the Python packages it needs, each as an exact pin, for example `["pyarrow==23.0.1"]`. A run refuses to start
+  if one is not installed at that version, and says the command to install it (`pip install "pyarrow==23.0.1"`). Nothing is
+  installed by the SDK. The cache of the built dataset is keyed by these requirements. Empty or missing means none.
+- `fetch(link, revision, dest)`: downloads the source at that revision into `dest`. Required for any source other than `local`.
+- `resolve(link, revision)`: returns the revision to use, for example the commit a Hub reports for a branch. Without it, a
+  remote source must be given a revision in the pin file or the run.
+- `run(source, writer)`: reads the files in `source` into the standard format.
+
+It declares the modalities and labels it produces, and then adds one sample at a time:
 
 ```python
 from cairnml.datasets import Adapter
+
+REQUIREMENTS = []
+
+def fetch(link, revision, dest):
+    download_files(link, revision, dest)
 
 class CocoDetection(Adapter):
     modalities = {"image": "image"}
@@ -247,7 +256,7 @@ class CocoDetection(Adapter):
             writer.add(item.id, item.split, {"image": item.file}, {"bbox2d": item.boxes})
 ```
 
-`source` is the folder with the files of the dataset at the revision the run asked for. Image paths are relative to that folder. The writer checks every sample against the standard format, and an error names the adapter, so the run stops before training.
+`source` is the folder with the files of the dataset at the revision the run asked for (for a `local` source, the folder itself). Image paths are relative to that folder. The writer checks every sample against the standard format, and an error names the adapter, so the run stops before training.
 
 ## The sample format
 
