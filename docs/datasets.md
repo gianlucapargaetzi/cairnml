@@ -123,6 +123,21 @@ your organisation's CairnML GitHub App on the repository, which is the recommend
 
 `add` records the whole of `data/`: new and changed files are included, and files you removed are removed from the dataset. Older commits keep their files, so an earlier version stays available.
 
+## Names and ids
+
+Every dataset has a unique id on the server. A dataset also has a name, its **reference**, unique in the company: a
+repository's name (`cars`), or `<registry>/<name>` for an entry of a registry. A run names a dataset by its reference:
+
+```python
+Dataset.get("cars", commit)                                  # by reference
+Dataset.get("3f9c0e1a...", commit)                           # by id
+Dataset.get("https://github.com/acme/cars.git", commit)      # by repository address
+```
+
+The server resolves the reference (`datasets.resolve`). A job resolves what its task's user may see, or what its project
+holds. A run records the id and the reference of each dataset it used, next to the repository and the commit. A second
+dataset with a name already in use is refused when it is added.
+
 ## How the data is read
 
 Every dataset says how its files are read in `dataset.yaml`, which holds one of three forms:
