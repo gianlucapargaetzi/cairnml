@@ -462,7 +462,7 @@ def test_a_public_repository_is_read_without_any_credential(first, origin, tmp_p
     monkeypatch.setattr(Task, "_get_default_session", staticmethod(lambda: Session()))
     dataset = Dataset.get(public, sha, cache=cache, record=False)
     assert (dataset.path / "a.txt").read_bytes() == b"alpha"
-    assert asked == [("datasets", "git_token", {"repository": public, "level": "read"})]
+    assert [call for call in asked if call[1] != "resolve"] == [("datasets", "git_token", {"repository": public, "level": "read"})]
     assert seen and all(token is None for token in seen)
 
 
@@ -495,7 +495,7 @@ def test_a_job_gets_no_token_for_a_public_repository_and_reads_it_anonymously(fi
     monkeypatch.setattr(Task, "_get_default_session", staticmethod(lambda: Session()))
     dataset = Dataset.get(public, sha, cache=cache, record=False)
     assert (dataset.path / "a.txt").exists()
-    assert asked == [("devices", "git_token", {"task": "task-1", "repository": public})]
+    assert [call for call in asked if call[1] != "resolve"] == [("devices", "git_token", {"task": "task-1", "repository": public})]
     assert capsys.readouterr().out == ""
 
 

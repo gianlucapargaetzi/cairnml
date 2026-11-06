@@ -110,6 +110,18 @@ def set_dataset_credential(repository: str, credential: Optional[str], session=N
     return (response.json().get("data") or {}).get("dataset") or {}
 
 
+def resolve_dataset(reference: str, task: Optional[str] = None, session=None) -> dict:
+    """The dataset a reference names on the server: its id, its name, or the address of its repository (datasets.resolve).
+    A job passes its own task id. Refused as missing when the person may not see the dataset."""
+    body = {"ref": reference}
+    if task:
+        body["task"] = task
+    response = _person_request(session, "resolve", body)
+    if not response.ok:
+        raise DatasetError(f"the server could not resolve {reference}: {response.text.strip()}")
+    return (response.json().get("data") or {}).get("dataset") or {}
+
+
 def list_credentials(session=None) -> list:
     """The credentials the person signed in may use for datasets: their own GitHub Apps and tokens, and the company's.
     Each has an id (what --credential takes), its type, name, scope, owner and state. No secret is returned."""
