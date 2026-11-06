@@ -38,7 +38,7 @@ def main(server, name=None, force=False, file=None, device=False):
         print('error: cannot reach {}: {}'.format(api_server or server, exc.__class__.__name__), file=sys.stderr)
         return 1
 
-    if not write_config(conf_file, result.server_url, result.web_url, result.device_id):
+    if not write_config(conf_file, result.server_url, result.web_url, result.device_id, queue=getattr(result, "queue", "")):
         return 1
     print('enrolled as {} on {} (device {})'.format(result.user or 'unknown user', result.server_url, result.device_id))
     return 0
@@ -62,7 +62,7 @@ def _device_id_in(conf_file):
         return None
 
 
-def write_config(conf_file, api_host, web_host, device_id):
+def write_config(conf_file, api_host, web_host, device_id, queue=""):
     """Write the agent configuration. It names the device; it holds no credentials."""
     # noinspection PyBroadException
     try:
@@ -89,6 +89,9 @@ def write_config(conf_file, api_host, web_host, device_id):
                      '    }\n' \
                      '}\n\n' % (api_host, web_host, device_id)
             f.write(header)
+            if queue:
+                # the agent's own queue: the one it serves when no --queue is given (set by the server at enrolment)
+                f.write('agent.queue="%s"\n\n' % queue)
             # Git credentials and extra package indexes are left blank; edit this file to set them.
             f.write('# Set GIT user/pass credentials\n'
                     '# leave blank for GIT SSH credentials\n'

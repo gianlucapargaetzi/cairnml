@@ -5756,6 +5756,9 @@ class Worker(ServiceCommandSection):
         return worker_id, worker_name
 
     def _resolve_queue_names(self, queues, create_if_missing=False, create_system_tags=None):
+        if not queues and self._session.config.get("agent.queue", None):
+            # the agent's own queue, made when it was enrolled: the one queue it serves
+            return [self._session.config.get("agent.queue")]
         if not queues:
             # try to look for queues with "default" tag
             try:
