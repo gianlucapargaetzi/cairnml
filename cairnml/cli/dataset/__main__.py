@@ -41,6 +41,13 @@ def do_remote_add(args: argparse.Namespace) -> None:
     print("Next: cairnml dataset add, then cairnml dataset commit -m \"message\"")
 
 
+def do_clone(args: argparse.Namespace) -> None:
+    from ...datasets.clone import clone_dataset
+
+    folder = clone_dataset(args.reference, path=args.folder, commit=args.commit)
+    print(f"Cloned {args.reference} into {folder}. Its data is in {folder / 'data'}.")
+
+
 def do_add_credential(args: argparse.Namespace) -> None:
     dataset = DatasetRepo(args.path).add_credential(args.credential or None)
     if args.credential:
@@ -183,6 +190,11 @@ def cli(argv: Optional[List[str]] = None) -> int:
                                                  "list). Without one the dataset is public, and a private one needs one "
                                                  "added with add-credential")
     remote_add.add_argument("--path", default=".", help="the dataset repository (default: the current folder)")
+    clone_cmd = sub.add_parser("clone", help="clone a dataset you may see: its repository, and its data in data/")
+    clone_cmd.set_defaults(func=do_clone)
+    clone_cmd.add_argument("reference", help="the dataset's id, its name, or the address of its repository")
+    clone_cmd.add_argument("folder", nargs="?", default=None, help="the folder to clone into (default: the dataset's name)")
+    clone_cmd.add_argument("--commit", help="the commit to clone (default: the head of the default branch)")
     credential_cmd = command("add-credential", do_add_credential,
                              "set the credential the dataset is read with on the server (its owner or an admin)")
     credential_cmd.add_argument("credential", nargs="?", default="",
