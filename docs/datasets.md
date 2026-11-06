@@ -123,6 +123,19 @@ your organisation's CairnML GitHub App on the repository, which is the recommend
 
 `add` records the whole of `data/`: new and changed files are included, and files you removed are removed from the dataset. Older commits keep their files, so an earlier version stays available.
 
+## Cloning a dataset
+
+`cairnml dataset clone <reference> [folder] [--commit <commit>]` makes a working copy of a dataset you may see: its
+repository, checked out at the commit, and its data in `data/` (git does not track that folder). The server decides whether
+you may see the dataset and gives the read token of its credential; a public repository needs no token. Once your access
+ends, the copy stays readable on your machine, but the server refuses its changes.
+
+## Access to GitHub
+
+GitHub is reached through a GitHub App only. A private repository is read with the App that is attached to it (the
+company's, or your own), and the App must be installed on the repository. A personal access token is no longer accepted.
+A public repository needs no App; one attached only lifts the GitHub rate limit.
+
 ## Names and ids
 
 Every dataset has a unique id on the server. A dataset also has a name, its **reference**, unique in the company: a
