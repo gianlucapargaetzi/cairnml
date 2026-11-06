@@ -13,9 +13,7 @@ def _scope(row: dict) -> str:
 
 
 def list_main() -> int:
-    parser = ArgumentParser(prog="cairnml credential list", description="list the credentials you can use for datasets, "
-                                                                        "with the id that --credential takes")
-    parser.parse_args()
+    """Lists the credentials. The arguments were parsed by main, which chose this subcommand."""
     try:
         rows = list_credentials()
     except DatasetError as exc:
@@ -36,7 +34,8 @@ def list_main() -> int:
 def main() -> int:
     parser = ArgumentParser(prog="cairnml credential", description="the credentials you can use for datasets")
     sub = parser.add_subparsers(dest="command", required=True)
-    sub.add_parser("list", help="list the credentials you can use, with their ids")
+    sub.add_parser("list", help="list the credentials you can use, with their ids",
+                   description="list the credentials you can use for datasets, with the id that --credential takes")
     args = parser.parse_args()
     if args.command == "list":
         return list_main()
