@@ -95,6 +95,7 @@ RType = TypeVar("RType")
 
 
 GITHUB_APP_USERNAME = "x-access-token"
+GITHUB_HOST = "github.com"
 
 
 def basic_auth_header(username, secret):
@@ -933,33 +934,80 @@ def fetch_git_token(session, task_id):
     return credential[1] if credential else None
 
 
+SCP_LIKE_URL_RE = re.compile(r"^(?:[^@/\s]+@)?(?P<host>[^:/\s]+):(?P<path>[^/].*)$")
+
+
+def is_github_repository(repository_url):
+    """
+    Whether the repository address points at GitHub, in any of its forms: git@github.com:owner/name.git,
+    ssh://git@github.com/owner/name.git, https:// or http:// URLs, github.com/owner/name, or owner/name.
+    """
+    url = (repository_url or "").strip()
+    if not url:
+        return False
+    if "://" in url:
+        return (furl(url).host or "").lower() == GITHUB_HOST
+    scp_like = SCP_LIKE_URL_RE.match(url)
+    if scp_like:
+        return scp_like.group("host").lower() == GITHUB_HOST
+    first, _, rest = url.partition("/")
+    if first.lower() == GITHUB_HOST:
+        return bool(rest.strip("/"))
+    # owner/name: a GitHub owner has no dot in its name, a host always has one
+    return bool(first) and "." not in first and bool(rest.strip("/")) and "/" not in rest.strip("/")
+
+
 def wants_stored_credential(repository_url):
     """
-    Whether the agent asks the server for a Git credential for this repository URL. GitHub is always asked (the
-    server answers with the GitHub App or the stored credential). Any other host is asked only over HTTPS, so a
-    credential is never sent in clear text; over other schemes (ssh, plain http) the configured credentials are used.
+    Whether the agent asks the server for a Git credential for this repository URL. GitHub is always asked, in
+    any form of address (the server answers with the GitHub App or the stored credential). Any other host is
+    asked only over HTTPS, so a credential is never sent in clear text; over other schemes (ssh, plain http)
+    the configured credentials are used.
     """
+    if is_github_repository(repository_url):
+        return True
     parsed = furl(repository_url or "")
     host = (parsed.host or "").lower()
-    if host == "github.com":
-        return True
     return parsed.scheme == "https" and bool(host)
+
+
+def _is_http_address(repository_url):
+    try:
+        return (furl(repository_url or "").scheme or "").lower() in ("http", "https")
+    except ValueError:
+        return False
+
+
+def resolve_git_clone(session, repository_url, task_id):
+    """
+    How the agent clones the task's repository, as (clone_url, credential). clone_url is the address the server
+    gives for the repository (None when the server gives none, or when the agent is not asked); credential is
+    (username, secret) or None. The server is asked only for the task, so an agent can only obtain the
+    credential of the repository it runs. An answer without a url is used as before: the task's address, with
+    its credential only over HTTP(S), since a token cannot authenticate an ssh clone.
+    """
+    if not task_id or not wants_stored_credential(repository_url):
+        return None, None
+    res = request_git_token(session, task_id)
+    if res is None or not res.ok:
+        print("The server has no Git credential for {}, using the configured credentials".format(
+            furl(repository_url).host))
+        return None, None
+    credential = git_credential_from_answer(res)
+    clone_url = res.json()["data"].get("url")
+    if clone_url:
+        return clone_url, credential
+    if not _is_http_address(repository_url):
+        return None, None
+    return None, credential
 
 
 def select_git_credential(session, repository_url, task_id):
     """
     The credential the agent uses to clone the task's repository, as (username, secret), or None when the
-    configured credentials (if any) are used instead. The server is asked only for the task, so an agent can
-    only obtain the credential of the repository it runs.
+    configured credentials (if any) are used instead (see resolve_git_clone).
     """
-    if not task_id or not wants_stored_credential(repository_url):
-        return None
-    res = request_git_token(session, task_id)
-    if res is None or not res.ok:
-        print("The server has no Git credential for {}, using the configured credentials".format(
-            furl(repository_url).host))
-        return None
-    return git_credential_from_answer(res)
+    return resolve_git_clone(session, repository_url, task_id)[1]
 
 
 def clone_repository_cached(session, execution, destination, task_id=None):
@@ -1010,8 +1058,11 @@ def clone_repository_cached(session, execution, destination, task_id=None):
         )
         if not find_executable(vcs.executable_name):
             raise CommandFailedError(vcs.executable_not_found_error_help())
+        clone_url = None
         if isinstance(vcs, Git):
-            credential = select_git_credential(session, repo_url, task_id)
+            clone_url, credential = resolve_git_clone(session, repo_url, task_id)
+            if clone_url:
+                vcs.url = clone_url
             if credential:
                 vcs.use_header_token(credential[1], username=credential[0])
 
@@ -1020,7 +1071,7 @@ def clone_repository_cached(session, execution, destination, task_id=None):
                 print('Using cached repository in "{}"'.format(cached_repo_path))
 
             else:
-                print("cloning: {}".format(no_password_url))
+                print("cloning: {}".format(clone_url or no_password_url))
                 rm_tree(cached_repo_path)
                 # We clone the entire repository, not a specific branch
                 vcs.clone()  # branch=execution.branch)
