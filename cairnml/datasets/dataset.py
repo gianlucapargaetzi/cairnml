@@ -46,7 +46,8 @@ def _storage_of(checkout: Path) -> str:
 
 
 def _is_address(reference: str) -> bool:
-    return "://" in reference or reference.startswith("git@") or "github.com" in reference.lower()
+    # an address starts with its host: "github.com/owner/name", not a name that merely contains "github.com"
+    return "://" in reference or reference.startswith("git@") or reference.lower().startswith(("github.com/", "www.github.com/"))
 
 
 def _resolve_reference(reference: str):
