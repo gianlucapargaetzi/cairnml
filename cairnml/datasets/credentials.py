@@ -1,7 +1,7 @@
 """Keys and tokens the server hands out for datasets, so no one copies an access key to a machine."""
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional
 
 from .errors import DatasetError
@@ -12,9 +12,11 @@ class StorageKeys:
     endpoint: str
     region: str
     bucket: str
+    prefix: str
+    """ the bucket path of the dataset, bucket name first (dataset/<company>/<owner>/<name>): the remote is s3:// + this """
     access_key: str
-    secret_key: str
-    session_token: str
+    secret_key: str = field(repr=False)
+    session_token: str = field(repr=False)
     expires_at: str
 
 
@@ -26,9 +28,15 @@ def _session(session=None):
     return Task._get_default_session()
 
 
-def fetch_storage_keys(session=None) -> StorageKeys:
-    """Short-lived keys for the dataset bucket. They work for DVC and expire on their own."""
-    response = _session(session).send_request(service="datachunks", action="dataset_credentials", json={})
+def fetch_storage_keys(repository: str, level: str, session=None) -> StorageKeys:
+    """Short-lived keys for one dataset's prefix in the bucket, at ``level`` (``read`` or ``read_write``). They work
+    for DVC on that prefix only, and expire on their own. ``repository`` is owner/name on GitHub."""
+    response = _session(session).send_request(
+        service="datachunks",
+        action="dataset_credentials",
+        version="2.40",
+        json={"repository": repository, "level": level},
+    )
     if not response.ok:
         raise DatasetError(f"the server refused the storage keys for datasets: {response.text.strip()}")
     data = response.json().get("data") or {}
@@ -55,12 +63,80 @@ def fetch_git_token(repository: str, task_id: str, session=None) -> Optional[str
     return (response.json().get("data") or {}).get("token")
 
 
-def fetch_dataset_list(session=None) -> dict:
-    """The server's list of the dataset repositories the GitHub App can read (datasets.list): ``datasets`` and
-    ``refreshed_at``. The server answers from a cached snapshot, so this does not reach GitHub. Raises DatasetError when
-    the server cannot be asked, for instance when there is no CairnML login."""
+def _person_request(session, action: str, json: dict, service: str = "datasets", version: str = "2.40"):
+    """A request made for a person, with the login. Without a login the reason is said in the error."""
     try:
-        response = _session(session).send_request(service="datasets", action="list", json={})
+        return _session(session).send_request(service=service, action=action, version=version, json=json)
+    except Exception as exc:
+        raise DatasetError(
+            f"the server could not be asked ({exc}): datasets need a CairnML login, because the server issues the Git "
+            "tokens of a dataset to the person signed in"
+        ) from None
+
+
+def fetch_person_git_token(repository: str, level: str, session=None) -> Optional[str]:
+    """A GitHub token for one dataset repository, for a person's machine, at ``level`` (``read`` or ``read_write``), from
+    the server (datasets.git_token). The server gives the level the person holds on the dataset, and refuses the rest.
+    None for a public repository, which needs no token to read. ``repository`` is the repository URL."""
+    response = _person_request(session, "git_token", {"repository": repository, "level": level})
+    if not response.ok:
+        raise DatasetError(f"the server refused a token for {repository}: {response.text.strip()}")
+    return (response.json().get("data") or {}).get("token")
+
+
+def register_dataset(url: str, credential: Optional[str] = None, session=None) -> dict:
+    """Adds a GitHub repository to CairnML as a dataset of the person signed in (datasets.add: kind repo, visibility
+    user). ``credential`` is the access the dataset is read with (an id from list_credentials); without one the dataset is
+    public, and a private one is added with no access. Returns the dataset as the server keeps it. Raises DatasetError
+    with the server's reason when the server refuses."""
+    body = {"kind": "repo", "url": url, "visibility": "user"}
+    if credential:
+        body["credential"] = credential
+    response = _person_request(session, "add", body)
+    if not response.ok:
+        raise DatasetError(f"the server did not add {url} as a dataset: {response.text.strip()}")
+    return (response.json().get("data") or {}).get("dataset") or {}
+
+
+def set_dataset_credential(repository: str, credential: Optional[str], session=None) -> dict:
+    """Sets the credential a dataset is read with, by its repository URL, or clears it (the dataset is then public). Only
+    the owner of the dataset or an admin may do this. Returns the dataset as the server keeps it."""
+    body = {"repository": repository}
+    if credential:
+        body["credential"] = credential
+    response = _person_request(session, "set_credential", body)
+    if not response.ok:
+        raise DatasetError(f"the server did not change the credential of {repository}: {response.text.strip()}")
+    return (response.json().get("data") or {}).get("dataset") or {}
+
+
+def resolve_dataset(reference: str, task: Optional[str] = None, session=None) -> dict:
+    """The dataset a reference names on the server: its id, its name, or the address of its repository (datasets.resolve).
+    A job passes its own task id. Refused as missing when the person may not see the dataset."""
+    body = {"ref": reference}
+    if task:
+        body["task"] = task
+    response = _person_request(session, "resolve", body)
+    if not response.ok:
+        raise DatasetError(f"the server could not resolve {reference}: {response.text.strip()}")
+    return (response.json().get("data") or {}).get("dataset") or {}
+
+
+def list_credentials(session=None) -> list:
+    """The credentials the person signed in may use for datasets: their own GitHub Apps and tokens, and the company's.
+    Each has an id (what --credential takes), its type, name, scope, owner and state. No secret is returned."""
+    response = _person_request(session, "get_all", {}, service="user_access", version="2.38")
+    if not response.ok:
+        raise DatasetError(f"the server did not list the credentials: {response.text.strip()}")
+    return (response.json().get("data") or {}).get("credentials") or []
+
+
+def fetch_dataset_list(session=None) -> dict:
+    """The datasets the signed-in user may see (datasets.visible): ``datasets``, each with its ``ref`` (owner/name), its
+    ``kind`` and its ``state`` (ok, or no_access with a message). The server answers from its own records, so this does
+    not reach GitHub. Raises DatasetError when the server cannot be asked, for instance when there is no CairnML login."""
+    try:
+        response = _session(session).send_request(service="datasets", action="visible", version="2.40", json={})
         if not response.ok:
             raise DatasetError(f"the server refused the dataset list: {response.text.strip()}")
         return response.json().get("data") or {}

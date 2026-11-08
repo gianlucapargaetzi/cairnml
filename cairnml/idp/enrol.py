@@ -33,6 +33,8 @@ class Enrolment:
     user: str
     notice: str = ""
     """ What the server asks the person who enrols to know; empty for a client """
+    queue: str = ""
+    """ The agent's own queue, named after its machine: the one queue this agent serves. Empty for a client """
 
 
 def _call(http, url, body, token=None):
@@ -164,6 +166,7 @@ def enrol(
         web_url=settings.get("web_url", ""),
         user=user,
         notice=device.get("notice", ""),
+        queue=device.get("queue", ""),
     )
 
 

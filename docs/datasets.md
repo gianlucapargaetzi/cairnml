@@ -25,7 +25,7 @@ pip install "cairnml[dataset]"
 ## How a dataset is stored
 
 A dataset of your own is a git repository. Git holds the metadata and the files are held in one of two places, chosen
-once when the dataset is created and recorded in `dataset.yaml` (`storage: s3` or `storage: lfs`):
+once, by `cairnml dataset remote add`, and recorded in `dataset.yaml` (`storage: s3` or `storage: lfs`):
 
 - **Git** holds the metadata: `dataset.yaml` says how the files are read and where they are stored, and
   `dataset.lock.json` is the footprint, the record that the data was checked. The verify script and its workflow are in
@@ -37,8 +37,9 @@ once when the dataset is created and recorded in `dataset.yaml` (`storage: s3` o
     LFS). No DVC and no storage keys are involved: a clone needs git and git-lfs only. `push` uploads the files to the
     LFS of the repository before it publishes the commit. The footprint records the LFS object of every file.
 
-Choose `--storage lfs` when the repository can hold the files (GitHub LFS has its own storage and bandwidth limits);
-choose `s3` for data that should live in the server's bucket. Either way the storage cannot be changed afterwards.
+Choose `--lfs` on `remote add` when the repository can hold the files (GitHub LFS has its own storage and bandwidth
+limits); the default is `s3`, for data that should live in the server's bucket. Either way the storage cannot be changed
+afterwards.
 
 What follows from this:
 
@@ -80,19 +81,75 @@ login. Without them, `create` still makes and publishes the repository, and prin
 protected and which permission is missing. Pass `--no-protect` to skip the step and protect the branch yourself, as
 `cairnml dataset doctor` describes.
 
-To use a repository you have already created on GitHub, clone it. Then, inside the clone:
+To set a dataset up by hand, work locally first and connect it to GitHub after. Create the repository on GitHub
+yourself (empty), then, in a new folder:
 
 ```bash
-cairnml dataset init --storage lfs       # git tracking, the storage and dataset.yaml (s3 is the default)
-cp -r /path/to/measurements data/        # copy your files into data/
+cairnml dataset init --adapter local     # a git repository, and how data/ is read. No remote and no storage yet
+cp -r /path/to/measurements data/        # copy your files into data/ (and adapter.py to the top, for --adapter local)
+cairnml dataset remote add <url> --credential <id>   # origin, the storage (s3, or --lfs), the dataset on the server. Once
 cairnml dataset status                   # what is new, changed or deleted
-cairnml dataset add                      # record data/ as it is now
+cairnml dataset add                      # record data/ as it is now (needs the storage: remote add comes first)
 cairnml dataset commit -m "March measurements"   # check the data and commit it with its footprint
 cairnml dataset doctor                   # once: check the set-up and the GitHub settings
 cairnml dataset push                     # send the files, then the commit, as a pull request
 ```
 
+`init` and the other local commands never reach the network or the server. Only `remote add` and `push` do.
+
+### Credentials
+
+A dataset is read with the credential it was added with, and with no other. The credential is one of your own GitHub Apps
+or personal tokens, or the company's GitHub App. List the ones you can use:
+
+```bash
+cairnml credential list                  # the id, type, name, scope (yours or company), owner and state of each
+```
+
+- `remote add --credential <id>` (and `create --credential <id>`) gives the credential the server reads the dataset with.
+- A dataset with **no credential is public**. If the repository is private and has none, `remote add` prints a warning and
+  the dataset cannot be read until one is added.
+- `cairnml dataset add-credential <id>` sets the credential later, on the dataset of the origin. Its owner or an admin may
+  do it. `add-credential` with no id makes the dataset public. The web app cannot set it yet.
+- A personal token reads the dataset only: it cannot be limited to one repository, so `read_write` needs a GitHub App.
+- A private dataset whose credential cannot read the repository, or that has none, cannot be read at all.
+- A job reads a dataset with the dataset's own credential, and no other. It may read the dataset only when the one who
+  queued the job can see it, or its project holds it through an allocation. Project grants on credentials do not apply
+  to datasets.
+
+`add`, `commit` and `push` refuse until `remote add` has run. `remote add` checks that the repository can be reached with
+the credential it was given. If it cannot, it prints a warning, not an error: choose another credential, and install
+your organisation's CairnML GitHub App on the repository, which is the recommended way for the server and jobs to read it.
+
 `add` records the whole of `data/`: new and changed files are included, and files you removed are removed from the dataset. Older commits keep their files, so an earlier version stays available.
+
+## Cloning a dataset
+
+`cairnml dataset clone <reference> [folder] [--commit <commit>]` makes a working copy of a dataset you may see: its
+repository, checked out at the commit, and its data in `data/` (git does not track that folder). The server decides whether
+you may see the dataset and gives the read token of its credential; a public repository needs no token. Once your access
+ends, the copy stays readable on your machine, but the server refuses its changes.
+
+## Access to GitHub
+
+GitHub is reached through a GitHub App only. A private repository is read with the App that is attached to it (the
+company's, or your own), and the App must be installed on the repository. A personal access token is no longer accepted.
+A public repository needs no App; one attached only lifts the GitHub rate limit.
+
+## Names and ids
+
+Every dataset has a unique id on the server. A dataset also has a name, its **reference**, unique in the company: a
+repository's name (`cars`), or `<registry>/<name>` for an entry of a registry. A run names a dataset by its reference:
+
+```python
+Dataset.get("cars", commit)                                  # by reference
+Dataset.get("3f9c0e1a...", commit)                           # by id
+Dataset.get("https://github.com/acme/cars.git", commit)      # by repository address
+```
+
+The server resolves the reference (`datasets.resolve`). A job resolves what its task's user may see, or what its project
+holds. A run records the id and the reference of each dataset it used, next to the repository and the commit. A second
+dataset with a name already in use is refused when it is added.
 
 ## How the data is read
 
@@ -198,18 +255,18 @@ The commit of the registry fixes both the pin file, which says where the data co
 
 ```yaml
 # datasets/coco-det.yaml
-source: huggingface              # or git, local, or web
+source: huggingface              # what the adapter fetches from; local means a folder used where it is
 link: hf://datasets/org/coco-det
-adapter: coco_det               # the adapter that reads the files
+adapter: coco_det               # the adapter that reads the files, and fetches them
 revision: null                  # optional: pin the source's own revision
 overrides:                      # another adapter for revisions whose layout changed
   - revisions: ["9b1c4e7"]
     adapter: coco_det_v2
 ```
 
-A `web` source takes a list of addresses under `link`. A zip archive among them is unpacked into a folder named after it.
-
-A web dataset can describe its files in a `fetch` list instead of `link`. Each entry gives the address of one file, the checksum the publisher gives for it, and how to unpack it:
+The SDK does not download anything itself. A source other than `local` is fetched by its adapter, so the adapter says how its
+source is reached. `link` is what the adapter's `fetch` receives: an address, or a list of addresses. A web dataset can list
+its files with a `fetch` list instead of `link`, and the adapter reads that list:
 
 ```yaml
 # datasets/images.yaml
@@ -217,26 +274,35 @@ source: web
 adapter: images
 fetch:
   - url: https://example.org/images.tar.gz
-    checksum: sha256:<64 hex digits>   # optional: md5:<32 hex digits> or sha256:<64 hex digits>
-    unpack: tar.gz                     # optional: none, zip, tar.gz or gz
-  - url: https://example.org/labels.gz
-    checksum: md5:<32 hex digits>
-    unpack: gz
+    checksum: sha256:<64 hex digits>
+    unpack: tar.gz
 ```
 
-- `url` is an `https://`, `http://` or `file://` address. Use `fetch` or `link`, not both.
-- `checksum` is optional. When it is given, the file is verified after the download, and a file that does not match is refused: the run fails with a message that names the file. When every file has a checksum, the revision of the dataset is a hash of the checksums, and the server is not asked for anything. A file without a checksum is identified by the server's ETag and size instead, and is not verified.
-- `unpack` defaults to `zip` for a file that ends in `.zip`, and to `none` otherwise. `tar.gz` and `zip` unpack into a folder named after the archive (`images.tar.gz` becomes `images/`). `gz` decompresses one file, written next to the archive under its name without `.gz`. The archive is removed after it is unpacked.
-- The pin file is checked when it is read. A wrong checksum, an unknown key or an unknown `unpack` is reported with the file name before anything is downloaded.
+Use `fetch` or `link`, not both. A `local` source is a folder of the registry itself, or of the machine, and is read where it is.
 
-Each file is downloaded once into the cache, as for every source. The run records the revision and the adapter, as it does for any dataset from the registry.
+Each source is downloaded once into the cache, as for every dataset. The run records the revision and the adapter, as it does for any dataset from the registry.
 
 ## Write an adapter
 
-An adapter is a small class in the registry's `adapters/` folder. It declares the modalities and labels it produces, and then adds one sample at a time:
+An adapter is a small module in the registry's `adapters/` folder. It holds everything about its dataset:
+
+- `REQUIREMENTS`: the Python packages it needs, each as an exact pin, for example `["pyarrow==23.0.1"]`. A run refuses to start
+  if one is not installed at that version, and says the command to install it (`pip install "pyarrow==23.0.1"`). Nothing is
+  installed by the SDK. The cache of the built dataset is keyed by these requirements. Empty or missing means none.
+- `fetch(link, revision, dest)`: downloads the source at that revision into `dest`. Required for any source other than `local`.
+- `resolve(link, revision)`: returns the revision to use, for example the commit a Hub reports for a branch. Without it, a
+  remote source must be given a revision in the pin file or the run.
+- `run(source, writer)`: reads the files in `source` into the standard format.
+
+It declares the modalities and labels it produces, and then adds one sample at a time:
 
 ```python
 from cairnml.datasets import Adapter
+
+REQUIREMENTS = []
+
+def fetch(link, revision, dest):
+    download_files(link, revision, dest)
 
 class CocoDetection(Adapter):
     modalities = {"image": "image"}
@@ -247,7 +313,7 @@ class CocoDetection(Adapter):
             writer.add(item.id, item.split, {"image": item.file}, {"bbox2d": item.boxes})
 ```
 
-`source` is the folder with the files of the dataset at the revision the run asked for. Image paths are relative to that folder. The writer checks every sample against the standard format, and an error names the adapter, so the run stops before training.
+`source` is the folder with the files of the dataset at the revision the run asked for (for a `local` source, the folder itself). Image paths are relative to that folder. The writer checks every sample against the standard format, and an error names the adapter, so the run stops before training.
 
 ## The sample format
 
@@ -290,7 +356,7 @@ On an agent, mount the cache into the job containers, so it survives between job
 ## Access
 
 DVC gets short-lived keys for the dataset storage from the server, so no access key is stored on your machine. Git uses
-your own login outside a job. In a job, the agent gets a read-only token for any repository the GitHub App is installed on.
+your own login outside a job. In a job, the agent gets a read-only token made with the credential the dataset holds (see Credentials), not with any access shared with the project: project grants are for code.
 
 - A **public repository** is read over https with no token: no login and no GitHub App.
 - A **private repository** needs the GitHub App. Outside a job, your own git login is used; inside a job, the token the server issues.

@@ -14,7 +14,14 @@ from . import footprint
 from .adapter import SampleWriter
 from .cache import DatasetCache
 from .errors import DatasetError
-from .external import _default_repo, load_adapter, load_local_adapter, registry_tree
+from .external import (
+    _default_repo,
+    adapter_requirements,
+    check_requirements,
+    load_adapter_module,
+    load_local_adapter,
+    registry_tree,
+)
 from .schema import MANIFEST_FILE, SAMPLES_FILE, SchemaError, from_arrow_value, label_column, read_manifest, validate_rows
 
 
@@ -78,7 +85,8 @@ def _check_adapter(data_dir: Path, wanted: Mapping[str, str], config: Mapping[st
         registry = wanted.get("registry") or _default_repo()
         tree, sha = registry_tree(cache or DatasetCache.default(), registry, config.get("registry_commit") or None)
         name = wanted["name"]
-        adapter = load_adapter(tree, name)
+        adapter, module = load_adapter_module(tree, name)
+        check_requirements(adapter_requirements(module, name), name)
         label = f"adapter {name!r}"
         fmt = {"kind": "adapter", "name": name, "registry": registry, "registry_commit": sha}
     with tempfile.TemporaryDirectory() as out:

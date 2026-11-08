@@ -4,7 +4,6 @@ import json
 import re
 import subprocess
 import sys
-from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -15,6 +14,11 @@ from cairnml.datasets.dvcutil import Dvc
 from cairnml.datasets import credentials
 from cairnml.datasets.repo import protection_problems
 
+
+@pytest.fixture(autouse=True)
+def reachable_by_default(monkeypatch):
+    """The reachability check of remote add asks the server; the tests say the repository is reachable."""
+    monkeypatch.setattr("cairnml.datasets.repo.fetch_person_git_token", lambda url, level: None)
 
 @pytest.fixture(autouse=True)
 def git_identity(monkeypatch):
@@ -32,8 +36,9 @@ def origin(tmp_path):
 
 @pytest.fixture
 def work(tmp_path, origin):
+    """A new local repository with no remote: the state init leaves a dataset in, before remote add."""
     path = tmp_path / "cars"
-    subprocess.run(["git", "clone", "-q", str(origin), str(path)], check=True, capture_output=True)
+    subprocess.run(["git", "init", "-q", str(path)], check=True, capture_output=True)
     return path
 
 
@@ -75,25 +80,72 @@ def publish(repo: DatasetRepo, message: str) -> str:
 
 
 @pytest.fixture
-def first(work, storage):
+def linked(work, origin):
+    """The work repository with its origin set, and no dataset set up in it yet."""
+    subprocess.run(["git", "-C", str(work), "remote", "add", "origin", str(origin)], check=True)
+    return work
+
+
+def connect(repo: DatasetRepo, origin: Path, storage: Path, **init_kwargs) -> None:
+    """Set the dataset up as the commands do: init, then remote add to the (bare) origin with the storage folder as the
+    DVC remote, so no server is reached."""
+    repo.init(**init_kwargs)
+    repo.remote_add(str(origin), storage_url=str(storage), register=lambda url, credential=None: None)
+
+
+@pytest.fixture
+def first(work, origin, storage):
     repo = DatasetRepo(work)
-    repo.init(remote_url=str(storage))
+    connect(repo, origin, storage)
     write(work, "a.txt", b"alpha")
     write(work, "sub/b.txt", b"bravo")
     return repo, publish(repo, "first")
 
 
-def test_init_needs_a_repository_with_an_origin(tmp_path):
-    with pytest.raises(DatasetError, match="not a git repository"):
-        DatasetRepo(tmp_path).init(remote_url=str(tmp_path / "s"))
-    subprocess.run(["git", "init", "-q", str(tmp_path / "x")], check=True)
-    with pytest.raises(DatasetError, match="no origin"):
-        DatasetRepo(tmp_path / "x").init(remote_url=str(tmp_path / "s"))
+def test_init_makes_a_local_repository_with_no_remote_and_no_storage(tmp_path):
+    repo = DatasetRepo(tmp_path / "x")
+    repo.init()
+    assert (tmp_path / "x" / ".git").is_dir()
+    assert repo.git.remote_url() is None
+    assert repo.storage() is None
+    assert not (tmp_path / "x" / ".dvc").exists()
+    assert "storage:" not in (tmp_path / "x" / "dataset.yaml").read_text()
 
 
-def test_new_files_are_untracked_until_added(work, storage):
+def test_remote_add_needs_an_initialised_dataset_and_runs_once(tmp_path, origin, storage):
+    with pytest.raises(DatasetError, match="run init first"):
+        DatasetRepo(tmp_path / "none").remote_add(str(origin), register=lambda url, credential=None: None)
+    repo = DatasetRepo(tmp_path / "x")
+    repo.init()
+    repo.remote_add(str(origin), storage_url=str(storage), register=lambda url, credential=None: None)
+    assert repo.storage() == "s3" and repo.git.remote_url() == str(origin)
+    with pytest.raises(DatasetError, match="runs once"):
+        repo.remote_add(str(origin), storage_url=str(storage), register=lambda url, credential=None: None)
+
+
+def test_add_and_commit_wait_for_the_storage(work, origin):
     repo = DatasetRepo(work)
-    repo.init(remote_url=str(storage))
+    repo.init()
+    write(work, "a.txt", b"alpha")
+    with pytest.raises(DatasetError, match="remote add"):
+        repo.add()
+
+
+def test_a_server_refusal_stops_remote_add_before_anything_changes(work, origin, storage):
+    repo = DatasetRepo(work)
+    repo.init()
+
+    def refused(url, credential=None):
+        raise DatasetError("the server did not add it")
+
+    with pytest.raises(DatasetError, match="did not add"):
+        repo.remote_add(str(origin), storage_url=str(storage), register=refused)
+    assert repo.git.remote_url() is None and repo.storage() is None
+
+
+def test_new_files_are_untracked_until_added(work, origin, storage):
+    repo = DatasetRepo(work)
+    connect(repo, origin, storage)
     write(work, "a.txt", b"alpha")
     status = repo.status()
     assert status["untracked"] == ["data/a.txt"]
@@ -102,9 +154,9 @@ def test_new_files_are_untracked_until_added(work, storage):
     assert after["untracked"] == []
 
 
-def test_commit_without_add_is_refused(work, storage):
+def test_commit_without_add_is_refused(work, origin, storage):
     repo = DatasetRepo(work)
-    repo.init(remote_url=str(storage))
+    connect(repo, origin, storage)
     write(work, "a.txt", b"alpha")
     native(work)
     repo.add()
@@ -195,9 +247,9 @@ def test_a_version_in_use_is_not_evicted(first, origin, cache):
 # The footprint, check and push
 
 
-def test_data_that_is_neither_native_nor_read_by_an_adapter_cannot_be_checked(work, storage):
+def test_data_that_is_neither_native_nor_read_by_an_adapter_cannot_be_checked(work, origin, storage):
     repo = DatasetRepo(work)
-    repo.init(remote_url=str(storage))
+    connect(repo, origin, storage)
     write(work, "a.txt", b"alpha")
     repo.add()
     with pytest.raises(DatasetError, match="samples.parquet"):
@@ -206,9 +258,9 @@ def test_data_that_is_neither_native_nor_read_by_an_adapter_cannot_be_checked(wo
         repo.commit("not native")
 
 
-def test_check_wants_the_data_added_first(work, storage):
+def test_check_wants_the_data_added_first(work, origin, storage):
     repo = DatasetRepo(work)
-    repo.init(remote_url=str(storage))
+    connect(repo, origin, storage)
     write(work, "a.txt", b"alpha")
     native(work)
     with pytest.raises(DatasetError, match="not added"):
@@ -256,7 +308,7 @@ def test_push_refuses_an_uncommitted_lock(first, work):
         repo.push()
 
 
-def test_a_dataset_with_an_adapter_is_checked_through_it(tmp_path, work, storage, cache):
+def test_a_dataset_with_an_adapter_is_checked_through_it(tmp_path, work, origin, storage, cache):
     registry = tmp_path / "server" / "acme" / "registry.git"
     subprocess.run(["git", "init", "-q", "--bare", str(registry)], check=True)
     clone = tmp_path / "registry-work"
@@ -276,7 +328,7 @@ def test_a_dataset_with_an_adapter_is_checked_through_it(tmp_path, work, storage
     subprocess.run(["git", "-C", str(clone), "push", "-q", "origin", "HEAD"], check=True, capture_output=True)
 
     repo = DatasetRepo(work, cache=cache)
-    repo.init(remote_url=str(storage), adapter="text_files", registry=str(registry))
+    connect(repo, origin, storage, adapter="text_files", registry=str(registry))
     write(work, "a.txt", b"alpha")
     repo.add()
     lock = repo.check()
@@ -286,7 +338,7 @@ def test_a_dataset_with_an_adapter_is_checked_through_it(tmp_path, work, storage
     assert repo.problems() == []
 
 
-def test_an_adapter_that_finds_nothing_blocks_the_check(tmp_path, work, storage, cache):
+def test_an_adapter_that_finds_nothing_blocks_the_check(tmp_path, work, origin, storage, cache):
     registry = tmp_path / "server" / "acme" / "registry.git"
     subprocess.run(["git", "init", "-q", "--bare", str(registry)], check=True)
     clone = tmp_path / "registry-work"
@@ -305,7 +357,7 @@ def test_an_adapter_that_finds_nothing_blocks_the_check(tmp_path, work, storage,
     subprocess.run(["git", "-C", str(clone), "commit", "-qm", "adapter"], check=True)
     subprocess.run(["git", "-C", str(clone), "push", "-q", "origin", "HEAD"], check=True, capture_output=True)
     repo = DatasetRepo(work, cache=cache)
-    repo.init(remote_url=str(storage), adapter="text_files", registry=str(registry))
+    connect(repo, origin, storage, adapter="text_files", registry=str(registry))
     write(work, "picture.png", b"x")  # the adapter reads *.txt only
     repo.add()
     with pytest.raises(DatasetError, match="empty|no samples|adapter"):
@@ -371,10 +423,11 @@ def test_a_repository_without_dataset_yaml_is_not_a_dataset(tmp_path, cache, mon
 
 
 def test_a_public_repository_is_read_without_any_credential(first, origin, tmp_path, cache, monkeypatch):
-    """A public repository is cloned over https with no token: no login, no server call, no GitHub App.
+    """A public repository is cloned over https with no token. On a person's machine the server is asked for a read
+    token, and for a public repository it answers with none (datasets.git_token).
 
     The public address is rewritten to the local origin through git's insteadOf setting, so git runs for real and no
-    network is used. Every git command is recorded: none may carry a token, and the server is never asked."""
+    network is used. Every git command is recorded: none may carry a token."""
     from cairnml import Task
     from cairnml.datasets import gitutil
 
@@ -386,19 +439,30 @@ def test_a_public_repository_is_read_without_any_credential(first, origin, tmp_p
     for name in ("CAIRNML_JOB_TOKEN", "CAIRNML_JOB_TOKEN_FILE"):
         monkeypatch.delenv(name, raising=False)
     seen = []
+    asked = []
     real_env = gitutil._env
 
     def recording_env(token=None):
         seen.append(token)
         return real_env(token)
 
-    def no_session(*_args, **_kwargs):
-        raise AssertionError("the server was asked")
+    class Answer:
+        ok = True
+        text = ""
+
+        def json(self):
+            return {"data": {"token": None}}
+
+    class Session:
+        def send_request(self, service, action, json, version=None):
+            asked.append((service, action, json))
+            return Answer()
 
     monkeypatch.setattr(gitutil, "_env", recording_env)
-    monkeypatch.setattr(Task, "_get_default_session", staticmethod(no_session))
+    monkeypatch.setattr(Task, "_get_default_session", staticmethod(lambda: Session()))
     dataset = Dataset.get(public, sha, cache=cache, record=False)
     assert (dataset.path / "a.txt").read_bytes() == b"alpha"
+    assert [call for call in asked if call[1] != "resolve"] == [("datasets", "git_token", {"repository": public, "level": "read"})]
     assert seen and all(token is None for token in seen)
 
 
@@ -424,14 +488,14 @@ def test_a_job_gets_no_token_for_a_public_repository_and_reads_it_anonymously(fi
             return {"data": {"token": None}}
 
     class Session:
-        def send_request(self, service, action, json):
+        def send_request(self, service, action, json, version=None):
             asked.append((service, action, json))
             return Answer()
 
     monkeypatch.setattr(Task, "_get_default_session", staticmethod(lambda: Session()))
     dataset = Dataset.get(public, sha, cache=cache, record=False)
     assert (dataset.path / "a.txt").exists()
-    assert asked == [("devices", "git_token", {"task": "task-1", "repository": public})]
+    assert [call for call in asked if call[1] != "resolve"] == [("devices", "git_token", {"task": "task-1", "repository": public})]
     assert capsys.readouterr().out == ""
 
 
@@ -439,21 +503,17 @@ def unreachable_server():
     raise DatasetError("the server could not be asked for the dataset list")
 
 
-def served(datasets, refreshed_at=None):
-    """A stub for the server's datasets.list answer, so the doctor makes no network call."""
-    return lambda: {"datasets": datasets, "refreshed_at": refreshed_at}
-
-
-def fresh_stamp():
-    return datetime.now(timezone.utc).isoformat()
+def served(datasets):
+    """A stub for the server's datasets.visible answer, so the doctor makes no network call."""
+    return lambda: {"datasets": datasets}
 
 
 def checks_by_name(repo, list_datasets=unreachable_server):
     return {item['check']: item for item in repo.doctor(list_datasets=list_datasets)}
 
 
-def test_doctor_lists_what_is_missing_before_the_set_up(work):
-    checks = checks_by_name(DatasetRepo(work))
+def test_doctor_lists_what_is_missing_before_the_set_up(linked):
+    checks = checks_by_name(DatasetRepo(linked))
     assert checks['origin']['ok'] is True
     assert checks['set-up']['ok'] is False and 'init' in checks['set-up']['message']
     assert checks['verify script']['ok'] is False
@@ -476,36 +536,110 @@ def test_doctor_finds_a_set_up_repository_and_names_a_missing_gh(first, work, mo
     assert 'Install it from' in checks['GitHub command line']['message']
 
 
-def test_the_app_is_found_on_a_listed_repository(work):
+def test_the_app_is_found_on_a_listed_repository(linked):
     # The origin is .../acme/cars.git, so the repository is acme/cars; the server's spelling may differ in case
-    check = checks_by_name(DatasetRepo(work), served([{"repository": "Acme/Cars"}], fresh_stamp()))["App installed"]
+    check = checks_by_name(DatasetRepo(linked), served([{"ref": "Acme/Cars", "kind": "repo", "state": "ok"}]))["App installed"]
     assert check["ok"] is True
-    assert check["message"] == "the GitHub App can read acme/cars, and its dataset.yaml is valid"
+    assert check["message"] == "the server lists acme/cars as a dataset you can read"
 
 
-def test_a_repository_the_app_cannot_read_fails_the_app_check(work):
-    listed = [{"repository": "acme/other"}]
-    check = checks_by_name(DatasetRepo(work), served(listed, fresh_stamp()))["App installed"]
+def test_a_repository_the_server_does_not_list_fails_the_app_check(linked):
+    listed = [{"ref": "acme/other", "kind": "repo", "state": "ok"}]
+    check = checks_by_name(DatasetRepo(linked), served(listed))["App installed"]
     assert check["ok"] is False
     assert check["message"] == (
-        "the GitHub App is not installed on acme/cars, or the repository has no dataset.yaml yet: install the App on "
-        "this repository (see the dataset docs)")
+        "the server does not list acme/cars: the GitHub App may not be installed on it, or the repository has no "
+        "dataset.yaml yet (see the dataset docs)")
 
 
-def test_the_app_check_says_nothing_was_checked_when_the_server_cannot_answer(work):
-    check = checks_by_name(DatasetRepo(work))["App installed"]
+def test_a_listed_repository_the_server_cannot_read_says_why(linked):
+    listed = [{"ref": "acme/cars", "kind": "repo", "state": "no_access", "state_message": "no access to dataset cars"}]
+    check = checks_by_name(DatasetRepo(linked), served(listed))["App installed"]
+    assert check["ok"] is False
+    assert check["message"] == "the server lists acme/cars but cannot read it: no access to dataset cars"
+
+
+def test_the_app_check_says_nothing_was_checked_when_the_server_cannot_answer(linked):
+    check = checks_by_name(DatasetRepo(linked))["App installed"]
     assert check["ok"] is None
     assert check["message"] == "the server is not reachable or not logged in; nothing checked"
 
 
-def test_an_old_dataset_list_is_named_in_the_app_check_message(work):
-    old = (datetime.now(timezone.utc) - timedelta(hours=3)).isoformat()
-    check = checks_by_name(DatasetRepo(work), served([], old))["App installed"]
-    assert check["ok"] is False
-    assert f"last rebuilt at {old}, more than an hour ago" in check["message"]
-
-
 def test_the_dataset_list_is_asked_of_the_server_with_the_login(monkeypatch):
+    asked = []
+    listed = {"datasets": [{"ref": "acme/cars", "kind": "repo", "state": "ok"}]}
+
+    class Answer:
+        ok = True
+        text = ""
+
+        def json(self):
+            return {"data": listed}
+
+    class Session:
+        def send_request(self, service, action, json, version=None):
+            asked.append((service, action, json))
+            return Answer()
+
+    assert credentials.fetch_dataset_list(Session()) == listed
+    assert asked == [("datasets", "visible", {})]
+
+
+def test_the_dataset_list_is_unavailable_without_a_login_or_when_refused(monkeypatch):
+    class NoLogin:
+        def send_request(self, service, action, json, version=None):
+            raise ValueError("CairnML host was not set")
+
+    class Refused:
+        def send_request(self, service, action, json, version=None):
+            return type("Answer", (), {"ok": False, "text": "401 unauthorized"})()
+
+    with pytest.raises(DatasetError, match="could not be asked"):
+        credentials.fetch_dataset_list(NoLogin())
+    with pytest.raises(DatasetError, match="401 unauthorized"):
+        credentials.fetch_dataset_list(Refused())
+
+
+def test_a_push_to_github_uses_the_servers_write_token_for_that_repository(linked, monkeypatch):
+    from cairnml.datasets import repo as repo_module
+
+    subprocess.run(["git", "-C", str(linked), "remote", "set-url", "origin", "https://github.com/acme/cars.git"], check=True)
+    asked = []
+
+    def server_token(repository, level):
+        asked.append((repository, level))
+        return "write-token"
+
+    monkeypatch.setattr(repo_module, "git_token", server_token)
+    pusher = DatasetRepo(linked)._push_git()
+
+    assert asked == [("https://github.com/acme/cars.git", "read_write")]
+    assert pusher.token == "write-token"
+
+
+def test_a_push_to_a_remote_that_is_not_github_asks_the_server_for_nothing(work, monkeypatch):
+    from cairnml.datasets import repo as repo_module
+
+    monkeypatch.setattr(repo_module, "git_token", lambda *_args: pytest.fail("the server was asked for a token"))
+
+    assert DatasetRepo(work)._push_git().token is None
+
+
+def test_a_refusal_to_add_the_new_repository_stops_the_create_with_the_reason(tmp_path):
+    source = tmp_path / "source"
+    source.mkdir()
+    (source / "a.txt").write_bytes(b"alpha")
+
+    def refused(url, credential=None):
+        raise DatasetError("the server did not add https://github.com/acme/cars.git as a dataset: no access")
+
+    with pytest.raises(DatasetError, match="was created on GitHub, but the set-up stopped.*no access"):
+        DatasetRepo.create(tmp_path / "new", "cars", source, create_remote=lambda name, private: "https://github.com/acme/cars.git",
+                           register=refused, protect=False)
+    assert not (tmp_path / "new").exists()
+
+
+def test_adding_a_repository_asks_the_server_as_a_user_dataset(monkeypatch):
     asked = []
 
     class Answer:
@@ -513,30 +647,92 @@ def test_the_dataset_list_is_asked_of_the_server_with_the_login(monkeypatch):
         text = ""
 
         def json(self):
-            return {"data": {"datasets": [{"repository": "acme/cars"}], "refreshed_at": None}}
+            return {"data": {"dataset": {}}}
 
     class Session:
-        def send_request(self, service, action, json):
-            asked.append((service, action, json))
+        def send_request(self, service, action, json, version=None):
+            asked.append((service, action, json, version))
             return Answer()
 
-    assert credentials.fetch_dataset_list(Session()) == {"datasets": [{"repository": "acme/cars"}], "refreshed_at": None}
-    assert asked == [("datasets", "list", {})]
+    credentials.register_dataset("https://github.com/acme/cars.git", None, Session())
+
+    assert asked == [("datasets", "add", {"kind": "repo", "url": "https://github.com/acme/cars.git", "visibility": "user"}, "2.40")]
 
 
-def test_the_dataset_list_is_unavailable_without_a_login_or_when_refused(monkeypatch):
+def test_adding_a_repository_with_a_credential_sends_the_credential_it_is_read_with(monkeypatch):
+    asked = []
+
+    class Answer:
+        ok = True
+        text = ""
+
+        def json(self):
+            return {"data": {"dataset": {"id": "d1", "ref": "acme/cars", "credential": "cred-1"}}}
+
+    class Session:
+        def send_request(self, service, action, json, version=None):
+            asked.append(json)
+            return Answer()
+
+    dataset = credentials.register_dataset("https://github.com/acme/cars.git", "cred-1", Session())
+    assert asked == [{"kind": "repo", "url": "https://github.com/acme/cars.git", "visibility": "user", "credential": "cred-1"}]
+    assert dataset["credential"] == "cred-1"
+
+
+def test_the_credentials_of_the_person_are_listed_from_the_server(monkeypatch):
+    class Answer:
+        ok = True
+        text = ""
+
+        def json(self):
+            return {"data": {"credentials": [{"id": "c1", "name": "Team token", "type": "Token", "scope": "user"}]}}
+
+    class Session:
+        def send_request(self, service, action, json, version=None):
+            assert (service, action) == ("user_access", "get_all")
+            return Answer()
+
+    assert credentials.list_credentials(Session()) == [{"id": "c1", "name": "Team token", "type": "Token", "scope": "user"}]
+
+
+def test_a_remote_add_without_a_credential_warns_about_a_private_dataset(tmp_path, origin, storage):
+    repo = DatasetRepo(tmp_path / "x")
+    repo.init()
+    repo.remote_add(str(origin), storage_url=str(storage), register=lambda url, credential=None: None)
+    assert len(repo.warnings) == 1
+    assert "add-credential" in repo.warnings[0] and "not public" in repo.warnings[0]
+
+
+def test_a_remote_add_with_a_credential_passes_it_to_the_server(tmp_path, origin, storage):
+    seen = []
+    repo = DatasetRepo(tmp_path / "x")
+    repo.init()
+    repo.remote_add(str(origin), storage_url=str(storage), credential="c1",
+                    register=lambda url, credential=None: seen.append((url, credential)),
+                    check_access=lambda url, level: "token")
+    assert seen == [(str(origin), "c1")]
+    assert repo.warnings == []
+
+
+def test_a_credential_that_cannot_read_the_repository_is_warned_about(tmp_path, origin, storage):
+    repo = DatasetRepo(tmp_path / "x")
+    repo.init()
+
+    def unreadable(url, level):
+        raise DatasetError("the server refused a token: no access")
+
+    repo.remote_add(str(origin), storage_url=str(storage), credential="c1",
+                    register=lambda url, credential=None: None, check_access=unreadable)
+    assert len(repo.warnings) == 1 and "credential c1" in repo.warnings[0]
+
+
+def test_a_person_without_a_login_is_told_why_datasets_need_one(monkeypatch):
     class NoLogin:
-        def send_request(self, service, action, json):
+        def send_request(self, service, action, json, version=None):
             raise ValueError("CairnML host was not set")
 
-    class Refused:
-        def send_request(self, service, action, json):
-            return type("Answer", (), {"ok": False, "text": "401 unauthorized"})()
-
-    with pytest.raises(DatasetError, match="could not be asked"):
-        credentials.fetch_dataset_list(NoLogin())
-    with pytest.raises(DatasetError, match="401 unauthorized"):
-        credentials.fetch_dataset_list(Refused())
+    with pytest.raises(DatasetError, match="datasets need a CairnML login"):
+        credentials.fetch_person_git_token("https://github.com/acme/cars.git", "read", NoLogin())
 
 
 def test_protection_problems_name_each_missing_setting():
@@ -586,9 +782,9 @@ CSV_ADAPTER = (
 )
 
 
-def local_dataset(work: Path, storage: Path, cache, adapter_source: str = CSV_ADAPTER) -> DatasetRepo:
+def local_dataset(work: Path, origin: Path, storage: Path, cache, adapter_source: str = CSV_ADAPTER) -> DatasetRepo:
     repo = DatasetRepo(work, cache=cache)
-    repo.init(remote_url=str(storage), adapter="local")
+    connect(repo, origin, storage, adapter="local")
     write(work, "cars.csv", CARS_CSV)
     write(work, "a.txt", b"alpha")
     write(work, "sub/b.txt", b"bravo")
@@ -596,8 +792,8 @@ def local_dataset(work: Path, storage: Path, cache, adapter_source: str = CSV_AD
     return repo
 
 
-def test_a_local_adapter_reads_a_csv_and_the_check_passes(work, storage, cache):
-    repo = local_dataset(work, storage, cache)
+def test_a_local_adapter_reads_a_csv_and_the_check_passes(work, origin, storage, cache):
+    repo = local_dataset(work, origin, storage, cache)
     assert "adapter: local" in (work / "dataset.yaml").read_text()
     assert "registry" not in (work / "dataset.yaml").read_text()
     repo.add()
@@ -627,15 +823,15 @@ def test_a_local_adapter_reads_a_csv_and_the_check_passes(work, storage, cache):
         ),
     ],
 )
-def test_a_broken_local_adapter_error_names_it(work, storage, cache, source, message):
-    repo = local_dataset(work, storage, cache, adapter_source=source)
+def test_a_broken_local_adapter_error_names_it(work, origin, storage, cache, source, message):
+    repo = local_dataset(work, origin, storage, cache, adapter_source=source)
     repo.add()
     with pytest.raises(DatasetError, match=message):
         repo.check()
 
 
-def test_checking_a_local_dataset_leaves_no_pycache_in_the_repository(work, storage, cache):
-    repo = local_dataset(work, storage, cache)
+def test_checking_a_local_dataset_leaves_no_pycache_in_the_repository(work, origin, storage, cache):
+    repo = local_dataset(work, origin, storage, cache)
     repo.add()
     repo.check()
     repo.commit("with a local adapter")
@@ -644,13 +840,13 @@ def test_checking_a_local_dataset_leaves_no_pycache_in_the_repository(work, stor
     assert repo.problems() == []
 
 
-def test_init_ignores_pycache_in_gitignore_and_dvcignore(work, storage):
-    DatasetRepo(work).init(remote_url=str(storage))
+def test_init_ignores_pycache_in_gitignore_and_dvcignore(work, origin, storage):
+    connect(DatasetRepo(work), origin, storage)
     assert "__pycache__/" in (work / ".gitignore").read_text().splitlines()
     assert "__pycache__/" in (work / ".dvcignore").read_text().splitlines()
 
 
-def test_a_local_adapter_writes_tabular_labels_without_json_text(work, storage, cache):
+def test_a_local_adapter_writes_tabular_labels_without_json_text(work, origin, storage, cache):
     adapter = (
         "from cairnml.datasets import Adapter\n"
         "import csv\n"
@@ -662,7 +858,7 @@ def test_a_local_adapter_writes_tabular_labels_without_json_text(work, storage, 
         "            features = {'temp': float(row['id']), 'plant': row['class']}\n"
         "            writer.add(row['id'], row['split'], {'table': row['file']}, {'features': features, 'energy': 12.5})\n"
     )
-    repo = local_dataset(work, storage, cache, adapter_source=adapter)
+    repo = local_dataset(work, origin, storage, cache, adapter_source=adapter)
     repo.add()
     lock = repo.check()
     assert lock["labels"] == {"features": "tabular", "energy": "number"}
@@ -670,16 +866,16 @@ def test_a_local_adapter_writes_tabular_labels_without_json_text(work, storage, 
     assert manifest["labels"] == {"features": "tabular", "energy": "number"}
 
 
-def test_a_local_adapter_that_is_missing_is_named(work, storage, cache):
-    repo = local_dataset(work, storage, cache)
+def test_a_local_adapter_that_is_missing_is_named(work, origin, storage, cache):
+    repo = local_dataset(work, origin, storage, cache)
     (work / "adapter.py").unlink()
     repo.add()
     with pytest.raises(DatasetError, match="local adapter 'adapter.py' is missing"):
         repo.check()
 
 
-def test_an_edited_local_adapter_fails_the_footprint_check(work, storage, cache):
-    repo = local_dataset(work, storage, cache)
+def test_an_edited_local_adapter_fails_the_footprint_check(work, origin, storage, cache):
+    repo = local_dataset(work, origin, storage, cache)
     repo.add()
     repo.commit("first")
     (work / "adapter.py").write_text(CSV_ADAPTER + "# a later change\n")
@@ -700,28 +896,89 @@ def test_reading_a_local_dataset_with_get_does_not_run_its_adapter(first_local_w
 
 
 @pytest.fixture
-def first_local_work(work, storage, cache):
-    repo = local_dataset(work, storage, cache)
+def first_local_work(work, origin, storage, cache):
+    repo = local_dataset(work, origin, storage, cache)
     return repo, publish(repo, "first")
 
 
-def test_init_with_the_local_adapter_writes_the_line_and_needs_no_registry(work, storage):
-    code = dataset_cli.cli(["init", "--path", str(work), "--remote", str(storage), "--adapter", "local"])
+def test_init_with_the_local_adapter_writes_the_line_and_needs_no_registry(work, origin, storage):
+    code = dataset_cli.cli(["init", "--path", str(work), "--adapter", "local"])
     assert code == 0
     config = (work / "dataset.yaml").read_text()
     assert "adapter: local\n" in config and "registry" not in config
 
 
-def test_init_with_a_registry_and_the_local_adapter_is_refused(work, storage):
+def test_init_with_a_registry_and_the_local_adapter_is_refused(work, origin, storage):
     code = dataset_cli.cli(
-        ["init", "--path", str(work), "--remote", str(storage), "--adapter", "local", "--registry", "https://x/y.git"]
+        ["init", "--path", str(work), "--adapter", "local", "--registry", "https://x/y.git"]
     )
     assert code == 1
     assert not (work / "dataset.yaml").exists()
 
 
-def test_init_with_a_registry_adapter_keeps_its_line_and_writes_no_registry(work, storage):
-    code = dataset_cli.cli(["init", "--path", str(work), "--remote", str(storage), "--adapter", "coco"])
+def test_init_with_a_registry_adapter_keeps_its_line_and_writes_no_registry(work, origin, storage):
+    code = dataset_cli.cli(["init", "--path", str(work), "--adapter", "coco"])
     assert code == 0
     config = (work / "dataset.yaml").read_text()
     assert "adapter: coco\n" in config and "registry" not in config
+
+
+def test_remote_add_asks_for_keys_at_read_write_and_builds_the_remote_from_the_prefix(work, origin):
+    from cairnml.datasets.credentials import StorageKeys
+
+    asked = []
+
+    def keys(**kwargs):
+        asked.append(kwargs)
+        return StorageKeys(endpoint="http://store:9000", region="us-east-1", bucket="dataset",
+                           prefix="dataset/c1/acme/cars", access_key="AK", secret_key="SK",
+                           session_token="ST", expires_at="later")
+
+    repo = DatasetRepo(work, keys=keys)
+    repo.init()
+    repo.remote_add(str(origin), register=lambda url, credential=None: None)
+
+    assert asked == [{"repository": "acme/cars", "level": "read_write"}]
+    assert repo.dvc.remote_url() == "s3://dataset/c1/acme/cars"
+
+
+def test_remote_add_warns_when_the_signed_in_person_cannot_reach_the_repository(work, origin, storage, monkeypatch):
+    from cairnml.datasets import repo as repo_module
+    from cairnml.datasets.errors import DatasetError
+
+    def refused(url, level):
+        raise DatasetError("the server refused a token for " + url + ": no access")
+
+    monkeypatch.setattr(repo_module, "fetch_person_git_token", refused)
+    repo = DatasetRepo(work)
+    repo.init()
+    repo.remote_add(str(origin), storage_url=str(storage), credential="c1",
+                    register=lambda url, credential=None: None)
+    assert repo.storage() == "s3" and repo.git.remote_url() == str(origin)  # the set-up is kept; only a warning
+    assert len(repo.warnings) == 1
+    assert "not reachable with the credential c1" in repo.warnings[0]
+
+
+def test_remote_add_has_no_warning_when_the_repository_is_reachable(work, origin, storage):
+    repo = DatasetRepo(work)
+    repo.init()
+    repo.remote_add(str(origin), storage_url=str(storage), credential="c1", register=lambda url, credential=None: None,
+                    check_access=lambda url, level: "token")
+    assert repo.warnings == []
+
+
+def test_commit_and_push_wait_for_the_remote(work, origin, storage):
+    repo = DatasetRepo(work)
+    repo.init()
+    write(work, "a.txt", b"alpha")
+    with pytest.raises(DatasetError, match="remote add"):
+        repo.commit("too early")
+    with pytest.raises(DatasetError, match="remote add"):
+        repo.push()
+
+
+def test_add_credential_needs_a_remote_first(work):
+    repo = DatasetRepo(work)
+    repo.init()
+    with pytest.raises(DatasetError, match="remote add"):
+        repo.add_credential("c1")

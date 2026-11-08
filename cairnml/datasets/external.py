@@ -1,13 +1,20 @@
-"""Outside datasets (Hugging Face, git, local folders) read through adapters.
+"""Outside datasets read through adapters.
 
 A run names a dataset by its pin file name and a commit of the ``external-datasets`` repository. That commit
-fixes the pin file (where the data comes from, which adapter reads it) and the adapter code. The revision
-of the source itself is taken from the run if it asks for one, else from the pin file, else the latest;
-the revision that was used is always recorded.
+fixes the pin file (where the data comes from, which adapter reads it) and the adapter code. The adapter says how
+its source is fetched (``fetch``, and ``resolve`` for the revision) and which Python packages it needs
+(``REQUIREMENTS``). The revision of the source itself is taken from the run if it asks for one, else from the pin
+file, else the latest; the revision that was used is always recorded.
+
+A ``local`` source is a folder that is used where it is; every other source is fetched by its adapter.
 """
 
-import importlib.util
+import hashlib
+import importlib.metadata
+import json
+import re
 import shutil
+import types
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -18,18 +25,19 @@ from .adapter import Adapter, SampleWriter
 from .cache import DatasetCache
 from .errors import DatasetError
 from .schema import SAMPLES_FILE, SchemaError, from_arrow_value, label_column, modality_column, read_manifest
-from .sources import parse_fetch, source_for
+from .sources import LocalFolder
+
+LOCAL = "local"  # the source of a folder used where it is; every other source is fetched by the adapter
 
 
 @dataclass
 class Pin:
     name: str
     source: str
-    link: str
+    link: Any  # what the adapter's fetch receives: an address, or the list of files a web adapter reads
     adapter: Optional[str] = None
     revision: Optional[str] = None
     overrides: List[Dict[str, Any]] = field(default_factory=list)
-    fetch: Optional[List[Dict[str, Any]]] = None  # web: the files to fetch, with checksums and unpacking
 
     def adapter_for(self, revision: str) -> str:
         """An override whose revisions include this one (by prefix) wins; otherwise the default adapter."""
@@ -55,34 +63,35 @@ def read_pin(tree: Path, name: str) -> Pin:
             f"{path.name} names {link} as a dataset of its own (source: repo). Own datasets are not in the registry: "
             f'read them with Dataset.get("{link}", "<commit>")'
         )
-    # A web dataset may describe its files in ``fetch`` instead of ``link``: the addresses, checksums and unpacking.
-    fetch = None
-    if data.get("fetch") is not None:
-        if data.get("source") != "web":
-            raise DatasetError(f"{path.name}: fetch is only for a source of web")
-        if data.get("link"):
-            raise DatasetError(f"{path.name} sets both link and fetch: keep one of them")
-        fetch = parse_fetch(data["fetch"], path.name)
-    keys = ("source",) if fetch is not None else ("source", "link")
-    for key in keys + ("adapter",):
+    # What the adapter's fetch receives: ``link``, or ``fetch`` for a list of files (its shape is the adapter's to read).
+    if data.get("link") is not None and data.get("fetch") is not None:
+        raise DatasetError(f"{path.name} sets both link and fetch: keep one of them")
+    link = data.get("link") if data.get("link") is not None else data.get("fetch")
+    for key in ("source", "adapter"):
         if not data.get(key):
             raise DatasetError(f"{path.name} must set {key!r}")
+    if not link:
+        raise DatasetError(f"{path.name} must set 'link' (or 'fetch')")
     return Pin(
         name=name,
         source=data["source"],
-        link=data.get("link") or [entry["url"] for entry in fetch],
+        link=link,
         adapter=data.get("adapter"),
         revision=data.get("revision"),
         overrides=data.get("overrides") or [],
-        fetch=fetch,
     )
 
 
-def load_adapter(tree: Path, adapter_name: str) -> Adapter:
+def load_adapter_module(tree: Path, adapter_name: str) -> Tuple[Adapter, types.ModuleType]:
+    """The adapter of the registry and its module (which holds ``REQUIREMENTS``, ``fetch`` and ``resolve`` if it has them)."""
     path = tree / "adapters" / f"{adapter_name}.py"
     if not path.exists():
         raise DatasetError(f"adapter {adapter_name!r} is not in the external-datasets repository (adapters/{path.name})")
     return _instantiate(path, f"cairnml_adapter_{adapter_name}", f"adapter {adapter_name!r}", f"adapters/{path.name}")
+
+
+def load_adapter(tree: Path, adapter_name: str) -> Adapter:
+    return load_adapter_module(tree, adapter_name)[0]
 
 
 def load_local_adapter(path: Path) -> Adapter:
@@ -97,10 +106,10 @@ def load_local_adapter(path: Path) -> Adapter:
             f"local adapter '{path.name}' is missing: dataset.yaml says adapter: local, so put {path.name} at the top of "
             f"the dataset repository"
         )
-    return _instantiate(path, f"cairnml_local_adapter_{uuid.uuid4().hex}", f"local adapter '{path.name}'", path.name)
+    return _instantiate(path, f"cairnml_local_adapter_{uuid.uuid4().hex}", f"local adapter '{path.name}'", path.name)[0]
 
 
-def _instantiate(path: Path, module_name: str, label: str, where: str) -> Adapter:
+def _instantiate(path: Path, module_name: str, label: str, where: str) -> Tuple[Adapter, types.ModuleType]:
     spec = importlib.util.spec_from_file_location(module_name, path)
     module = importlib.util.module_from_spec(spec)
     try:
@@ -115,7 +124,49 @@ def _instantiate(path: Path, module_name: str, label: str, where: str) -> Adapte
     ]
     if len(found) != 1:
         raise DatasetError(f"{where} must define exactly one Adapter class, found {len(found)}")
-    return found[0]()
+    return found[0](), module
+
+
+def adapter_requirements(module: types.ModuleType, adapter_name: str) -> List[str]:
+    """The exact pip requirements of an adapter (``REQUIREMENTS``), checked to be a list of ``name==version`` strings."""
+    requirements = getattr(module, "REQUIREMENTS", None) or []
+    if not isinstance(requirements, (list, tuple)) or not all(isinstance(r, str) for r in requirements):
+        raise DatasetError(f"adapter {adapter_name!r}: REQUIREMENTS must be a list of requirement strings")
+    for requirement in requirements:
+        _exact_pin(requirement, adapter_name)
+    return list(requirements)
+
+
+_EXACT = re.compile(r"\s*([A-Za-z0-9][A-Za-z0-9._-]*)\s*==\s*([A-Za-z0-9][A-Za-z0-9.!+_-]*)\s*")
+
+
+def _exact_pin(requirement: str, adapter_name: str) -> Tuple[str, str]:
+    match = _EXACT.fullmatch(requirement)
+    if not match:
+        raise DatasetError(
+            f"adapter {adapter_name!r}: REQUIREMENTS entry {requirement!r} must be an exact pin, name==version"
+        )
+    return match.group(1), match.group(2)
+
+
+def check_requirements(requirements: List[str], adapter_name: str) -> None:
+    """Refuse to run an adapter whose exact requirements are not installed. Nothing is installed here."""
+    for requirement in requirements:
+        name, version = _exact_pin(requirement, adapter_name)
+        try:
+            installed = importlib.metadata.version(name)
+        except importlib.metadata.PackageNotFoundError:
+            installed = None
+        if installed != version:
+            found = "is not installed" if installed is None else f"is {installed}"
+            raise DatasetError(
+                f'adapter {adapter_name!r} needs {name} {version}, but {name} {found}. '
+                f'Install it with: pip install "{requirement}"'
+            )
+
+
+def requirements_digest(requirements: List[str]) -> str:
+    return hashlib.sha256(json.dumps(list(requirements)).encode()).hexdigest()[:12]
 
 
 class Sample:
@@ -228,19 +279,31 @@ def get_external(
     tree, sha = registry_tree(cache, repo, commit)
 
     pin = read_pin(tree, name)
-    source = source_for(pin.source)
-    link = pin.fetch if pin.fetch is not None else pin.link
-    if pin.source == "local" and not Path(link.replace("file://", "", 1)).expanduser().is_absolute():
-        link = str(tree / link)  # a folder inside the external-datasets repository itself
-    resolved = source.resolve(link, revision or pin.revision)
+    link = pin.link
+    if pin.source == LOCAL:
+        if not Path(str(link).replace("file://", "", 1)).expanduser().is_absolute():
+            link = str(tree / link)  # a folder inside the external-datasets repository itself
+        resolved = LocalFolder().resolve(link, revision or pin.revision)
+    else:
+        resolved = _resolve_remote(tree, pin, link, revision or pin.revision)
     adapter_name = pin.adapter_for(resolved)
+    adapter, module = load_adapter_module(tree, adapter_name)
+    requirements = adapter_requirements(module, adapter_name)
 
-    source_root = _ensure_source(cache, source, link, resolved)
-    output = cache.root / "checkouts" / f"ext__{name}" / f"{sha[:12]}-{resolved[:12]}"
+    if pin.source == LOCAL:
+        source_root = LocalFolder().local_root(link)
+    else:
+        fetch = getattr(module, "fetch", None)
+        if fetch is None:
+            raise DatasetError(f"adapter {adapter_name!r} has no fetch for source {pin.source!r}")
+        check_requirements(requirements, adapter_name)  # before the download, which may need them
+        source_root = _ensure_source(cache, pin, fetch, link, resolved)
+
+    output = cache.root / "checkouts" / f"ext__{name}" / f"{sha[:12]}-{resolved[:12]}-{requirements_digest(requirements)}"
     if not cache.is_ready(output):
-        _build(cache, tree, adapter_name, source_root, output, pin, resolved, sha, repo)
+        _build(cache, adapter, adapter_name, requirements, source_root, output, pin, resolved, sha, repo)
     cache.touch(output)
-    if source.downloads:  # a local folder is the user's own: leave no marker in it
+    if pin.source != LOCAL:  # a local folder is the user's own: leave no marker in it
         cache.touch(source_root)
 
     info = {
@@ -257,18 +320,28 @@ def get_external(
     return ExternalDataset(info, output, source_root)
 
 
-def _ensure_source(cache: DatasetCache, source, link: str, revision: str) -> Path:
-    if not source.downloads:
-        return source.local_root(link)
-    import hashlib
+def _resolve_remote(tree: Path, pin: Pin, link: Any, revision: Optional[str]) -> str:
+    """The revision of a source that is fetched: the one given, else what the pin's adapter resolves it to."""
+    if revision:
+        return revision
+    _, module = load_adapter_module(tree, pin.adapter)
+    resolve = getattr(module, "resolve", None)
+    if resolve is None:
+        raise DatasetError(
+            f"adapter {pin.adapter!r} has no resolve for source {pin.source!r}: give the revision in the pin file or the run"
+        )
+    return resolve(link, None)
 
-    folder = cache.root / "checkouts" / f"src__{source.kind}-{hashlib.sha1(str(link).encode()).hexdigest()[:10]}" / revision
+
+def _ensure_source(cache: DatasetCache, pin: Pin, fetch, link: Any, revision: str) -> Path:
+    label = re.sub(r"\W", "_", pin.source)
+    folder = cache.root / "checkouts" / f"src__{label}-{hashlib.sha1(str(link).encode()).hexdigest()[:10]}" / revision
     if not cache.is_ready(folder):
         with cache.downloading():
             if folder.exists():
                 shutil.rmtree(folder)
             try:
-                source.fetch(link, revision, folder)
+                fetch(link, revision, folder)
             except Exception:
                 shutil.rmtree(folder, ignore_errors=True)
                 raise
@@ -276,8 +349,8 @@ def _ensure_source(cache: DatasetCache, source, link: str, revision: str) -> Pat
     return folder
 
 
-def _build(cache, tree, adapter_name, source_root, output, pin, resolved, repo_commit, repo) -> None:
-    adapter = load_adapter(tree, adapter_name)
+def _build(cache, adapter, adapter_name, requirements, source_root, output, pin, resolved, repo_commit, repo) -> None:
+    check_requirements(requirements, adapter_name)
     if output.exists():
         shutil.rmtree(output)
     output.mkdir(parents=True)

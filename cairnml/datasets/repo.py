@@ -14,7 +14,6 @@ footprint check.
 import json
 import re
 import shutil
-from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
@@ -22,7 +21,11 @@ from ..version import __version__
 from . import footprint, process
 from .cache import DatasetCache
 from .check import run_check
-from .credentials import StorageKeys, fetch_dataset_list, fetch_storage_keys
+from ._shared import git_token, on_github
+from .credentials import (
+    StorageKeys, fetch_dataset_list, fetch_person_git_token, fetch_storage_keys, register_dataset,
+    set_dataset_credential,
+)
 from .dvcutil import Dvc
 from .errors import DatasetError
 from .gitutil import Git
@@ -52,22 +55,6 @@ jobs:
           python-version: "3.12"
       - run: python .cairnml/verify.py
 """
-
-
-def list_age_note(refreshed_at: Optional[str]) -> str:
-    """What the App check says about how old the server's cached dataset list is. Empty when it is recent."""
-    if not refreshed_at:
-        return " (the server's dataset list has not been rebuilt yet, so a recent installation may be missing from it)"
-    try:
-        moment = datetime.fromisoformat(refreshed_at)
-    except ValueError:
-        return ""
-    if moment.tzinfo is None:
-        moment = moment.replace(tzinfo=timezone.utc)
-    if datetime.now(timezone.utc) - moment > timedelta(hours=1):
-        return (f" (the server's dataset list was last rebuilt at {refreshed_at}, more than an hour ago, so a recent "
-                "installation may be missing from it)")
-    return ""
 
 
 def github_name(url: str) -> Optional[str]:
@@ -130,7 +117,7 @@ class DatasetRepo:
     def __init__(
         self,
         path: Union[str, Path] = ".",
-        keys: Optional[Callable[[], StorageKeys]] = None,
+        keys: Optional[Callable[..., StorageKeys]] = None,
         cache: Optional[DatasetCache] = None,
     ) -> None:
         self.path = Path(path).resolve()
@@ -138,55 +125,59 @@ class DatasetRepo:
         self.git = Git(self.path)
         self.dvc = Dvc(self.path)
         self._keys = keys or fetch_storage_keys
+        self.warnings: List[str] = []
 
-    def storage(self) -> str:
-        """``s3`` or ``lfs``, as ``dataset.yaml`` says. A repository set up before the choice existed is ``s3``."""
+    def storage(self) -> Optional[str]:
+        """``s3`` or ``lfs``, as ``dataset.yaml`` says, or None before :meth:`remote_add` chose it. A repository that has
+        a ``.dvc`` folder but no storage line was set up before the choice was recorded, and is ``s3``."""
         config_file = self.path / footprint.CONFIG_FILE
         if not config_file.is_file():
-            return "s3"
+            return None
         try:
-            return footprint.storage_kind(footprint.parse_config(config_file.read_text()))
+            config = footprint.parse_config(config_file.read_text())
+            if "storage" not in config and (self.path / ".dvc").is_dir():
+                return "s3"
+            return footprint.storage_kind(config) if "storage" in config else None
         except ValueError as exc:
             raise DatasetError(str(exc)) from None
 
+    def _require_storage(self) -> str:
+        storage = self.storage()
+        if storage is None:
+            raise DatasetError("no storage is chosen yet: run 'cairnml dataset remote add <url>' first")
+        return storage
+
+    def _require_remote(self) -> str:
+        """The dataset is connected: it has an origin and its storage is chosen. Only ``remote add`` does this, so
+        add, commit and push wait for it. Returns the storage."""
+        storage = self._require_storage()
+        if not self.git.remote_url():
+            raise DatasetError("no remote is configured: run 'cairnml dataset remote add <url>' first")
+        return storage
+
     # init
 
-    def init(
-        self,
-        remote_url: Optional[str] = None,
-        adapter: Optional[str] = None,
-        registry: Optional[str] = None,
-        storage: str = "s3",
-    ) -> str:
-        """Set up git tracking and file storage in an existing repository that has an origin.
-
-        ``storage`` is ``s3`` (DVC, in the server's dataset bucket, or in ``remote_url``) or ``lfs`` (the GitHub LFS of
-        this repository; ``remote_url`` does not apply). The choice is recorded in ``dataset.yaml`` and cannot be
-        changed afterwards. ``adapter`` names the adapter that reads the data into the standard format; without one the
-        data in ``data/`` must be in that format already (native). ``adapter="local"`` takes ``adapter.py`` at the top of
-        the repository, which needs no ``registry``. Returns where the files are stored.
+    def init(self, adapter: Optional[str] = None, registry: Optional[str] = None) -> None:
+        """Set up a dataset in a folder of this machine, with no remote: a git repository (created if the folder is not
+        one) and the format or adapter that reads ``data/``. Nothing is sent anywhere and no storage is chosen; that is
+        what :meth:`remote_add` does. ``adapter="local"`` takes ``adapter.py`` at the top of the repository, which needs no
+        ``registry``.
         """
-        if storage not in footprint.STORAGES:
-            raise DatasetError(f"storage must be s3 or lfs, not {storage!r}")
         if adapter == footprint.LOCAL_ADAPTER and registry:
             raise DatasetError(
                 f"adapter {footprint.LOCAL_ADAPTER} reads {footprint.ADAPTER_FILE} in this repository, so a registry does "
                 f"not apply to it: leave out --registry"
             )
-        if not self.git.is_repo():
-            raise DatasetError(
-                f"{self.path} is not a git repository: create the repository on GitHub, clone it, and run init in it"
-            )
-        origin = self.git.remote_url()
-        if not origin:
-            raise DatasetError("the repository has no origin: clone it from GitHub, or add the remote first")
         if (self.path / ".dvc").exists() or (self.path / footprint.CONFIG_FILE).exists():
             raise DatasetError("this repository is already set up for datasets")
+        self.path.mkdir(parents=True, exist_ok=True)
+        if not self.git.is_repo():
+            self.git.run("init", "-q")
+            self.git.run("symbolic-ref", "HEAD", f"refs/heads/{DEFAULT_BRANCH}")
         (self.path / DATA_DIR).mkdir(exist_ok=True)
 
         lines = [
-            "# How the files in data/ are stored, and how they are read into the standard format.\n",
-            f"storage: {storage}\n",
+            "# How the files in data/ are read into the standard format. The storage is added by remote add.\n",
         ]
         if adapter:
             lines.append(f"adapter: {adapter}\n")
@@ -194,35 +185,107 @@ class DatasetRepo:
                 lines.append(f"registry: {registry}\n")
         else:
             lines.append("format: native\n")
-        added = [footprint.CONFIG_FILE, ".cairnml", ".github", ".gitignore"]
-        if storage == "lfs":
-            if remote_url is not None:
-                raise DatasetError("--remote applies to s3 storage only: an lfs dataset keeps its files in the GitHub LFS")
-            if not self.git.lfs_available():
-                raise DatasetError("git lfs is not installed: install it from https://git-lfs.com and run init again")
+        (self.path / footprint.CONFIG_FILE).write_text("".join(lines))
+        self._ignore(".gitignore")
+        self._write_tooling()
+        self.git.add([footprint.CONFIG_FILE, ".cairnml", ".github", ".gitignore"])
+
+    def remote_add(
+        self,
+        url: str,
+        lfs: bool = False,
+        *,
+        credential: Optional[str] = None,
+        storage_url: Optional[str] = None,
+        register: Callable[[str, Optional[str]], dict] = register_dataset,
+        check_access: Optional[Callable[[str, str], Optional[str]]] = None,
+    ) -> str:
+        """Make the GitHub repository ``url`` the origin of this dataset, choose its storage, and register it with the
+        server, so that its owner can push to it. Returns where the files are stored.
+
+        Then the repository is checked for reachability with the login of the person signed in (a read token from the
+        server). When it cannot be reached, nothing fails: the warning is in ``self.warnings``, with the advice to add
+        credentials for the dataset, and to install the organisation's GitHub App on the repository.
+
+        The storage is DVC in the server's dataset bucket by default, or the GitHub LFS of the repository with
+        ``lfs=True``. It is written to ``dataset.yaml`` and cannot be changed afterwards. ``storage_url`` replaces the
+        server's bucket for DVC (for tests and private setups). The server refusing the registration stops this before
+        anything is changed here.
+
+        ``credential`` is the access the server reads the dataset with (see credentials.list_credentials). Without one the
+        dataset is public: a private one then cannot be read until a credential is added (``add_credential``), and the
+        warning in ``self.warnings`` says so.
+        """
+        self._require_setup()
+        if self.storage() is not None:
+            raise DatasetError(f"this dataset already has its storage ({self.storage()}): remote add runs once")
+        if self.git.remote_url():
+            raise DatasetError("the repository already has an origin: remote add runs once")
+        if lfs and storage_url is not None:
+            raise DatasetError("storage_url applies to s3 storage only: an lfs dataset keeps its files in the GitHub LFS")
+        if lfs and not self.git.lfs_available():
+            raise DatasetError("git lfs is not installed: install it from https://git-lfs.com and run remote add again")
+        name = github_name(url)
+        storage = "lfs" if lfs else "s3"
+        keys = None
+        if storage == "s3" and storage_url is None:
+            if not name:
+                raise DatasetError(f"cannot read the repository name from {url}")
+        register(url, credential)
+        if storage == "s3" and storage_url is None:
+            keys = self._keys(repository=name, level="read_write")
+
+        self.git.run("remote", "add", "origin", url)
+        if lfs:
             self.git.lfs("install", "--local")
             self._write_attributes()
-            where = f"the GitHub LFS of {github_name(origin) or origin}"
-            added.append(footprint.ATTRIBUTES_FILE)
+            where = f"the GitHub LFS of {name or url}"
+            added = [footprint.ATTRIBUTES_FILE]
         else:
             endpoint = region = None
-            if remote_url is None:
-                keys = self._keys()
-                name = github_name(origin)
-                if not name:
-                    raise DatasetError(f"cannot read the repository name from {origin}")
-                remote_url, endpoint, region = f"s3://{keys.bucket}/{name}", keys.endpoint, keys.region
+            if keys is not None:
+                storage_url, endpoint, region = f"s3://{keys.prefix}", keys.endpoint, keys.region
             self.dvc.init()
             self.dvc.config("core.analytics", "false", local=False)
-            self.dvc.set_remote(remote_url, endpoint=endpoint, region=region)
-            where = remote_url
-            added += [".dvc", ".dvcignore"]
+            self.dvc.set_remote(storage_url, endpoint=endpoint, region=region)
+            where = storage_url
+            added = [".dvc", ".dvcignore"]
             self._ignore(".dvcignore")
-        self._ignore(".gitignore")
-        (self.path / footprint.CONFIG_FILE).write_text("".join(lines))
-        self._write_tooling()
-        self.git.add(added)
+        with (self.path / footprint.CONFIG_FILE).open("a") as config:
+            config.write(f"storage: {storage}\n")
+        self.git.add([footprint.CONFIG_FILE, *added])
+        self.warnings = self._access_warnings(url, credential, check_access)
         return where
+
+    def add_credential(self, credential: Optional[str]) -> Dict[str, Any]:
+        """Set the credential the server reads this dataset with: the origin's repository, by its owner or an admin. An
+        empty credential makes the dataset public. Needs remote add first."""
+        self._require_setup()
+        url = self.git.remote_url()
+        if not url:
+            raise DatasetError("no remote is configured: run 'cairnml dataset remote add <url>' first")
+        return set_dataset_credential(url, credential)
+
+    @staticmethod
+    def _access_warnings(url: str, credential: Optional[str],
+                         check_access: Optional[Callable[[str, str], Optional[str]]]) -> List[str]:
+        """What the person must do about access, as warnings: nothing fails, the set-up is kept. Without a credential the
+        dataset is public, unless the repository is private, which the credential is for. With one, the repository must be
+        reachable with the person's login."""
+        if not credential:
+            return [
+                f"no credential was given for {url}. If the repository is not public, it cannot be read until a credential "
+                "is added to the dataset: cairnml dataset add-credential <credential>, or in the web app under Datasets. "
+                "List the credentials you can use with cairnml credential list."
+            ]
+        try:
+            (check_access or fetch_person_git_token)(url, "read")
+        except DatasetError as exc:
+            return [
+                f"{url} is not reachable with the credential {credential}: {exc}. Check that the credential can read the "
+                "repository (a GitHub App must be installed on it), or choose another one with cairnml dataset add-credential."
+            ]
+        return []
 
     def _ignore(self, name: str) -> None:
         """Add the IGNORED patterns to an ignore file of the repository, keeping its other lines."""
@@ -300,7 +363,7 @@ class DatasetRepo:
         self._require_setup()
         if not (self.path / DATA_DIR).is_dir():
             raise DatasetError(f"there is no {DATA_DIR}/ folder: copy your files into {DATA_DIR}/ first")
-        if self.storage() == "lfs":
+        if self._require_remote() == "lfs":
             self._add_lfs()
         else:
             self.dvc.add(DATA_DIR)
@@ -328,7 +391,7 @@ class DatasetRepo:
         verifies it and the workflow are staged, ready to be committed.
         """
         self._require_setup()
-        storage = self.storage()
+        storage = self._require_storage()
         dvc = self._changes()
         pending = [p for p in dvc.get("untracked", []) if p.startswith(f"{DATA_DIR}/")]
         pending += [p for kind in ("added", "modified", "deleted") for p in dvc.get("uncommitted", {}).get(kind, [])]
@@ -372,6 +435,7 @@ class DatasetRepo:
     def commit(self, message: str) -> str:
         """Check the data, then commit it with its footprint."""
         self._require_setup()
+        self._require_remote()
         self.check()
         if not self.git.has_staged():
             raise DatasetError("nothing to commit: run add first")
@@ -409,14 +473,16 @@ class DatasetRepo:
         an empty repository goes straight to its first branch.
         """
         self._require_setup()
+        storage = self._require_remote()
         head = self.git.head()
         if not head:
             raise DatasetError("nothing to push: commit first")
         problems = self.problems()
         if problems:
             raise DatasetError("this dataset does not pass its footprint check:\n  - " + "\n  - ".join(problems))
-        if self.storage() == "lfs":
-            self.git.lfs("push", "origin", head, transfer=True)
+        pusher = self._push_git()
+        if storage == "lfs":
+            pusher.lfs("push", "origin", head, transfer=True)
         else:
             self._apply_keys()
             self.dvc.push()
@@ -426,10 +492,19 @@ class DatasetRepo:
         default = self.git.default_branch() if heads else branch
         if heads and branch == default:
             target = f"incoming/{head[:10]}"
-            self.git.push_to(target)
+            pusher.push_to(target)
             return {"commit": head, "branch": target, **self._open_pull_request(target, default)}
-        self.git.push_to(branch)
+        pusher.push_to(branch)
         return {"commit": head, "branch": branch, "pull_request": None, "problem": None, "auto_merge": None}
+
+    def _push_git(self) -> Git:
+        """The git that publishes the commit and its LFS objects to origin. On GitHub the token is the server's, at
+        read_write, for this repository only: the server gives it for the level the person holds on the dataset, and
+        refuses otherwise. A public repository or another host has no such token, and the person's own git login is
+        used."""
+        origin = self.git.remote_url() or ""
+        token = git_token(origin, "read_write") if on_github(origin) else None
+        return Git(self.path, token=token)
 
     def _open_pull_request(self, branch: str, base: str) -> Dict[str, Any]:
         """Open a pull request and ask for auto-merge, through the GitHub command line.
@@ -476,20 +551,24 @@ class DatasetRepo:
             checks.append({"check": name, "ok": ok, "message": message})
 
         if not self.git.is_repo():
-            check("repository", False, "not a git repository: create one on GitHub, clone it, and run init in it")
+            check("repository", False, "not a git repository: run cairnml dataset init")
             return checks
         repo = github_name(self.git.remote_url() or "")
         if not repo:
-            check("origin", False, "no GitHub origin: clone the repository from GitHub, or add the remote")
+            check("origin", False, "no GitHub origin: run cairnml dataset remote add <url>")
             return checks
         check("origin", True, f"origin is {repo}")
         ok, message = self._app_installed(repo, list_datasets or fetch_dataset_list)
         check("App installed", ok, message)
 
-        setup = (self.path / footprint.CONFIG_FILE).is_file() and (
-            (self.path / ".dvc").is_dir() or self.storage() == "lfs")
-        check("set-up", setup, "dataset storage and dataset.yaml are in place" if setup
-              else "run: cairnml dataset init")
+        storage = self.storage()
+        setup = storage is not None and ((self.path / ".dvc").is_dir() or storage == "lfs")
+        if setup:
+            check("set-up", True, "dataset storage and dataset.yaml are in place")
+        elif (self.path / footprint.CONFIG_FILE).is_file():
+            check("set-up", False, "no storage is chosen yet: run cairnml dataset remote add <url>")
+        else:
+            check("set-up", False, "run: cairnml dataset init")
         if setup and self.storage() == "lfs":
             lfs = self.git.lfs_available()
             check("git lfs", lfs, "git lfs is installed" if lfs
@@ -551,18 +630,20 @@ class DatasetRepo:
         return checks
 
     def _app_installed(self, repo: str, list_datasets: Callable[[], Dict[str, Any]]) -> Tuple[Optional[bool], str]:
-        """Whether the GitHub App can read the repository: it is listed by the server, which lists only the repositories
-        the App is installed on that have a valid dataset.yaml. The cached list is not refreshed here."""
+        """Whether the server lists the repository as a dataset this user can read (datasets.visible): its state is ok.
+        A listed repository the server cannot read says why. The server's records are read, not changed."""
         try:
             answer = list_datasets()
         except DatasetError:
             return None, "the server is not reachable or not logged in; nothing checked"
-        note = list_age_note(answer.get("refreshed_at"))
-        listed = any(str(item.get("repository", "")).lower() == repo.lower() for item in answer.get("datasets") or [])
-        if listed:
-            return True, f"the GitHub App can read {repo}, and its dataset.yaml is valid{note}"
-        return False, (f"the GitHub App is not installed on {repo}, or the repository has no dataset.yaml yet: install "
-                       f"the App on this repository (see the dataset docs){note}")
+        rows = [item for item in answer.get("datasets") or []
+                if item.get("kind") == "repo" and str(item.get("ref", "")).lower() == repo.lower()]
+        if any(item.get("state") == "ok" for item in rows):
+            return True, f"the server lists {repo} as a dataset you can read"
+        if rows:
+            return False, f"the server lists {repo} but cannot read it: {rows[0].get('state_message') or 'no access'}"
+        return False, (f"the server does not list {repo}: the GitHub App may not be installed on it, or the repository "
+                       "has no dataset.yaml yet (see the dataset docs)")
 
     def _gh_api(self, path: str) -> Tuple[Optional[Dict[str, Any]], str]:
         """The JSON answer of one GitHub API call through gh, or None and why it failed."""
@@ -606,7 +687,11 @@ class DatasetRepo:
     def _apply_keys(self) -> None:
         url = self.dvc.remote_url()
         if url and url.startswith("s3://"):
-            keys = self._keys()
+            origin = self.git.remote_url() or ""
+            name = github_name(origin)
+            if not name:
+                raise DatasetError(f"cannot read the repository name from {origin}")
+            keys = self._keys(repository=name, level="read_write")
             self.dvc.set_credentials(keys.access_key, keys.secret_key, keys.session_token)
 
     def _require_setup(self) -> None:
@@ -627,13 +712,20 @@ class DatasetRepo:
         registry: Optional[str] = None,
         create_remote: Callable[[str, bool], str] = create_repository,
         protect: bool = True,
+        credential: Optional[str] = None,
+        register: Callable[[str, Optional[str]], dict] = register_dataset,
+        check_access: Optional[Callable[[str, str], Optional[str]]] = None,
     ) -> Dict[str, Any]:
-        """Create the GitHub repository, set it up, copy the files of ``source`` into ``data/``, check, commit and push.
+        """Create the GitHub repository, then set it up as init and remote add do, copy the files of ``source`` into
+        ``data/``, check, commit and push. The one call a new dataset needs; the steps are the same as the separate
+        commands, which is what to use for a repository that already exists.
 
-        The one call a new dataset needs. After the first push the default branch is protected (see :meth:`protect`),
-        unless ``protect`` is False; a failure there is reported in ``protection`` and does not undo the create.
-        ``create_remote`` makes the repository and returns its address for git.
+        ``create_remote`` makes the repository and returns its address for git. After the first push the default branch
+        is protected (see :meth:`protect`), unless ``protect`` is False; a failure there is reported in ``protection`` and
+        does not undo the create.
         """
+        if storage not in footprint.STORAGES:
+            raise DatasetError(f"storage must be s3 or lfs, not {storage!r}")
         source_dir, target = Path(source), Path(path)
         if not source_dir.is_dir():
             raise DatasetError(f"{source} is not a folder: give the folder that holds the dataset files")
@@ -646,12 +738,18 @@ class DatasetRepo:
                 f"which goes to the top of the repository and not into data/"
             )
         url = create_remote(name, private)
-        target.mkdir(parents=True, exist_ok=True)
-        git = Git.init(target)
-        git.run("symbolic-ref", "HEAD", f"refs/heads/{DEFAULT_BRANCH}")
-        git.run("remote", "add", "origin", url)
         repo = DatasetRepo(target)
-        where = repo.init(adapter=adapter, registry=registry, storage=storage)
+        existed = target.exists()
+        try:
+            repo.init(adapter=adapter, registry=registry)
+            where = repo.remote_add(url, lfs=storage == "lfs", credential=credential, register=register,
+                                    check_access=check_access)
+        except DatasetError as exc:
+            if not existed:
+                shutil.rmtree(target, ignore_errors=True)  # the folder this create made: nothing is left behind
+            raise DatasetError(
+                f"{url} was created on GitHub, but the set-up stopped before anything was pushed: {exc}"
+            ) from None
 
         def skip_top_adapter(folder, names):
             # the adapter is taken out of the top folder only: a file of the same name below it is data
@@ -666,5 +764,5 @@ class DatasetRepo:
         protection = repo.protect() if protect else None
         return {
             "url": url, "storage": storage, "where": where, "commit": commit, "branch": pushed["branch"],
-            "protection": protection,
+            "protection": protection, "warnings": repo.warnings,
         }

@@ -5,16 +5,27 @@ import re
 from typing import Dict, Optional
 
 from .cache import DatasetCache
-from .credentials import fetch_git_token
+from .credentials import fetch_git_token, fetch_person_git_token, running_as_job
 from .errors import DatasetError
 from .gitutil import Git
 
 SECTION = "Datasets"
 
 
-def git_token(repo: str) -> Optional[str]:
-    """A read-only GitHub token for a job; None on a person's machine, where their own git login is used."""
-    return fetch_git_token(repo, os.environ.get("CAIRNML_TASK_ID", ""))
+def on_github(url: str) -> bool:
+    """True for a GitHub repository address, https or ssh. Only GitHub repositories have a token from the server."""
+    return bool(re.search(r"github\.com[:/]", url or ""))
+
+
+def git_token(repo: str, level: str = "read") -> Optional[str]:
+    """A GitHub token for a dataset repository. A job gets a read-only one for its task. A person's machine gets one at
+    ``level`` (``read`` or ``read_write``) that the server issues for the level the person holds on the dataset; None
+    for a public repository. ``repo`` is the repository URL. Another host is not asked: its git login is the user's."""
+    if running_as_job():
+        return fetch_git_token(repo, os.environ.get("CAIRNML_TASK_ID", ""))
+    if not on_github(repo):
+        return None
+    return fetch_person_git_token(repo, level)
 
 
 def mirror(cache: DatasetCache, repo: str, token: Optional[str]) -> Git:
