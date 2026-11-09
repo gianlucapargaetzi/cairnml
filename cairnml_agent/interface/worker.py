@@ -22,7 +22,7 @@ WORKER_ARGS = {
         'help': 'git username for repository access',
     },
     '--git-pass': {
-        'help': 'git password (personal access tokens) for repository access',
+        'help': 'git password for repository access',
     },
     '--log-level': {
         'help': 'SDK log level',
@@ -114,10 +114,6 @@ DAEMON_ARGS = dict({
         'nargs': '+',
         'type': str,
         'default': None,
-    },
-    '--create-queue': {
-        'help': 'Create requested queue if it does not exist already.',
-        'action': 'store_true',
     },
     '--detached': {
         'help': 'Detached mode, run agent in the background',

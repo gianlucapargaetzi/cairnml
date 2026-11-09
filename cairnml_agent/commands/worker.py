@@ -2151,8 +2151,8 @@ class Worker(ServiceCommandSection):
 
         self._session.print_configuration()
 
-    def resolve_daemon_queue_names(self, queues, create_if_missing=False):
-        return self._resolve_queue_names(queues=queues, create_if_missing=create_if_missing)
+    def resolve_daemon_queue_names(self, queues):
+        return self._resolve_queue_names(queues=queues)
 
     def _server_is_loopback(self):
         """True when the API server is on this machine's loopback address (127.0.0.1, ::1 or localhost)."""
@@ -2233,7 +2233,7 @@ class Worker(ServiceCommandSection):
 
         # if we do not need to create queues, make sure they are valid
         # match previous behaviour when we validated queue names before everything else
-        queues = self.resolve_daemon_queue_names(queues, create_if_missing=kwargs.get('create_queue', False))
+        queues = self.resolve_daemon_queue_names(queues)
 
         queues_info = [
             q.to_dict()
@@ -2443,8 +2443,7 @@ class Worker(ServiceCommandSection):
             dynamic_gpus.append((name, min_max_g,))
         queue_names = [q for q, _ in dynamic_gpus]
         # resolve queue ids
-        dynamic_gpus_q = self._resolve_queue_names(
-            queue_names, create_if_missing=kwargs.get('create_queue', False))
+        dynamic_gpus_q = self._resolve_queue_names(queue_names)
         dynamic_gpus = list(zip(dynamic_gpus_q, [i for _, i in dynamic_gpus]))
         # maintain original priority order
         queues = [q for q, _ in dynamic_gpus]
@@ -5755,7 +5754,7 @@ class Worker(ServiceCommandSection):
                 worker_name = '{}:cpu'.format(worker_name)
         return worker_id, worker_name
 
-    def _resolve_queue_names(self, queues, create_if_missing=False, create_system_tags=None):
+    def _resolve_queue_names(self, queues):
         if not queues and self._session.config.get("agent.queue", None):
             # the agent's own queue, made when it was enrolled: the one queue it serves
             return [self._session.config.get("agent.queue")]
@@ -5769,28 +5768,10 @@ class Worker(ServiceCommandSection):
                 queues = ["default"]
 
         queues = return_list(queues)
-        if not create_if_missing:
-            return [
-                self._resolve_name(q if isinstance(q, str) else q.name, service="queues", search_hidden=True)
-                for q in queues
-            ]
-
-        queue_ids = []
-        for q in queues:
-            # noinspection PyBroadException
-            try:
-                q_id = self._resolve_name(
-                    q if isinstance(q, str) else q.name, service="queues", search_hidden=True
-                )
-            except:
-                self._session.send_api(
-                    queues_api.CreateRequest(name=q if isinstance(q, str) else q.name, system_tags=create_system_tags)
-                )
-                q_id = self._resolve_name(
-                    q if isinstance(q, str) else q.name, service="queues", search_hidden=True
-                )
-            queue_ids.append(q_id)
-        return queue_ids
+        return [
+            self._resolve_name(q if isinstance(q, str) else q.name, service="queues", search_hidden=True)
+            for q in queues
+        ]
 
     @staticmethod
     def _valid_docker_container_name(name):
