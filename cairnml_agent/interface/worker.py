@@ -115,10 +115,6 @@ DAEMON_ARGS = dict({
         'type': str,
         'default': None,
     },
-    '--create-queue': {
-        'help': 'Create requested queue if it does not exist already.',
-        'action': 'store_true',
-    },
     '--detached': {
         'help': 'Detached mode, run agent in the background',
         'action': 'store_true',

@@ -43,7 +43,6 @@ from cairnml_agent.glue.definitions import (
     ENV_POD_AGENT_INSTALL_ARGS,
     ENV_POD_USE_IMAGE_ENTRYPOINT,
     ENV_KUBECTL_IGNORE_ERROR,
-    ENV_DEFAULT_SCHEDULER_QUEUE_TAGS,
     ENV_COMPLETED_POD_DELETION_DELAY_MINUTES,
 )
 from .._vendor import pyyaml as yaml
@@ -1326,14 +1325,10 @@ class K8sIntegration(Worker):
         return True
 
     def _ensure_pending_queue_exists(self):
-        resolved_ids = self._resolve_queue_names(
-            [self.k8s_pending_queue_name],
-            create_if_missing=True,
-            create_system_tags=ENV_DEFAULT_SCHEDULER_QUEUE_TAGS.get()
-        )
+        resolved_ids = self._resolve_queue_names([self.k8s_pending_queue_name])
         if not resolved_ids:
             raise ValueError(
-                "Failed resolving or creating k8s pending queue {}".format(self.k8s_pending_queue_name)
+                "Failed resolving k8s pending queue {}".format(self.k8s_pending_queue_name)
             )
         self.k8s_pending_queue_id = resolved_ids[0]
 

@@ -112,12 +112,6 @@ def parse_args():
         "use the owner's credentials instead of the agent's. This features requires the agent to use a CairnML "
         "Enterprise Server.",
     )
-    parser.add_argument(
-        "--create-queue",
-        action="store_true",
-        default=False,
-        help="Create the queue if it does not exist (default: %(default)s)",
-    )
     return parser.parse_args()
 
 
@@ -163,7 +157,7 @@ def main():
     )
     queue = [q.strip() for q in args.queue.split(",") if q.strip()] if args.queue else None
 
-    k8s.k8s_daemon(queue, use_owner_token=args.use_owner_token, create_queue=args.create_queue)
+    k8s.k8s_daemon(queue, use_owner_token=args.use_owner_token)
 
 
 if __name__ == "__main__":
