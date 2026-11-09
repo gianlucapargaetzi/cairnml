@@ -48,4 +48,4 @@ dependencies = { file = ["requirements.txt"] }
 exclude = ["contrib*", "docs*", "data*", "examples*", "tests*"]
 
 [tool.setuptools.package-data]
-cairnml_agent = ["backend_api/config/default/*.conf", "_vendor/jsonschema/schemas/*.json"]
+cairnml_agent = ["backend_api/config/default/*.conf", "_vendor/jsonschema/schemas/*.json", "idp/*.svg"]

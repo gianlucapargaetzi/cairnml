@@ -15,6 +15,8 @@ from urllib.parse import parse_qs, urlencode, urlsplit
 
 import requests
 
+from .callback_page import page
+
 
 class LoginFailed(Exception):
     pass
@@ -80,15 +82,22 @@ def browser_login(
             # is answered and ignored, so the wait goes on until the real reply or the timeout.
             if parts.path == "/callback" and query.get("state") == state:
                 reply.update(query)
-                self.send_response(200)
-                self.send_header("Content-Type", "text/plain; charset=utf-8")
-                self.end_headers()
-                self.wfile.write(b"Signed in. You can close this tab.")
+                if "error" in query:
+                    body = page("Sign-in not completed", "The identity provider did not complete the sign-in.",
+                                ok=False, detail=query.get("error_description") or query["error"])
+                else:
+                    body = page("Signed in", "You can close this tab and go back to your terminal.")
+                self._send(200, body)
                 return
-            self.send_response(400 if parts.path == "/callback" else 404)
-            self.send_header("Content-Type", "text/plain; charset=utf-8")
+            self._send(400 if parts.path == "/callback" else 404,
+                       page("Not a sign-in reply", "This reply does not match a sign-in in progress.", ok=False))
+
+        def _send(self, status, body):
+            self.send_response(status)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
             self.end_headers()
-            self.wfile.write(b"This reply does not match a sign-in in progress.")
+            self.wfile.write(body)
 
         def log_message(self, *args):  # keep the terminal quiet
             pass
