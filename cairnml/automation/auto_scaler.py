@@ -152,12 +152,12 @@ class AutoScaler:
         self.state = State.STOPPED
 
     def ensure_queues(self) -> None:
-        # Verify the requested queues exist and create those that doesn't exist
+        # Queues are made only by enrolling an agent, so a queue that is missing is an error
         all_queues = {q.name for q in list(self.api_client.queues.get_all(only_fields=["name"]))}
         missing_queues = set(self.queues) - all_queues
-        for q in missing_queues:
-            self.logger.info("Creating queue %r", q)
-            self.api_client.queues.create(q)
+        if missing_queues:
+            raise ValueError("these queues do not exist; they are made by enrolling an agent: {}".format(
+                ", ".join(sorted(missing_queues))))
 
     def queue_mapping(self) -> Tuple[Dict[str, str], Dict[str, str]]:
         id_to_name = {}
