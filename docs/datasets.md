@@ -99,8 +99,8 @@ cairnml dataset push                     # send the files, then the commit, as a
 
 ### Credentials
 
-A dataset is read with the credential it was added with, and with no other. The credential is one of your own GitHub Apps
-or personal tokens, or the company's GitHub App. List the ones you can use:
+A dataset is read with the credential it was added with, and with no other. The credential is one of your own GitHub Apps,
+or the company's GitHub App. List the ones you can use:
 
 ```bash
 cairnml credential list                  # the id, type, name, scope (yours or company), owner and state of each
@@ -111,7 +111,6 @@ cairnml credential list                  # the id, type, name, scope (yours or c
   the dataset cannot be read until one is added.
 - `cairnml dataset add-credential <id>` sets the credential later, on the dataset of the origin. Its owner or an admin may
   do it. `add-credential` with no id makes the dataset public. The web app cannot set it yet.
-- A personal token reads the dataset only: it cannot be limited to one repository, so `read_write` needs a GitHub App.
 - A private dataset whose credential cannot read the repository, or that has none, cannot be read at all.
 - A job reads a dataset with the dataset's own credential, and no other. It may read the dataset only when the one who
   queued the job can see it, or its project holds it through an allocation. Project grants on credentials do not apply
@@ -133,7 +132,7 @@ ends, the copy stays readable on your machine, but the server refuses its change
 ## Access to GitHub
 
 GitHub is reached through a GitHub App only. A private repository is read with the App that is attached to it (the
-company's, or your own), and the App must be installed on the repository. A personal access token is no longer accepted.
+company's, or your own), and the App must be installed on the repository.
 A public repository needs no App; one attached only lifts the GitHub rate limit.
 
 ## Names and ids

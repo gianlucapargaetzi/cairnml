@@ -55,4 +55,4 @@ dependencies = { file = ["requirements.txt"] }
 exclude = ["contrib*", "docs*", "data*", "examples*", "tests*"]
 
 [tool.setuptools.package-data]
-cairnml = ["config/default/*.conf", "backend_api/config/default/*.conf", "py.typed"]
+cairnml = ["config/default/*.conf", "backend_api/config/default/*.conf", "py.typed", "idp/*.svg"]
