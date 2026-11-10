@@ -13438,6 +13438,111 @@ class PingResponse(Response):
     _schema = {"additionalProperties": False, "definitions": {}, "type": "object"}
 
 
+class UpdateProgressRequest(Request):
+    """
+    Report how far a running task is: the outermost progress bar of the script and the bars inside it. The latest
+    value is kept for live display; the database only gets a coarse value.
+
+    :param task: Task ID
+    :type task: str
+    :param percent: Progress of the whole run, 0-100. Leave out while no bar has a known total
+    :type percent: int
+    :param bars: The outermost bar first, then the bars inside it (at most 4)
+    :type bars: Sequence[dict]
+    """
+
+    _service = "tasks"
+    _action = "update_progress"
+    _version = "2.23"
+    _schema = {
+        "definitions": {},
+        "properties": {
+            "bars": {
+                "description": "The outermost bar first, then the bars inside it (at most 4)",
+                "items": {
+                    "properties": {
+                        "label": {"type": "string"},
+                        "n": {"type": "integer"},
+                        "total": {"type": "integer"},
+                    },
+                    "type": "object",
+                },
+                "type": "array",
+            },
+            "percent": {
+                "description": "Progress of the whole run, 0-100. Leave out while no bar has a known total",
+                "maximum": 100,
+                "minimum": 0,
+                "type": "integer",
+            },
+            "task": {"description": "Task ID", "type": "string"},
+        },
+        "required": ["task"],
+        "type": "object",
+    }
+
+    def __init__(self, task, percent=None, bars=None, **kwargs):
+        super(UpdateProgressRequest, self).__init__(**kwargs)
+        self.task = task
+        self.percent = percent
+        self.bars = bars
+
+    @schema_property("task")
+    def task(self):
+        return self._property_task
+
+    @task.setter
+    def task(self, value):
+        if value is None:
+            self._property_task = None
+            return
+
+        self.assert_isinstance(value, "task", six.string_types)
+        self._property_task = value
+
+    @schema_property("percent")
+    def percent(self):
+        return self._property_percent
+
+    @percent.setter
+    def percent(self, value):
+        if value is None:
+            self._property_percent = None
+            return
+        if isinstance(value, float) and value.is_integer():
+            value = int(value)
+
+        self.assert_isinstance(value, "percent", six.integer_types)
+        self._property_percent = value
+
+    @schema_property("bars")
+    def bars(self):
+        return self._property_bars
+
+    @bars.setter
+    def bars(self, value):
+        if value is None:
+            self._property_bars = None
+            return
+
+        self.assert_isinstance(value, "bars", (list, tuple))
+        self.assert_isinstance(value, "bars", (dict,), is_array=True)
+        self._property_bars = value
+
+
+class UpdateProgressResponse(Response):
+    """
+    Response of tasks.update_progress endpoint.
+
+    """
+
+    _service = "tasks"
+    _action = "update_progress"
+    _version = "2.23"
+
+    _schema = {"additionalProperties": False, "definitions": {}, "type": "object"}
+
+
 class PublishRequest(Request):
     """
     Mark a task status as published.
@@ -17153,6 +17258,7 @@ class ValidateResponse(Response):
 
 
 response_mapping = {
+    UpdateProgressRequest: UpdateProgressResponse,
     GetByIdRequest: GetByIdResponse,
     GetAllRequest: GetAllResponse,
     GetTypesRequest: GetTypesResponse,
