@@ -237,7 +237,7 @@ class ProgressReporter(threading.Thread):
         self._pid = os.getpid()
         self._stop_event = threading.Event()
         self._sent: Optional[Dict[str, Any]] = None
-        self._last_sent_at = 0.0
+        self._last_sent_at: Optional[float] = None  # monotonic time of the last attempt; none yet
         self._failures = 0
 
     def run(self) -> None:
@@ -251,7 +251,7 @@ class ProgressReporter(threading.Thread):
         if self._failures >= GIVE_UP_AFTER:
             return
         now = time.monotonic()
-        if not final and now - self._last_sent_at < self._send_every:
+        if not final and self._last_sent_at is not None and now - self._last_sent_at < self._send_every:
             return
         state = self._tracker.state()
         if state is None or state == self._sent:
