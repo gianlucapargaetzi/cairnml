@@ -88,6 +88,7 @@ from .binding.matplotlib_bind import PatchedMatplotlib
 from .binding.hydra_bind import PatchHydra
 from .binding.click_bind import PatchClick
 from .binding.fire_bind import PatchFire
+from .binding import progress as _progress
 from .binding.jsonargs_bind import PatchJsonArgParse
 from .binding.gradio_bind import PatchGradio
 from .binding.frameworks import WeightsFileHandler
@@ -290,6 +291,7 @@ class Task(_Task):
         auto_connect_streams: Union[bool, Mapping[str, bool]] = True,
         deferred_init: bool = False,
         display_name: Optional[str] = None,
+        progress_bar: Optional[str] = None,
     ) -> TaskInstance:
         """
         Creates a new Task (experiment) if:
@@ -505,6 +507,10 @@ class Task(_Task):
         :param str display_name: The label of this experiment, shown in the web app instead of the task name. Unlike
             ``task_name`` it does not decide which task the experiment belongs to, so use it for what makes this run
             different, for example ``"lr 0.1, no dropout"``. If ``None`` (default), the task name is shown. (Optional)
+        :param str progress_bar: The label (or tqdm description) of the progress bar that is the progress of this run,
+            for example ``"epochs"``. Only that bar, and the bars inside it, are reported; other bars, such as
+            ``"loading"``, are not. By default the outermost bar that is running is the progress of the run.
+            See ``Task.progress``. (Optional)
         :param deferred_init: (default: ``False``) Wait for Task to be fully initialized (regular behaviour).
             ** BETA feature! use with care **.
 
@@ -654,6 +660,7 @@ class Task(_Task):
                         auto_connect_streams=auto_connect_streams,
                         deferred_init=cls.__nested_deferred_init_flag,
                         display_name=display_name,
+                        progress_bar=progress_bar,
                     )
                     is_deferred = True
                     # mark as temp master
@@ -756,6 +763,8 @@ class Task(_Task):
 
             # always patch OS forking because of ProcessPool and the alike
             PatchOsFork.patch_fork(task)
+            # report the progress of the run (the outermost progress bar of the script)
+            _progress.attach(task, pinned=progress_bar)
             if auto_connect_frameworks:
 
                 def should_connect(*keys):
@@ -804,6 +813,8 @@ class Task(_Task):
                     PatchLIGHTgbmModelIO.update_current_task(task)
                 if should_connect("gradio"):
                     PatchGradio.update_current_task(task)
+                if should_connect("tqdm"):
+                    _progress.PatchTqdm.patch()
 
                 cls.__add_model_wildcards(auto_connect_frameworks)
 
@@ -2036,6 +2047,30 @@ class Task(_Task):
         res = cls._send(session=session, req=req)
         resp = res.response
         return resp
+
+    @classmethod
+    def progress(
+        cls, iterable: Optional[Iterable] = None, label: Optional[str] = None, total: Optional[int] = None
+    ) -> "_progress.ProgressBar":
+        """
+        A progress bar for a loop, like ``tqdm``. The outermost bar that is running is shown as the progress of the
+        run in the web app, and the bars inside it as its steps, so nothing else has to be logged.
+
+        .. code-block:: py
+
+            for epoch in Task.progress(range(10), label="epochs"):
+                for batch in Task.progress(train_loader, label="batches"):
+                    ...
+
+        tqdm bars are picked up without any change to the script. Use this for loops that do not use tqdm.
+        To make a bar other than the outermost one the progress of the run, give it to ``Task.init``:
+        ``Task.init(..., progress_bar="epochs")``.
+
+        :param iterable: The loop. Optional: use ``update()`` instead to count the steps yourself
+        :param str label: Name of the bar, shown next to it. Default: ``Step 1``, ``Step 2``, ...
+        :param int total: Number of steps. Default: the length of ``iterable``
+        """
+        return _progress.ProgressBar(iterable, label=label, total=total)
 
     def set_progress(self, progress: int) -> None:
         """
@@ -5146,6 +5181,8 @@ class Task(_Task):
                 self._logger._close_stdout_handler(wait=wait_for_uploads or wait_for_std_log)
 
             if not is_sub_process:
+                # send how far the run got
+                _progress.detach()
                 # change task status
                 if not task_status:
                     pass
