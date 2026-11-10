@@ -494,6 +494,22 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         self.set_name(value)
 
     @property
+    def display_name(self) -> str:
+        """
+        Returns the label of this experiment, or an empty string if it has none (then the task name is shown).
+        """
+        return getattr(self.data, "display_name", None) or ""
+
+    @display_name.setter
+    def display_name(self, value: str) -> None:
+        """
+        Set the label of this experiment.
+
+        :param str value: The label. An empty string removes it.
+        """
+        self.set_display_name(value)
+
+    @property
     def task_type(self) -> str:
         """
         Returns the current Task's type.
@@ -2020,6 +2036,19 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         self._edit(name=name)
         self.data.name = name
 
+    def set_display_name(self, display_name: str) -> None:
+        """
+        Set the label of this experiment, shown in the web app instead of the task name.
+        The task name stays what it is: it decides which task the experiment belongs to.
+
+        :param display_name: The label. An empty string removes it, so that the task name is shown again.
+        :type display_name: str
+        """
+        display_name = str(display_name) if display_name else ""
+        self._set_task_property("display_name", display_name)
+        self._edit(display_name=display_name)
+        self.data.display_name = display_name or None
+
     def set_parent(self, parent: Optional[Union[str, "Task"]]) -> None:
         """
         Set the parent task for the Task.
@@ -2861,7 +2890,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
             ):
                 # the exception being name/comment that we can always change.
                 if kwargs and all(
-                    k in ("name", "project", "comment", "tags", "system_tags", "runtime") for k in kwargs.keys()
+                    k in ("name", "display_name", "project", "comment", "tags", "system_tags", "runtime") for k in kwargs.keys()
                 ):
                     pass
                 else:

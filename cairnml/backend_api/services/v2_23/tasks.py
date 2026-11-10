@@ -2828,6 +2828,8 @@ class Task(NonStrictDataModel):
     :type type: TaskTypeEnum
     :param status:
     :type status: TaskStatusEnum
+    :param display_name: Free text display_name
+    :type display_name: str
     :param comment: Free text comment
     :type comment: str
     :param created: Task creation time (UTC)
@@ -2896,6 +2898,7 @@ class Task(NonStrictDataModel):
                 "description": "Task duration time (seconds)",
                 "type": ["integer", "null"],
             },
+            "display_name": {"description": "Free text display_name", "type": ["string", "null"]},
             "comment": {"description": "Free text comment", "type": ["string", "null"]},
             "company": {"description": "Company ID", "type": ["string", "null"]},
             "completed": {
@@ -3037,6 +3040,7 @@ class Task(NonStrictDataModel):
         company=None,
         type=None,
         status=None,
+        display_name=None,
         comment=None,
         created=None,
         started=None,
@@ -3074,6 +3078,7 @@ class Task(NonStrictDataModel):
         self.company = company
         self.type = type
         self.status = status
+        self.display_name = display_name
         self.comment = comment
         self.created = created
         self.started = started
@@ -3190,6 +3195,19 @@ class Task(NonStrictDataModel):
         else:
             self.assert_isinstance(value, "status", enum.Enum)
         self._property_status = value
+
+    @schema_property("display_name")
+    def display_name(self):
+        return self._property_display_name
+
+    @display_name.setter
+    def display_name(self, value):
+        if value is None:
+            self._property_display_name = None
+            return
+
+        self.assert_isinstance(value, "display_name", six.string_types)
+        self._property_display_name = value
 
     @schema_property("comment")
     def comment(self):
@@ -5382,6 +5400,8 @@ class CreateRequest(Request):
     :type system_tags: Sequence[str]
     :param type: Type of task
     :type type: TaskTypeEnum
+    :param display_name: Free text display_name
+    :type display_name: str
     :param comment: Free text comment
     :type comment: str
     :param parent: Parent task id Must be a completed task.
@@ -6006,6 +6026,7 @@ class CreateRequest(Request):
             },
         },
         "properties": {
+            "display_name": {"description": "Free text display_name ", "type": "string"},
             "comment": {"description": "Free text comment ", "type": "string"},
             "configuration": {
                 "additionalProperties": {"$ref": "#/definitions/configuration_item"},
@@ -6076,6 +6097,7 @@ class CreateRequest(Request):
         type,
         tags=None,
         system_tags=None,
+        display_name=None,
         comment=None,
         parent=None,
         project=None,
@@ -6094,6 +6116,7 @@ class CreateRequest(Request):
         self.tags = tags
         self.system_tags = system_tags
         self.type = type
+        self.display_name = display_name
         self.comment = comment
         self.parent = parent
         self.project = project
@@ -6166,6 +6189,19 @@ class CreateRequest(Request):
         else:
             self.assert_isinstance(value, "type", enum.Enum)
         self._property_type = value
+
+    @schema_property("display_name")
+    def display_name(self):
+        return self._property_display_name
+
+    @display_name.setter
+    def display_name(self, value):
+        if value is None:
+            self._property_display_name = None
+            return
+
+        self.assert_isinstance(value, "display_name", six.string_types)
+        self._property_display_name = value
 
     @schema_property("comment")
     def comment(self):
@@ -8054,6 +8090,8 @@ class EditRequest(Request):
     :type system_tags: Sequence[str]
     :param type: Type of task
     :type type: TaskTypeEnum
+    :param display_name: Free text display_name
+    :type display_name: str
     :param comment: Free text comment
     :type comment: str
     :param parent: Parent task id Must be a completed task.
@@ -8680,6 +8718,7 @@ class EditRequest(Request):
             },
         },
         "properties": {
+            "display_name": {"description": "Free text display_name ", "type": "string"},
             "comment": {"description": "Free text comment ", "type": "string"},
             "configuration": {
                 "additionalProperties": {"$ref": "#/definitions/configuration_item"},
@@ -8763,6 +8802,7 @@ class EditRequest(Request):
         tags=None,
         system_tags=None,
         type=None,
+        display_name=None,
         comment=None,
         parent=None,
         project=None,
@@ -8784,6 +8824,7 @@ class EditRequest(Request):
         self.tags = tags
         self.system_tags = system_tags
         self.type = type
+        self.display_name = display_name
         self.comment = comment
         self.parent = parent
         self.project = project
@@ -8883,6 +8924,19 @@ class EditRequest(Request):
         else:
             self.assert_isinstance(value, "type", enum.Enum)
         self._property_type = value
+
+    @schema_property("display_name")
+    def display_name(self):
+        return self._property_display_name
+
+    @display_name.setter
+    def display_name(self, value):
+        if value is None:
+            self._property_display_name = None
+            return
+
+        self.assert_isinstance(value, "display_name", six.string_types)
+        self._property_display_name = value
 
     @schema_property("comment")
     def comment(self):
@@ -10282,6 +10336,9 @@ class GetAllRequest(Request):
 
     :param id: List of IDs to filter by
     :type id: Sequence[str]
+    :param display_name: Get only tasks whose display name matches this pattern
+        (python regular expression syntax)
+    :type display_name: str
     :param name: Get only tasks whose name matches this pattern (python regular
         expression syntax)
     :type name: str
@@ -10410,6 +10467,10 @@ class GetAllRequest(Request):
                 "items": {"type": "string"},
                 "type": ["array", "null"],
             },
+            "display_name": {
+                "description": "Get only tasks whose display name matches this pattern (python regular expression syntax)",
+                "type": ["string", "null"],
+            },
             "name": {
                 "description": "Get only tasks whose name matches this pattern (python regular expression syntax)",
                 "type": ["string", "null"],
@@ -10517,6 +10578,7 @@ class GetAllRequest(Request):
     def __init__(
         self,
         id=None,
+        display_name=None,
         name=None,
         user=None,
         project=None,
@@ -10543,6 +10605,7 @@ class GetAllRequest(Request):
     ):
         super(GetAllRequest, self).__init__(**kwargs)
         self.id = id
+        self.display_name = display_name
         self.name = name
         self.user = user
         self.project = project
@@ -10580,6 +10643,19 @@ class GetAllRequest(Request):
 
         self.assert_isinstance(value, "id", six.string_types, is_array=True)
         self._property_id = value
+
+    @schema_property("display_name")
+    def display_name(self):
+        return self._property_display_name
+
+    @display_name.setter
+    def display_name(self, value):
+        if value is None:
+            self._property_display_name = None
+            return
+
+        self.assert_isinstance(value, "display_name", six.string_types)
+        self._property_display_name = value
 
     @schema_property("name")
     def name(self):
@@ -15748,6 +15824,8 @@ class UpdateRequest(Request):
     :param system_tags: System tags list. This field is reserved for system use,
         please don't use it.
     :type system_tags: Sequence[str]
+    :param display_name: Free text display_name
+    :type display_name: str
     :param comment: Free text comment
     :type comment: str
     :param project: Project ID of the project to which this task is assigned
@@ -15764,6 +15842,7 @@ class UpdateRequest(Request):
     _schema = {
         "definitions": {},
         "properties": {
+            "display_name": {"description": "Free text display_name ", "type": "string"},
             "comment": {"description": "Free text comment ", "type": "string"},
             "created": {
                 "description": "Task creation time (UTC) ",
@@ -15801,6 +15880,7 @@ class UpdateRequest(Request):
         name=None,
         tags=None,
         system_tags=None,
+        display_name=None,
         comment=None,
         project=None,
         output__error=None,
@@ -15812,6 +15892,7 @@ class UpdateRequest(Request):
         self.name = name
         self.tags = tags
         self.system_tags = system_tags
+        self.display_name = display_name
         self.comment = comment
         self.project = project
         self.output__error = output__error
@@ -15872,6 +15953,19 @@ class UpdateRequest(Request):
 
         self.assert_isinstance(value, "system_tags", six.string_types, is_array=True)
         self._property_system_tags = value
+
+    @schema_property("display_name")
+    def display_name(self):
+        return self._property_display_name
+
+    @display_name.setter
+    def display_name(self, value):
+        if value is None:
+            self._property_display_name = None
+            return
+
+        self.assert_isinstance(value, "display_name", six.string_types)
+        self._property_display_name = value
 
     @schema_property("comment")
     def comment(self):
@@ -16064,6 +16158,8 @@ class ValidateRequest(Request):
     :type system_tags: Sequence[str]
     :param type: Type of task
     :type type: TaskTypeEnum
+    :param display_name: Free text display_name
+    :type display_name: str
     :param comment: Free text comment
     :type comment: str
     :param parent: Parent task id Must be a completed task.
@@ -16688,6 +16784,7 @@ class ValidateRequest(Request):
             },
         },
         "properties": {
+            "display_name": {"description": "Free text display_name ", "type": "string"},
             "comment": {"description": "Free text comment ", "type": "string"},
             "configuration": {
                 "additionalProperties": {"$ref": "#/definitions/configuration_item"},
@@ -16758,6 +16855,7 @@ class ValidateRequest(Request):
         type,
         tags=None,
         system_tags=None,
+        display_name=None,
         comment=None,
         parent=None,
         project=None,
@@ -16776,6 +16874,7 @@ class ValidateRequest(Request):
         self.tags = tags
         self.system_tags = system_tags
         self.type = type
+        self.display_name = display_name
         self.comment = comment
         self.parent = parent
         self.project = project
@@ -16848,6 +16947,19 @@ class ValidateRequest(Request):
         else:
             self.assert_isinstance(value, "type", enum.Enum)
         self._property_type = value
+
+    @schema_property("display_name")
+    def display_name(self):
+        return self._property_display_name
+
+    @display_name.setter
+    def display_name(self, value):
+        if value is None:
+            self._property_display_name = None
+            return
+
+        self.assert_isinstance(value, "display_name", six.string_types)
+        self._property_display_name = value
 
     @schema_property("comment")
     def comment(self):
