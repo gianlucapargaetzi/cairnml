@@ -289,6 +289,7 @@ class Task(_Task):
         auto_resource_monitoring: Union[bool, Mapping[str, Any]] = True,
         auto_connect_streams: Union[bool, Mapping[str, bool]] = True,
         deferred_init: bool = False,
+        display_name: Optional[str] = None,
     ) -> TaskInstance:
         """
         Creates a new Task (experiment) if:
@@ -501,6 +502,9 @@ class Task(_Task):
 
                 auto_connect_streams={'stdout': True, 'stderr': True, 'logging': False}
 
+        :param str display_name: The label of this experiment, shown in the web app instead of the task name. Unlike
+            ``task_name`` it does not decide which task the experiment belongs to, so use it for what makes this run
+            different, for example ``"lr 0.1, no dropout"``. If ``None`` (default), the task name is shown. (Optional)
         :param deferred_init: (default: ``False``) Wait for Task to be fully initialized (regular behaviour).
             ** BETA feature! use with care **.
 
@@ -649,6 +653,7 @@ class Task(_Task):
                         auto_resource_monitoring=auto_resource_monitoring,
                         auto_connect_streams=auto_connect_streams,
                         deferred_init=cls.__nested_deferred_init_flag,
+                        display_name=display_name,
                     )
                     is_deferred = True
                     # mark as temp master
@@ -673,6 +678,8 @@ class Task(_Task):
                             ),
                             auto_connect_streams=auto_connect_streams,
                         )
+                        if display_name is not None:
+                            task.set_display_name(display_name)
                         # check if we are local rank 0 (local master),
                         # create an anchor with task ID for the other processes
                         if _local_rank == 0:
@@ -1307,7 +1314,8 @@ class Task(_Task):
         force_single_script_file: bool = False,
         binary: Optional[str] = None,
         module: Optional[str] = None,
-        detect_repository: bool = True
+        detect_repository: bool = True,
+        display_name: Optional[str] = None,
     ) -> TaskInstance:
         """
         Manually create and populate a new Task (experiment) in the system.
@@ -1357,6 +1365,7 @@ class Task(_Task):
             for example: ``module="my.module arg1 arg2"``
         :param detect_repository: If ``True``, detect the repository if no repository has been specified.
             If ``False``, don't detect repository under any circumstance. Ignored if ``repo`` is specified
+        :param display_name: The label of the new experiment, shown instead of the task name. Optional
 
         :return: The newly created Task (experiment)
         :rtype: Task
@@ -1398,6 +1407,8 @@ class Task(_Task):
         if task and argparse_args:
             manual_populate.update_task_args(argparse_args)
             task.reload()
+        if task and display_name is not None:
+            task.set_display_name(display_name)
 
         return task
 
@@ -1518,6 +1529,7 @@ class Task(_Task):
         tags: Optional[Sequence[str]] = None,
         allow_archived: bool = True,
         task_filter: Optional[Dict] = None,
+        display_name: Optional[str] = None,
     ) -> List[TaskInstance]:
         """
         Get a list of Tasks objects matching the queries/filters:
@@ -1570,8 +1582,11 @@ class Task(_Task):
         :param bool allow_archived: If ``True`` (default), allow to return archived Tasks. If ``False`` filter out archived Tasks
         :param dict task_filter: Filter and order Tasks.
             See :class:`.backend_api.service.v?.tasks.GetAllRequest` for details; the ? needs to be replaced by the appropriate version.
+        :param str display_name: Only Tasks whose display name (the label given with ``Task.init(display_name=...)``)
+            matches this pattern (regular expression, so ``"lr 0.1"`` also matches ``"lr 0.1, no dropout"``). Optional
 
           - ``parent`` (``str``) - Filter by parent task-id matching
+          - ``display_name`` (``str``) - Display name matching this pattern (regular expression)
           - ``search_text`` (``str``) - Free text search (in task fields comment/name/id)
           - ``status`` (``List[str]``) - List of valid statuses. Options are: "created", "queued", "in_progress", "stopped", "published", "publishing", "closed", "failed", "completed", "unknown"
           - ``type`` (``List[str]``) - List of valid task types. Options are: 'training', 'testing', 'inference', 'data_processing', 'application', 'monitor', 'controller', 'optimizer', 'service', 'qc'. 'custom'
@@ -1584,7 +1599,9 @@ class Task(_Task):
         :return: The Tasks specified by the parameter combinations (see the parameters).
         :rtype: List[Task]
         """
-        task_filter = task_filter or {}
+        task_filter = dict(task_filter or {})
+        if display_name:
+            task_filter["display_name"] = display_name
         if not allow_archived:
             task_filter["system_tags"] = [
                 *(task_filter.get("system_tags") or []),
