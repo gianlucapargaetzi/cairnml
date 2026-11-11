@@ -63,7 +63,7 @@ def fetch_git_token(repository: str, task_id: str, session=None) -> Optional[str
     return (response.json().get("data") or {}).get("token")
 
 
-def _person_request(session, action: str, json: dict, service: str = "datasets", version: str = "2.40"):
+def _person_request(session, action: str, json: dict, service: str = "repositories", version: str = "2.40"):
     """A request made for a person, with the login. Without a login the reason is said in the error."""
     try:
         return _session(session).send_request(service=service, action=action, version=version, json=json)
@@ -75,83 +75,122 @@ def _person_request(session, action: str, json: dict, service: str = "datasets",
 
 
 def fetch_person_git_token(repository: str, level: str, session=None) -> Optional[str]:
-    """A GitHub token for one dataset repository, for a person's machine, at ``level`` (``read`` or ``read_write``), from
-    the server (datasets.git_token). The server gives the level the person holds on the dataset, and refuses the rest.
-    None for a public repository, which needs no token to read. ``repository`` is the repository URL."""
-    response = _person_request(session, "git_token", {"repository": repository, "level": level})
+    """A token for one repository, for a person's machine, at ``level`` (``read`` or ``read_write``), from the server
+    (repositories.git_token). The server gives read to anyone who sees the repository and write to its owner. None for a
+    repository the host clones without a credential. ``repository`` is the repository URL."""
+    response = _person_request(session, "git_token", {"repository": repository, "level": level}, service="repositories")
     if not response.ok:
         raise DatasetError(f"the server refused a token for {repository}: {response.text.strip()}")
     return (response.json().get("data") or {}).get("token")
 
 
+def _row(response, what: str) -> dict:
+    if not response.ok:
+        raise DatasetError(f"the server refused {what}: {response.text.strip()}")
+    return (response.json().get("data") or {}).get("repository") or {}
+
+
+def add_repository(url: str, role: str = "dataset", credential: Optional[str] = None, none_needed: bool = False,
+                   shared: bool = False, project: Optional[str] = None, session=None) -> dict:
+    """Lists a repository (repositories.add) as code, a dataset or a registry. Your entry is non-shared: only you and the
+    projects it is listed in see it. ``shared`` (the admin only) makes it visible to everyone. With ``credential`` (one of
+    yours, or the company's) or ``none_needed`` your assignment is set too. Returns the repository as the server lists it."""
+    body = {"url": url, "role": role}
+    for key, value in (("credential", credential), ("none_needed", none_needed or None), ("shared", shared or None),
+                       ("project", project)):
+        if value:
+            body[key] = value
+    return _row(_person_request(session, "add", body, service="repositories"), f"to list {url}")
+
+
 def register_dataset(url: str, credential: Optional[str] = None, session=None) -> dict:
-    """Adds a GitHub repository to CairnML as a dataset of the person signed in (datasets.add: kind repo, visibility
-    user). ``credential`` is the access the dataset is read with (an id from list_credentials); without one the dataset is
-    public, and a private one is added with no access. Returns the dataset as the server keeps it. Raises DatasetError
-    with the server's reason when the server refuses."""
-    body = {"kind": "repo", "url": url, "visibility": "user"}
+    """Lists a GitHub repository as a dataset of the person signed in, with their credential when given."""
+    return add_repository(url, "dataset", credential, session=session)
+
+
+def assign_credential(repository: str, credential: Optional[str] = None, none_needed: bool = False, role: str = "dataset",
+                      session=None) -> dict:
+    """Sets your own assignment on a repository (repositories.assign): one of your credentials, or the company's, or
+    ``none_needed`` (the host clones it without one). With neither it is cleared. The credential must read the repository.
+    On a shared repository only a company credential is accepted. An address nobody has listed is listed first, with ``role``."""
+    body = {"repository": repository, "role": role}
     if credential:
         body["credential"] = credential
-    response = _person_request(session, "add", body)
-    if not response.ok:
-        raise DatasetError(f"the server did not add {url} as a dataset: {response.text.strip()}")
-    return (response.json().get("data") or {}).get("dataset") or {}
+    if none_needed:
+        body["none_needed"] = True
+    return _row(_person_request(session, "assign", body, service="repositories"), f"the credential for {repository}")
 
 
 def set_dataset_credential(repository: str, credential: Optional[str], session=None) -> dict:
-    """Sets the credential a dataset is read with, by its repository URL, or clears it (the dataset is then public). Only
-    the owner of the dataset or an admin may do this. Returns the dataset as the server keeps it."""
-    body = {"repository": repository}
-    if credential:
-        body["credential"] = credential
-    response = _person_request(session, "set_credential", body)
+    """Sets, or with None clears, the credential you read a dataset repository with."""
+    return assign_credential(repository, credential, session=session)
+
+
+def unassign_credential(repository: str, session=None) -> dict:
+    """Clears your own assignment on a repository (repositories.unassign)."""
+    return _row(_person_request(session, "unassign", {"repository": repository}, service="repositories"),
+                f"to clear the credential of {repository}")
+
+
+def check_repository(repository: str, session=None) -> dict:
+    """Looks at a repository again (repositories.check) and returns it with what was found."""
+    return _row(_person_request(session, "check", {"repository": repository}, service="repositories"), f"to check {repository}")
+
+
+def delete_repository(repository: str, session=None) -> None:
+    """Removes a repository you own, with its assignments and links (repositories.delete)."""
+    response = _person_request(session, "delete", {"repository": repository}, service="repositories")
     if not response.ok:
-        raise DatasetError(f"the server did not change the credential of {repository}: {response.text.strip()}")
-    return (response.json().get("data") or {}).get("dataset") or {}
+        raise DatasetError(f"the server refused to delete {repository}: {response.text.strip()}")
+
+
+def set_repository_shared(repository: str, shared: bool, session=None) -> dict:
+    """Makes a repository shared (the owner or the admin; ownership moves to the admin) or non-shared (the admin)."""
+    return _row(_person_request(session, "set_shared", {"repository": repository, "shared": shared}, service="repositories"),
+                f"to change the sharing of {repository}")
+
+
+def link_repository(repository: str, project: str, session=None) -> dict:
+    """Lists a repository in a project you are a member of (repositories.link)."""
+    return _row(_person_request(session, "link", {"repository": repository, "project": project}, service="repositories"),
+                f"to list {repository} in the project")
+
+
+def unlink_repository(repository: str, project: str, session=None) -> dict:
+    """Takes a repository out of a project's list (repositories.unlink); the repository and its assignments stay."""
+    return _row(_person_request(session, "unlink", {"repository": repository, "project": project}, service="repositories"),
+                f"to take {repository} out of the project")
 
 
 def resolve_dataset(reference: str, task: Optional[str] = None, session=None) -> dict:
-    """The dataset a reference names on the server: its id, its name, or the address of its repository (datasets.resolve).
-    A job passes its own task id. Refused as missing when the person may not see the dataset."""
-    body = {"ref": reference}
-    if task:
-        body["task"] = task
-    response = _person_request(session, "resolve", body)
+    """The repository a reference names on the server: its id, its name, or the address of its repository
+    (repositories.find). Empty when the server has none that you may see. A job is known to the server by its token."""
+    response = _person_request(session, "find", {"ref": reference}, service="repositories")
     if not response.ok:
         raise DatasetError(f"the server could not resolve {reference}: {response.text.strip()}")
-    return (response.json().get("data") or {}).get("dataset") or {}
+    return (response.json().get("data") or {}).get("repository") or {}
 
 
 def list_credentials(session=None) -> list:
-    """The credentials the person signed in may use for datasets: their own GitHub Apps and tokens, and the company's.
-    Each has an id (what --credential takes), its type, name, scope, owner and state. No secret is returned."""
+    """The credentials the person signed in may use for repositories: their own GitHub Apps and tokens, and the company's.
+    Each has an id (what ``cairnml repository assign`` takes), its type, name, scope, owner and state. No secret is returned."""
     response = _person_request(session, "get_all", {}, service="user_access", version="2.38")
     if not response.ok:
         raise DatasetError(f"the server did not list the credentials: {response.text.strip()}")
     return (response.json().get("data") or {}).get("credentials") or []
 
 
-def fetch_dataset_list(session=None) -> dict:
-    """The datasets the signed-in user may see (datasets.visible): ``datasets``, each with its ``ref`` (owner/name), its
-    ``kind`` and its ``state`` (ok, or no_access with a message). The server answers from its own records, so this does
-    not reach GitHub. Raises DatasetError when the server cannot be asked, for instance when there is no CairnML login."""
+def fetch_repository_list(session=None) -> list:
+    """The repositories the signed-in user sees (repositories.get_all): code, datasets and registries. Each has its ``roles``, its
+    owner, whether it is ``shared``, the projects it is listed in, every ``assignment`` on it (yours are editable, the others'
+    read-only) and ``access``: how you read it now. The server answers from its own records. Raises DatasetError when the server
+    cannot be asked, for instance when there is no CairnML login."""
     try:
-        response = _session(session).send_request(service="datasets", action="visible", version="2.40", json={})
+        response = _session(session).send_request(service="repositories", action="get_all", version="2.40", json={})
         if not response.ok:
-            raise DatasetError(f"the server refused the dataset list: {response.text.strip()}")
-        return response.json().get("data") or {}
+            raise DatasetError(f"the server refused the repository list: {response.text.strip()}")
+        return (response.json().get("data") or {}).get("repositories") or []
     except DatasetError:
         raise
     except Exception as exc:  # no login, no network, a malformed answer: all mean the server cannot answer
-        raise DatasetError(f"the server could not be asked for the dataset list ({exc})") from None
-
-
-def fetch_repository_list(session=None) -> list:
-    """The code repositories the signed-in user may see (repositories.get_all): one entry for each repository, with its
-    ``bindings``, one for each project that uses it, each with the project, its owner, how it is read now (``state``
-    and ``message``) and the id of the credential assigned. The server answers from its own records. Raises
-    DatasetError when the server cannot be asked, for instance when there is no CairnML login."""
-    response = _person_request(session, "get_all", {}, service="repositories")
-    if not response.ok:
-        raise DatasetError(f"the server refused the repository list: {response.text.strip()}")
-    return (response.json().get("data") or {}).get("repositories") or []
+        raise DatasetError(f"the server could not be asked for the repository list ({exc})") from None

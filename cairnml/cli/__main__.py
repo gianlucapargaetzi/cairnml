@@ -2,9 +2,9 @@
 
     cairnml init <server>      enrol this machine with the server
     cairnml doctor             check this machine's setup, one line per check
-    cairnml dataset ...        versioned datasets on git and DVC (cairnml dataset list shows the ones you may see)
-    cairnml repository list    the code repositories your runs use, and how each is read
-    cairnml credential list    the credentials you can use for datasets
+    cairnml dataset ...        versioned datasets on git and DVC (cairnml dataset list shows the ones you see)
+    cairnml repository ...     code repositories, datasets and registries: list, add, assign a credential, share, link
+    cairnml credential list    the credentials you can use for repositories
     cairnml import prepare     package a training run folder as a ZIP for import
 
 Each subcommand is the tool it names; this module only hands it the rest of the command line.
@@ -21,8 +21,8 @@ COMMANDS = {
     "doctor": ("cairnml.cli.doctor", "doctor_main", "check this machine's setup: config, server, version, sign-in, key, queues, storage"),
     "devices": ("cairnml.cli.devices", "devices_main", "list or revoke the devices enrolled under your sign-in"),
     "dataset": ("cairnml.cli.dataset.__main__", "main", "versioned datasets on git and DVC"),
-    "credential": ("cairnml.cli.credential.__main__", "main", "list the credentials you can use for datasets"),
-    "repository": ("cairnml.cli.repository.__main__", "main", "list the code repositories your runs use"),
+    "credential": ("cairnml.cli.credential.__main__", "main", "list the credentials you can use for repositories"),
+    "repository": ("cairnml.cli.repository.__main__", "main", "code repositories, datasets and registries: list, add, assign, share, link"),
     "task": ("cairnml.cli.task.__main__", "main", "launch any codebase on a machine running cairnml-agent"),
     "param-search": ("cairnml.cli.hpo.__main__", "main", "search for the best parameters for your models"),
     "debug": ("cairnml.cli.debug.__main__", "main", "debugging tools for the CairnML SDK"),

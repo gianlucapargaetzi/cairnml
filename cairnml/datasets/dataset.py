@@ -65,13 +65,9 @@ def _resolve_reference(reference: str):
         if _is_address(reference):
             return reference, None, None
         raise DatasetError(f"no dataset {reference} that you can see")
-    kind, source = found.get("kind"), found.get("source")
-    if kind == "repo":
-        repo = reference if _is_address(reference) else f"https://github.com/{found['ref']}"
-    elif kind == "registry_entry" and source == "repo" and (found.get("link") or "").startswith("https://github.com/"):
-        repo = found["link"]
-    else:
+    if "dataset" not in (found.get("roles") or []):
         raise DatasetError(f"{reference} is not a repository dataset: read it with get_external")
+    repo = reference if _is_address(reference) else found.get("url") or f"https://github.com/{found['path']}"
     return repo, found.get("id"), found.get("reference") or None
 
 
