@@ -2,7 +2,7 @@ import ctypes
 import sys
 import threading
 import time
-from typing import Any
+from typing import Any, Optional, Type
 
 import six
 
@@ -12,7 +12,8 @@ def get_current_thread_id() -> int:
 
 
 # Nasty hack to raise exception for other threads
-def _lowlevel_async_raise(thread_obj: threading.Thread, exception: Exception = None) -> bool:
+def _lowlevel_async_raise(thread_obj: threading.Thread, exception: Optional[Type[BaseException]] = None) -> bool:
+    # `exception` is a class: PyThreadState_SetAsyncExc refuses an instance ("is not a BaseException subclass")
     NULL = 0  # noqa
     found = False
     target_tid = 0
@@ -27,7 +28,7 @@ def _lowlevel_async_raise(thread_obj: threading.Thread, exception: Exception = N
         return False
 
     if not exception:
-        exception = SystemExit()
+        exception = SystemExit
 
     if (sys.version_info.major, sys.version_info.minor) >= (3, 7):
         target_tid = ctypes.c_ulong(target_tid)
@@ -63,7 +64,7 @@ def _lowlevel_async_raise(thread_obj: threading.Thread, exception: Exception = N
 
 
 def kill_thread(thread_obj: threading.Thread, wait: bool = False) -> bool:
-    if not _lowlevel_async_raise(thread_obj, SystemExit()):
+    if not _lowlevel_async_raise(thread_obj, SystemExit):
         return False
 
     while wait and thread_obj.is_alive():
