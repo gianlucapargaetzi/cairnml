@@ -149,6 +149,27 @@ def do_get(args: argparse.Namespace) -> None:
     print(dataset.path)
 
 
+def do_list(args: argparse.Namespace) -> None:
+    import json
+
+    from ...datasets import credentials
+    from .._table import table
+
+    datasets = credentials.fetch_dataset_list().get("datasets") or []
+    if args.json:
+        print(json.dumps(datasets, indent=2))
+        return
+    if not datasets:
+        print("No datasets yet. Add one in the web app under Datasets, or with cairnml dataset remote add.")
+        return
+    rows = [(d.get("id", ""), d.get("reference") or d.get("name", ""), d.get("kind", ""), d.get("visibility", ""),
+             d.get("credential") or "", "ok" if d.get("state") == "ok" else "no access") for d in datasets]
+    print(table(("ID", "NAME", "KIND", "VISIBILITY", "CREDENTIAL", "STATE"), rows))
+    for d in datasets:
+        if d.get("state") != "ok" and d.get("state_message"):
+            print(f"\n{d.get('reference') or d.get('name', '')}: {d['state_message']}")
+
+
 def do_cache(args: argparse.Namespace) -> None:
     cache = DatasetCache.default()
     if args.action == "info":
@@ -226,6 +247,9 @@ def cli(argv: Optional[List[str]] = None) -> int:
                                            "with --adapter local")
     create.add_argument("--no-protect", action="store_true",
                         help="do not protect the default branch (needs administration rights on the repository)")
+    listing = sub.add_parser("list", help="list the datasets you may see, with their credential and state")
+    listing.set_defaults(func=do_list)
+    listing.add_argument("--json", action="store_true", help="print the list as the server returns it")
     cache = sub.add_parser("cache", help="show or trim the local dataset cache")
     cache.set_defaults(func=do_cache)
     cache.add_argument("action", choices=["info", "clean", "limit"])

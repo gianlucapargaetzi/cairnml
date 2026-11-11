@@ -144,3 +144,14 @@ def fetch_dataset_list(session=None) -> dict:
         raise
     except Exception as exc:  # no login, no network, a malformed answer: all mean the server cannot answer
         raise DatasetError(f"the server could not be asked for the dataset list ({exc})") from None
+
+
+def fetch_repository_list(session=None) -> list:
+    """The code repositories the signed-in user may see (repositories.get_all): one entry for each repository, with its
+    ``bindings``, one for each project that uses it, each with the project, its owner, how it is read now (``state``
+    and ``message``) and the id of the credential assigned. The server answers from its own records. Raises
+    DatasetError when the server cannot be asked, for instance when there is no CairnML login."""
+    response = _person_request(session, "get_all", {}, service="repositories")
+    if not response.ok:
+        raise DatasetError(f"the server refused the repository list: {response.text.strip()}")
+    return (response.json().get("data") or {}).get("repositories") or []
