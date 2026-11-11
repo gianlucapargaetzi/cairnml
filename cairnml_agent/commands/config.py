@@ -41,6 +41,11 @@ def main(server, name=None, force=False, file=None, device=False):
     if not write_config(conf_file, result.server_url, result.web_url, result.device_id, queue=getattr(result, "queue", "")):
         return 1
     print('enrolled as {} on {} (device {})'.format(result.user or 'unknown user', result.server_url, result.device_id))
+    queue = getattr(result, "queue", "")
+    if queue:
+        # the name has a suffix after the machine name: it is the exact name to give as --queue
+        print('queue of this machine: {}\n  use this exact name as --queue; it is also listed under '
+              'Agents & Queues -> Queues in the web app'.format(queue))
     return 0
 
 

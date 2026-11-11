@@ -8,8 +8,8 @@ from cairnml_agent.commands import config as init
 from cairnml_agent.idp.enrol import EnrolmentFailed
 
 
-def enrolment(server_url, device_id="dev_agent", web_url=None):
-    return SimpleNamespace(device_id=device_id, user="admin", server_url=server_url, web_url=web_url)
+def enrolment(server_url, device_id="dev_agent", web_url=None, queue=""):
+    return SimpleNamespace(device_id=device_id, user="admin", server_url=server_url, web_url=web_url, queue=queue)
 
 
 def run_init(conf, server, *, enrol_side_effect=None, force=False):
@@ -136,3 +136,22 @@ def test_the_server_is_the_first_argument_of_the_command(capsys):
     with pytest.raises(SystemExit):
         parser.parse_args(["init"])
     assert "server" in capsys.readouterr().err
+
+
+def test_the_queue_of_the_machine_is_printed_as_the_exact_name_to_use(tmp_path, capsys):
+    def server_makes_a_queue(api_server, **kwargs):
+        return enrolment(api_server, queue="parg-nb-b59488")
+
+    code, _ = run_init(tmp_path / "cairnml-agent.conf", "http://cairnml", enrol_side_effect=server_makes_a_queue)
+
+    assert code == 0
+    out = capsys.readouterr().out
+    assert "queue of this machine: parg-nb-b59488" in out
+    assert "exact name" in out
+
+
+def test_no_queue_line_is_printed_for_an_enrolment_without_a_queue(tmp_path, capsys):
+    code, _ = run_init(tmp_path / "cairnml-agent.conf", "http://cairnml")
+
+    assert code == 0
+    assert "queue of this machine" not in capsys.readouterr().out
