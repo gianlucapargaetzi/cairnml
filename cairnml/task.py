@@ -1942,7 +1942,9 @@ class Task(_Task):
         if not queue_id:
             queue_id = get_queue_id(session, queue_name)
             if not queue_id:
-                raise ValueError(f'Could not find queue named "{queue_name}"')
+                from .queues import unknown_queue_message
+
+                raise ValueError(unknown_queue_message(queue_name, session))
 
         # the server answers queue_watched (servers from API 2.22) when no worker listens to the queue
         watch_kwargs = {"verify_watched_queue": True} if Session.check_min_api_version("2.22") else {}
@@ -3693,6 +3695,9 @@ class Task(_Task):
                 "Task enqueuing itself must exit the process afterwards."
             )
 
+        # look the queue up before anything is stopped, closed or cloned: a run that cannot be enqueued is a failed run
+        queue_id = self._find_queue_or_fail(queue_name) if queue_name else None
+
         # make sure we analyze the process
         if self.status in (Task.TaskStatusEnum.in_progress,):
             if clone:
@@ -3717,7 +3722,12 @@ class Task(_Task):
 
         # enqueue ourselves
         if queue_name:
-            Task.enqueue(task, queue_name=queue_name)
+            try:
+                Task.enqueue(task, queue_id=queue_id)
+            except Exception as ex:
+                # the run was already stopped to be enqueued: it must not stay "aborted", it failed
+                self.mark_failed(status_reason="Could not be enqueued", status_message=str(ex))
+                raise
             LoggerRoot.get_base_logger().warning(
                 f"Switching to remote execution, output log page {task.get_output_log_web_page()}"
             )
@@ -3736,6 +3746,18 @@ class Task(_Task):
             leave_process(0)
 
         return task
+
+    def _find_queue_or_fail(self, queue_name: str) -> str:
+        """The id of a queue. If the server has no such queue, mark this Task failed and raise."""
+        from .queues import unknown_queue_message
+
+        session = self._get_default_session()
+        queue_id = get_queue_id(session, queue_name)
+        if queue_id:
+            return queue_id
+        message = unknown_queue_message(queue_name, session)
+        self.mark_failed(status_reason="Queue not found", status_message=message)
+        raise ValueError(message)
 
     def create_function_task(
         self,

@@ -12,6 +12,7 @@ A task enqueued to a queue waits there until a worker listening to that queue ta
         print("no worker is listening to 'gpu'")
 """
 
+import difflib
 from dataclasses import dataclass
 from typing import Any, List, Optional, Tuple
 
@@ -74,3 +75,27 @@ def workers_for_queue(queue_name: str, session: Optional[Any] = None) -> List[Wo
     :return: The workers listening to the queue.
     """
     return [worker for worker in list_workers(session=session) if queue_name in worker.queues]
+
+
+def unknown_queue_message(queue_name: str, session: Optional[Any] = None) -> str:
+    """
+    The text of the error for a queue name the server does not know: it lists the queues the account can see and
+    names the closest ones, because an agent's queue is its machine name plus a short suffix and is easy to mistype.
+
+    :param queue_name: The name that was not found.
+    :param session: The session to use. Defaults to the session of this machine.
+    :return: The message. It never raises: if the queues cannot be read, it only says the queue was not found.
+    """
+    message = f'Could not find queue named "{queue_name}".'
+    # noinspection PyBroadException
+    try:
+        names = sorted({q.name for q in list_queues(session=session) if q.name})
+    except Exception:
+        return message
+    if not names:
+        return f"{message} No queue is visible to this account."
+    close = [n for n in names if n.startswith(queue_name) or queue_name.startswith(n)]
+    close += [n for n in difflib.get_close_matches(queue_name, names, n=3, cutoff=0.6) if n not in close]
+    if close:
+        message += f' Did you mean "{close[0]}"?' if len(close) == 1 else f" Did you mean one of: {', '.join(close)}?"
+    return f"{message} Queues you can use: {', '.join(names)}. The name is shown under Agents & Queues → Queues."
