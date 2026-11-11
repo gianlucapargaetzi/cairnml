@@ -30,7 +30,8 @@ jobs:
   # tests/test_python_versions_tested.py fails when the list and the versions run here differ.
   python-versions:
     name: python ${{ matrix.python }}
-    runs-on: ubuntu-latest
+    # 24.04, not latest: setup-python has no Python 3.9 build for Ubuntu 26.04
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
