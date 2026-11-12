@@ -176,6 +176,10 @@ def cli(argv: Optional[List[str]] = None) -> int:
                                         "top of this repository (default: data/ is native)")
     init.add_argument("--registry", help="URL of the adapter registry (default: sdk.datasets.external_repo); not used "
                                          "with --adapter local")
+    command("status", do_status, "show the branch and what changed in data/")
+    command("add", do_add, "record the current state of data/, including deleted files")
+    command("check", do_check, "check the data in its declared format and write the footprint")
+
     remote = sub.add_parser("remote", help="connect the dataset to its GitHub repository and choose its storage")
     remote_sub = remote.add_subparsers(dest="remote_command", required=True)
     remote_add = remote_sub.add_parser("add", help="make the repository the origin, choose the storage, register it "
