@@ -48,14 +48,6 @@ def do_clone(args: argparse.Namespace) -> None:
     print(f"Cloned {args.reference} into {folder}. Its data is in {folder / 'data'}.")
 
 
-def do_add_credential(args: argparse.Namespace) -> None:
-    dataset = DatasetRepo(args.path).add_credential(args.credential or None)
-    if args.credential:
-        print(f"{dataset.get('ref', 'The dataset')} is read with credential {args.credential}.")
-    else:
-        print(f"{dataset.get('ref', 'The dataset')} has no credential: it is read as a public repository.")
-
-
 def do_create(args: argparse.Namespace) -> None:
     result = DatasetRepo.create(
         args.path or args.name, args.name, args.source, private=not args.public, storage=args.storage,
@@ -149,6 +141,13 @@ def do_get(args: argparse.Namespace) -> None:
     print(dataset.path)
 
 
+def do_list(args: argparse.Namespace) -> None:
+    from ..repository.__main__ import list_main
+
+    if list_main(role="dataset", as_json=args.json):
+        raise DatasetError("the dataset list could not be read")
+
+
 def do_cache(args: argparse.Namespace) -> None:
     cache = DatasetCache.default()
     if args.action == "info":
@@ -177,6 +176,10 @@ def cli(argv: Optional[List[str]] = None) -> int:
                                         "top of this repository (default: data/ is native)")
     init.add_argument("--registry", help="URL of the adapter registry (default: sdk.datasets.external_repo); not used "
                                          "with --adapter local")
+    command("status", do_status, "show the branch and what changed in data/")
+    command("add", do_add, "record the current state of data/, including deleted files")
+    command("check", do_check, "check the data in its declared format and write the footprint")
+
     remote = sub.add_parser("remote", help="connect the dataset to its GitHub repository and choose its storage")
     remote_sub = remote.add_subparsers(dest="remote_command", required=True)
     remote_add = remote_sub.add_parser("add", help="make the repository the origin, choose the storage, register it "
@@ -186,22 +189,15 @@ def cli(argv: Optional[List[str]] = None) -> int:
     remote_add.add_argument("--lfs", action="store_true",
                             help="keep the files in the GitHub LFS of the repository instead of the server's dataset "
                                  "storage (no DVC, no storage keys). Chosen once")
-    remote_add.add_argument("--credential", help="the credential the dataset is read with (an id from cairnml credential "
-                                                 "list). Without one the dataset is public, and a private one needs one "
-                                                 "added with add-credential")
+    remote_add.add_argument("--credential", help="your own credential, or a company credential, that reads it (an id from "
+                                                 "cairnml credential list). Without one the repository is taken as public, "
+                                                 "and a private one needs one assigned with cairnml repository assign")
     remote_add.add_argument("--path", default=".", help="the dataset repository (default: the current folder)")
     clone_cmd = sub.add_parser("clone", help="clone a dataset you may see: its repository, and its data in data/")
     clone_cmd.set_defaults(func=do_clone)
     clone_cmd.add_argument("reference", help="the dataset's id, its name, or the address of its repository")
     clone_cmd.add_argument("folder", nargs="?", default=None, help="the folder to clone into (default: the dataset's name)")
     clone_cmd.add_argument("--commit", help="the commit to clone (default: the head of the default branch)")
-    credential_cmd = command("add-credential", do_add_credential,
-                             "set the credential the dataset is read with on the server (its owner or an admin)")
-    credential_cmd.add_argument("credential", nargs="?", default="",
-                                help="a credential id from cairnml credential list; leave out to make the dataset public")
-    command("status", do_status, "show the branch and what changed in data/")
-    command("add", do_add, "record the current state of data/, including deleted files")
-    command("check", do_check, "check the data in its declared format and write the footprint")
     commit = command("commit", do_commit, "check the data, then commit it with its footprint")
     commit.add_argument("-m", "--message", required=True)
     command("doctor", do_doctor, "check the set-up and the GitHub settings that publishing relies on")
@@ -217,7 +213,7 @@ def cli(argv: Optional[List[str]] = None) -> int:
     create.add_argument("--from", dest="source", required=True, help="folder that holds the dataset files")
     create.add_argument("--path", help="local folder for the repository (default: the name, in this folder)")
     create.add_argument("--public", action="store_true", help="make the repository public (default: private)")
-    create.add_argument("--credential", help="the credential the dataset is read with (an id from cairnml credential list)")
+    create.add_argument("--credential", help="your own credential, or a company credential, that reads it (an id from cairnml credential list)")
     create.add_argument("--storage", choices=["s3", "lfs"], default="s3", help="where the files are stored (see init)")
     create.add_argument("--adapter", help="read data/ through this adapter of the registry, or 'local' for the file "
                                           "adapter.py in --from, which goes to the top of the repository, not data/ "
@@ -226,6 +222,9 @@ def cli(argv: Optional[List[str]] = None) -> int:
                                            "with --adapter local")
     create.add_argument("--no-protect", action="store_true",
                         help="do not protect the default branch (needs administration rights on the repository)")
+    listing = sub.add_parser("list", help="list the datasets you see (cairnml repository list shows all repositories)")
+    listing.set_defaults(func=do_list)
+    listing.add_argument("--json", action="store_true", help="print the list as the server returns it")
     cache = sub.add_parser("cache", help="show or trim the local dataset cache")
     cache.set_defaults(func=do_cache)
     cache.add_argument("action", choices=["info", "clean", "limit"])

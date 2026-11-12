@@ -11,7 +11,7 @@ def test_a_name_resolves_to_its_repository_id_and_reference(monkeypatch):
 
     def resolve(reference, task=None):
         seen.append((reference, task))
-        return {"id": "d1", "kind": "repo", "ref": "acme/cars", "reference": "cars"}
+        return {"id": "d1", "roles": ["dataset"], "path": "acme/cars", "url": "https://github.com/acme/cars", "reference": "cars"}
 
     monkeypatch.setattr(dataset_module, "resolve_dataset", resolve)
     monkeypatch.setenv("CAIRNML_TASK_ID", "task-7")
@@ -19,11 +19,11 @@ def test_a_name_resolves_to_its_repository_id_and_reference(monkeypatch):
     assert seen == [("cars", "task-7")]
 
 
-def test_a_registry_entry_of_a_repository_resolves_to_that_repository(monkeypatch):
+def test_a_repository_that_is_not_a_dataset_is_read_with_get_external(monkeypatch):
     monkeypatch.setattr(dataset_module, "resolve_dataset", lambda reference, task=None: {
-        "id": "e1", "kind": "registry_entry", "source": "repo", "link": "https://github.com/acme/coco",
-        "ref": "owner/registry/coco", "reference": "registry/coco"})
-    assert dataset_module._resolve_reference("registry/coco") == ("https://github.com/acme/coco", "e1", "registry/coco")
+        "id": "r1", "roles": ["registry"], "path": "acme/registry", "url": "https://github.com/acme/registry"})
+    with pytest.raises(DatasetError, match="get_external"):
+        dataset_module._resolve_reference("registry")
 
 
 def test_a_local_folder_is_read_without_the_server(monkeypatch, tmp_path):

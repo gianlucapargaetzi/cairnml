@@ -20,12 +20,9 @@ from . import process
 
 
 def _clone_answer(reference: str, commit: Optional[str], session=None) -> dict:
-    task = os.environ.get("CAIRNML_TASK_ID") or None
     body = {"ref": reference}
     if commit:
         body["commit"] = commit
-    if task:
-        body["task"] = task
     response = _person_request(session, "clone", body)
     if not response.ok:
         raise DatasetError(f"the server could not clone {reference}: {response.text.strip()}")

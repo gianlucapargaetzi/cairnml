@@ -23,8 +23,7 @@ from .cache import DatasetCache
 from .check import run_check
 from ._shared import git_token, on_github
 from .credentials import (
-    StorageKeys, fetch_dataset_list, fetch_person_git_token, fetch_storage_keys, register_dataset,
-    set_dataset_credential,
+    StorageKeys, fetch_person_git_token, fetch_repository_list, fetch_storage_keys, register_dataset,
 )
 from .dvcutil import Dvc
 from .errors import DatasetError
@@ -212,9 +211,9 @@ class DatasetRepo:
         server's bucket for DVC (for tests and private setups). The server refusing the registration stops this before
         anything is changed here.
 
-        ``credential`` is the access the server reads the dataset with (see credentials.list_credentials). Without one the
-        dataset is public: a private one then cannot be read until a credential is added (``add_credential``), and the
-        warning in ``self.warnings`` says so.
+        ``credential`` is your own credential, or the company's, that reads the repository (see credentials.list_credentials).
+        Without one the repository is taken as public: a private one then cannot be read until you assign a credential
+        (``cairnml repository assign``), and the warning in ``self.warnings`` says so.
         """
         self._require_setup()
         if self.storage() is not None:
@@ -257,15 +256,6 @@ class DatasetRepo:
         self.warnings = self._access_warnings(url, credential, check_access)
         return where
 
-    def add_credential(self, credential: Optional[str]) -> Dict[str, Any]:
-        """Set the credential the server reads this dataset with: the origin's repository, by its owner or an admin. An
-        empty credential makes the dataset public. Needs remote add first."""
-        self._require_setup()
-        url = self.git.remote_url()
-        if not url:
-            raise DatasetError("no remote is configured: run 'cairnml dataset remote add <url>' first")
-        return set_dataset_credential(url, credential)
-
     @staticmethod
     def _access_warnings(url: str, credential: Optional[str],
                          check_access: Optional[Callable[[str, str], Optional[str]]]) -> List[str]:
@@ -274,16 +264,16 @@ class DatasetRepo:
         reachable with the person's login."""
         if not credential:
             return [
-                f"no credential was given for {url}. If the repository is not public, it cannot be read until a credential "
-                "is added to the dataset: cairnml dataset add-credential <credential>, or in the web app under Datasets. "
-                "List the credentials you can use with cairnml credential list."
+                f"no credential was given for {url}. If the repository is not public, it cannot be read until you assign a "
+                "credential to it: cairnml repository assign <repository> <credential>, or in the web app under "
+                "Repositories and Datasets. List the credentials you can use with cairnml credential list."
             ]
         try:
             (check_access or fetch_person_git_token)(url, "read")
         except DatasetError as exc:
             return [
                 f"{url} is not reachable with the credential {credential}: {exc}. Check that the credential can read the "
-                "repository (a GitHub App must be installed on it), or choose another one with cairnml dataset add-credential."
+                "repository (a GitHub App must be installed on it), or choose another one with cairnml repository assign."
             ]
         return []
 
@@ -538,11 +528,11 @@ class DatasetRepo:
 
     # doctor
 
-    def doctor(self, list_datasets: Optional[Callable[[], Dict[str, Any]]] = None) -> List[Dict[str, Any]]:
+    def doctor(self, list_datasets: Optional[Callable[[], List[Dict[str, Any]]]] = None) -> List[Dict[str, Any]]:
         """Check what publishing needs, one entry per check: the set-up here and the GitHub settings that the footprint
         check relies on. ``ok`` is True, False (a problem, with what to do) or None (nothing to check yet).
 
-        ``list_datasets`` answers the server's dataset list (see credentials.fetch_dataset_list); the App check uses it.
+        ``list_datasets`` answers the server's repository list (see credentials.fetch_repository_list); the App check uses it.
         It reads the settings only; it does not change them.
         """
         checks: List[Dict[str, Any]] = []
@@ -558,7 +548,7 @@ class DatasetRepo:
             check("origin", False, "no GitHub origin: run cairnml dataset remote add <url>")
             return checks
         check("origin", True, f"origin is {repo}")
-        ok, message = self._app_installed(repo, list_datasets or fetch_dataset_list)
+        ok, message = self._app_installed(repo, list_datasets or fetch_repository_list)
         check("App installed", ok, message)
 
         storage = self.storage()
@@ -629,21 +619,22 @@ class DatasetRepo:
                 check("branch protection", True, f"{default} requires pull requests and blocks force pushes and deletions")
         return checks
 
-    def _app_installed(self, repo: str, list_datasets: Callable[[], Dict[str, Any]]) -> Tuple[Optional[bool], str]:
-        """Whether the server lists the repository as a dataset this user can read (datasets.visible): its state is ok.
-        A listed repository the server cannot read says why. The server's records are read, not changed."""
+    def _app_installed(self, repo: str, list_repositories: Callable[[], List[Dict[str, Any]]]) -> Tuple[Optional[bool], str]:
+        """Whether the server lists the repository as a dataset you can read (repositories.get_all): how you read it is not
+        "not readable". The server's records are read, not changed."""
         try:
-            answer = list_datasets()
+            rows = list_repositories()
         except DatasetError:
             return None, "the server is not reachable or not logged in; nothing checked"
-        rows = [item for item in answer.get("datasets") or []
-                if item.get("kind") == "repo" and str(item.get("ref", "")).lower() == repo.lower()]
-        if any(item.get("state") == "ok" for item in rows):
-            return True, f"the server lists {repo} as a dataset you can read"
-        if rows:
-            return False, f"the server lists {repo} but cannot read it: {rows[0].get('state_message') or 'no access'}"
-        return False, (f"the server does not list {repo}: the GitHub App may not be installed on it, or the repository "
-                       "has no dataset.yaml yet (see the dataset docs)")
+        found = [item for item in rows
+                 if "dataset" in (item.get("roles") or []) and str(item.get("path", "")).lower() == repo.lower()]
+        if not found:
+            return False, (f"the server does not list {repo} as a dataset: list it with cairnml repository add, or in the web "
+                           "app under Repositories and Datasets")
+        access = found[0].get("access") or {}
+        if access.get("state") in ("unreachable",):
+            return False, f"the server lists {repo} but cannot read it: {access.get('message') or 'no access'}"
+        return True, f"the server lists {repo} as a dataset you can read"
 
     def _gh_api(self, path: str) -> Tuple[Optional[Dict[str, Any]], str]:
         """The JSON answer of one GitHub API call through gh, or None and why it failed."""

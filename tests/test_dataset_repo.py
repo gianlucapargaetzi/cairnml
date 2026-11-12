@@ -424,7 +424,7 @@ def test_a_repository_without_dataset_yaml_is_not_a_dataset(tmp_path, cache, mon
 
 def test_a_public_repository_is_read_without_any_credential(first, origin, tmp_path, cache, monkeypatch):
     """A public repository is cloned over https with no token. On a person's machine the server is asked for a read
-    token, and for a public repository it answers with none (datasets.git_token).
+    token, and for a public repository it answers with none (repositories.git_token).
 
     The public address is rewritten to the local origin through git's insteadOf setting, so git runs for real and no
     network is used. Every git command is recorded: none may carry a token."""
@@ -462,7 +462,7 @@ def test_a_public_repository_is_read_without_any_credential(first, origin, tmp_p
     monkeypatch.setattr(Task, "_get_default_session", staticmethod(lambda: Session()))
     dataset = Dataset.get(public, sha, cache=cache, record=False)
     assert (dataset.path / "a.txt").read_bytes() == b"alpha"
-    assert [call for call in asked if call[1] != "resolve"] == [("datasets", "git_token", {"repository": public, "level": "read"})]
+    assert [call for call in asked if call[1] != "find"] == [("repositories", "git_token", {"repository": public, "level": "read"})]
     assert seen and all(token is None for token in seen)
 
 
@@ -495,7 +495,7 @@ def test_a_job_gets_no_token_for_a_public_repository_and_reads_it_anonymously(fi
     monkeypatch.setattr(Task, "_get_default_session", staticmethod(lambda: Session()))
     dataset = Dataset.get(public, sha, cache=cache, record=False)
     assert (dataset.path / "a.txt").exists()
-    assert [call for call in asked if call[1] != "resolve"] == [("devices", "git_token", {"task": "task-1", "repository": public})]
+    assert [call for call in asked if call[1] != "find"] == [("devices", "git_token", {"task": "task-1", "repository": public})]
     assert capsys.readouterr().out == ""
 
 
@@ -504,8 +504,8 @@ def unreachable_server():
 
 
 def served(datasets):
-    """A stub for the server's datasets.visible answer, so the doctor makes no network call."""
-    return lambda: {"datasets": datasets}
+    """A stub for the server's repositories.get_all answer, so the doctor makes no network call."""
+    return lambda: datasets
 
 
 def checks_by_name(repo, list_datasets=unreachable_server):
@@ -536,27 +536,32 @@ def test_doctor_finds_a_set_up_repository_and_names_a_missing_gh(first, work, mo
     assert 'Install it from' in checks['GitHub command line']['message']
 
 
+def listed_row(path, state="assigned", message="", roles=("dataset",)):
+    return {"path": path, "host": "github.com", "roles": list(roles), "access": {"state": state, "message": message}}
+
+
 def test_the_app_is_found_on_a_listed_repository(linked):
     # The origin is .../acme/cars.git, so the repository is acme/cars; the server's spelling may differ in case
-    check = checks_by_name(DatasetRepo(linked), served([{"ref": "Acme/Cars", "kind": "repo", "state": "ok"}]))["App installed"]
+    check = checks_by_name(DatasetRepo(linked), served([listed_row("Acme/Cars")]))["App installed"]
     assert check["ok"] is True
     assert check["message"] == "the server lists acme/cars as a dataset you can read"
 
 
-def test_a_repository_the_server_does_not_list_fails_the_app_check(linked):
-    listed = [{"ref": "acme/other", "kind": "repo", "state": "ok"}]
+def test_a_repository_the_server_does_not_list_as_a_dataset_fails_the_app_check(linked):
+    listed = [listed_row("acme/other"), listed_row("acme/cars", roles=("code",))]
     check = checks_by_name(DatasetRepo(linked), served(listed))["App installed"]
     assert check["ok"] is False
     assert check["message"] == (
-        "the server does not list acme/cars: the GitHub App may not be installed on it, or the repository has no "
-        "dataset.yaml yet (see the dataset docs)")
+        "the server does not list acme/cars as a dataset: list it with cairnml repository add, or in the web app "
+        "under Repositories and Datasets")
 
 
 def test_a_listed_repository_the_server_cannot_read_says_why(linked):
-    listed = [{"ref": "acme/cars", "kind": "repo", "state": "no_access", "state_message": "no access to dataset cars"}]
+    listed = [listed_row("acme/cars", "unreachable", "The repository is private and no credential is assigned")]
     check = checks_by_name(DatasetRepo(linked), served(listed))["App installed"]
     assert check["ok"] is False
-    assert check["message"] == "the server lists acme/cars but cannot read it: no access to dataset cars"
+    assert check["message"] == ("the server lists acme/cars but cannot read it: The repository is private and no "
+                                "credential is assigned")
 
 
 def test_the_app_check_says_nothing_was_checked_when_the_server_cannot_answer(linked):
@@ -565,9 +570,9 @@ def test_the_app_check_says_nothing_was_checked_when_the_server_cannot_answer(li
     assert check["message"] == "the server is not reachable or not logged in; nothing checked"
 
 
-def test_the_dataset_list_is_asked_of_the_server_with_the_login(monkeypatch):
+def test_the_repository_list_is_asked_of_the_server_with_the_login(monkeypatch):
     asked = []
-    listed = {"datasets": [{"ref": "acme/cars", "kind": "repo", "state": "ok"}]}
+    listed = {"repositories": [{"path": "acme/cars", "roles": ["dataset"], "access": {"state": "assigned"}}]}
 
     class Answer:
         ok = True
@@ -581,23 +586,26 @@ def test_the_dataset_list_is_asked_of_the_server_with_the_login(monkeypatch):
             asked.append((service, action, json))
             return Answer()
 
-    assert credentials.fetch_dataset_list(Session()) == listed
-    assert asked == [("datasets", "visible", {})]
+    assert credentials.fetch_repository_list(Session()) == listed["repositories"]
+    assert asked == [("repositories", "get_all", {})]
 
 
-def test_the_dataset_list_is_unavailable_without_a_login_or_when_refused(monkeypatch):
+def test_the_repository_list_is_unavailable_without_a_login_or_when_refused(monkeypatch):
     class NoLogin:
         def send_request(self, service, action, json, version=None):
             raise ValueError("CairnML host was not set")
 
     class Refused:
         def send_request(self, service, action, json, version=None):
-            return type("Answer", (), {"ok": False, "text": "401 unauthorized"})()
+            def not_json():
+                raise ValueError("no JSON body")
+
+            return type("Answer", (), {"ok": False, "text": "401 unauthorized", "json": staticmethod(not_json)})()
 
     with pytest.raises(DatasetError, match="could not be asked"):
-        credentials.fetch_dataset_list(NoLogin())
+        credentials.fetch_repository_list(NoLogin())
     with pytest.raises(DatasetError, match="401 unauthorized"):
-        credentials.fetch_dataset_list(Refused())
+        credentials.fetch_repository_list(Refused())
 
 
 def test_a_push_to_github_uses_the_servers_write_token_for_that_repository(linked, monkeypatch):
@@ -639,7 +647,7 @@ def test_a_refusal_to_add_the_new_repository_stops_the_create_with_the_reason(tm
     assert not (tmp_path / "new").exists()
 
 
-def test_adding_a_repository_asks_the_server_as_a_user_dataset(monkeypatch):
+def test_adding_a_repository_asks_the_server_to_list_it_as_the_users_own_dataset(monkeypatch):
     asked = []
 
     class Answer:
@@ -647,7 +655,7 @@ def test_adding_a_repository_asks_the_server_as_a_user_dataset(monkeypatch):
         text = ""
 
         def json(self):
-            return {"data": {"dataset": {}}}
+            return {"data": {"repository": {}}}
 
     class Session:
         def send_request(self, service, action, json, version=None):
@@ -656,7 +664,7 @@ def test_adding_a_repository_asks_the_server_as_a_user_dataset(monkeypatch):
 
     credentials.register_dataset("https://github.com/acme/cars.git", None, Session())
 
-    assert asked == [("datasets", "add", {"kind": "repo", "url": "https://github.com/acme/cars.git", "visibility": "user"}, "2.40")]
+    assert asked == [("repositories", "add", {"url": "https://github.com/acme/cars.git", "role": "dataset"}, "2.40")]
 
 
 def test_adding_a_repository_with_a_credential_sends_the_credential_it_is_read_with(monkeypatch):
@@ -667,7 +675,7 @@ def test_adding_a_repository_with_a_credential_sends_the_credential_it_is_read_w
         text = ""
 
         def json(self):
-            return {"data": {"dataset": {"id": "d1", "ref": "acme/cars", "credential": "cred-1"}}}
+            return {"data": {"repository": {"id": "d1", "path": "acme/cars", "assignments": [{"credential": "cred-1"}]}}}
 
     class Session:
         def send_request(self, service, action, json, version=None):
@@ -675,8 +683,8 @@ def test_adding_a_repository_with_a_credential_sends_the_credential_it_is_read_w
             return Answer()
 
     dataset = credentials.register_dataset("https://github.com/acme/cars.git", "cred-1", Session())
-    assert asked == [{"kind": "repo", "url": "https://github.com/acme/cars.git", "visibility": "user", "credential": "cred-1"}]
-    assert dataset["credential"] == "cred-1"
+    assert asked == [{"url": "https://github.com/acme/cars.git", "role": "dataset", "credential": "cred-1"}]
+    assert dataset["assignments"][0]["credential"] == "cred-1"
 
 
 def test_the_credentials_of_the_person_are_listed_from_the_server(monkeypatch):
@@ -700,7 +708,7 @@ def test_a_remote_add_without_a_credential_warns_about_a_private_dataset(tmp_pat
     repo.init()
     repo.remote_add(str(origin), storage_url=str(storage), register=lambda url, credential=None: None)
     assert len(repo.warnings) == 1
-    assert "add-credential" in repo.warnings[0] and "not public" in repo.warnings[0]
+    assert "cairnml repository assign" in repo.warnings[0] and "not public" in repo.warnings[0]
 
 
 def test_a_remote_add_with_a_credential_passes_it_to_the_server(tmp_path, origin, storage):
@@ -975,10 +983,3 @@ def test_commit_and_push_wait_for_the_remote(work, origin, storage):
         repo.commit("too early")
     with pytest.raises(DatasetError, match="remote add"):
         repo.push()
-
-
-def test_add_credential_needs_a_remote_first(work):
-    repo = DatasetRepo(work)
-    repo.init()
-    with pytest.raises(DatasetError, match="remote add"):
-        repo.add_credential("c1")

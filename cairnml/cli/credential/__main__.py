@@ -1,5 +1,5 @@
-"""cairnml credential: the credentials you can use for datasets. A dataset is read with the credential it was added with:
-one of your own GitHub Apps or tokens, or the company's GitHub App."""
+"""cairnml credential: the credentials you can use for repositories: your own GitHub Apps and tokens, and the company's. A credential
+belongs to you and is never shared with a project; you assign it to a repository with cairnml repository assign."""
 
 import sys
 from argparse import ArgumentParser
@@ -32,10 +32,10 @@ def list_main() -> int:
 
 
 def main() -> int:
-    parser = ArgumentParser(prog="cairnml credential", description="the credentials you can use for datasets")
+    parser = ArgumentParser(prog="cairnml credential", description="the credentials you can use for repositories")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("list", help="list the credentials you can use, with their ids",
-                   description="list the credentials you can use for datasets, with the id that --credential takes")
+                   description="list the credentials you can use, with the id that cairnml repository assign takes")
     args = parser.parse_args()
     if args.command == "list":
         return list_main()
