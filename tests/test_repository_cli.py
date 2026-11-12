@@ -89,7 +89,7 @@ def test_the_other_commands_call_the_server_once_each(calls):
         assert cli.main(argv) == 0
     assert [c[0] for c in calls] == ["unassign_credential", "check_repository", "delete_repository", "set_repository_shared",
                                      "set_repository_shared", "link_repository", "unlink_repository"]
-    assert calls[3][1] == ("r", True) and calls[4][1] == ("r", False) and calls[5][1] == ("r", "p1")
+    assert calls[3][1] == ("r", True, None, False) and calls[4][1] == ("r", False) and calls[5][1] == ("r", "p1")
 
 
 def test_a_refusal_of_the_server_is_an_error_line_and_exit_code_one(monkeypatch, capsys):

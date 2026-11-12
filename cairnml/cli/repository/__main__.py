@@ -9,7 +9,8 @@ Datasets.
     cairnml repository check <repository>                   look at it again
     cairnml repository delete <repository>                  remove it (its owner and the admin)
     cairnml repository link <repository> <project>          list it in a project (and unlink)
-    cairnml repository share <repository>                   make it shared: owned by the admin, visible to everyone (and unshare)
+    cairnml repository share <repository> --credential C    make it shared: owned by the admin, visible to everyone, read with
+                                                            the company credential C (or --none-needed when public); and unshare
 
 A repository is named by its address, its name or its id. A credential is yours (``cairnml credential list`` shows the ids) and is
 never shared with a project: it reads for you, and for a project when you own it. A shared repository is read with a company
@@ -115,9 +116,12 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     for name, text in (("unassign", "clear your own credential for a repository"), ("check", "look at a repository again"),
                        ("delete", "remove a repository, with its assignments and links (its owner and the admin)"),
-                       ("share", "make a repository shared (its owner or the admin; ownership moves to the admin)"),
                        ("unshare", "make a shared repository non-shared again (the admin)")):
         sub.add_parser(name, help=text).add_argument("repository", help="its address, its name or its id")
+    share = sub.add_parser("share", help="make a repository shared (its owner or the admin; ownership moves to the admin)")
+    share.add_argument("repository", help="its address, its name or its id")
+    share.add_argument("--credential", help="the company credential that reads it (confirmed before it is shared)")
+    share.add_argument("--none-needed", action="store_true", help="it is public: the host clones it without a credential")
     for name, text in (("link", "list a repository in a project"), ("unlink", "take a repository out of a project's list")):
         parser_ = sub.add_parser(name, help=text)
         parser_.add_argument("repository", help="its address, its name or its id")
@@ -143,7 +147,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     if command == "delete":
         return _run(lambda: credentials.delete_repository(args.repository))
     if command == "share":
-        return _run(lambda: _show(credentials.set_repository_shared(args.repository, True)))
+        return _run(lambda: _show(credentials.set_repository_shared(
+            args.repository, True, args.credential, args.none_needed)))
     if command == "unshare":
         return _run(lambda: _show(credentials.set_repository_shared(args.repository, False)))
     if command == "link":

@@ -144,9 +144,16 @@ def delete_repository(repository: str, session=None) -> None:
         raise DatasetError(f"the server refused to delete {repository}: {response.text.strip()}")
 
 
-def set_repository_shared(repository: str, shared: bool, session=None) -> dict:
-    """Makes a repository shared (the owner or the admin; ownership moves to the admin) or non-shared (the admin)."""
-    return _row(_person_request(session, "set_shared", {"repository": repository, "shared": shared}, service="repositories"),
+def set_repository_shared(repository: str, shared: bool, credential: Optional[str] = None, none_needed: bool = False,
+                          session=None) -> dict:
+    """Makes a repository shared (the owner or the admin; ownership moves to the admin) or non-shared (the admin). To share, the
+    company credential that reads it, or ``none_needed`` for a public repository, is required; the server verifies it first."""
+    body = {"repository": repository, "shared": shared}
+    if credential:
+        body["credential"] = credential
+    if none_needed:
+        body["none_needed"] = True
+    return _row(_person_request(session, "set_shared", body, service="repositories"),
                 f"to change the sharing of {repository}")
 
 
