@@ -2,6 +2,7 @@
 
 import os
 from dataclasses import dataclass, field
+import re
 from typing import Optional
 
 from .errors import DatasetError
@@ -18,6 +19,19 @@ class StorageKeys:
     secret_key: str = field(repr=False)
     session_token: str = field(repr=False)
     expires_at: str
+
+
+def _reason(response) -> str:
+    """Why the server refused: its message, without the envelope and the "Validation error (...)" wrapper. The body when it has
+    no message."""
+    try:
+        message = ((response.json() or {}).get("meta") or {}).get("result_msg") or ""
+    except ValueError:
+        message = ""
+    if not message:
+        return (response.text or "").strip()
+    wrapped = re.fullmatch(r"Validation error \((.*)\)", message, re.S)
+    return wrapped.group(1) if wrapped else message
 
 
 def _session(session=None):
@@ -38,7 +52,7 @@ def fetch_storage_keys(repository: str, level: str, session=None) -> StorageKeys
         json={"repository": repository, "level": level},
     )
     if not response.ok:
-        raise DatasetError(f"the server refused the storage keys for datasets: {response.text.strip()}")
+        raise DatasetError(f"the server refused the storage keys for datasets: {_reason(response)}")
     data = response.json().get("data") or {}
     try:
         return StorageKeys(**{name: data[name] for name in StorageKeys.__dataclass_fields__})
@@ -59,7 +73,7 @@ def fetch_git_token(repository: str, task_id: str, session=None) -> Optional[str
         service="devices", action="git_token", json={"task": task_id, "repository": repository}
     )
     if not response.ok:
-        raise DatasetError(f"the server refused a token for {repository}: {response.text.strip()}")
+        raise DatasetError(f"the server refused a token for {repository}: {_reason(response)}")
     return (response.json().get("data") or {}).get("token")
 
 
@@ -80,13 +94,13 @@ def fetch_person_git_token(repository: str, level: str, session=None) -> Optiona
     repository the host clones without a credential. ``repository`` is the repository URL."""
     response = _person_request(session, "git_token", {"repository": repository, "level": level}, service="repositories")
     if not response.ok:
-        raise DatasetError(f"the server refused a token for {repository}: {response.text.strip()}")
+        raise DatasetError(f"the server refused a token for {repository}: {_reason(response)}")
     return (response.json().get("data") or {}).get("token")
 
 
 def _row(response, what: str) -> dict:
     if not response.ok:
-        raise DatasetError(f"the server refused {what}: {response.text.strip()}")
+        raise DatasetError(f"the server refused {what}: {_reason(response)}")
     return (response.json().get("data") or {}).get("repository") or {}
 
 
@@ -136,7 +150,7 @@ def delete_repository(repository: str, session=None) -> None:
     """Removes a repository you own, with its assignments and links (repositories.delete)."""
     response = _person_request(session, "delete", {"repository": repository}, service="repositories")
     if not response.ok:
-        raise DatasetError(f"the server refused to delete {repository}: {response.text.strip()}")
+        raise DatasetError(f"the server refused to delete {repository}: {_reason(response)}")
 
 
 def set_repository_shared(repository: str, shared: bool, credential: Optional[str] = None, none_needed: bool = False,
@@ -169,7 +183,7 @@ def resolve_dataset(reference: str, task: Optional[str] = None, session=None) ->
     (repositories.find). Empty when the server has none that you may see. A job is known to the server by its token."""
     response = _person_request(session, "find", {"ref": reference}, service="repositories")
     if not response.ok:
-        raise DatasetError(f"the server could not resolve {reference}: {response.text.strip()}")
+        raise DatasetError(f"the server could not resolve {reference}: {_reason(response)}")
     return (response.json().get("data") or {}).get("repository") or {}
 
 
@@ -178,7 +192,7 @@ def list_credentials(session=None) -> list:
     Each has an id (what ``cairnml repository assign`` takes), its type, name, scope, owner and state. No secret is returned."""
     response = _person_request(session, "get_all", {}, service="user_access", version="2.38")
     if not response.ok:
-        raise DatasetError(f"the server did not list the credentials: {response.text.strip()}")
+        raise DatasetError(f"the server did not list the credentials: {_reason(response)}")
     return (response.json().get("data") or {}).get("credentials") or []
 
 
@@ -190,7 +204,7 @@ def fetch_repository_list(session=None) -> list:
     try:
         response = _session(session).send_request(service="repositories", action="get_all", version="2.40", json={})
         if not response.ok:
-            raise DatasetError(f"the server refused the repository list: {response.text.strip()}")
+            raise DatasetError(f"the server refused the repository list: {_reason(response)}")
         return (response.json().get("data") or {}).get("repositories") or []
     except DatasetError:
         raise
