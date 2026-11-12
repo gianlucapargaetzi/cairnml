@@ -121,11 +121,6 @@ def assign_credential(repository: str, credential: Optional[str] = None, none_ne
     return _row(_person_request(session, "assign", body, service="repositories"), f"the credential for {repository}")
 
 
-def set_dataset_credential(repository: str, credential: Optional[str], session=None) -> dict:
-    """Sets, or with None clears, the credential you read a dataset repository with."""
-    return assign_credential(repository, credential, session=session)
-
-
 def unassign_credential(repository: str, session=None) -> dict:
     """Clears your own assignment on a repository (repositories.unassign)."""
     return _row(_person_request(session, "unassign", {"repository": repository}, service="repositories"),
