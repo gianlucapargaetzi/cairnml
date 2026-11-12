@@ -597,7 +597,10 @@ def test_the_repository_list_is_unavailable_without_a_login_or_when_refused(monk
 
     class Refused:
         def send_request(self, service, action, json, version=None):
-            return type("Answer", (), {"ok": False, "text": "401 unauthorized"})()
+            def not_json():
+                raise ValueError("no JSON body")
+
+            return type("Answer", (), {"ok": False, "text": "401 unauthorized", "json": staticmethod(not_json)})()
 
     with pytest.raises(DatasetError, match="could not be asked"):
         credentials.fetch_repository_list(NoLogin())
