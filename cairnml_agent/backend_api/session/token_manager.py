@@ -2,8 +2,8 @@ import sys
 from abc import ABCMeta, abstractmethod
 from time import time
 
-from ..._vendor import jwt
-from ..._vendor.jwt.algorithms import get_default_algorithms
+import jwt
+from jwt.algorithms import get_default_algorithms
 from ..._vendor import six
 
 
@@ -87,13 +87,6 @@ class TokenManager(object):
     @classmethod
     def get_decoded_token(cls, token, verify=False):
         """ Get token expiration time. If not present, assume forever """
-        if hasattr(jwt, '__version__') and jwt.__version__[0] == '1':
-            return jwt.decode(
-                token,
-                verify=verify,
-                algorithms=get_default_algorithms(),
-            )
-        
         return jwt.decode(
             token,
             options=dict(verify_signature=verify),
