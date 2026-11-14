@@ -11,7 +11,7 @@ from typing import Text, Iterable, Union, Dict, Set, Sequence, Any
 
 import yaml
 from time import time
-from ..._vendor.attr import attrs, attrib, Factory
+from attr import attrs, attrib, Factory
 from pathlib import Path
 from cairnml_agent.external.requirements_parser import parse
 from cairnml_agent.external.requirements_parser.requirement import Requirement

@@ -1,7 +1,7 @@
 import itertools
 import re
 
-from ..._vendor import attr
+import attr
 
 from cairnml_agent.external import pyhocon
 

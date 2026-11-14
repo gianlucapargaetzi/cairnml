@@ -28,7 +28,7 @@ from threading import Thread
 from time import sleep, time
 from typing import Text, Optional, Any, Tuple, List, Dict, Mapping, Union
 
-from .._vendor import attr
+import attr
 from pathlib import Path
 from urllib.parse import quote  # noqa
 

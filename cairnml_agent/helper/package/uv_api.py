@@ -2,7 +2,7 @@ from copy import deepcopy, copy
 from functools import wraps
 from itertools import chain
 
-from ..._vendor import attr
+import attr
 import sys
 import os
 from pathlib import Path

@@ -10,7 +10,7 @@ from threading import Thread, Event
 from time import time
 from typing import Sequence, List, Union, Dict, Optional, Any
 
-from .._vendor import attr
+import attr
 import psutil
 from pathlib import Path
 

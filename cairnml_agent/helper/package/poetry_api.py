@@ -1,7 +1,7 @@
 from copy import deepcopy
 from functools import wraps
 
-from ..._vendor import attr
+import attr
 import sys
 import os
 from pathlib import Path

@@ -10,7 +10,7 @@ from operator import itemgetter
 from html.parser import HTMLParser
 from typing import Text, Optional, Dict
 
-from ..._vendor import attr
+import attr
 import requests
 
 from .requirements import (

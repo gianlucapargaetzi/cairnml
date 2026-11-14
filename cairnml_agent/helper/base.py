@@ -17,9 +17,9 @@ from collections import OrderedDict
 from functools import total_ordering
 from typing import Text, Dict, Any, Optional, AnyStr, IO, Union
 
-from .._vendor import attr
+import attr
 import furl
-from .._vendor.attr import fields_dict
+from attr import fields_dict
 from pathlib import Path
 from functools import reduce
 import yaml
