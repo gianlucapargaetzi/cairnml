@@ -20,7 +20,7 @@ from typing import Text, Dict, Any, Optional, AnyStr, IO, Union
 from .._vendor import attr
 from .._vendor import furl
 from .._vendor.attr import fields_dict
-from .._vendor.pathlib2 import Path
+from pathlib import Path
 from functools import reduce
 import yaml
 

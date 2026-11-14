@@ -5,7 +5,7 @@ from itertools import chain
 from ..._vendor import attr
 import sys
 import os
-from ..._vendor.pathlib2 import Path
+from pathlib import Path
 
 import shutil
 

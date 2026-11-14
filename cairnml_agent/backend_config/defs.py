@@ -1,5 +1,5 @@
 from os.path import expanduser
-from .._vendor.pathlib2 import Path
+from pathlib import Path
 
 from ..backend_config.environment import EnvEntry
 

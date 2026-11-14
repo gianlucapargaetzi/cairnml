@@ -5,7 +5,7 @@ from collections import OrderedDict
 from contextlib import contextmanager
 from typing import Text, Iterable, Union, Optional, Dict, List
 
-from ..._vendor.pathlib2 import Path
+from pathlib import Path
 
 from cairnml_agent.definitions import ENV_VENV_CACHE_PATH
 from cairnml_agent.helper.base import mkstemp, safe_remove_file, join_lines, select_for_platform

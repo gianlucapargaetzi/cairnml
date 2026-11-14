@@ -14,7 +14,7 @@ from typing import Text, Sequence, Mapping, Iterable, TypeVar, Callable, Tuple, 
 
 from .._vendor import attr
 from .._vendor.furl import furl
-from .._vendor.pathlib2 import Path
+from pathlib import Path
 
 
 from cairnml_agent.definitions import (

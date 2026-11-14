@@ -29,7 +29,7 @@ from time import sleep, time
 from typing import Text, Optional, Any, Tuple, List, Dict, Mapping, Union
 
 from .._vendor import attr
-from .._vendor.pathlib2 import Path
+from pathlib import Path
 from urllib.parse import quote  # noqa
 
 from cairnml_agent.external.pyhocon import ConfigTree, ConfigFactory

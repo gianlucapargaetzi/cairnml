@@ -7,7 +7,7 @@ import sys
 from os.path import expanduser
 from typing import Any
 
-from .._vendor.pathlib2 import Path
+from pathlib import Path
 from .._vendor.pyparsing import (
     ParseFatalException,
     ParseException,

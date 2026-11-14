@@ -1,7 +1,6 @@
 pytest
 -r ../requirements.txt
 PyYAML
-pathlib2
 furl
 attrs
 six

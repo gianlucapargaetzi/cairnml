@@ -3,7 +3,7 @@ from contextlib import contextmanager
 
 import pytest
 import yaml
-from pathlib2 import Path
+from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 

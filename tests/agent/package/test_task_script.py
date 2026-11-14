@@ -13,7 +13,7 @@ from uuid import uuid4
 
 from cairnml_agent.backend_api.services import tasks
 from cairnml_agent.backend_api.session.client import APIClient
-from pathlib2 import Path
+from pathlib import Path
 import pytest
 from pytest import fixture
 

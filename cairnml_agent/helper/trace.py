@@ -9,7 +9,7 @@ from itertools import chain
 from types import ModuleType
 from typing import Text, Sequence, Union
 
-from .._vendor.pathlib2 import Path
+from pathlib import Path
 
 
 try:

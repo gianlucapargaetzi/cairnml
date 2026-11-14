@@ -5,7 +5,7 @@ import argparse
 from copy import deepcopy
 from functools import partial
 
-from .._vendor.pathlib2 import Path
+from pathlib import Path
 
 from cairnml_agent import definitions
 from cairnml_agent.session import Session

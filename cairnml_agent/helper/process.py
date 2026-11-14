@@ -15,7 +15,7 @@ from typing import Union, Text, Sequence, Any, TypeVar, Callable
 
 import psutil
 from .._vendor.furl import furl
-from .._vendor.pathlib2 import Path
+from pathlib import Path
 
 from cairnml_agent.definitions import PROGRAM_NAME, CONFIG_FILE
 from cairnml_agent.helper.base import bash_c, is_windows_platform, select_for_platform, chain_map

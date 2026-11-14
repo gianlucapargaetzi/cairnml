@@ -10,7 +10,7 @@ from operator import itemgetter
 from os import path
 from typing import Text, List, Type, Optional, Tuple, Dict
 
-from ..._vendor.pathlib2 import Path
+from pathlib import Path
 from cairnml_agent.external.pyhocon import ConfigTree
 
 from urllib.parse import unquote  # noqa

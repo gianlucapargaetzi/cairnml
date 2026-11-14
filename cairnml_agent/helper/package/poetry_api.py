@@ -4,7 +4,7 @@ from functools import wraps
 from ..._vendor import attr
 import sys
 import os
-from ..._vendor.pathlib2 import Path
+from pathlib import Path
 
 from cairnml_agent.definitions import ENV_AGENT_FORCE_POETRY
 from cairnml_agent.helper.process import Argv, DEVNULL, check_if_command_exists
