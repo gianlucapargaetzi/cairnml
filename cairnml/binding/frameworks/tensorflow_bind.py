@@ -20,6 +20,7 @@ from ..frameworks import _patched_call, WeightsFileHandler, _Empty
 from ..import_bind import PostImportHookPatching
 from ...config import running_remotely
 from ...debugging.log import LoggerRoot
+from ...debugging.ignored import log_ignored
 from ...model import InputModel, OutputModel, Framework
 
 try:
@@ -711,7 +712,7 @@ class EventTrainsWriter:
                 reverse_xaxis=reverse_xaxis,
             )
         except Exception:
-            pass
+            log_ignored(LoggerRoot.get_base_logger(TensorflowBinding), "_add_plot")
 
     def _add_audio(
         self,
@@ -772,7 +773,7 @@ class EventTrainsWriter:
             hparams = session_start_info["hparams"]
             EventTrainsWriter._current_task.update_parameters({f"TB_hparams/{k}": v for k, v in hparams.items()})
         except Exception:
-            pass
+            log_ignored(LoggerRoot.get_base_logger(TensorflowBinding), "_add_hparams")
 
     def _add_text(self, tag: str, step: int, tensor_bytes: bytes) -> None:
         # noinspection PyProtectedMember
@@ -886,7 +887,7 @@ class EventTrainsWriter:
                         self._add_hparams(vdict)
                         continue
                 except Exception:
-                    pass
+                    log_ignored(LoggerRoot.get_base_logger(TensorflowBinding), "add_event")
                 metric, values = get_data(vdict, supported_metrics)
                 if metric == "simpleValue":
                     self._add_scalar(tag=tag, step=step, scalar_data=values)
@@ -1205,7 +1206,7 @@ class PatchSummaryToEventTransformer:
         try:
             self.cairnml.add_event(*args, **kwargs)
         except Exception:
-            pass
+            log_ignored(LoggerRoot.get_base_logger(TensorflowBinding), "_patched_add_eventT")
         return PatchSummaryToEventTransformer._original_add_eventT(self, *args, **kwargs)
 
     @staticmethod
@@ -1227,7 +1228,7 @@ class PatchSummaryToEventTransformer:
         try:
             self.cairnml.add_event(*args, **kwargs)
         except Exception:
-            pass
+            log_ignored(LoggerRoot.get_base_logger(TensorflowBinding), "_patched_add_eventX")
         return PatchSummaryToEventTransformer._original_add_eventX(self, *args, **kwargs)
 
     @staticmethod
@@ -1496,7 +1497,7 @@ class PatchTensorFlowEager:
                     PatchTensorFlowEager._create_summary_file_writer,
                 )
             except Exception:
-                pass
+                log_ignored(LoggerRoot.get_base_logger(TensorflowBinding), "_patch_summary_ops")
 
     @staticmethod
     def _create_summary_file_writer(original_fn: Callable, *args: Any, **kwargs: Any) -> Any:
@@ -1520,7 +1521,7 @@ class PatchTensorFlowEager:
                 a_logdir = a_logdir.numpy().decode()
                 PatchTensorFlowEager.__tf_tb_writer_id_to_logdir[id(a_writer)] = a_logdir
         except Exception:
-            pass
+            log_ignored(LoggerRoot.get_base_logger(TensorflowBinding), "_create_summary_file_writer")
 
         return original_fn(*args, **kwargs)
 
@@ -1619,7 +1620,7 @@ class PatchTensorFlowEager:
                 else:
                     pass
             except Exception:
-                pass
+                log_ignored(LoggerRoot.get_base_logger(TensorflowBinding), "_write_summary")
         return PatchTensorFlowEager.__original_fn_write_summary(
             writer, step, tensor, tag, summary_metadata, name, **kwargs
         )
@@ -2227,7 +2228,7 @@ class PatchKerasModelIO:
             try:
                 model.trains_in_model = empty.trains_in_model
             except Exception:
-                pass
+                log_ignored(LoggerRoot.get_base_logger(TensorflowBinding), "_load_model")
 
         return model
 
@@ -2269,12 +2270,12 @@ class PatchTensorflowModelIO:
             try:
                 Saver.save = _patched_call(Saver.save, PatchTensorflowModelIO._save)
             except Exception:
-                pass
+                log_ignored(LoggerRoot.get_base_logger(TensorflowBinding), "_patch_model_checkpoint")
             # noinspection PyBroadException
             try:
                 Saver.restore = _patched_call(Saver.restore, PatchTensorflowModelIO._restore)
             except Exception:
-                pass
+                log_ignored(LoggerRoot.get_base_logger(TensorflowBinding), "_patch_model_checkpoint")
         except ImportError:
             pass
         except Exception:
@@ -2369,22 +2370,22 @@ class PatchTensorflowModelIO:
             try:
                 Checkpoint.save = _patched_call(Checkpoint.save, PatchTensorflowModelIO._ckpt_save)
             except Exception:
-                pass
+                log_ignored(LoggerRoot.get_base_logger(TensorflowBinding), "_patch_model_checkpoint")
             # noinspection PyBroadException
             try:
                 Checkpoint.restore = _patched_call(Checkpoint.restore, PatchTensorflowModelIO._ckpt_restore)
             except Exception:
-                pass
+                log_ignored(LoggerRoot.get_base_logger(TensorflowBinding), "_patch_model_checkpoint")
             # noinspection PyBroadException
             try:
                 Checkpoint.write = _patched_call(Checkpoint.write, PatchTensorflowModelIO._ckpt_write)
             except Exception:
-                pass
+                log_ignored(LoggerRoot.get_base_logger(TensorflowBinding), "_patch_model_checkpoint")
             # noinspection PyBroadException
             try:
                 Checkpoint._write = _patched_call(Checkpoint._write, PatchTensorflowModelIO._ckpt_write)
             except Exception:
-                pass
+                log_ignored(LoggerRoot.get_base_logger(TensorflowBinding), "_patch_model_checkpoint")
         except ImportError:
             pass
         except Exception:
@@ -2452,7 +2453,7 @@ class PatchTensorflowModelIO:
             try:
                 model.trains_in_model = empty.trains_in_model
             except Exception:
-                pass
+                log_ignored(LoggerRoot.get_base_logger(TensorflowBinding), "_load_lt_2_0")
         return model
 
     @staticmethod
@@ -2476,7 +2477,7 @@ class PatchTensorflowModelIO:
             try:
                 model.trains_in_model = empty.trains_in_model
             except Exception:
-                pass
+                log_ignored(LoggerRoot.get_base_logger(TensorflowBinding), "_load")
         return model
 
     @staticmethod
@@ -2526,7 +2527,7 @@ class PatchTensorflowModelIO:
             try:
                 model.trains_in_model = empty.trains_in_model
             except Exception:
-                pass
+                log_ignored(LoggerRoot.get_base_logger(TensorflowBinding), "_ckpt_restore")
         return model
 
 
@@ -2562,7 +2563,7 @@ class PatchTensorflow2ModelIO:
             try:
                 util.TrackableSaver.save = _patched_call(util.TrackableSaver.save, PatchTensorflow2ModelIO._save)
             except Exception:
-                pass
+                log_ignored(LoggerRoot.get_base_logger(TensorflowBinding), "_patch_model_checkpoint")
 
             # noinspection PyBroadException
             try:
@@ -2570,7 +2571,7 @@ class PatchTensorflow2ModelIO:
                     util.TrackableSaver.restore, PatchTensorflow2ModelIO._restore
                 )
             except Exception:
-                pass
+                log_ignored(LoggerRoot.get_base_logger(TensorflowBinding), "_patch_model_checkpoint")
         except ImportError:
             pass
         except Exception:
@@ -2588,7 +2589,7 @@ class PatchTensorflow2ModelIO:
                     checkpoint.TrackableSaver.save, PatchTensorflow2ModelIO._save
                 )
             except Exception:
-                pass
+                log_ignored(LoggerRoot.get_base_logger(TensorflowBinding), "_patch_model_checkpoint")
 
             # noinspection PyBroadException
             try:
@@ -2596,7 +2597,7 @@ class PatchTensorflow2ModelIO:
                     checkpoint.TrackableSaver.restore, PatchTensorflow2ModelIO._restore
                 )
             except Exception:
-                pass
+                log_ignored(LoggerRoot.get_base_logger(TensorflowBinding), "_patch_model_checkpoint")
         except ImportError:
             pass
         except Exception:
@@ -2617,7 +2618,7 @@ class PatchTensorflow2ModelIO:
                 PatchTensorflow2ModelIO._current_task,
             )
         except Exception:
-            pass
+            log_ignored(LoggerRoot.get_base_logger(TensorflowBinding), "_save")
         return model
 
     @staticmethod
@@ -2638,7 +2639,7 @@ class PatchTensorflow2ModelIO:
                 PatchTensorflow2ModelIO._current_task,
             )
         except Exception:
-            pass
+            log_ignored(LoggerRoot.get_base_logger(TensorflowBinding), "_restore")
         return model
 
 
