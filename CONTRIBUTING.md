@@ -53,7 +53,7 @@ Before you submit a new PR:
 * Verify the work you plan to merge addresses an existing [issue](https://github.com/gianlucapargaetzi/cairnml/issues) (If not, open a new one)
 * Check related [issues](https://github.com/gianlucapargaetzi/cairnml/issues) and start your own on GitHub if nothing matches
 * Make sure your code conforms to the CairnML coding standards by running:  
-  `flake8 --max-line-length=120 --statistics --show-source --extend-ignore=E501 ./cairnml*`
+  `pip install -r lint-requirements.txt`, then `ruff check --isolated --select F,B904,E722,B006,B023,PLE --line-length 120 <changed files>` and `ruff format --check --isolated --line-length 120 <new files>`. CI runs both on the Python files a pull request changes.
 
 In your PR include:
 * A reference to the issue it addresses
