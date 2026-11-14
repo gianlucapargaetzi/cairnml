@@ -3,7 +3,7 @@ from __future__ import absolute_import
 import re
 from collections import namedtuple
 
-SCALAR_TYPES = tuple(list(str) + [int, float, bool])
+SCALAR_TYPES = (str, int, float, bool)
 
 ECMA_TO_PYTHON_FLAGS = {
     'i': re.I,
