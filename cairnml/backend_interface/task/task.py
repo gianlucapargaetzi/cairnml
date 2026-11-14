@@ -185,7 +185,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         :param task_type: Optional task type, used only if a new task is created. Default is training task.
         :type task_type: str (see tasks.TaskTypeEnum)
         :param log_to_backend: If ``True``, all calls to the task's log will be logged to the backend using the API.
-            This value can be overridden using the environment variable TRAINS_LOG_TASK_TO_BACKEND.
+            This value can be overridden using the environment variable CAIRNML_LOG_TASK_TO_BACKEND.
         :type log_to_backend: bool
         :param force_create: If ``True``, a new task will always be created (``task_id``, if provided, will be ignored)
         :type force_create: bool

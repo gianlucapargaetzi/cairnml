@@ -31,7 +31,7 @@ from .defs import (
 )
 from .defs import is_config_file
 from .entry import Entry, NotSet
-from .environment import check_legacy_config_file, read_env_with_legacy
+from .environment import check_legacy_config_file
 from .errors import ConfigurationError
 from .log import initialize as initialize_log, logger
 from .utils import get_options
@@ -76,7 +76,7 @@ class Config:
         self._folder_name = config_folder or DEFAULT_CONFIG_FOLDER
         self._roots = []
         self._config = ConfigTree()
-        self._env = env or read_env_with_legacy("CAIRNML_ENV", "TRAINS_ENV") or Environment.default
+        self._env = env or os.environ.get("CAIRNML_ENV", "") or Environment.default
         self.config_paths = set()
         self.is_server = is_server
         self._overrides_configs = None
