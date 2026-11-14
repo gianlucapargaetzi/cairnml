@@ -69,7 +69,6 @@ from .hyperparams import HyperParams
 from ...config import (
     config,
     PROC_MASTER_ID_ENV_VAR,
-    SUPPRESS_UPDATE_MESSAGE_ENV_VAR,
     DOCKER_BASH_SETUP_ENV_VAR,
 )
 from ...utilities.process.mp import SingletonLock
@@ -265,37 +264,8 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         return task_id
 
     def _update_repository(self) -> None:
-        def check_package_update() -> None:
-            # noinspection PyBroadException
-            try:
-                # check latest version
-                from ...utilities.check_updates import CheckPackageUpdates
-
-                latest_version = CheckPackageUpdates.check_new_package_available(only_once=True)
-                if latest_version and not SUPPRESS_UPDATE_MESSAGE_ENV_VAR.get(
-                    default=config.get("development.suppress_update_message", False)
-                ):
-                    if not latest_version[1]:
-                        client_name = Session.get_clients()[0][0].upper()
-                        self.get_logger().report_text(
-                            "\n".join([
-                                f"{client_name} new package available: UPGRADE to v{latest_version[0]} is recommended!",
-                                "Release Notes:",
-                                os.linesep.join(latest_version[2]),
-                            ])
-                        )
-                    else:
-                        self.get_logger().report_text(
-                            f"CairnML new version available: upgrade to v{latest_version[0]} is recommended!",
-                        )
-            except Exception:
-                pass
-
         # get repository and create requirements.txt from code base
         try:
-            check_package_update_thread = Thread(target=check_package_update)
-            check_package_update_thread.daemon = True
-            check_package_update_thread.start()
             # do not request requirements, because it might be a long process, and we first want to update the git repo
             result, script_requirements = ScriptInfo.get(
                 filepaths=[

@@ -174,19 +174,10 @@ class PatchedJoblib:
 
         # register input model
         empty = _Empty()
-        # Hack: disabled
-        if False and running_remotely():
-            # we assume scikit-learn, for the time being
-            current_framework = Framework.scikitlearn
-            filename = WeightsFileHandler.restore_weights_file(
-                empty, filename, current_framework, PatchedJoblib._current_task
-            )
-            model = original_fn(filename or f, *args, **kwargs)
-        else:
-            # try to load model before registering, in case we fail
-            model = original_fn(f, *args, **kwargs)
-            current_framework = PatchedJoblib.get_model_framework(model)
-            WeightsFileHandler.restore_weights_file(empty, filename, current_framework, PatchedJoblib._current_task)
+        # try to load model before registering, in case we fail
+        model = original_fn(f, *args, **kwargs)
+        current_framework = PatchedJoblib.get_model_framework(model)
+        WeightsFileHandler.restore_weights_file(empty, filename, current_framework, PatchedJoblib._current_task)
 
         if empty.trains_in_model:
             # noinspection PyBroadException
