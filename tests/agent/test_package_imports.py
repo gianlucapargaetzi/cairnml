@@ -1,0 +1,28 @@
+"""The agent's modules import the names they use from the modules that define them, and the package imports cleanly."""
+
+import subprocess
+import sys
+from pathlib import Path
+
+from cairnml_agent.backend_api.session.callresult import CallResult
+from cairnml_agent.backend_api.session.client.client import APIClient
+from cairnml_agent.backend_api.session.request import Request
+from cairnml_agent.backend_api.session.session import Session
+from cairnml_agent.backend_config.config import Config
+
+ROOT = Path(__file__).resolve().parent.parent
+
+
+def test_the_names_are_defined_in_their_own_modules():
+    assert all(isinstance(name, type) for name in (CallResult, APIClient, Request, Session, Config))
+
+
+def test_the_package_imports_without_the_working_directory_on_the_path():
+    code = (
+        "import sys; sys.path.insert(0, {!r}); "
+        "import cairnml_agent, cairnml_agent.commands, cairnml_agent.interface; print('ok')"
+    ).format(str(ROOT))
+    result = subprocess.run([sys.executable, "-I", "-c", code], capture_output=True, text=True)
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == "ok"
