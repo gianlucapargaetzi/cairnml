@@ -11,9 +11,6 @@ projects = ApiServiceProxy("projects")
 tasks = ApiServiceProxy("tasks")
 workers = ApiServiceProxy("workers")
 queues = ApiServiceProxy("queues")
-datasets = ApiServiceProxy("datasets")
-dataviews = ApiServiceProxy("dataviews")
-frames = ApiServiceProxy("frames")
 
 __all__ = [
     "auth",
@@ -23,7 +20,4 @@ __all__ = [
     "tasks",
     "workers",
     "queues",
-    "datasets",
-    "dataviews",
-    "frames",
 ]
