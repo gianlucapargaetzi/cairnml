@@ -32,11 +32,27 @@ def _missing_checkout(label, path):
     pytest.skip(f"{label} checkout not found at {path}")
 
 
-@pytest.mark.parametrize("name", ["assertion.py", "keys.py", "browser_login.py", "enrol.py"])
+PACKAGE_FILES = sorted(path.name for path in PACKAGE_IDP.glob("*.py"))
+# The files of idp/ that the agent deliberately changes, each with the reason. Any other file must be identical to its SDK copy.
+MAY_DIFFER_FROM_SDK = {
+    "device_login.py": "the agent adds choose_login() and _browser_available() for its own sign-in",
+    "device.py": "the agent keeps its key under ~/.cairnml/agent and adds exposes_device_key()",
+}
+
+
+def test_every_file_that_may_differ_still_exists_in_the_agent():
+    assert sorted(set(MAY_DIFFER_FROM_SDK) - set(PACKAGE_FILES)) == []
+
+
+@pytest.mark.parametrize("name", PACKAGE_FILES)
 def test_the_copy_matches_the_sdk(name):
     if not SDK_IDP.is_dir():
         _missing_checkout("SDK", SDK_IDP)
-    assert digest(PACKAGE_IDP / name) == digest(SDK_IDP / name), f"{name} differs from the SDK copy"
+    theirs = SDK_IDP / name
+    assert theirs.is_file(), f"{name} has no copy in the SDK"
+    if name in MAY_DIFFER_FROM_SDK:
+        return
+    assert digest(PACKAGE_IDP / name) == digest(theirs), f"{name} differs from the SDK copy"
 
 
 @pytest.mark.parametrize("name", ["assertion.py", "keys.py"])
