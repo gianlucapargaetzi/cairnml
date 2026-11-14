@@ -23,7 +23,7 @@ from .._vendor import six
 from .._vendor.attr import fields_dict
 from .._vendor.pathlib2 import Path
 from .._vendor.six.moves import reduce  # noqa
-from .._vendor import pyyaml as yaml
+import yaml
 
 from cairnml_agent.errors import CommandFailedError
 from cairnml_agent.external import pyhocon
@@ -319,6 +319,7 @@ def dump_yaml(obj, path=None, dump_all=False, **kwargs):
     base_kwargs.update(kwargs)
     if dump_all:
         base_kwargs['Dumper'] = AllDumper
+        base_kwargs.setdefault('sort_keys', False)
         dump_func = yaml.dump
     else:
         dump_func = yaml.safe_dump
@@ -420,6 +421,9 @@ def construct_mapping(loader, node):
 
 class AllDumper(yaml.SafeDumper):
     pass
+
+
+AllDumper.add_representer(OrderedDict, represent_ordered_dict)
 
 
 # AllDumper.add_multi_representer(object, lambda dumper, data: dumper.represent_str(str(data)))

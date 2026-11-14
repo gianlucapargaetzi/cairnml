@@ -10,7 +10,7 @@ from itertools import chain
 from typing import Text, Iterable, Union, Dict, Set, Sequence, Any
 
 from ..._vendor import six
-from ..._vendor import pyyaml as yaml
+import yaml
 from time import time
 from ..._vendor.attr import attrs, attrib, Factory
 from ..._vendor.pathlib2 import Path
