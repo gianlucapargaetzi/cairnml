@@ -10,9 +10,9 @@ from threading import Thread, Event
 from time import time
 from typing import Sequence, List, Union, Dict, Optional, Any
 
-from .._vendor import attr
+import attr
 import psutil
-from .._vendor.pathlib2 import Path
+from pathlib import Path
 
 from cairnml_agent.definitions import ENV_WORKER_TAGS, ENV_GPU_FRACTIONS
 from cairnml_agent.session import Session

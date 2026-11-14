@@ -3,12 +3,11 @@ workers service
 
 Provides an API for worker machines, allowing workers to report status and get tasks for execution
 """
-from ...._vendor import six
 import types
 from datetime import datetime
 import enum
 
-from ...._vendor.dateutil.parser import parse as parse_datetime
+from dateutil.parser import parse as parse_datetime
 
 from ....backend_api.session import Request, BatchRequest, Response, DataModel, NonStrictDataModel, CompoundRequest, schema_property, StringEnum
 
@@ -50,7 +49,7 @@ class MetricsCategory(NonStrictDataModel):
             self._property_name = None
             return
 
-        self.assert_isinstance(value, "name", six.string_types)
+        self.assert_isinstance(value, "name", str)
         self._property_name = value
 
     @schema_property('metric_keys')
@@ -65,7 +64,7 @@ class MetricsCategory(NonStrictDataModel):
 
         self.assert_isinstance(value, "metric_keys", (list, tuple))
 
-        self.assert_isinstance(value, "metric_keys", six.string_types, is_array=True)
+        self.assert_isinstance(value, "metric_keys", str, is_array=True)
         self._property_metric_keys = value
 
 
@@ -110,7 +109,7 @@ class StatItem(NonStrictDataModel):
             self._property_key = None
             return
 
-        self.assert_isinstance(value, "key", six.string_types)
+        self.assert_isinstance(value, "key", str)
         self._property_key = value
 
     @schema_property('category')
@@ -122,7 +121,7 @@ class StatItem(NonStrictDataModel):
         if value is None:
             self._property_category = None
             return
-        if isinstance(value, six.string_types):
+        if isinstance(value, str):
             try:
                 value = AggregationType(value)
             except ValueError:
@@ -170,7 +169,7 @@ class AggregationStats(NonStrictDataModel):
         if value is None:
             self._property_aggregation = None
             return
-        if isinstance(value, six.string_types):
+        if isinstance(value, str):
             try:
                 value = AggregationType(value)
             except ValueError:
@@ -191,7 +190,7 @@ class AggregationStats(NonStrictDataModel):
 
         self.assert_isinstance(value, "values", (list, tuple))
 
-        self.assert_isinstance(value, "values", six.integer_types + (float,), is_array=True)
+        self.assert_isinstance(value, "values", int + (float,), is_array=True)
         self._property_values = value
 
 
@@ -250,7 +249,7 @@ class MetricStats(NonStrictDataModel):
             self._property_metric = None
             return
 
-        self.assert_isinstance(value, "metric", six.string_types)
+        self.assert_isinstance(value, "metric", str)
         self._property_metric = value
 
     @schema_property('variant')
@@ -263,7 +262,7 @@ class MetricStats(NonStrictDataModel):
             self._property_variant = None
             return
 
-        self.assert_isinstance(value, "variant", six.string_types)
+        self.assert_isinstance(value, "variant", str)
         self._property_variant = value
 
     @schema_property('dates')
@@ -279,7 +278,7 @@ class MetricStats(NonStrictDataModel):
         self.assert_isinstance(value, "dates", (list, tuple))
         value = [int(v) if isinstance(v, float) and v.is_integer() else v for v in value]
 
-        self.assert_isinstance(value, "dates", six.integer_types, is_array=True)
+        self.assert_isinstance(value, "dates", int, is_array=True)
         self._property_dates = value
 
     @schema_property('stats')
@@ -337,7 +336,7 @@ class WorkerStats(NonStrictDataModel):
             self._property_worker = None
             return
 
-        self.assert_isinstance(value, "worker", six.string_types)
+        self.assert_isinstance(value, "worker", str)
         self._property_worker = value
 
     @schema_property('metrics')
@@ -401,7 +400,7 @@ class ActivitySeries(NonStrictDataModel):
         self.assert_isinstance(value, "dates", (list, tuple))
         value = [int(v) if isinstance(v, float) and v.is_integer() else v for v in value]
 
-        self.assert_isinstance(value, "dates", six.integer_types, is_array=True)
+        self.assert_isinstance(value, "dates", int, is_array=True)
         self._property_dates = value
 
     @schema_property('counts')
@@ -417,7 +416,7 @@ class ActivitySeries(NonStrictDataModel):
         self.assert_isinstance(value, "counts", (list, tuple))
         value = [int(v) if isinstance(v, float) and v.is_integer() else v for v in value]
 
-        self.assert_isinstance(value, "counts", six.integer_types, is_array=True)
+        self.assert_isinstance(value, "counts", int, is_array=True)
         self._property_counts = value
 
 
@@ -521,7 +520,7 @@ class Worker(NonStrictDataModel):
             self._property_id = None
             return
 
-        self.assert_isinstance(value, "id", six.string_types)
+        self.assert_isinstance(value, "id", str)
         self._property_id = value
 
     @schema_property('user')
@@ -564,7 +563,7 @@ class Worker(NonStrictDataModel):
             self._property_ip = None
             return
 
-        self.assert_isinstance(value, "ip", six.string_types)
+        self.assert_isinstance(value, "ip", str)
         self._property_ip = value
 
     @schema_property('register_time')
@@ -577,7 +576,7 @@ class Worker(NonStrictDataModel):
             self._property_register_time = None
             return
 
-        self.assert_isinstance(value, "register_time", six.string_types + (datetime,))
+        self.assert_isinstance(value, "register_time", str + (datetime,))
         if not isinstance(value, datetime):
             value = parse_datetime(value)
         self._property_register_time = value
@@ -592,7 +591,7 @@ class Worker(NonStrictDataModel):
             self._property_last_activity_time = None
             return
 
-        self.assert_isinstance(value, "last_activity_time", six.string_types + (datetime,))
+        self.assert_isinstance(value, "last_activity_time", str + (datetime,))
         if not isinstance(value, datetime):
             value = parse_datetime(value)
         self._property_last_activity_time = value
@@ -607,7 +606,7 @@ class Worker(NonStrictDataModel):
             self._property_last_report_time = None
             return
 
-        self.assert_isinstance(value, "last_report_time", six.string_types + (datetime,))
+        self.assert_isinstance(value, "last_report_time", str + (datetime,))
         if not isinstance(value, datetime):
             value = parse_datetime(value)
         self._property_last_report_time = value
@@ -690,7 +689,7 @@ class IdNameEntry(NonStrictDataModel):
             self._property_id = None
             return
 
-        self.assert_isinstance(value, "id", six.string_types)
+        self.assert_isinstance(value, "id", str)
         self._property_id = value
 
     @schema_property('name')
@@ -703,7 +702,7 @@ class IdNameEntry(NonStrictDataModel):
             self._property_name = None
             return
 
-        self.assert_isinstance(value, "name", six.string_types)
+        self.assert_isinstance(value, "name", str)
         self._property_name = value
 
 
@@ -751,7 +750,7 @@ class CurrentTaskEntry(NonStrictDataModel):
             self._property_id = None
             return
 
-        self.assert_isinstance(value, "id", six.string_types)
+        self.assert_isinstance(value, "id", str)
         self._property_id = value
 
     @schema_property('name')
@@ -764,7 +763,7 @@ class CurrentTaskEntry(NonStrictDataModel):
             self._property_name = None
             return
 
-        self.assert_isinstance(value, "name", six.string_types)
+        self.assert_isinstance(value, "name", str)
         self._property_name = value
 
     @schema_property('running_time')
@@ -779,7 +778,7 @@ class CurrentTaskEntry(NonStrictDataModel):
         if isinstance(value, float) and value.is_integer():
             value = int(value)
 
-        self.assert_isinstance(value, "running_time", six.integer_types)
+        self.assert_isinstance(value, "running_time", int)
         self._property_running_time = value
 
     @schema_property('last_iteration')
@@ -794,7 +793,7 @@ class CurrentTaskEntry(NonStrictDataModel):
         if isinstance(value, float) and value.is_integer():
             value = int(value)
 
-        self.assert_isinstance(value, "last_iteration", six.integer_types)
+        self.assert_isinstance(value, "last_iteration", int)
         self._property_last_iteration = value
 
 
@@ -845,7 +844,7 @@ class QueueEntry(NonStrictDataModel):
             self._property_id = None
             return
 
-        self.assert_isinstance(value, "id", six.string_types)
+        self.assert_isinstance(value, "id", str)
         self._property_id = value
 
     @schema_property('name')
@@ -858,7 +857,7 @@ class QueueEntry(NonStrictDataModel):
             self._property_name = None
             return
 
-        self.assert_isinstance(value, "name", six.string_types)
+        self.assert_isinstance(value, "name", str)
         self._property_name = value
 
     @schema_property('next_task')
@@ -888,7 +887,7 @@ class QueueEntry(NonStrictDataModel):
         if isinstance(value, float) and value.is_integer():
             value = int(value)
 
-        self.assert_isinstance(value, "num_tasks", six.integer_types)
+        self.assert_isinstance(value, "num_tasks", int)
         self._property_num_tasks = value
 
 
@@ -1020,7 +1019,7 @@ class MachineStats(NonStrictDataModel):
 
         self.assert_isinstance(value, "cpu_usage", (list, tuple))
 
-        self.assert_isinstance(value, "cpu_usage", six.integer_types + (float,), is_array=True)
+        self.assert_isinstance(value, "cpu_usage", int + (float,), is_array=True)
         self._property_cpu_usage = value
 
     @schema_property('gpu_usage')
@@ -1035,7 +1034,7 @@ class MachineStats(NonStrictDataModel):
 
         self.assert_isinstance(value, "gpu_usage", (list, tuple))
 
-        self.assert_isinstance(value, "gpu_usage", six.integer_types + (float,), is_array=True)
+        self.assert_isinstance(value, "gpu_usage", int + (float,), is_array=True)
         self._property_gpu_usage = value
 
     @schema_property('memory_used')
@@ -1050,7 +1049,7 @@ class MachineStats(NonStrictDataModel):
         if isinstance(value, float) and value.is_integer():
             value = int(value)
 
-        self.assert_isinstance(value, "memory_used", six.integer_types)
+        self.assert_isinstance(value, "memory_used", int)
         self._property_memory_used = value
 
     @schema_property('memory_free')
@@ -1065,7 +1064,7 @@ class MachineStats(NonStrictDataModel):
         if isinstance(value, float) and value.is_integer():
             value = int(value)
 
-        self.assert_isinstance(value, "memory_free", six.integer_types)
+        self.assert_isinstance(value, "memory_free", int)
         self._property_memory_free = value
 
     @schema_property('gpu_memory_free')
@@ -1081,7 +1080,7 @@ class MachineStats(NonStrictDataModel):
         self.assert_isinstance(value, "gpu_memory_free", (list, tuple))
         value = [int(v) if isinstance(v, float) and v.is_integer() else v for v in value]
 
-        self.assert_isinstance(value, "gpu_memory_free", six.integer_types, is_array=True)
+        self.assert_isinstance(value, "gpu_memory_free", int, is_array=True)
         self._property_gpu_memory_free = value
 
     @schema_property('gpu_memory_used')
@@ -1097,7 +1096,7 @@ class MachineStats(NonStrictDataModel):
         self.assert_isinstance(value, "gpu_memory_used", (list, tuple))
         value = [int(v) if isinstance(v, float) and v.is_integer() else v for v in value]
 
-        self.assert_isinstance(value, "gpu_memory_used", six.integer_types, is_array=True)
+        self.assert_isinstance(value, "gpu_memory_used", int, is_array=True)
         self._property_gpu_memory_used = value
 
     @schema_property('network_tx')
@@ -1112,7 +1111,7 @@ class MachineStats(NonStrictDataModel):
         if isinstance(value, float) and value.is_integer():
             value = int(value)
 
-        self.assert_isinstance(value, "network_tx", six.integer_types)
+        self.assert_isinstance(value, "network_tx", int)
         self._property_network_tx = value
 
     @schema_property('network_rx')
@@ -1127,7 +1126,7 @@ class MachineStats(NonStrictDataModel):
         if isinstance(value, float) and value.is_integer():
             value = int(value)
 
-        self.assert_isinstance(value, "network_rx", six.integer_types)
+        self.assert_isinstance(value, "network_rx", int)
         self._property_network_rx = value
 
     @schema_property('disk_free_home')
@@ -1142,7 +1141,7 @@ class MachineStats(NonStrictDataModel):
         if isinstance(value, float) and value.is_integer():
             value = int(value)
 
-        self.assert_isinstance(value, "disk_free_home", six.integer_types)
+        self.assert_isinstance(value, "disk_free_home", int)
         self._property_disk_free_home = value
 
     @schema_property('disk_free_temp')
@@ -1157,7 +1156,7 @@ class MachineStats(NonStrictDataModel):
         if isinstance(value, float) and value.is_integer():
             value = int(value)
 
-        self.assert_isinstance(value, "disk_free_temp", six.integer_types)
+        self.assert_isinstance(value, "disk_free_temp", int)
         self._property_disk_free_temp = value
 
     @schema_property('disk_read')
@@ -1172,7 +1171,7 @@ class MachineStats(NonStrictDataModel):
         if isinstance(value, float) and value.is_integer():
             value = int(value)
 
-        self.assert_isinstance(value, "disk_read", six.integer_types)
+        self.assert_isinstance(value, "disk_read", int)
         self._property_disk_read = value
 
     @schema_property('disk_write')
@@ -1187,7 +1186,7 @@ class MachineStats(NonStrictDataModel):
         if isinstance(value, float) and value.is_integer():
             value = int(value)
 
-        self.assert_isinstance(value, "disk_write", six.integer_types)
+        self.assert_isinstance(value, "disk_write", int)
         self._property_disk_write = value
 
     @schema_property('cpu_temperature')
@@ -1202,7 +1201,7 @@ class MachineStats(NonStrictDataModel):
 
         self.assert_isinstance(value, "cpu_temperature", (list, tuple))
 
-        self.assert_isinstance(value, "cpu_temperature", six.integer_types + (float,), is_array=True)
+        self.assert_isinstance(value, "cpu_temperature", int + (float,), is_array=True)
         self._property_cpu_temperature = value
 
     @schema_property('gpu_temperature')
@@ -1217,7 +1216,7 @@ class MachineStats(NonStrictDataModel):
 
         self.assert_isinstance(value, "gpu_temperature", (list, tuple))
 
-        self.assert_isinstance(value, "gpu_temperature", six.integer_types + (float,), is_array=True)
+        self.assert_isinstance(value, "gpu_temperature", int + (float,), is_array=True)
         self._property_gpu_temperature = value
 
 
@@ -1274,7 +1273,7 @@ class GetActivityReportRequest(Request):
             self._property_from_date = None
             return
 
-        self.assert_isinstance(value, "from_date", six.integer_types + (float,))
+        self.assert_isinstance(value, "from_date", int + (float,))
         self._property_from_date = value
 
     @schema_property('to_date')
@@ -1287,7 +1286,7 @@ class GetActivityReportRequest(Request):
             self._property_to_date = None
             return
 
-        self.assert_isinstance(value, "to_date", six.integer_types + (float,))
+        self.assert_isinstance(value, "to_date", int + (float,))
         self._property_to_date = value
 
     @schema_property('interval')
@@ -1302,7 +1301,7 @@ class GetActivityReportRequest(Request):
         if isinstance(value, float) and value.is_integer():
             value = int(value)
 
-        self.assert_isinstance(value, "interval", six.integer_types)
+        self.assert_isinstance(value, "interval", int)
         self._property_interval = value
 
 
@@ -1434,7 +1433,7 @@ class GetAllRequest(Request):
         if isinstance(value, float) and value.is_integer():
             value = int(value)
 
-        self.assert_isinstance(value, "last_seen", six.integer_types)
+        self.assert_isinstance(value, "last_seen", int)
         self._property_last_seen = value
 
 
@@ -1630,7 +1629,7 @@ class GetMetricKeysRequest(Request):
 
         self.assert_isinstance(value, "worker_ids", (list, tuple))
 
-        self.assert_isinstance(value, "worker_ids", six.string_types, is_array=True)
+        self.assert_isinstance(value, "worker_ids", str, is_array=True)
         self._property_worker_ids = value
 
 
@@ -1796,7 +1795,7 @@ class GetStatsRequest(Request):
 
         self.assert_isinstance(value, "worker_ids", (list, tuple))
 
-        self.assert_isinstance(value, "worker_ids", six.string_types, is_array=True)
+        self.assert_isinstance(value, "worker_ids", str, is_array=True)
         self._property_worker_ids = value
 
     @schema_property('from_date')
@@ -1809,7 +1808,7 @@ class GetStatsRequest(Request):
             self._property_from_date = None
             return
 
-        self.assert_isinstance(value, "from_date", six.integer_types + (float,))
+        self.assert_isinstance(value, "from_date", int + (float,))
         self._property_from_date = value
 
     @schema_property('to_date')
@@ -1822,7 +1821,7 @@ class GetStatsRequest(Request):
             self._property_to_date = None
             return
 
-        self.assert_isinstance(value, "to_date", six.integer_types + (float,))
+        self.assert_isinstance(value, "to_date", int + (float,))
         self._property_to_date = value
 
     @schema_property('interval')
@@ -1837,7 +1836,7 @@ class GetStatsRequest(Request):
         if isinstance(value, float) and value.is_integer():
             value = int(value)
 
-        self.assert_isinstance(value, "interval", six.integer_types)
+        self.assert_isinstance(value, "interval", int)
         self._property_interval = value
 
     @schema_property('items')
@@ -2030,7 +2029,7 @@ class RegisterRequest(Request):
             self._property_worker = None
             return
 
-        self.assert_isinstance(value, "worker", six.string_types)
+        self.assert_isinstance(value, "worker", str)
         self._property_worker = value
 
     @schema_property('timeout')
@@ -2045,7 +2044,7 @@ class RegisterRequest(Request):
         if isinstance(value, float) and value.is_integer():
             value = int(value)
 
-        self.assert_isinstance(value, "timeout", six.integer_types)
+        self.assert_isinstance(value, "timeout", int)
         self._property_timeout = value
 
     @schema_property('queues')
@@ -2060,7 +2059,7 @@ class RegisterRequest(Request):
 
         self.assert_isinstance(value, "queues", (list, tuple))
 
-        self.assert_isinstance(value, "queues", six.string_types, is_array=True)
+        self.assert_isinstance(value, "queues", str, is_array=True)
         self._property_queues = value
 
 
@@ -2217,7 +2216,7 @@ class StatusReportRequest(Request):
             self._property_worker = None
             return
 
-        self.assert_isinstance(value, "worker", six.string_types)
+        self.assert_isinstance(value, "worker", str)
         self._property_worker = value
 
     @schema_property('task')
@@ -2230,7 +2229,7 @@ class StatusReportRequest(Request):
             self._property_task = None
             return
 
-        self.assert_isinstance(value, "task", six.string_types)
+        self.assert_isinstance(value, "task", str)
         self._property_task = value
 
     @schema_property('queue')
@@ -2243,7 +2242,7 @@ class StatusReportRequest(Request):
             self._property_queue = None
             return
 
-        self.assert_isinstance(value, "queue", six.string_types)
+        self.assert_isinstance(value, "queue", str)
         self._property_queue = value
 
     @schema_property('queues')
@@ -2258,7 +2257,7 @@ class StatusReportRequest(Request):
 
         self.assert_isinstance(value, "queues", (list, tuple))
 
-        self.assert_isinstance(value, "queues", six.string_types, is_array=True)
+        self.assert_isinstance(value, "queues", str, is_array=True)
         self._property_queues = value
 
     @schema_property('timestamp')
@@ -2273,7 +2272,7 @@ class StatusReportRequest(Request):
         if isinstance(value, float) and value.is_integer():
             value = int(value)
 
-        self.assert_isinstance(value, "timestamp", six.integer_types)
+        self.assert_isinstance(value, "timestamp", int)
         self._property_timestamp = value
 
     @schema_property('machine_stats')
@@ -2341,7 +2340,7 @@ class UnregisterRequest(Request):
             self._property_worker = None
             return
 
-        self.assert_isinstance(value, "worker", six.string_types)
+        self.assert_isinstance(value, "worker", str)
         self._property_worker = value
 
 

@@ -11,7 +11,7 @@ from cairnml_agent.backend_api.services import queues as queues_api
 from cairnml_agent.backend_api.session import Request
 from cairnml_agent.external.pyhocon import ConfigTree
 from cairnml_agent.helper.task_logs import send_logs_to_task
-from .._vendor import pyyaml as yaml
+import yaml
 
 log = logging.getLogger(__name__)
 

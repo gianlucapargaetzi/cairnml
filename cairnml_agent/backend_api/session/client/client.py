@@ -12,7 +12,6 @@ from operator import itemgetter
 from types import ModuleType
 from typing import Dict, Text, Tuple, Type, Any, Sequence
 
-from ...._vendor import six
 from ... import services as api_services
 from ....backend_api.session import CallResult
 from ....backend_api.session import Session, Request as APIRequest
@@ -32,7 +31,6 @@ def api_entity_name(service):
     return module_name(service).rstrip("s")
 
 
-@six.python_2_unicode_compatible
 class APIError(Exception):
     """
     Class for representing an API error.
@@ -176,7 +174,6 @@ class Response(object):
         return list(set(chain(super(Response, self).__dir__(), fields)) - {"response"})
 
 
-@six.python_2_unicode_compatible
 class TableResponse(Response):
 
     """
@@ -270,8 +267,7 @@ class TableResponse(Response):
         return len(self.response)
 
 
-@six.add_metaclass(abc.ABCMeta)
-class Entity(object):
+class Entity(object, metaclass=abc.ABCMeta):
 
     """
     Represent a server object.
@@ -425,8 +421,7 @@ def make_action(service, request_cls):
     return get
 
 
-@six.add_metaclass(abc.ABCMeta)
-class Service(object):
+class Service(object, metaclass=abc.ABCMeta):
 
     """
     Superclass for action-grouping classes.

@@ -1,7 +1,6 @@
 import abc
 from typing import Optional, Any, Tuple, Callable, Dict
 
-from ..._vendor import six
 
 from .converters import any_to_bool
 
@@ -17,8 +16,7 @@ NotSet = object()
 Converter = Callable[[Any], Any]
 
 
-@six.add_metaclass(abc.ABCMeta)
-class Entry(object):
+class Entry(object, metaclass=abc.ABCMeta):
     """
     Configuration entry definition
     """
@@ -29,26 +27,26 @@ class Entry(object):
         if self.lstrip and self.rstrip:
 
             def str_convert(s):
-                return six.text_type(s).strip()
+                return str(s).strip()
 
         elif self.lstrip:
 
             def str_convert(s):
-                return six.text_type(s).lstrip()
+                return str(s).lstrip()
 
         elif self.rstrip:
 
             def str_convert(s):
-                return six.text_type(s).rstrip()
+                return str(s).rstrip()
 
         else:
 
             def str_convert(s):
-                return six.text_type(s)
+                return str(s)
 
         return {
             bool: lambda x: any_to_bool(x.strip()),
-            six.text_type: str_convert,
+            str: str_convert,
         }
 
     def __init__(self, key, *more_keys, **kwargs):
@@ -66,7 +64,7 @@ class Entry(object):
         :param help: Help text describing this entry
         """
         self.keys = (key,) + more_keys
-        self.type = kwargs.pop("type", six.text_type)
+        self.type = kwargs.pop("type", str)
         self.converter = kwargs.pop("converter", None)
         self.default = kwargs.pop("default", None)
         self.help = kwargs.pop("help", None)

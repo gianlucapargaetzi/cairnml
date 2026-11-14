@@ -2,8 +2,6 @@ import attr
 import pytest
 import requests
 from furl import furl
-
-import six
 from cairnml_agent.helper.package.pytorch import PytorchRequirement
 
 
@@ -24,7 +22,7 @@ wheels = [
     for python, python_d in cuda_d.items()
     if isinstance(python_d, dict)
     for pytorch_version, url in python_d.items()
-    if isinstance(url, six.string_types) and furl(url).scheme
+    if isinstance(url, str) and furl(url).scheme
 ]
 
 

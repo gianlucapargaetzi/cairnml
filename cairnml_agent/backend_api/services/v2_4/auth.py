@@ -4,12 +4,11 @@ auth service
 This service provides authentication management and authorization
 validation for the entire system.
 """
-from ...._vendor import six
 import types
 from datetime import datetime
 import enum
 
-from ...._vendor.dateutil.parser import parse as parse_datetime
+from dateutil.parser import parse as parse_datetime
 
 from ....backend_api.session import Request, BatchRequest, Response, DataModel, NonStrictDataModel, CompoundRequest, schema_property, StringEnum
 
@@ -50,7 +49,7 @@ class Credentials(NonStrictDataModel):
             self._property_access_key = None
             return
 
-        self.assert_isinstance(value, "access_key", six.string_types)
+        self.assert_isinstance(value, "access_key", str)
         self._property_access_key = value
 
     @schema_property('secret_key')
@@ -63,7 +62,7 @@ class Credentials(NonStrictDataModel):
             self._property_secret_key = None
             return
 
-        self.assert_isinstance(value, "secret_key", six.string_types)
+        self.assert_isinstance(value, "secret_key", str)
         self._property_secret_key = value
 
 
@@ -105,7 +104,7 @@ class CredentialKey(NonStrictDataModel):
             self._property_access_key = None
             return
 
-        self.assert_isinstance(value, "access_key", six.string_types)
+        self.assert_isinstance(value, "access_key", str)
         self._property_access_key = value
 
     @schema_property('last_used')
@@ -118,7 +117,7 @@ class CredentialKey(NonStrictDataModel):
             self._property_last_used = None
             return
 
-        self.assert_isinstance(value, "last_used", six.string_types + (datetime,))
+        self.assert_isinstance(value, "last_used", str + (datetime,))
         if not isinstance(value, datetime):
             value = parse_datetime(value)
         self._property_last_used = value
@@ -133,7 +132,7 @@ class CredentialKey(NonStrictDataModel):
             self._property_last_used_from = None
             return
 
-        self.assert_isinstance(value, "last_used_from", six.string_types)
+        self.assert_isinstance(value, "last_used_from", str)
         self._property_last_used_from = value
 
 
@@ -259,7 +258,7 @@ class EditUserRequest(Request):
             self._property_user = None
             return
 
-        self.assert_isinstance(value, "user", six.string_types)
+        self.assert_isinstance(value, "user", str)
         self._property_user = value
 
     @schema_property('role')
@@ -272,7 +271,7 @@ class EditUserRequest(Request):
             self._property_role = None
             return
 
-        self.assert_isinstance(value, "role", six.string_types)
+        self.assert_isinstance(value, "role", str)
         self._property_role = value
 
 
@@ -321,7 +320,7 @@ class EditUserResponse(Response):
             self._property_updated = None
             return
 
-        self.assert_isinstance(value, "updated", six.integer_types + (float,))
+        self.assert_isinstance(value, "updated", int + (float,))
         self._property_updated = value
 
     @schema_property('fields')
@@ -461,7 +460,7 @@ class LoginRequest(Request):
         if isinstance(value, float) and value.is_integer():
             value = int(value)
 
-        self.assert_isinstance(value, "expiration_sec", six.integer_types)
+        self.assert_isinstance(value, "expiration_sec", int)
         self._property_expiration_sec = value
 
 
@@ -498,7 +497,7 @@ class LoginResponse(Response):
             self._property_token = None
             return
 
-        self.assert_isinstance(value, "token", six.string_types)
+        self.assert_isinstance(value, "token", str)
         self._property_token = value
 
 
@@ -564,7 +563,7 @@ class RevokeCredentialsRequest(Request):
             self._property_access_key = None
             return
 
-        self.assert_isinstance(value, "access_key", six.string_types)
+        self.assert_isinstance(value, "access_key", str)
         self._property_access_key = value
 
 
@@ -607,7 +606,7 @@ class RevokeCredentialsResponse(Response):
         if isinstance(value, float) and value.is_integer():
             value = int(value)
 
-        self.assert_isinstance(value, "revoked", six.integer_types)
+        self.assert_isinstance(value, "revoked", int)
         self._property_revoked = value
 
 

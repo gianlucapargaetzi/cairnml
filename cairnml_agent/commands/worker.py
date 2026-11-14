@@ -28,10 +28,9 @@ from threading import Thread
 from time import sleep, time
 from typing import Text, Optional, Any, Tuple, List, Dict, Mapping, Union
 
-from .._vendor import attr
-from .._vendor import six
-from .._vendor.pathlib2 import Path
-from .._vendor.six.moves.urllib.parse import quote  # noqa
+import attr
+from pathlib import Path
+from urllib.parse import quote  # noqa
 
 from cairnml_agent.external.pyhocon import ConfigTree, ConfigFactory
 from cairnml_agent.backend_api.services import auth as auth_api
@@ -2374,7 +2373,7 @@ class Worker(ServiceCommandSection):
                         gpu_queues=dynamic_gpus,
                     )
                 except Exception as e:
-                    tb = six.text_type(traceback.format_exc())
+                    tb = str(traceback.format_exc())
                     print("FATAL ERROR:")
                     print(tb)
 
@@ -2514,7 +2513,7 @@ class Worker(ServiceCommandSection):
                 if api:
                     api.pop("credentials", None)
 
-            new_content = six.text_type(json.dumps(config_data, cls=HOCONEncoder, indent=4))
+            new_content = str(json.dumps(config_data, cls=HOCONEncoder, indent=4))
             # Overwrite file only if the content is different, because we are mounting the same file  into
             # multiple containers in services mode, and we don't want to change it if we do not have to.
             if new_content != current_content:
@@ -4866,7 +4865,7 @@ class Worker(ServiceCommandSection):
             docker_arguments = docker_args[1:]
         else:
             docker_arguments = self._session.config.get("agent.default_docker.arguments", None) or []
-            if isinstance(docker_arguments, six.string_types):
+            if isinstance(docker_arguments, str):
                 docker_arguments = [docker_arguments]
 
         # store docker arguments
@@ -5332,7 +5331,7 @@ class Worker(ServiceCommandSection):
             # we always resolve environments in the `extra_docker_arguments` because the admin set them (not users)
             extra_docker_arguments = self._resolve_docker_env_args(extra_docker_arguments)
             extra_docker_arguments = [extra_docker_arguments] \
-                if isinstance(extra_docker_arguments, six.string_types) else extra_docker_arguments
+                if isinstance(extra_docker_arguments, str) else extra_docker_arguments
 
         # decide on order of docker args when merging overlapping arguments
         # from extra_docker_args and the Task's docker_args

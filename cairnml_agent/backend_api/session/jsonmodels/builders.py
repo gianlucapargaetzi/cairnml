@@ -4,7 +4,6 @@ from __future__ import absolute_import
 
 from collections import defaultdict
 
-from ...._vendor import six
 
 from . import errors
 from .fields import NotSet
@@ -138,7 +137,7 @@ class PrimitiveBuilder(Builder):
 
     def build(self):
         schema = {}
-        if issubclass(self.type, six.string_types):
+        if issubclass(self.type, str):
             obj_type = 'string'
         elif issubclass(self.type, bool):
             obj_type = 'boolean'

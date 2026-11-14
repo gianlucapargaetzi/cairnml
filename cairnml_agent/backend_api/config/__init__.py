@@ -1,6 +1,6 @@
 from ...backend_config import Config
 from ...backend_config.defs import ENV_CONFIG_VERBOSE
-from ..._vendor.pathlib2 import Path
+from pathlib import Path
 
 
 def load(*additional_module_paths):

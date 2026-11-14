@@ -1,10 +1,9 @@
 from __future__ import absolute_import
 
-from ...._vendor import six
 import re
 from collections import namedtuple
 
-SCALAR_TYPES = tuple(list(six.string_types) + [int, float, bool])
+SCALAR_TYPES = tuple(list(str) + [int, float, bool])
 
 ECMA_TO_PYTHON_FLAGS = {
     'i': re.I,
@@ -19,8 +18,8 @@ PythonRegex = namedtuple('PythonRegex', ['regex', 'flags'])
 
 
 def _normalize_string_type(value):
-    if isinstance(value, six.string_types):
-        return six.text_type(value)
+    if isinstance(value, str):
+        return str(value)
     else:
         return value
 

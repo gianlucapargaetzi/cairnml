@@ -1,7 +1,7 @@
 import sys
 from typing import Any
 
-from ...._vendor.pathlib2 import Path
+from pathlib import Path
 
 from cairnml_agent.helper.base import select_for_platform, rm_tree, ExecutionInfo
 from cairnml_agent.helper.package.base import PackageManager

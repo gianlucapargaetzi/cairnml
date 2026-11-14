@@ -5,10 +5,8 @@ import sys
 from collections.abc import Iterable
 from typing import List, Dict, Text, Any
 
-from .._vendor.attr import attrs, attrib
+from attr import attrs, attrib
 
-from .._vendor import six
-from .._vendor.six import binary_type, text_type
 from cairnml_agent.helper.base import nonstrict_in_place_sort
 
 
@@ -41,7 +39,7 @@ def decode_binary_lines(binary_lines, encoding='utf-8', replace_cr=False, overwr
 
 
 def ensure_text(s, encoding='utf-8', errors='strict'):
-    """Coerce *s* to six.text_type.
+    """Coerce *s* to str.
     For Python 2:
       - `unicode` -> `unicode`
       - `str` -> `unicode`
@@ -49,16 +47,16 @@ def ensure_text(s, encoding='utf-8', errors='strict'):
       - `str` -> `str`
       - `bytes` -> decoded to `str`
     """
-    if isinstance(s, binary_type):
+    if isinstance(s, bytes):
         return s.decode(encoding, errors)
-    elif isinstance(s, text_type):
+    elif isinstance(s, str):
         return s
     else:
         raise TypeError("not expecting type '%s'" % type(s))
 
 
 def ensure_binary(s, encoding='utf-8', errors='strict'):
-    """Coerce **s** to six.binary_type.
+    """Coerce **s** to bytes.
     For Python 2:
       - `unicode` -> encoded to `str`
       - `str` -> `str`
@@ -66,9 +64,9 @@ def ensure_binary(s, encoding='utf-8', errors='strict'):
       - `str` -> encoded to `bytes`
       - `bytes` -> `bytes`
     """
-    if isinstance(s, text_type):
+    if isinstance(s, str):
         return s.encode(encoding, errors)
-    elif isinstance(s, binary_type):
+    elif isinstance(s, bytes):
         return s
     else:
         raise TypeError("not expecting type '%s'" % type(s))
@@ -110,7 +108,7 @@ class ListFormatter(object):
 
     @staticmethod
     def sort_in_place(entries, key, reverse=None):
-        if isinstance(key, six.string_types):
+        if isinstance(key, str):
             nonstrict_in_place_sort(entries, reverse, *key.split('#'))
         elif callable(key):
             entries.sort(key=key, reverse=reverse)

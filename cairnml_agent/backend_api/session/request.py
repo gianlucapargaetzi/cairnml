@@ -1,7 +1,6 @@
 import abc
 
-from ..._vendor import jsonschema
-from ..._vendor import six
+import jsonschema
 
 from .apimodel import ApiModel
 from .datamodel import DataModel
@@ -34,8 +33,7 @@ class Request(ApiModel):
         return res
 
 
-@six.add_metaclass(abc.ABCMeta)
-class BatchRequest(Request):
+class BatchRequest(Request, metaclass=abc.ABCMeta):
 
     _batched_request_cls = abc.abstractproperty()
 

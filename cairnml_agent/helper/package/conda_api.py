@@ -9,11 +9,10 @@ from functools import partial
 from itertools import chain
 from typing import Text, Iterable, Union, Dict, Set, Sequence, Any
 
-from ..._vendor import six
-from ..._vendor import pyyaml as yaml
+import yaml
 from time import time
-from ..._vendor.attr import attrs, attrib, Factory
-from ..._vendor.pathlib2 import Path
+from attr import attrs, attrib, Factory
+from pathlib import Path
 from cairnml_agent.external.requirements_parser import parse
 from cairnml_agent.external.requirements_parser.requirement import Requirement
 
@@ -453,7 +452,7 @@ class CondaAPI(PackageManager):
             vcs_reqs = {}
             if 'pip' in requirements:
                 pip_lines = requirements['pip'].splitlines() \
-                    if isinstance(requirements['pip'], six.string_types) else requirements['pip']
+                    if isinstance(requirements['pip'], str) else requirements['pip']
                 for line in pip_lines:
                     try:
                         marker = list(parse(line))
@@ -499,9 +498,9 @@ class CondaAPI(PackageManager):
         conda_env = dict()
         conda_env['channels'] = self.extra_channels
         reqs = []
-        if isinstance(requirements['pip'], six.string_types):
+        if isinstance(requirements['pip'], str):
             requirements['pip'] = requirements['pip'].split('\n')
-        if isinstance(requirements.get('conda'), six.string_types):
+        if isinstance(requirements.get('conda'), str):
             requirements['conda'] = requirements['conda'].split('\n')
         has_torch = False
         has_matplotlib = False

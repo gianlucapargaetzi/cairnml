@@ -2,7 +2,7 @@ import re
 from collections import OrderedDict
 from typing import Text
 
-from ..._vendor.pathlib2 import Path
+from pathlib import Path
 
 from .base import PackageManager
 from .requirements import SimpleSubstitution

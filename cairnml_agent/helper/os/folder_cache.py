@@ -6,7 +6,7 @@ from time import time
 from typing import List, Optional, Sequence
 
 import psutil
-from ..._vendor.pathlib2 import Path
+from pathlib import Path
 
 from .locks import FileLock
 

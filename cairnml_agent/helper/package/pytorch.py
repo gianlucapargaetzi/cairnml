@@ -4,16 +4,15 @@ import os
 import re
 import sys
 import platform
-from ..._vendor.furl import furl
+from furl import furl
 import urllib.parse
 from operator import itemgetter
 from html.parser import HTMLParser
 from typing import Text, Optional, Dict
 
-from ..._vendor import attr
+import attr
 import requests
 
-from ..._vendor import six
 from .requirements import (
     SimpleSubstitution, FatalSpecsResolutionError, SimpleVersion, MarkerRequirement,
     compare_version_rules, )
@@ -607,7 +606,7 @@ class PytorchRequirement(SimpleSubstitution):
                 "Could not find pytorch wheel URL for: {} with cuda {} support".format(req, self.cuda_version)
             )
             # cancel exception chaining
-            six.raise_from(exc, None)
+            raise exc from None
 
         self.log.debug('Replacing requirement "%s" with %r', req, result)
         return result

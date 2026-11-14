@@ -10,11 +10,10 @@ from operator import itemgetter
 from os import path
 from typing import Text, List, Type, Optional, Tuple, Dict
 
-from ..._vendor.pathlib2 import Path
+from pathlib import Path
 from cairnml_agent.external.pyhocon import ConfigTree
 
-from ..._vendor import six
-from ..._vendor.six.moves.urllib.parse import unquote  # noqa
+from urllib.parse import unquote  # noqa
 import logging
 from cairnml_agent.definitions import PIP_EXTRA_INDICES
 from cairnml_agent.helper.base import (
@@ -37,7 +36,6 @@ class FatalSpecsResolutionError(Exception):
     pass
 
 
-@six.python_2_unicode_compatible
 class MarkerRequirement(object):
 
     # if True pip version above 20.x and with support for "package @ scheme://link"
@@ -484,8 +482,7 @@ def compare_version_rules(specs_a, specs_b):
     return valid
 
 
-@six.add_metaclass(ABCMeta)
-class RequirementSubstitution(object):
+class RequirementSubstitution(object, metaclass=ABCMeta):
 
     _pip_extra_index_url = PIP_EXTRA_INDICES
 
@@ -604,8 +601,7 @@ class SimpleSubstitution(RequirementSubstitution):
         return list_of_requirements
 
 
-@six.add_metaclass(ABCMeta)
-class CudaSensitiveSubstitution(SimpleSubstitution):
+class CudaSensitiveSubstitution(SimpleSubstitution, metaclass=ABCMeta):
 
     def match(self, req):  # type: (MarkerRequirement) -> bool
         return self.cuda_version and self.cudnn_version and \

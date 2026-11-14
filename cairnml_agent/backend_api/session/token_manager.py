@@ -4,11 +4,9 @@ from time import time
 
 import jwt
 from jwt.algorithms import get_default_algorithms
-from ..._vendor import six
 
 
-@six.add_metaclass(ABCMeta)
-class TokenManager(object):
+class TokenManager(object, metaclass=ABCMeta):
     _default_token_exp_threshold_sec = 12 * 60 * 60
     _default_req_token_expiration_sec = None
 

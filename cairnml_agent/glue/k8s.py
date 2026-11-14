@@ -45,7 +45,7 @@ from cairnml_agent.glue.definitions import (
     ENV_KUBECTL_IGNORE_ERROR,
     ENV_COMPLETED_POD_DELETION_DELAY_MINUTES,
 )
-from .._vendor import pyyaml as yaml
+import yaml
 
 
 class K8sIntegration(Worker):

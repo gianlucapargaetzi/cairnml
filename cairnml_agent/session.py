@@ -9,8 +9,8 @@ import sys
 from copy import deepcopy
 from typing import Any, Callable
 
-from ._vendor import attr
-from ._vendor.pathlib2 import Path
+import attr
+from pathlib import Path
 
 from cairnml_agent.external.pyhocon import ConfigFactory, HOCONConverter, ConfigTree
 from cairnml_agent.backend_api.session import Session as _Session, Request

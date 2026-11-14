@@ -5,8 +5,7 @@ import argparse
 from copy import deepcopy
 from functools import partial
 
-from .._vendor import six
-from .._vendor.pathlib2 import Path
+from pathlib import Path
 
 from cairnml_agent import definitions
 from cairnml_agent.session import Session
@@ -213,8 +212,7 @@ def add_service(subparsers, name, commands, command_name_dest='command', formatt
     return service_parser
 
 
-@six.add_metaclass(abc.ABCMeta)
-class CommandType(object):
+class CommandType(object, metaclass=abc.ABCMeta):
 
     def __init__(self, *args, **kwargs):
         self._args = args

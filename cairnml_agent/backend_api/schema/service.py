@@ -1,8 +1,7 @@
 import itertools
 import re
 
-from ..._vendor import attr
-from ..._vendor import six
+import attr
 
 from cairnml_agent.external import pyhocon
 
@@ -123,7 +122,7 @@ class Service(object):
         refs = set()
         if isinstance(s, dict):
             for k, v in s.items():
-                if isinstance(v, six.string_types):
+                if isinstance(v, str):
                     m = self.__jsonschema_ref_ex.match(v)
                     if m:
                         refs.add(m.group(1))

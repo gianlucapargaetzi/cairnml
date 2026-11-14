@@ -4,8 +4,7 @@ from enum import IntEnum
 from os import getenv, environ
 from typing import Text, Optional, Union, Tuple, Any
 
-from ._vendor import six
-from ._vendor.pathlib2 import Path
+from pathlib import Path
 
 from cairnml_agent.helper.base import normalize_path
 from cairnml_agent.helper.environment.converters import strtobool
@@ -35,13 +34,13 @@ class EnvironmentConfig(object):
 
     conversions = {
         bool: lambda value: bool(strtobool(value)),
-        six.text_type: lambda s: six.text_type(s).strip(),
+        str: lambda s: str(s).strip(),
         list: lambda s: shlex.split(s.strip()),
     }
 
     def __init__(self, *names, **kwargs):
         self.vars = names
-        self.type = kwargs.pop("type", six.text_type)
+        self.type = kwargs.pop("type", str)
 
     def pop(self):
         for k in self.vars:

@@ -12,7 +12,6 @@ from typing import Text
 
 from cairnml_agent.helper.console import ListFormatter
 
-from .._vendor import six
 from cairnml_agent.backend_api import services
 
 from cairnml_agent.errors import APIError, CommandFailedError
@@ -48,7 +47,7 @@ def resolve_names(func):
             if len(result) == 1:
                 name, ex = result[0]
                 if ex:
-                    six.reraise(*ex)
+                    raise ex[1].with_traceback(ex[2])
                 return [name]
             for _, ex in result:
                 if ex:
@@ -82,8 +81,7 @@ class BaseCommandSection(object):
         sys.exit(code)
 
 
-@six.add_metaclass(Singleton)
-class ServiceCommandSection(BaseCommandSection):
+class ServiceCommandSection(BaseCommandSection, metaclass=Singleton):
     """
     Base class for command sections which interact with the allegro API.
     Contains API functionality which is common across services.
@@ -181,7 +179,7 @@ class ServiceCommandSection(BaseCommandSection):
     @staticmethod
     def _make_query(json, table, sort=None, projection_from_table=False, extra_fields=None):
         json = json.copy()
-        if isinstance(table, six.string_types):
+        if isinstance(table, str):
             table = table.split('#')
 
         if extra_fields:
@@ -251,7 +249,7 @@ class ServiceCommandSection(BaseCommandSection):
             first_key = next(iter(data_entries))
             info = data_entries[first_key]
             for p in override:
-                key, val = p.split('=') if isinstance(p, six.string_types) else p
+                key, val = p.split('=') if isinstance(p, str) else p
                 info_key = info
                 keys = key.split('.')
                 for k in keys[:-1]:

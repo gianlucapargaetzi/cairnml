@@ -9,9 +9,8 @@ from itertools import chain
 from types import ModuleType
 from typing import Text, Sequence, Union
 
-from .._vendor.pathlib2 import Path
+from pathlib import Path
 
-from .._vendor import six
 
 try:
     from functools import lru_cache
@@ -31,7 +30,7 @@ def get_module_path(module):
     :param module: Module object or name
     :return: module path
     """
-    if isinstance(module, six.string_types):
+    if isinstance(module, str):
         module = sys.modules[module]
     path = Path(module.__file__)
     return path.parent if path.stem == '__init__' else path

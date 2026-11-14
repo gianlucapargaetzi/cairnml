@@ -3,12 +3,11 @@ models service
 
 This service provides a management interface for models (results of training tasks) stored in the system.
 """
-from ...._vendor import six
 import types
 from datetime import datetime
 import enum
 
-from ...._vendor.dateutil.parser import parse as parse_datetime
+from dateutil.parser import parse as parse_datetime
 
 from ....backend_api.session import Request, BatchRequest, Response, DataModel, NonStrictDataModel, CompoundRequest, schema_property, StringEnum
 
@@ -50,7 +49,7 @@ class MultiFieldPatternData(NonStrictDataModel):
             self._property_pattern = None
             return
 
-        self.assert_isinstance(value, "pattern", six.string_types)
+        self.assert_isinstance(value, "pattern", str)
         self._property_pattern = value
 
     @schema_property('fields')
@@ -65,7 +64,7 @@ class MultiFieldPatternData(NonStrictDataModel):
 
         self.assert_isinstance(value, "fields", (list, tuple))
 
-        self.assert_isinstance(value, "fields", six.string_types, is_array=True)
+        self.assert_isinstance(value, "fields", str, is_array=True)
         self._property_fields = value
 
 
@@ -208,7 +207,7 @@ class Model(NonStrictDataModel):
             self._property_id = None
             return
 
-        self.assert_isinstance(value, "id", six.string_types)
+        self.assert_isinstance(value, "id", str)
         self._property_id = value
 
     @schema_property('name')
@@ -221,7 +220,7 @@ class Model(NonStrictDataModel):
             self._property_name = None
             return
 
-        self.assert_isinstance(value, "name", six.string_types)
+        self.assert_isinstance(value, "name", str)
         self._property_name = value
 
     @schema_property('user')
@@ -234,7 +233,7 @@ class Model(NonStrictDataModel):
             self._property_user = None
             return
 
-        self.assert_isinstance(value, "user", six.string_types)
+        self.assert_isinstance(value, "user", str)
         self._property_user = value
 
     @schema_property('company')
@@ -247,7 +246,7 @@ class Model(NonStrictDataModel):
             self._property_company = None
             return
 
-        self.assert_isinstance(value, "company", six.string_types)
+        self.assert_isinstance(value, "company", str)
         self._property_company = value
 
     @schema_property('created')
@@ -260,7 +259,7 @@ class Model(NonStrictDataModel):
             self._property_created = None
             return
 
-        self.assert_isinstance(value, "created", six.string_types + (datetime,))
+        self.assert_isinstance(value, "created", str + (datetime,))
         if not isinstance(value, datetime):
             value = parse_datetime(value)
         self._property_created = value
@@ -275,7 +274,7 @@ class Model(NonStrictDataModel):
             self._property_task = None
             return
 
-        self.assert_isinstance(value, "task", six.string_types)
+        self.assert_isinstance(value, "task", str)
         self._property_task = value
 
     @schema_property('parent')
@@ -288,7 +287,7 @@ class Model(NonStrictDataModel):
             self._property_parent = None
             return
 
-        self.assert_isinstance(value, "parent", six.string_types)
+        self.assert_isinstance(value, "parent", str)
         self._property_parent = value
 
     @schema_property('project')
@@ -301,7 +300,7 @@ class Model(NonStrictDataModel):
             self._property_project = None
             return
 
-        self.assert_isinstance(value, "project", six.string_types)
+        self.assert_isinstance(value, "project", str)
         self._property_project = value
 
     @schema_property('comment')
@@ -314,7 +313,7 @@ class Model(NonStrictDataModel):
             self._property_comment = None
             return
 
-        self.assert_isinstance(value, "comment", six.string_types)
+        self.assert_isinstance(value, "comment", str)
         self._property_comment = value
 
     @schema_property('tags')
@@ -329,7 +328,7 @@ class Model(NonStrictDataModel):
 
         self.assert_isinstance(value, "tags", (list, tuple))
 
-        self.assert_isinstance(value, "tags", six.string_types, is_array=True)
+        self.assert_isinstance(value, "tags", str, is_array=True)
         self._property_tags = value
 
     @schema_property('system_tags')
@@ -344,7 +343,7 @@ class Model(NonStrictDataModel):
 
         self.assert_isinstance(value, "system_tags", (list, tuple))
 
-        self.assert_isinstance(value, "system_tags", six.string_types, is_array=True)
+        self.assert_isinstance(value, "system_tags", str, is_array=True)
         self._property_system_tags = value
 
     @schema_property('framework')
@@ -357,7 +356,7 @@ class Model(NonStrictDataModel):
             self._property_framework = None
             return
 
-        self.assert_isinstance(value, "framework", six.string_types)
+        self.assert_isinstance(value, "framework", str)
         self._property_framework = value
 
     @schema_property('design')
@@ -396,7 +395,7 @@ class Model(NonStrictDataModel):
             self._property_uri = None
             return
 
-        self.assert_isinstance(value, "uri", six.string_types)
+        self.assert_isinstance(value, "uri", str)
         self._property_uri = value
 
     @schema_property('ready')
@@ -545,7 +544,7 @@ class CreateRequest(Request):
             self._property_uri = None
             return
 
-        self.assert_isinstance(value, "uri", six.string_types)
+        self.assert_isinstance(value, "uri", str)
         self._property_uri = value
 
     @schema_property('name')
@@ -558,7 +557,7 @@ class CreateRequest(Request):
             self._property_name = None
             return
 
-        self.assert_isinstance(value, "name", six.string_types)
+        self.assert_isinstance(value, "name", str)
         self._property_name = value
 
     @schema_property('comment')
@@ -571,7 +570,7 @@ class CreateRequest(Request):
             self._property_comment = None
             return
 
-        self.assert_isinstance(value, "comment", six.string_types)
+        self.assert_isinstance(value, "comment", str)
         self._property_comment = value
 
     @schema_property('tags')
@@ -586,7 +585,7 @@ class CreateRequest(Request):
 
         self.assert_isinstance(value, "tags", (list, tuple))
 
-        self.assert_isinstance(value, "tags", six.string_types, is_array=True)
+        self.assert_isinstance(value, "tags", str, is_array=True)
         self._property_tags = value
 
     @schema_property('system_tags')
@@ -601,7 +600,7 @@ class CreateRequest(Request):
 
         self.assert_isinstance(value, "system_tags", (list, tuple))
 
-        self.assert_isinstance(value, "system_tags", six.string_types, is_array=True)
+        self.assert_isinstance(value, "system_tags", str, is_array=True)
         self._property_system_tags = value
 
     @schema_property('framework')
@@ -614,7 +613,7 @@ class CreateRequest(Request):
             self._property_framework = None
             return
 
-        self.assert_isinstance(value, "framework", six.string_types)
+        self.assert_isinstance(value, "framework", str)
         self._property_framework = value
 
     @schema_property('design')
@@ -679,7 +678,7 @@ class CreateRequest(Request):
             self._property_project = None
             return
 
-        self.assert_isinstance(value, "project", six.string_types)
+        self.assert_isinstance(value, "project", str)
         self._property_project = value
 
     @schema_property('parent')
@@ -692,7 +691,7 @@ class CreateRequest(Request):
             self._property_parent = None
             return
 
-        self.assert_isinstance(value, "parent", six.string_types)
+        self.assert_isinstance(value, "parent", str)
         self._property_parent = value
 
     @schema_property('task')
@@ -705,7 +704,7 @@ class CreateRequest(Request):
             self._property_task = None
             return
 
-        self.assert_isinstance(value, "task", six.string_types)
+        self.assert_isinstance(value, "task", str)
         self._property_task = value
 
 
@@ -749,7 +748,7 @@ class CreateResponse(Response):
             self._property_id = None
             return
 
-        self.assert_isinstance(value, "id", six.string_types)
+        self.assert_isinstance(value, "id", str)
         self._property_id = value
 
     @schema_property('created')
@@ -808,7 +807,7 @@ class DeleteRequest(Request):
             self._property_model = None
             return
 
-        self.assert_isinstance(value, "model", six.string_types)
+        self.assert_isinstance(value, "model", str)
         self._property_model = value
 
     @schema_property('force')
@@ -985,7 +984,7 @@ class EditRequest(Request):
             self._property_model = None
             return
 
-        self.assert_isinstance(value, "model", six.string_types)
+        self.assert_isinstance(value, "model", str)
         self._property_model = value
 
     @schema_property('uri')
@@ -998,7 +997,7 @@ class EditRequest(Request):
             self._property_uri = None
             return
 
-        self.assert_isinstance(value, "uri", six.string_types)
+        self.assert_isinstance(value, "uri", str)
         self._property_uri = value
 
     @schema_property('name')
@@ -1011,7 +1010,7 @@ class EditRequest(Request):
             self._property_name = None
             return
 
-        self.assert_isinstance(value, "name", six.string_types)
+        self.assert_isinstance(value, "name", str)
         self._property_name = value
 
     @schema_property('comment')
@@ -1024,7 +1023,7 @@ class EditRequest(Request):
             self._property_comment = None
             return
 
-        self.assert_isinstance(value, "comment", six.string_types)
+        self.assert_isinstance(value, "comment", str)
         self._property_comment = value
 
     @schema_property('tags')
@@ -1039,7 +1038,7 @@ class EditRequest(Request):
 
         self.assert_isinstance(value, "tags", (list, tuple))
 
-        self.assert_isinstance(value, "tags", six.string_types, is_array=True)
+        self.assert_isinstance(value, "tags", str, is_array=True)
         self._property_tags = value
 
     @schema_property('system_tags')
@@ -1054,7 +1053,7 @@ class EditRequest(Request):
 
         self.assert_isinstance(value, "system_tags", (list, tuple))
 
-        self.assert_isinstance(value, "system_tags", six.string_types, is_array=True)
+        self.assert_isinstance(value, "system_tags", str, is_array=True)
         self._property_system_tags = value
 
     @schema_property('framework')
@@ -1067,7 +1066,7 @@ class EditRequest(Request):
             self._property_framework = None
             return
 
-        self.assert_isinstance(value, "framework", six.string_types)
+        self.assert_isinstance(value, "framework", str)
         self._property_framework = value
 
     @schema_property('design')
@@ -1119,7 +1118,7 @@ class EditRequest(Request):
             self._property_project = None
             return
 
-        self.assert_isinstance(value, "project", six.string_types)
+        self.assert_isinstance(value, "project", str)
         self._property_project = value
 
     @schema_property('parent')
@@ -1132,7 +1131,7 @@ class EditRequest(Request):
             self._property_parent = None
             return
 
-        self.assert_isinstance(value, "parent", six.string_types)
+        self.assert_isinstance(value, "parent", str)
         self._property_parent = value
 
     @schema_property('task')
@@ -1145,7 +1144,7 @@ class EditRequest(Request):
             self._property_task = None
             return
 
-        self.assert_isinstance(value, "task", six.string_types)
+        self.assert_isinstance(value, "task", str)
         self._property_task = value
 
     @schema_property('iteration')
@@ -1160,7 +1159,7 @@ class EditRequest(Request):
         if isinstance(value, float) and value.is_integer():
             value = int(value)
 
-        self.assert_isinstance(value, "iteration", six.integer_types)
+        self.assert_isinstance(value, "iteration", int)
         self._property_iteration = value
 
 
@@ -1211,7 +1210,7 @@ class EditResponse(Response):
         if isinstance(value, float) and value.is_integer():
             value = int(value)
 
-        self.assert_isinstance(value, "updated", six.integer_types)
+        self.assert_isinstance(value, "updated", int)
         self._property_updated = value
 
     @schema_property('fields')
@@ -1413,7 +1412,7 @@ class GetAllRequest(Request):
             self._property_name = None
             return
 
-        self.assert_isinstance(value, "name", six.string_types)
+        self.assert_isinstance(value, "name", str)
         self._property_name = value
 
     @schema_property('ready')
@@ -1441,7 +1440,7 @@ class GetAllRequest(Request):
 
         self.assert_isinstance(value, "tags", (list, tuple))
 
-        self.assert_isinstance(value, "tags", six.string_types, is_array=True)
+        self.assert_isinstance(value, "tags", str, is_array=True)
         self._property_tags = value
 
     @schema_property('system_tags')
@@ -1456,7 +1455,7 @@ class GetAllRequest(Request):
 
         self.assert_isinstance(value, "system_tags", (list, tuple))
 
-        self.assert_isinstance(value, "system_tags", six.string_types, is_array=True)
+        self.assert_isinstance(value, "system_tags", str, is_array=True)
         self._property_system_tags = value
 
     @schema_property('only_fields')
@@ -1471,7 +1470,7 @@ class GetAllRequest(Request):
 
         self.assert_isinstance(value, "only_fields", (list, tuple))
 
-        self.assert_isinstance(value, "only_fields", six.string_types, is_array=True)
+        self.assert_isinstance(value, "only_fields", str, is_array=True)
         self._property_only_fields = value
 
     @schema_property('page')
@@ -1486,7 +1485,7 @@ class GetAllRequest(Request):
         if isinstance(value, float) and value.is_integer():
             value = int(value)
 
-        self.assert_isinstance(value, "page", six.integer_types)
+        self.assert_isinstance(value, "page", int)
         self._property_page = value
 
     @schema_property('page_size')
@@ -1501,7 +1500,7 @@ class GetAllRequest(Request):
         if isinstance(value, float) and value.is_integer():
             value = int(value)
 
-        self.assert_isinstance(value, "page_size", six.integer_types)
+        self.assert_isinstance(value, "page_size", int)
         self._property_page_size = value
 
     @schema_property('project')
@@ -1516,7 +1515,7 @@ class GetAllRequest(Request):
 
         self.assert_isinstance(value, "project", (list, tuple))
 
-        self.assert_isinstance(value, "project", six.string_types, is_array=True)
+        self.assert_isinstance(value, "project", str, is_array=True)
         self._property_project = value
 
     @schema_property('order_by')
@@ -1531,7 +1530,7 @@ class GetAllRequest(Request):
 
         self.assert_isinstance(value, "order_by", (list, tuple))
 
-        self.assert_isinstance(value, "order_by", six.string_types, is_array=True)
+        self.assert_isinstance(value, "order_by", str, is_array=True)
         self._property_order_by = value
 
     @schema_property('task')
@@ -1546,7 +1545,7 @@ class GetAllRequest(Request):
 
         self.assert_isinstance(value, "task", (list, tuple))
 
-        self.assert_isinstance(value, "task", six.string_types, is_array=True)
+        self.assert_isinstance(value, "task", str, is_array=True)
         self._property_task = value
 
     @schema_property('id')
@@ -1561,7 +1560,7 @@ class GetAllRequest(Request):
 
         self.assert_isinstance(value, "id", (list, tuple))
 
-        self.assert_isinstance(value, "id", six.string_types, is_array=True)
+        self.assert_isinstance(value, "id", str, is_array=True)
         self._property_id = value
 
     @schema_property('search_text')
@@ -1574,7 +1573,7 @@ class GetAllRequest(Request):
             self._property_search_text = None
             return
 
-        self.assert_isinstance(value, "search_text", six.string_types)
+        self.assert_isinstance(value, "search_text", str)
         self._property_search_text = value
 
     @schema_property('framework')
@@ -1589,7 +1588,7 @@ class GetAllRequest(Request):
 
         self.assert_isinstance(value, "framework", (list, tuple))
 
-        self.assert_isinstance(value, "framework", six.string_types, is_array=True)
+        self.assert_isinstance(value, "framework", str, is_array=True)
         self._property_framework = value
 
     @schema_property('uri')
@@ -1604,7 +1603,7 @@ class GetAllRequest(Request):
 
         self.assert_isinstance(value, "uri", (list, tuple))
 
-        self.assert_isinstance(value, "uri", six.string_types, is_array=True)
+        self.assert_isinstance(value, "uri", str, is_array=True)
         self._property_uri = value
 
     @schema_property('_all_')
@@ -1792,7 +1791,7 @@ class GetByIdRequest(Request):
             self._property_model = None
             return
 
-        self.assert_isinstance(value, "model", six.string_types)
+        self.assert_isinstance(value, "model", str)
         self._property_model = value
 
 
@@ -1948,7 +1947,7 @@ class GetByTaskIdRequest(Request):
             self._property_task = None
             return
 
-        self.assert_isinstance(value, "task", six.string_types)
+        self.assert_isinstance(value, "task", str)
         self._property_task = value
 
 
@@ -2121,7 +2120,7 @@ class SetReadyRequest(Request):
             self._property_model = None
             return
 
-        self.assert_isinstance(value, "model", six.string_types)
+        self.assert_isinstance(value, "model", str)
         self._property_model = value
 
     @schema_property('force_publish_task')
@@ -2226,7 +2225,7 @@ class SetReadyResponse(Response):
         if isinstance(value, float) and value.is_integer():
             value = int(value)
 
-        self.assert_isinstance(value, "updated", six.integer_types)
+        self.assert_isinstance(value, "updated", int)
         self._property_updated = value
 
     @schema_property('published_task')
@@ -2349,7 +2348,7 @@ class UpdateRequest(Request):
             self._property_model = None
             return
 
-        self.assert_isinstance(value, "model", six.string_types)
+        self.assert_isinstance(value, "model", str)
         self._property_model = value
 
     @schema_property('name')
@@ -2362,7 +2361,7 @@ class UpdateRequest(Request):
             self._property_name = None
             return
 
-        self.assert_isinstance(value, "name", six.string_types)
+        self.assert_isinstance(value, "name", str)
         self._property_name = value
 
     @schema_property('comment')
@@ -2375,7 +2374,7 @@ class UpdateRequest(Request):
             self._property_comment = None
             return
 
-        self.assert_isinstance(value, "comment", six.string_types)
+        self.assert_isinstance(value, "comment", str)
         self._property_comment = value
 
     @schema_property('tags')
@@ -2390,7 +2389,7 @@ class UpdateRequest(Request):
 
         self.assert_isinstance(value, "tags", (list, tuple))
 
-        self.assert_isinstance(value, "tags", six.string_types, is_array=True)
+        self.assert_isinstance(value, "tags", str, is_array=True)
         self._property_tags = value
 
     @schema_property('system_tags')
@@ -2405,7 +2404,7 @@ class UpdateRequest(Request):
 
         self.assert_isinstance(value, "system_tags", (list, tuple))
 
-        self.assert_isinstance(value, "system_tags", six.string_types, is_array=True)
+        self.assert_isinstance(value, "system_tags", str, is_array=True)
         self._property_system_tags = value
 
     @schema_property('ready')
@@ -2431,7 +2430,7 @@ class UpdateRequest(Request):
             self._property_created = None
             return
 
-        self.assert_isinstance(value, "created", six.string_types + (datetime,))
+        self.assert_isinstance(value, "created", str + (datetime,))
         if not isinstance(value, datetime):
             value = parse_datetime(value)
         self._property_created = value
@@ -2459,7 +2458,7 @@ class UpdateRequest(Request):
             self._property_project = None
             return
 
-        self.assert_isinstance(value, "project", six.string_types)
+        self.assert_isinstance(value, "project", str)
         self._property_project = value
 
     @schema_property('task')
@@ -2472,7 +2471,7 @@ class UpdateRequest(Request):
             self._property_task = None
             return
 
-        self.assert_isinstance(value, "task", six.string_types)
+        self.assert_isinstance(value, "task", str)
         self._property_task = value
 
     @schema_property('iteration')
@@ -2487,7 +2486,7 @@ class UpdateRequest(Request):
         if isinstance(value, float) and value.is_integer():
             value = int(value)
 
-        self.assert_isinstance(value, "iteration", six.integer_types)
+        self.assert_isinstance(value, "iteration", int)
         self._property_iteration = value
 
 
@@ -2538,7 +2537,7 @@ class UpdateResponse(Response):
         if isinstance(value, float) and value.is_integer():
             value = int(value)
 
-        self.assert_isinstance(value, "updated", six.integer_types)
+        self.assert_isinstance(value, "updated", int)
         self._property_updated = value
 
     @schema_property('fields')
@@ -2636,7 +2635,7 @@ class UpdateForTaskRequest(Request):
             self._property_task = None
             return
 
-        self.assert_isinstance(value, "task", six.string_types)
+        self.assert_isinstance(value, "task", str)
         self._property_task = value
 
     @schema_property('uri')
@@ -2649,7 +2648,7 @@ class UpdateForTaskRequest(Request):
             self._property_uri = None
             return
 
-        self.assert_isinstance(value, "uri", six.string_types)
+        self.assert_isinstance(value, "uri", str)
         self._property_uri = value
 
     @schema_property('name')
@@ -2662,7 +2661,7 @@ class UpdateForTaskRequest(Request):
             self._property_name = None
             return
 
-        self.assert_isinstance(value, "name", six.string_types)
+        self.assert_isinstance(value, "name", str)
         self._property_name = value
 
     @schema_property('comment')
@@ -2675,7 +2674,7 @@ class UpdateForTaskRequest(Request):
             self._property_comment = None
             return
 
-        self.assert_isinstance(value, "comment", six.string_types)
+        self.assert_isinstance(value, "comment", str)
         self._property_comment = value
 
     @schema_property('tags')
@@ -2690,7 +2689,7 @@ class UpdateForTaskRequest(Request):
 
         self.assert_isinstance(value, "tags", (list, tuple))
 
-        self.assert_isinstance(value, "tags", six.string_types, is_array=True)
+        self.assert_isinstance(value, "tags", str, is_array=True)
         self._property_tags = value
 
     @schema_property('system_tags')
@@ -2705,7 +2704,7 @@ class UpdateForTaskRequest(Request):
 
         self.assert_isinstance(value, "system_tags", (list, tuple))
 
-        self.assert_isinstance(value, "system_tags", six.string_types, is_array=True)
+        self.assert_isinstance(value, "system_tags", str, is_array=True)
         self._property_system_tags = value
 
     @schema_property('override_model_id')
@@ -2718,7 +2717,7 @@ class UpdateForTaskRequest(Request):
             self._property_override_model_id = None
             return
 
-        self.assert_isinstance(value, "override_model_id", six.string_types)
+        self.assert_isinstance(value, "override_model_id", str)
         self._property_override_model_id = value
 
     @schema_property('iteration')
@@ -2733,7 +2732,7 @@ class UpdateForTaskRequest(Request):
         if isinstance(value, float) and value.is_integer():
             value = int(value)
 
-        self.assert_isinstance(value, "iteration", six.integer_types)
+        self.assert_isinstance(value, "iteration", int)
         self._property_iteration = value
 
 
@@ -2792,7 +2791,7 @@ class UpdateForTaskResponse(Response):
             self._property_id = None
             return
 
-        self.assert_isinstance(value, "id", six.string_types)
+        self.assert_isinstance(value, "id", str)
         self._property_id = value
 
     @schema_property('created')
@@ -2820,7 +2819,7 @@ class UpdateForTaskResponse(Response):
         if isinstance(value, float) and value.is_integer():
             value = int(value)
 
-        self.assert_isinstance(value, "updated", six.integer_types)
+        self.assert_isinstance(value, "updated", int)
         self._property_updated = value
 
     @schema_property('fields')

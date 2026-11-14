@@ -2,10 +2,10 @@ from copy import deepcopy, copy
 from functools import wraps
 from itertools import chain
 
-from ..._vendor import attr
+import attr
 import sys
 import os
-from ..._vendor.pathlib2 import Path
+from pathlib import Path
 
 import shutil
 

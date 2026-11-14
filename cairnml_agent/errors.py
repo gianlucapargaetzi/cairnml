@@ -1,7 +1,6 @@
 from typing import Union, Optional, Text
 
 import requests
-from ._vendor import six
 from .backend_api import CallResult
 from .backend_api.session.client import APIError as ClientAPIError
 from .backend_api.session.response import ResponseMeta
@@ -75,7 +74,6 @@ class Sigterm(BaseException):
     pass
 
 
-@six.python_2_unicode_compatible
 class MissingPackageError(CommandFailedError):
     def __init__(self, name):
         super(MissingPackageError, self).__init__(name)
