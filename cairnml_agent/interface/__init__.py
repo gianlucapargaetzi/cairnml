@@ -1,10 +1,8 @@
 import itertools
 from functools import partial
-from importlib import import_module
-import argparse
 
 from cairnml_agent.definitions import PROGRAM_NAME
-from .base import Parser, base_arguments, add_service, OnlyPluralChoicesHelpFormatter
+from .base import Parser, base_arguments, OnlyPluralChoicesHelpFormatter
 
 SERVICES = [
     'worker',

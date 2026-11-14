@@ -26,3 +26,21 @@ def test_the_package_imports_without_the_working_directory_on_the_path():
 
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip() == "ok"
+
+
+def test_the_packages_export_only_the_names_their_importers_use():
+    import cairnml_agent
+    import cairnml_agent.backend_api as backend_api
+    import cairnml_agent.backend_api.session as session
+    import cairnml_agent.backend_api.session.client as client
+    import cairnml_agent.backend_config as backend_config
+    import cairnml_agent.commands as commands
+
+    assert set(backend_api.__all__) == {"CallResult"}
+    assert set(client.__all__) == {"APIClient", "APIError"}
+    assert set(backend_config.__all__) == {"Config"}
+    assert set(commands.__all__) == {"Worker", "install_bootstrap"}
+    assert not hasattr(session, "TokenManager")
+    assert not hasattr(session, "TimeoutExpiredError")
+    assert not hasattr(backend_api, "load_config")
+    assert not hasattr(cairnml_agent, "APIClient")
