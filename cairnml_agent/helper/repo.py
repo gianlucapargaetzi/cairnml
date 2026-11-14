@@ -16,7 +16,6 @@ from .._vendor import attr
 from .._vendor.furl import furl
 from .._vendor.pathlib2 import Path
 
-from .._vendor import six
 
 from cairnml_agent.definitions import (
     ENV_AGENT_GIT_USER,
@@ -121,8 +120,7 @@ def scrub_token(output, token, username=GITHUB_APP_USERNAME):
     return output
 
 
-@six.add_metaclass(abc.ABCMeta)
-class VCS(object):
+class VCS(object, metaclass=abc.ABCMeta):
     """
     Provides overloaded utilities for handling repositories of different types
     """
@@ -476,7 +474,7 @@ class VCS(object):
         """
         string_type = (
             ensure_text
-            if isinstance(result, six.text_type)
+            if isinstance(result, str)
             else ensure_binary
         )
         result = result.replace(

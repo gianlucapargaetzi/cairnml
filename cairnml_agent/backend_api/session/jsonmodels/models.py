@@ -1,4 +1,3 @@
-from ...._vendor import six
 
 from . import parsers, errors
 from .fields import BaseField
@@ -25,7 +24,7 @@ class JsonmodelMeta(type):
             taken_names.add(structue_name)
 
 
-class Base(six.with_metaclass(JsonmodelMeta, object)):
+class Base(metaclass=JsonmodelMeta):
 
     """Base class for all models."""
 

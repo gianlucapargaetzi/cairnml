@@ -7,7 +7,6 @@ import sys
 from os.path import expanduser
 from typing import Any
 
-from .._vendor import six
 from .._vendor.pathlib2 import Path
 from .._vendor.pyparsing import (
     ParseFatalException,
@@ -374,16 +373,12 @@ class Config(object):
             msg = "Failed parsing {0} ({1.__class__.__name__}): (at char {1.loc}, line:{1.lineno}, col:{1.column})".format(
                 file_path, ex
             )
-            six.reraise(
-                ConfigurationError,
-                ConfigurationError(msg, file_path=file_path),
-                sys.exc_info()[2],
-            )
+            raise ConfigurationError(msg, file_path=file_path).with_traceback(sys.exc_info()[2])
         except (ParseException, ParseFatalException, RecursiveGrammarException) as ex:
             msg = "Failed parsing {0} ({1.__class__.__name__}): {1}".format(
                 file_path, ex
             )
-            six.reraise(ConfigurationError, ConfigurationError(msg), sys.exc_info()[2])
+            raise ConfigurationError(msg).with_traceback(sys.exc_info()[2])
         except Exception as ex:
             print("Failed loading %s: %s" % (file_path, ex))
             raise

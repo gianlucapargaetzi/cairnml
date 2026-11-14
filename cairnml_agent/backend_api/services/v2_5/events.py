@@ -3,7 +3,6 @@ events service
 
 Provides an API for running tasks to report events collected by the system.
 """
-from ...._vendor import six
 import types
 from datetime import datetime
 import enum
@@ -76,7 +75,7 @@ class MetricsScalarEvent(NonStrictDataModel):
             self._property_timestamp = None
             return
 
-        self.assert_isinstance(value, "timestamp", six.integer_types + (float,))
+        self.assert_isinstance(value, "timestamp", int + (float,))
         self._property_timestamp = value
 
     @schema_property('type')
@@ -93,7 +92,7 @@ class MetricsScalarEvent(NonStrictDataModel):
             self._property_task = None
             return
 
-        self.assert_isinstance(value, "task", six.string_types)
+        self.assert_isinstance(value, "task", str)
         self._property_task = value
 
     @schema_property('iter')
@@ -108,7 +107,7 @@ class MetricsScalarEvent(NonStrictDataModel):
         if isinstance(value, float) and value.is_integer():
             value = int(value)
 
-        self.assert_isinstance(value, "iter", six.integer_types)
+        self.assert_isinstance(value, "iter", int)
         self._property_iter = value
 
     @schema_property('metric')
@@ -121,7 +120,7 @@ class MetricsScalarEvent(NonStrictDataModel):
             self._property_metric = None
             return
 
-        self.assert_isinstance(value, "metric", six.string_types)
+        self.assert_isinstance(value, "metric", str)
         self._property_metric = value
 
     @schema_property('variant')
@@ -134,7 +133,7 @@ class MetricsScalarEvent(NonStrictDataModel):
             self._property_variant = None
             return
 
-        self.assert_isinstance(value, "variant", six.string_types)
+        self.assert_isinstance(value, "variant", str)
         self._property_variant = value
 
     @schema_property('value')
@@ -147,7 +146,7 @@ class MetricsScalarEvent(NonStrictDataModel):
             self._property_value = None
             return
 
-        self.assert_isinstance(value, "value", six.integer_types + (float,))
+        self.assert_isinstance(value, "value", int + (float,))
         self._property_value = value
 
 
@@ -218,7 +217,7 @@ class MetricsVectorEvent(NonStrictDataModel):
             self._property_timestamp = None
             return
 
-        self.assert_isinstance(value, "timestamp", six.integer_types + (float,))
+        self.assert_isinstance(value, "timestamp", int + (float,))
         self._property_timestamp = value
 
     @schema_property('type')
@@ -235,7 +234,7 @@ class MetricsVectorEvent(NonStrictDataModel):
             self._property_task = None
             return
 
-        self.assert_isinstance(value, "task", six.string_types)
+        self.assert_isinstance(value, "task", str)
         self._property_task = value
 
     @schema_property('iter')
@@ -250,7 +249,7 @@ class MetricsVectorEvent(NonStrictDataModel):
         if isinstance(value, float) and value.is_integer():
             value = int(value)
 
-        self.assert_isinstance(value, "iter", six.integer_types)
+        self.assert_isinstance(value, "iter", int)
         self._property_iter = value
 
     @schema_property('metric')
@@ -263,7 +262,7 @@ class MetricsVectorEvent(NonStrictDataModel):
             self._property_metric = None
             return
 
-        self.assert_isinstance(value, "metric", six.string_types)
+        self.assert_isinstance(value, "metric", str)
         self._property_metric = value
 
     @schema_property('variant')
@@ -276,7 +275,7 @@ class MetricsVectorEvent(NonStrictDataModel):
             self._property_variant = None
             return
 
-        self.assert_isinstance(value, "variant", six.string_types)
+        self.assert_isinstance(value, "variant", str)
         self._property_variant = value
 
     @schema_property('values')
@@ -291,7 +290,7 @@ class MetricsVectorEvent(NonStrictDataModel):
 
         self.assert_isinstance(value, "values", (list, tuple))
 
-        self.assert_isinstance(value, "values", six.integer_types + (float,), is_array=True)
+        self.assert_isinstance(value, "values", int + (float,), is_array=True)
         self._property_values = value
 
 
@@ -359,7 +358,7 @@ class MetricsImageEvent(NonStrictDataModel):
             self._property_timestamp = None
             return
 
-        self.assert_isinstance(value, "timestamp", six.integer_types + (float,))
+        self.assert_isinstance(value, "timestamp", int + (float,))
         self._property_timestamp = value
 
     @schema_property('type')
@@ -376,7 +375,7 @@ class MetricsImageEvent(NonStrictDataModel):
             self._property_task = None
             return
 
-        self.assert_isinstance(value, "task", six.string_types)
+        self.assert_isinstance(value, "task", str)
         self._property_task = value
 
     @schema_property('iter')
@@ -391,7 +390,7 @@ class MetricsImageEvent(NonStrictDataModel):
         if isinstance(value, float) and value.is_integer():
             value = int(value)
 
-        self.assert_isinstance(value, "iter", six.integer_types)
+        self.assert_isinstance(value, "iter", int)
         self._property_iter = value
 
     @schema_property('metric')
@@ -404,7 +403,7 @@ class MetricsImageEvent(NonStrictDataModel):
             self._property_metric = None
             return
 
-        self.assert_isinstance(value, "metric", six.string_types)
+        self.assert_isinstance(value, "metric", str)
         self._property_metric = value
 
     @schema_property('variant')
@@ -417,7 +416,7 @@ class MetricsImageEvent(NonStrictDataModel):
             self._property_variant = None
             return
 
-        self.assert_isinstance(value, "variant", six.string_types)
+        self.assert_isinstance(value, "variant", str)
         self._property_variant = value
 
     @schema_property('key')
@@ -430,7 +429,7 @@ class MetricsImageEvent(NonStrictDataModel):
             self._property_key = None
             return
 
-        self.assert_isinstance(value, "key", six.string_types)
+        self.assert_isinstance(value, "key", str)
         self._property_key = value
 
     @schema_property('url')
@@ -443,7 +442,7 @@ class MetricsImageEvent(NonStrictDataModel):
             self._property_url = None
             return
 
-        self.assert_isinstance(value, "url", six.string_types)
+        self.assert_isinstance(value, "url", str)
         self._property_url = value
 
 
@@ -512,7 +511,7 @@ class MetricsPlotEvent(NonStrictDataModel):
             self._property_timestamp = None
             return
 
-        self.assert_isinstance(value, "timestamp", six.integer_types + (float,))
+        self.assert_isinstance(value, "timestamp", int + (float,))
         self._property_timestamp = value
 
     @schema_property('type')
@@ -529,7 +528,7 @@ class MetricsPlotEvent(NonStrictDataModel):
             self._property_task = None
             return
 
-        self.assert_isinstance(value, "task", six.string_types)
+        self.assert_isinstance(value, "task", str)
         self._property_task = value
 
     @schema_property('iter')
@@ -544,7 +543,7 @@ class MetricsPlotEvent(NonStrictDataModel):
         if isinstance(value, float) and value.is_integer():
             value = int(value)
 
-        self.assert_isinstance(value, "iter", six.integer_types)
+        self.assert_isinstance(value, "iter", int)
         self._property_iter = value
 
     @schema_property('metric')
@@ -557,7 +556,7 @@ class MetricsPlotEvent(NonStrictDataModel):
             self._property_metric = None
             return
 
-        self.assert_isinstance(value, "metric", six.string_types)
+        self.assert_isinstance(value, "metric", str)
         self._property_metric = value
 
     @schema_property('variant')
@@ -570,7 +569,7 @@ class MetricsPlotEvent(NonStrictDataModel):
             self._property_variant = None
             return
 
-        self.assert_isinstance(value, "variant", six.string_types)
+        self.assert_isinstance(value, "variant", str)
         self._property_variant = value
 
     @schema_property('plot_str')
@@ -583,7 +582,7 @@ class MetricsPlotEvent(NonStrictDataModel):
             self._property_plot_str = None
             return
 
-        self.assert_isinstance(value, "plot_str", six.string_types)
+        self.assert_isinstance(value, "plot_str", str)
         self._property_plot_str = value
 
 
@@ -661,7 +660,7 @@ class TaskLogEvent(NonStrictDataModel):
             self._property_timestamp = None
             return
 
-        self.assert_isinstance(value, "timestamp", six.integer_types + (float,))
+        self.assert_isinstance(value, "timestamp", int + (float,))
         self._property_timestamp = value
 
     @schema_property('type')
@@ -678,7 +677,7 @@ class TaskLogEvent(NonStrictDataModel):
             self._property_task = None
             return
 
-        self.assert_isinstance(value, "task", six.string_types)
+        self.assert_isinstance(value, "task", str)
         self._property_task = value
 
     @schema_property('level')
@@ -690,7 +689,7 @@ class TaskLogEvent(NonStrictDataModel):
         if value is None:
             self._property_level = None
             return
-        if isinstance(value, six.string_types):
+        if isinstance(value, str):
             try:
                 value = LogLevelEnum(value)
             except ValueError:
@@ -709,7 +708,7 @@ class TaskLogEvent(NonStrictDataModel):
             self._property_worker = None
             return
 
-        self.assert_isinstance(value, "worker", six.string_types)
+        self.assert_isinstance(value, "worker", str)
         self._property_worker = value
 
     @schema_property('msg')
@@ -722,7 +721,7 @@ class TaskLogEvent(NonStrictDataModel):
             self._property_msg = None
             return
 
-        self.assert_isinstance(value, "msg", six.string_types)
+        self.assert_isinstance(value, "msg", str)
         self._property_msg = value
 
 
@@ -982,7 +981,7 @@ class AddBatchResponse(Response):
         if isinstance(value, float) and value.is_integer():
             value = int(value)
 
-        self.assert_isinstance(value, "added", six.integer_types)
+        self.assert_isinstance(value, "added", int)
         self._property_added = value
 
     @schema_property('errors')
@@ -997,7 +996,7 @@ class AddBatchResponse(Response):
         if isinstance(value, float) and value.is_integer():
             value = int(value)
 
-        self.assert_isinstance(value, "errors", six.integer_types)
+        self.assert_isinstance(value, "errors", int)
         self._property_errors = value
 
 
@@ -1049,7 +1048,7 @@ class DebugImagesRequest(Request):
             self._property_task = None
             return
 
-        self.assert_isinstance(value, "task", six.string_types)
+        self.assert_isinstance(value, "task", str)
         self._property_task = value
 
     @schema_property('iters')
@@ -1064,7 +1063,7 @@ class DebugImagesRequest(Request):
         if isinstance(value, float) and value.is_integer():
             value = int(value)
 
-        self.assert_isinstance(value, "iters", six.integer_types)
+        self.assert_isinstance(value, "iters", int)
         self._property_iters = value
 
     @schema_property('scroll_id')
@@ -1077,7 +1076,7 @@ class DebugImagesRequest(Request):
             self._property_scroll_id = None
             return
 
-        self.assert_isinstance(value, "scroll_id", six.string_types)
+        self.assert_isinstance(value, "scroll_id", str)
         self._property_scroll_id = value
 
 
@@ -1143,7 +1142,7 @@ class DebugImagesResponse(Response):
             self._property_task = None
             return
 
-        self.assert_isinstance(value, "task", six.string_types)
+        self.assert_isinstance(value, "task", str)
         self._property_task = value
 
     @schema_property('images')
@@ -1173,7 +1172,7 @@ class DebugImagesResponse(Response):
         if isinstance(value, float) and value.is_integer():
             value = int(value)
 
-        self.assert_isinstance(value, "returned", six.integer_types)
+        self.assert_isinstance(value, "returned", int)
         self._property_returned = value
 
     @schema_property('total')
@@ -1186,7 +1185,7 @@ class DebugImagesResponse(Response):
             self._property_total = None
             return
 
-        self.assert_isinstance(value, "total", six.integer_types + (float,))
+        self.assert_isinstance(value, "total", int + (float,))
         self._property_total = value
 
     @schema_property('scroll_id')
@@ -1199,7 +1198,7 @@ class DebugImagesResponse(Response):
             self._property_scroll_id = None
             return
 
-        self.assert_isinstance(value, "scroll_id", six.string_types)
+        self.assert_isinstance(value, "scroll_id", str)
         self._property_scroll_id = value
 
 
@@ -1245,7 +1244,7 @@ class DeleteForTaskRequest(Request):
             self._property_task = None
             return
 
-        self.assert_isinstance(value, "task", six.string_types)
+        self.assert_isinstance(value, "task", str)
         self._property_task = value
 
     @schema_property('allow_locked')
@@ -1352,7 +1351,7 @@ class DownloadTaskLogRequest(Request):
             self._property_task = None
             return
 
-        self.assert_isinstance(value, "task", six.string_types)
+        self.assert_isinstance(value, "task", str)
         self._property_task = value
 
     @schema_property('line_type')
@@ -1365,7 +1364,7 @@ class DownloadTaskLogRequest(Request):
             self._property_line_type = None
             return
 
-        self.assert_isinstance(value, "line_type", six.string_types)
+        self.assert_isinstance(value, "line_type", str)
         self._property_line_type = value
 
     @schema_property('line_format')
@@ -1378,7 +1377,7 @@ class DownloadTaskLogRequest(Request):
             self._property_line_format = None
             return
 
-        self.assert_isinstance(value, "line_format", six.string_types)
+        self.assert_isinstance(value, "line_format", str)
         self._property_line_format = value
 
 
@@ -1448,7 +1447,7 @@ class GetMultiTaskPlotsRequest(Request):
 
         self.assert_isinstance(value, "tasks", (list, tuple))
 
-        self.assert_isinstance(value, "tasks", six.string_types, is_array=True)
+        self.assert_isinstance(value, "tasks", str, is_array=True)
         self._property_tasks = value
 
     @schema_property('iters')
@@ -1463,7 +1462,7 @@ class GetMultiTaskPlotsRequest(Request):
         if isinstance(value, float) and value.is_integer():
             value = int(value)
 
-        self.assert_isinstance(value, "iters", six.integer_types)
+        self.assert_isinstance(value, "iters", int)
         self._property_iters = value
 
     @schema_property('scroll_id')
@@ -1476,7 +1475,7 @@ class GetMultiTaskPlotsRequest(Request):
             self._property_scroll_id = None
             return
 
-        self.assert_isinstance(value, "scroll_id", six.string_types)
+        self.assert_isinstance(value, "scroll_id", str)
         self._property_scroll_id = value
 
 
@@ -1552,7 +1551,7 @@ class GetMultiTaskPlotsResponse(Response):
         if isinstance(value, float) and value.is_integer():
             value = int(value)
 
-        self.assert_isinstance(value, "returned", six.integer_types)
+        self.assert_isinstance(value, "returned", int)
         self._property_returned = value
 
     @schema_property('total')
@@ -1565,7 +1564,7 @@ class GetMultiTaskPlotsResponse(Response):
             self._property_total = None
             return
 
-        self.assert_isinstance(value, "total", six.integer_types + (float,))
+        self.assert_isinstance(value, "total", int + (float,))
         self._property_total = value
 
     @schema_property('scroll_id')
@@ -1578,7 +1577,7 @@ class GetMultiTaskPlotsResponse(Response):
             self._property_scroll_id = None
             return
 
-        self.assert_isinstance(value, "scroll_id", six.string_types)
+        self.assert_isinstance(value, "scroll_id", str)
         self._property_scroll_id = value
 
 
@@ -1619,7 +1618,7 @@ class GetScalarMetricDataRequest(Request):
             self._property_task = None
             return
 
-        self.assert_isinstance(value, "task", six.string_types)
+        self.assert_isinstance(value, "task", str)
         self._property_task = value
 
     @schema_property('metric')
@@ -1632,7 +1631,7 @@ class GetScalarMetricDataRequest(Request):
             self._property_metric = None
             return
 
-        self.assert_isinstance(value, "metric", six.string_types)
+        self.assert_isinstance(value, "metric", str)
         self._property_metric = value
 
 
@@ -1711,7 +1710,7 @@ class GetScalarMetricDataResponse(Response):
         if isinstance(value, float) and value.is_integer():
             value = int(value)
 
-        self.assert_isinstance(value, "returned", six.integer_types)
+        self.assert_isinstance(value, "returned", int)
         self._property_returned = value
 
     @schema_property('total')
@@ -1726,7 +1725,7 @@ class GetScalarMetricDataResponse(Response):
         if isinstance(value, float) and value.is_integer():
             value = int(value)
 
-        self.assert_isinstance(value, "total", six.integer_types)
+        self.assert_isinstance(value, "total", int)
         self._property_total = value
 
     @schema_property('scroll_id')
@@ -1739,7 +1738,7 @@ class GetScalarMetricDataResponse(Response):
             self._property_scroll_id = None
             return
 
-        self.assert_isinstance(value, "scroll_id", six.string_types)
+        self.assert_isinstance(value, "scroll_id", str)
         self._property_scroll_id = value
 
 
@@ -1775,7 +1774,7 @@ class GetScalarMetricsAndVariantsRequest(Request):
             self._property_task = None
             return
 
-        self.assert_isinstance(value, "task", six.string_types)
+        self.assert_isinstance(value, "task", str)
         self._property_task = value
 
 
@@ -1879,7 +1878,7 @@ class GetTaskEventsRequest(Request):
             self._property_task = None
             return
 
-        self.assert_isinstance(value, "task", six.string_types)
+        self.assert_isinstance(value, "task", str)
         self._property_task = value
 
     @schema_property('order')
@@ -1892,7 +1891,7 @@ class GetTaskEventsRequest(Request):
             self._property_order = None
             return
 
-        self.assert_isinstance(value, "order", six.string_types)
+        self.assert_isinstance(value, "order", str)
         self._property_order = value
 
     @schema_property('scroll_id')
@@ -1905,7 +1904,7 @@ class GetTaskEventsRequest(Request):
             self._property_scroll_id = None
             return
 
-        self.assert_isinstance(value, "scroll_id", six.string_types)
+        self.assert_isinstance(value, "scroll_id", str)
         self._property_scroll_id = value
 
     @schema_property('batch_size')
@@ -1920,7 +1919,7 @@ class GetTaskEventsRequest(Request):
         if isinstance(value, float) and value.is_integer():
             value = int(value)
 
-        self.assert_isinstance(value, "batch_size", six.integer_types)
+        self.assert_isinstance(value, "batch_size", int)
         self._property_batch_size = value
     @schema_property('event_type')
     def event_type(self):
@@ -1932,7 +1931,7 @@ class GetTaskEventsRequest(Request):
             self._property_event_type = None
             return
         
-        self.assert_isinstance(value, "event_type", six.string_types)
+        self.assert_isinstance(value, "event_type", str)
         self._property_event_type = value
 
 
@@ -2011,7 +2010,7 @@ class GetTaskEventsResponse(Response):
         if isinstance(value, float) and value.is_integer():
             value = int(value)
 
-        self.assert_isinstance(value, "returned", six.integer_types)
+        self.assert_isinstance(value, "returned", int)
         self._property_returned = value
 
     @schema_property('total')
@@ -2024,7 +2023,7 @@ class GetTaskEventsResponse(Response):
             self._property_total = None
             return
 
-        self.assert_isinstance(value, "total", six.integer_types + (float,))
+        self.assert_isinstance(value, "total", int + (float,))
         self._property_total = value
 
     @schema_property('scroll_id')
@@ -2037,7 +2036,7 @@ class GetTaskEventsResponse(Response):
             self._property_scroll_id = None
             return
 
-        self.assert_isinstance(value, "scroll_id", six.string_types)
+        self.assert_isinstance(value, "scroll_id", str)
         self._property_scroll_id = value
 
 
@@ -2073,7 +2072,7 @@ class GetTaskLatestScalarValuesRequest(Request):
             self._property_task = None
             return
 
-        self.assert_isinstance(value, "task", six.string_types)
+        self.assert_isinstance(value, "task", str)
         self._property_task = value
 
 
@@ -2204,7 +2203,7 @@ class GetTaskLogRequest(Request):
             self._property_task = None
             return
 
-        self.assert_isinstance(value, "task", six.string_types)
+        self.assert_isinstance(value, "task", str)
         self._property_task = value
 
     @schema_property('order')
@@ -2217,7 +2216,7 @@ class GetTaskLogRequest(Request):
             self._property_order = None
             return
 
-        self.assert_isinstance(value, "order", six.string_types)
+        self.assert_isinstance(value, "order", str)
         self._property_order = value
 
     @schema_property('from')
@@ -2230,7 +2229,7 @@ class GetTaskLogRequest(Request):
             self._property_from_ = None
             return
 
-        self.assert_isinstance(value, "from_", six.string_types)
+        self.assert_isinstance(value, "from_", str)
         self._property_from_ = value
 
     @schema_property('scroll_id')
@@ -2243,7 +2242,7 @@ class GetTaskLogRequest(Request):
             self._property_scroll_id = None
             return
 
-        self.assert_isinstance(value, "scroll_id", six.string_types)
+        self.assert_isinstance(value, "scroll_id", str)
         self._property_scroll_id = value
 
     @schema_property('batch_size')
@@ -2258,7 +2257,7 @@ class GetTaskLogRequest(Request):
         if isinstance(value, float) and value.is_integer():
             value = int(value)
 
-        self.assert_isinstance(value, "batch_size", six.integer_types)
+        self.assert_isinstance(value, "batch_size", int)
         self._property_batch_size = value
 
 
@@ -2337,7 +2336,7 @@ class GetTaskLogResponse(Response):
         if isinstance(value, float) and value.is_integer():
             value = int(value)
 
-        self.assert_isinstance(value, "returned", six.integer_types)
+        self.assert_isinstance(value, "returned", int)
         self._property_returned = value
 
     @schema_property('total')
@@ -2350,7 +2349,7 @@ class GetTaskLogResponse(Response):
             self._property_total = None
             return
 
-        self.assert_isinstance(value, "total", six.integer_types + (float,))
+        self.assert_isinstance(value, "total", int + (float,))
         self._property_total = value
 
     @schema_property('scroll_id')
@@ -2363,7 +2362,7 @@ class GetTaskLogResponse(Response):
             self._property_scroll_id = None
             return
 
-        self.assert_isinstance(value, "scroll_id", six.string_types)
+        self.assert_isinstance(value, "scroll_id", str)
         self._property_scroll_id = value
 
 
@@ -2415,7 +2414,7 @@ class GetTaskPlotsRequest(Request):
             self._property_task = None
             return
 
-        self.assert_isinstance(value, "task", six.string_types)
+        self.assert_isinstance(value, "task", str)
         self._property_task = value
 
     @schema_property('iters')
@@ -2430,7 +2429,7 @@ class GetTaskPlotsRequest(Request):
         if isinstance(value, float) and value.is_integer():
             value = int(value)
 
-        self.assert_isinstance(value, "iters", six.integer_types)
+        self.assert_isinstance(value, "iters", int)
         self._property_iters = value
 
     @schema_property('scroll_id')
@@ -2443,7 +2442,7 @@ class GetTaskPlotsRequest(Request):
             self._property_scroll_id = None
             return
 
-        self.assert_isinstance(value, "scroll_id", six.string_types)
+        self.assert_isinstance(value, "scroll_id", str)
         self._property_scroll_id = value
 
 
@@ -2522,7 +2521,7 @@ class GetTaskPlotsResponse(Response):
         if isinstance(value, float) and value.is_integer():
             value = int(value)
 
-        self.assert_isinstance(value, "returned", six.integer_types)
+        self.assert_isinstance(value, "returned", int)
         self._property_returned = value
 
     @schema_property('total')
@@ -2535,7 +2534,7 @@ class GetTaskPlotsResponse(Response):
             self._property_total = None
             return
 
-        self.assert_isinstance(value, "total", six.integer_types + (float,))
+        self.assert_isinstance(value, "total", int + (float,))
         self._property_total = value
 
     @schema_property('scroll_id')
@@ -2548,7 +2547,7 @@ class GetTaskPlotsResponse(Response):
             self._property_scroll_id = None
             return
 
-        self.assert_isinstance(value, "scroll_id", six.string_types)
+        self.assert_isinstance(value, "scroll_id", str)
         self._property_scroll_id = value
 
 
@@ -2582,7 +2581,7 @@ class GetVectorMetricsAndVariantsRequest(Request):
             self._property_task = None
             return
 
-        self.assert_isinstance(value, "task", six.string_types)
+        self.assert_isinstance(value, "task", str)
         self._property_task = value
 
 
@@ -2691,7 +2690,7 @@ class MultiTaskScalarMetricsIterHistogramRequest(Request):
 
         self.assert_isinstance(value, "tasks", (list, tuple))
 
-        self.assert_isinstance(value, "tasks", six.string_types, is_array=True)
+        self.assert_isinstance(value, "tasks", str, is_array=True)
         self._property_tasks = value
 
     @schema_property('samples')
@@ -2706,7 +2705,7 @@ class MultiTaskScalarMetricsIterHistogramRequest(Request):
         if isinstance(value, float) and value.is_integer():
             value = int(value)
 
-        self.assert_isinstance(value, "samples", six.integer_types)
+        self.assert_isinstance(value, "samples", int)
         self._property_samples = value
 
     @schema_property('key')
@@ -2718,7 +2717,7 @@ class MultiTaskScalarMetricsIterHistogramRequest(Request):
         if value is None:
             self._property_key = None
             return
-        if isinstance(value, six.string_types):
+        if isinstance(value, str):
             try:
                 value = ScalarKeyEnum(value)
             except ValueError:
@@ -2793,7 +2792,7 @@ class ScalarMetricsIterHistogramRequest(Request):
             self._property_task = None
             return
 
-        self.assert_isinstance(value, "task", six.string_types)
+        self.assert_isinstance(value, "task", str)
         self._property_task = value
 
     @schema_property('samples')
@@ -2808,7 +2807,7 @@ class ScalarMetricsIterHistogramRequest(Request):
         if isinstance(value, float) and value.is_integer():
             value = int(value)
 
-        self.assert_isinstance(value, "samples", six.integer_types)
+        self.assert_isinstance(value, "samples", int)
         self._property_samples = value
 
     @schema_property('key')
@@ -2820,7 +2819,7 @@ class ScalarMetricsIterHistogramRequest(Request):
         if value is None:
             self._property_key = None
             return
-        if isinstance(value, six.string_types):
+        if isinstance(value, str):
             try:
                 value = ScalarKeyEnum(value)
             except ValueError:
@@ -2911,7 +2910,7 @@ class VectorMetricsIterHistogramRequest(Request):
             self._property_task = None
             return
 
-        self.assert_isinstance(value, "task", six.string_types)
+        self.assert_isinstance(value, "task", str)
         self._property_task = value
 
     @schema_property('metric')
@@ -2924,7 +2923,7 @@ class VectorMetricsIterHistogramRequest(Request):
             self._property_metric = None
             return
 
-        self.assert_isinstance(value, "metric", six.string_types)
+        self.assert_isinstance(value, "metric", str)
         self._property_metric = value
 
     @schema_property('variant')
@@ -2937,7 +2936,7 @@ class VectorMetricsIterHistogramRequest(Request):
             self._property_variant = None
             return
 
-        self.assert_isinstance(value, "variant", six.string_types)
+        self.assert_isinstance(value, "variant", str)
         self._property_variant = value
 
 

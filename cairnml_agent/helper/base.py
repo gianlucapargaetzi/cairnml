@@ -19,10 +19,9 @@ from typing import Text, Dict, Any, Optional, AnyStr, IO, Union
 
 from .._vendor import attr
 from .._vendor import furl
-from .._vendor import six
 from .._vendor.attr import fields_dict
 from .._vendor.pathlib2 import Path
-from .._vendor.six.moves import reduce  # noqa
+from functools import reduce
 import yaml
 
 from cairnml_agent.errors import CommandFailedError
@@ -354,7 +353,7 @@ def dump_flat_dict(flat_dict):
 
 
 def one_value(dct):
-    return next(iter(six.itervalues(dct)))
+    return next(iter(dct.values()))
 
 
 @attr.s
@@ -492,10 +491,6 @@ def mkstemp(
 
 
 def named_temporary_file(*args, **kwargs):
-    if six.PY2:
-        buffering = kwargs.pop('buffering', None)
-        if buffering:
-            kwargs['bufsize'] = buffering
     return tempfile.NamedTemporaryFile(*args, **kwargs)
 
 

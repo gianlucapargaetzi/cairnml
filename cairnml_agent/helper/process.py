@@ -17,7 +17,6 @@ import psutil
 from .._vendor.furl import furl
 from .._vendor.pathlib2 import Path
 
-from .._vendor import six
 from cairnml_agent.definitions import PROGRAM_NAME, CONFIG_FILE
 from cairnml_agent.helper.base import bash_c, is_windows_platform, select_for_platform, chain_map
 
@@ -188,8 +187,7 @@ def get_program_invocation():
 Retval = TypeVar("Retval")
 
 
-@six.add_metaclass(abc.ABCMeta)
-class Executable(object):
+class Executable(object, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def call_subprocess(self, func, censor_password=False, *args, **kwargs):
         # type: (Callable[..., Retval]) -> Retval
@@ -214,7 +212,7 @@ class Executable(object):
             if censor_password:
                 e.cmd = [furl(word).remove(password=True).tostr() for word in e.cmd]
 
-            if e.output and not isinstance(e.output, six.text_type):
+            if e.output and not isinstance(e.output, str):
                 e.output = e.output.decode()
             raise
 
@@ -283,9 +281,9 @@ class Argv(Executable):
 
     def __iter__(self):
         if is_windows_platform():
-            return (word.as_posix().replace('/', '\\') if isinstance(word, Path) else six.text_type(word)
+            return (word.as_posix().replace('/', '\\') if isinstance(word, Path) else str(word)
                     for word in self.argv)
-        return (six.text_type(word) for word in self.argv)
+        return (str(word) for word in self.argv)
 
     def __getitem__(self, item):
         return self.argv[item]

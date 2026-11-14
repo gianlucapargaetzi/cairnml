@@ -1,6 +1,5 @@
 import requests
 
-from ..._vendor import six
 
 from . import jsonmodels
 from .apimodel import ApiModel
@@ -11,7 +10,7 @@ class FloatOrStringField(jsonmodels.fields.BaseField):
 
     """String field."""
 
-    types = (float, six.string_types,)
+    types = (float, str,)
 
 
 class Response(ApiModel, NonStrictDataModelMixin):

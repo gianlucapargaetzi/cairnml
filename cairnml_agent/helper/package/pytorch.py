@@ -13,7 +13,6 @@ from typing import Text, Optional, Dict
 from ..._vendor import attr
 import requests
 
-from ..._vendor import six
 from .requirements import (
     SimpleSubstitution, FatalSpecsResolutionError, SimpleVersion, MarkerRequirement,
     compare_version_rules, )
@@ -607,7 +606,7 @@ class PytorchRequirement(SimpleSubstitution):
                 "Could not find pytorch wheel URL for: {} with cuda {} support".format(req, self.cuda_version)
             )
             # cancel exception chaining
-            six.raise_from(exc, None)
+            raise exc from None
 
         self.log.debug('Replacing requirement "%s" with %r', req, result)
         return result

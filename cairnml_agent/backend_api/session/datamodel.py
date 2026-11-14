@@ -8,7 +8,6 @@ from datetime import datetime
 from ..._vendor import jsonschema
 from enum import Enum
 
-from ..._vendor import six
 
 
 def format_date(obj):
@@ -72,7 +71,7 @@ class DataModel(object):
             validator=validator,
             type_checker=validator.TYPE_CHECKER.redefine_many({
                 "array": lambda s, instance: isinstance(instance, (list, tuple)),
-                "integer": lambda s, instance: isinstance(instance, six.integer_types),
+                "integer": lambda s, instance: isinstance(instance, int),
             }),
         )
         jsonschema.validate(self.to_dict(), schema, cls=validator_cls)

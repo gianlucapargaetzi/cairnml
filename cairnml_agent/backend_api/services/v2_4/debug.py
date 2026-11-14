@@ -3,7 +3,6 @@ debug service
 
 Debugging utilities
 """
-from ...._vendor import six
 import types
 from datetime import datetime
 import enum
@@ -129,7 +128,7 @@ class PingResponse(Response):
             self._property_msg = None
             return
 
-        self.assert_isinstance(value, "msg", six.string_types)
+        self.assert_isinstance(value, "msg", str)
         self._property_msg = value
 
 
@@ -181,7 +180,7 @@ class PingAuthResponse(Response):
             self._property_msg = None
             return
 
-        self.assert_isinstance(value, "msg", six.string_types)
+        self.assert_isinstance(value, "msg", str)
         self._property_msg = value
 
 

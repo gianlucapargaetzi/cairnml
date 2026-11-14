@@ -11,7 +11,7 @@ import sys
 import requests
 
 from .._vendor.pathlib2 import Path
-from .._vendor.six.moves.urllib.parse import urlparse
+from urllib.parse import urlparse
 
 from cairnml_agent.backend_config.defs import LOCAL_CONFIG_FILE_OVERRIDE_VAR, LOCAL_CONFIG_FILES
 from cairnml_agent.external.pyhocon import ConfigFactory

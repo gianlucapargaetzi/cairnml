@@ -1,11 +1,9 @@
-from ._vendor import six
 
 from cairnml_agent.external.pyhocon import ConfigTree
 from cairnml_agent.helper.base import Singleton
 
 
-@six.add_metaclass(Singleton)
-class Config(object):
+class Config(object, metaclass=Singleton):
 
     def __init__(self, tree=None):
         self.__dict__['_tree'] = tree or ConfigTree()

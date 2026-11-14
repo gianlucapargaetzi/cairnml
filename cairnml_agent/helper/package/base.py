@@ -5,7 +5,6 @@ from collections import OrderedDict
 from contextlib import contextmanager
 from typing import Text, Iterable, Union, Optional, Dict, List
 
-from ..._vendor import six
 from ..._vendor.pathlib2 import Path
 
 from cairnml_agent.definitions import ENV_VENV_CACHE_PATH
@@ -16,8 +15,7 @@ from cairnml_agent.helper.os.folder_cache import FolderCache
 from cairnml_agent.helper.process import Executable, Argv, PathLike
 
 
-@six.add_metaclass(abc.ABCMeta)
-class PackageManager(object):
+class PackageManager(object, metaclass=abc.ABCMeta):
     """
     ABC for classes providing python package management interface
     """
@@ -190,7 +188,7 @@ class PackageManager(object):
         with f:
             f.write(
                 contents
-                if isinstance(contents, six.text_type)
+                if isinstance(contents, str)
                 else join_lines(contents)
             )
         try:
