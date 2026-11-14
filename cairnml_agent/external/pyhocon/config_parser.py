@@ -56,7 +56,7 @@ class STR_SUBSTITUTION(object):
 
 def period(period_value, period_unit):
     try:
-        from ..._vendor.dateutil.relativedelta import relativedelta as period_impl
+        from dateutil.relativedelta import relativedelta as period_impl
     except Exception:
         from datetime import timedelta as period_impl
 
@@ -219,7 +219,7 @@ class ConfigParser(object):
             cls.supported_period_map.update(cls.period_type_map)
 
             try:
-                from ..._vendor.dateutil import relativedelta
+                from dateutil import relativedelta
 
                 if relativedelta is not None:
                     cls.supported_period_map.update(cls.optional_period_type_map)

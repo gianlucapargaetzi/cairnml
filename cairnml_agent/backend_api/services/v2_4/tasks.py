@@ -6,7 +6,7 @@ Provides a management API for tasks in the system.
 import enum
 from datetime import datetime
 
-from ...._vendor.dateutil.parser import parse as parse_datetime
+from dateutil.parser import parse as parse_datetime
 
 from ....backend_api.session import Request, BatchRequest, Response, NonStrictDataModel, schema_property, StringEnum
 

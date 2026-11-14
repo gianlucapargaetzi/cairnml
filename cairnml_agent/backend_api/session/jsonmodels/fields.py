@@ -2,7 +2,7 @@ import datetime
 import re
 from weakref import WeakKeyDictionary
 
-from ...._vendor.dateutil.parser import parse
+from dateutil.parser import parse
 
 from .errors import ValidationError
 from .collections import ModelCollection
