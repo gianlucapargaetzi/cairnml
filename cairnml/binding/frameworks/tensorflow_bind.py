@@ -2119,25 +2119,6 @@ class PatchKerasModelIO:
             PatchKerasModelIO._current_task.connect(self.trains_in_model)
             # if we are running remotely we should deserialize the object
             # because someone might have changed the configuration
-            # Hack: disabled
-            if False and running_remotely():
-                # reload the model
-                model_config = self.trains_in_model.config_dict
-                # verify that this is the same model so we are not deserializing a diff model
-                if (
-                    config_dict
-                    and config_dict.get("config")
-                    and model_config
-                    and model_config.get("config")
-                    and config_dict.get("config").get("name") == model_config.get("config").get("name")
-                ) or (not config_dict and not model_config):
-                    if "config" in kwargs:
-                        kwargs["config"] = model_config
-                    else:
-                        args = (model_config,) + args[1:]
-                    model = original_fn(*args, **kwargs)
-                    model.trains_in_model = self.trains_in_model
-                    return model
 
         except Exception as ex:
             LoggerRoot.get_base_logger(TensorflowBinding).warning(str(ex))
@@ -2156,18 +2137,6 @@ class PatchKerasModelIO:
         else:
             filepath = kwargs["filepath"] if "filepath" in kwargs else args[0]
 
-        # Hack: disabled
-        if False and running_remotely():
-            # register/load model weights
-            filepath = WeightsFileHandler.restore_weights_file(
-                self, filepath, Framework.keras, PatchKerasModelIO._current_task
-            )
-            if "filepath" in kwargs:
-                kwargs["filepath"] = filepath
-            else:
-                args = (filepath,) + args[1:]
-            # load model
-            return original_fn(self, *args, **kwargs)
 
         # try to load the files, if something happened exception will be raised before we register the file
         model = original_fn(self, *args, **kwargs)
@@ -2249,17 +2218,9 @@ class PatchKerasModelIO:
             return original_fn(filepath, *args, **kwargs)
 
         empty = _Empty()
-        # Hack: disabled
-        if False and running_remotely():
-            # register/load model weights
-            filepath = WeightsFileHandler.restore_weights_file(
-                empty, filepath, Framework.keras, PatchKerasModelIO._current_task
-            )
-            model = original_fn(filepath, *args, **kwargs)
-        else:
-            model = original_fn(filepath, *args, **kwargs)
-            # register/load model weights
-            WeightsFileHandler.restore_weights_file(empty, filepath, Framework.keras, PatchKerasModelIO._current_task)
+        model = original_fn(filepath, *args, **kwargs)
+        # register/load model weights
+        WeightsFileHandler.restore_weights_file(empty, filepath, Framework.keras, PatchKerasModelIO._current_task)
         # update the input model object
         if empty.trains_in_model:
             # noinspection PyBroadException
@@ -2454,17 +2415,6 @@ class PatchTensorflowModelIO:
         if PatchTensorflowModelIO._current_task is None:
             return original_fn(self, sess, save_path, *args, **kwargs)
 
-        # Hack: disabled
-        if False and running_remotely():
-            # register/load model weights
-            save_path = WeightsFileHandler.restore_weights_file(
-                self,
-                save_path,
-                Framework.tensorflow,
-                PatchTensorflowModelIO._current_task,
-            )
-            # load model
-            return original_fn(self, sess, save_path, *args, **kwargs)
 
         # load model, if something is wrong, exception will be raised before we register the input model
         model = original_fn(self, sess, save_path, *args, **kwargs)
@@ -2488,24 +2438,14 @@ class PatchTensorflowModelIO:
 
         # register input model
         empty = _Empty()
-        # Hack: disabled
-        if False and running_remotely():
-            export_dir = WeightsFileHandler.restore_weights_file(
-                empty,
-                export_dir,
-                Framework.tensorflow,
-                PatchTensorflowModelIO._current_task,
-            )
-            model = original_fn(sess, tags, export_dir, *args, **saver_kwargs)
-        else:
-            # try to load model before registering, it might fail
-            model = original_fn(sess, tags, export_dir, *args, **saver_kwargs)
-            WeightsFileHandler.restore_weights_file(
-                empty,
-                export_dir,
-                Framework.tensorflow,
-                PatchTensorflowModelIO._current_task,
-            )
+        # try to load model before registering, it might fail
+        model = original_fn(sess, tags, export_dir, *args, **saver_kwargs)
+        WeightsFileHandler.restore_weights_file(
+            empty,
+            export_dir,
+            Framework.tensorflow,
+            PatchTensorflowModelIO._current_task,
+        )
 
         if empty.trains_in_model:
             # noinspection PyBroadException
@@ -2522,24 +2462,14 @@ class PatchTensorflowModelIO:
 
         # register input model
         empty = _Empty()
-        # Hack: disabled
-        if False and running_remotely():
-            export_dir = WeightsFileHandler.restore_weights_file(
-                empty,
-                export_dir,
-                Framework.tensorflow,
-                PatchTensorflowModelIO._current_task,
-            )
-            model = original_fn(export_dir, *args, **saver_kwargs)
-        else:
-            # try to load model before registering, it might fail
-            model = original_fn(export_dir, *args, **saver_kwargs)
-            WeightsFileHandler.restore_weights_file(
-                empty,
-                export_dir,
-                Framework.tensorflow,
-                PatchTensorflowModelIO._current_task,
-            )
+        # try to load model before registering, it might fail
+        model = original_fn(export_dir, *args, **saver_kwargs)
+        WeightsFileHandler.restore_weights_file(
+            empty,
+            export_dir,
+            Framework.tensorflow,
+            PatchTensorflowModelIO._current_task,
+        )
 
         if empty.trains_in_model:
             # noinspection PyBroadException
@@ -2582,24 +2512,14 @@ class PatchTensorflowModelIO:
 
         # register input model
         empty = _Empty()
-        # Hack: disabled
-        if False and running_remotely():
-            save_path = WeightsFileHandler.restore_weights_file(
-                empty,
-                save_path,
-                Framework.tensorflow,
-                PatchTensorflowModelIO._current_task,
-            )
-            model = original_fn(self, save_path, *args, **kwargs)
-        else:
-            # try to load model before registering it, in case it fails.
-            model = original_fn(self, save_path, *args, **kwargs)
-            WeightsFileHandler.restore_weights_file(
-                empty,
-                save_path,
-                Framework.tensorflow,
-                PatchTensorflowModelIO._current_task,
-            )
+        # try to load model before registering it, in case it fails.
+        model = original_fn(self, save_path, *args, **kwargs)
+        WeightsFileHandler.restore_weights_file(
+            empty,
+            save_path,
+            Framework.tensorflow,
+            PatchTensorflowModelIO._current_task,
+        )
 
         if empty.trains_in_model:
             # noinspection PyBroadException
@@ -2705,21 +2625,6 @@ class PatchTensorflow2ModelIO:
         if not PatchTensorflow2ModelIO._current_task:
             return original_fn(self, save_path, *args, **kwargs)
 
-        # Hack: disabled
-        if False and running_remotely():
-            # register/load model weights
-            # noinspection PyBroadException
-            try:
-                save_path = WeightsFileHandler.restore_weights_file(
-                    self,
-                    save_path,
-                    Framework.tensorflow,
-                    PatchTensorflow2ModelIO._current_task,
-                )
-            except Exception:
-                pass
-            # load model
-            return original_fn(self, save_path, *args, **kwargs)
 
         # load model, if something is wrong, exception will be raised before we register the input model
         model = original_fn(self, save_path, *args, **kwargs)

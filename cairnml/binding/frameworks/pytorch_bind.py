@@ -283,18 +283,11 @@ class PatchPyTorchModelIO(PatchBaseModelIO):
 
         # register input model
         empty = _Empty()
-        # Hack: disabled
-        if False and running_remotely():
-            filename = WeightsFileHandler.restore_weights_file(
-                empty, filename, Framework.pytorch, PatchPyTorchModelIO._current_task
-            )
-            model = original_fn(filename or f, *args, **kwargs)
-        else:
-            # try to load model before registering, in case we fail
-            model = original_fn(f, *args, **kwargs)
-            WeightsFileHandler.restore_weights_file(
-                empty, filename, Framework.pytorch, PatchPyTorchModelIO._current_task
-            )
+        # try to load model before registering, in case we fail
+        model = original_fn(f, *args, **kwargs)
+        WeightsFileHandler.restore_weights_file(
+            empty, filename, Framework.pytorch, PatchPyTorchModelIO._current_task
+        )
 
         if empty.trains_in_model:
             # noinspection PyBroadException
@@ -326,18 +319,11 @@ class PatchPyTorchModelIO(PatchBaseModelIO):
 
         # register input model
         empty = _Empty()
-        # Hack: disabled
-        if False and running_remotely():
-            filename = WeightsFileHandler.restore_weights_file(
-                empty, filename, Framework.pytorch, PatchPyTorchModelIO._current_task
-            )
-            model = original_fn(obj, filename or f, *args, **kwargs)
-        else:
-            # try to load model before registering, in case we fail
-            model = original_fn(obj, f, *args, **kwargs)
-            WeightsFileHandler.restore_weights_file(
-                empty, filename, Framework.pytorch, PatchPyTorchModelIO._current_task
-            )
+        # try to load model before registering, in case we fail
+        model = original_fn(obj, f, *args, **kwargs)
+        WeightsFileHandler.restore_weights_file(
+            empty, filename, Framework.pytorch, PatchPyTorchModelIO._current_task
+        )
 
         if empty.trains_in_model:
             # noinspection PyBroadException

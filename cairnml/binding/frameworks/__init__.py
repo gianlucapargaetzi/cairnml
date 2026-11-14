@@ -312,19 +312,6 @@ class WeightsFileHandler:
             task.connect(trains_in_model)
             # if we are running remotely we should deserialize the object
             # because someone might have changed the config_dict
-            # Hack: disabled
-            if False and running_remotely():
-                # reload the model
-                model_config = trains_in_model.config_dict
-                # verify that this is the same model so we are not deserializing a different model
-                if (
-                    config_dict
-                    and config_dict.get("config")
-                    and model_config
-                    and model_config.get("config")
-                    and config_dict.get("config").get("name") == model_config.get("config").get("name")
-                ) or (not config_dict and not model_config):
-                    filepath = trains_in_model.get_weights()
                     # update filepath to point to downloaded weights file
                     # actual model weights loading will be done outside the try/exception block
 

@@ -4,7 +4,7 @@ import re
 from typing import Optional, Any, Generator
 
 from .session import Session
-from ..utilities.check_updates import Version
+from ..utilities.version import Version
 
 
 class ApiServiceProxy:

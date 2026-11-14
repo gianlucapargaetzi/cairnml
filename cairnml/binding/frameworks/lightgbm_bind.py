@@ -92,18 +92,11 @@ class PatchLIGHTgbmModelIO(PatchBaseModelIO):
 
         # register input model
         empty = _Empty()
-        # Hack: disabled
-        if False and running_remotely():
-            filename = WeightsFileHandler.restore_weights_file(
-                empty, filename, Framework.xgboost, PatchLIGHTgbmModelIO._current_task
-            )
-            model = original_fn(model_file=filename or model_file, *args, **kwargs)
-        else:
-            # try to load model before registering, in case we fail
-            model = original_fn(model_file=model_file, *args, **kwargs)
-            WeightsFileHandler.restore_weights_file(
-                empty, filename, Framework.lightgbm, PatchLIGHTgbmModelIO._current_task
-            )
+        # try to load model before registering, in case we fail
+        model = original_fn(model_file=model_file, *args, **kwargs)
+        WeightsFileHandler.restore_weights_file(
+            empty, filename, Framework.lightgbm, PatchLIGHTgbmModelIO._current_task
+        )
 
         if empty.trains_in_model:
             # noinspection PyBroadException
