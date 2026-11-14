@@ -89,9 +89,7 @@ LOGIN_HINT_FOR_LIST = "datasets need a CairnML login"
 def _not_signed_in(exc: Exception) -> bool:
     """True when the failure means the person is not signed in, or the machine is not set up to sign in. A connection
     error or a bug in the transport is not one of them."""
-    if isinstance(exc, (NotSignedInError, MissingConfigError, ConfigurationError)):
-        return True
-    return isinstance(exc, ValueError) and str(exc).startswith("CairnML host was not set")
+    return isinstance(exc, (NotSignedInError, MissingConfigError, ConfigurationError))
 
 
 def _could_not_ask(exc: Exception, what: str, login_hint: str) -> str:

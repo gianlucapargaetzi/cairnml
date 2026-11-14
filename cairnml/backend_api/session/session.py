@@ -186,7 +186,7 @@ class Session(TokenManager):
 
         self.__host = self.__init_host or self.get_api_server_host(config=self.config)
         if not self.__host:
-            raise ValueError("CairnML host was not set, check your configuration file or environment variable")
+            raise MissingConfigError("CairnML host was not set, check your configuration file or environment variable")
         self.__host = self.__host.strip("/")
         self.__http_retries_config = (
             self.__init_http_retries_config or self.config.get("api.http.retries", ConfigTree()).as_plain_ordered_dict()

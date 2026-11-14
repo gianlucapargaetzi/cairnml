@@ -10,6 +10,7 @@ import pytest
 
 from cairnml.cli.dataset import __main__ as dataset_cli
 from cairnml.datasets import Dataset, DatasetCache, DatasetError, DatasetRepo, SampleWriter, footprint
+from cairnml.backend_api.session.defs import MissingConfigError
 from cairnml.backend_api.session.session import LoginError, NotSignedInError
 from cairnml.datasets.dvcutil import Dvc
 from cairnml.datasets import credentials
@@ -594,7 +595,7 @@ def test_the_repository_list_is_asked_of_the_server_with_the_login(monkeypatch):
 def test_the_repository_list_is_unavailable_without_a_login_or_when_refused(monkeypatch):
     class NoLogin:
         def send_request(self, service, action, json, version=None):
-            raise ValueError("CairnML host was not set")
+            raise MissingConfigError("CairnML host was not set")
 
     class Refused:
         def send_request(self, service, action, json, version=None):
@@ -738,7 +739,7 @@ def test_a_credential_that_cannot_read_the_repository_is_warned_about(tmp_path, 
 def test_a_person_without_a_login_is_told_why_datasets_need_one(monkeypatch):
     class NoLogin:
         def send_request(self, service, action, json, version=None):
-            raise ValueError("CairnML host was not set")
+            raise MissingConfigError("CairnML host was not set")
 
     with pytest.raises(DatasetError, match="datasets need a CairnML login"):
         credentials.fetch_person_git_token("https://github.com/acme/cars.git", "read", NoLogin())
@@ -1011,7 +1012,7 @@ LOGIN_HINT = "datasets need a CairnML login"
         pytest.param(
             NotSignedInError("Device sign-in refused (error 401 from https://example.org): bad key"), True, id="refused"
         ),
-        pytest.param(ValueError("CairnML host was not set, check your configuration file"), True, id="host-not-set"),
+        pytest.param(MissingConfigError("CairnML host was not set, check your configuration file"), True, id="host-not-set"),
     ],
 )
 def test_the_login_hint_only_for_a_person_who_is_not_signed_in(exc, hinted):
