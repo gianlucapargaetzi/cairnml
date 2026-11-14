@@ -3,7 +3,7 @@ from pathlib import Path
 
 from ..backend_config.environment import EnvEntry
 
-ENV_VAR = 'TRAINS_ENV'
+ENV_VAR = 'CAIRNML_ENV'
 """ Name of system environment variable that can be used to specify the config environment name """
 
 
@@ -33,16 +33,16 @@ LOCAL_CONFIG_FILES = [
 """ Local config files (not paths). The agent does not read the CairnML SDK's ~/cairnml.conf """
 
 
-LOCAL_CONFIG_FILE_OVERRIDE_VAR = EnvEntry('CAIRNML_CONFIG_FILE', 'TRAINS_CONFIG_FILE', )
+LOCAL_CONFIG_FILE_OVERRIDE_VAR = EnvEntry('CAIRNML_CONFIG_FILE')
 """ Local config file override environment variable. If this is set, no other local config files will be used. """
 
 
-ENV_CONFIG_PATH_OVERRIDE_VAR = EnvEntry('CAIRNML_CONFIG_PATH', 'TRAINS_CONFIG_PATH', )
+ENV_CONFIG_PATH_OVERRIDE_VAR = EnvEntry('CAIRNML_CONFIG_PATH')
 """ 
 Environment-related config path override environment variable. If this is set, no other env config path will be used. 
 """
 
-ENV_CONFIG_VERBOSE = EnvEntry("CAIRNML_AGENT_CONFIG_VERBOSE", default=False, converter=bool)
+ENV_CONFIG_VERBOSE = EnvEntry("CAIRNML_CONFIG_VERBOSE", default=False, converter=bool)
 
 
 class Environment(object):

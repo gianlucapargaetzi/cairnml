@@ -69,25 +69,13 @@ ENV_AWS_SECRET_KEY = EnvironmentConfig("AWS_SECRET_ACCESS_KEY")
 ENV_AZURE_ACCOUNT_KEY = EnvironmentConfig("AZURE_STORAGE_KEY")
 
 ENVIRONMENT_CONFIG = {
-    "api.api_server": EnvironmentConfig(
-        "CAIRNML_API_HOST",
-        "TRAINS_API_HOST",
-    ),
-    "api.web_server": EnvironmentConfig(
-        "CAIRNML_WEB_HOST",
-        "TRAINS_WEB_HOST",
-    ),
-    "agent.worker_name": EnvironmentConfig(
-        "CAIRNML_WORKER_NAME",
-        "TRAINS_WORKER_NAME",
-    ),
-    "agent.worker_id": EnvironmentConfig(
-        "CAIRNML_WORKER_ID",
-        "TRAINS_WORKER_ID",
-    ),
-    "agent.cuda_version": EnvironmentConfig("CAIRNML_CUDA_VERSION", "TRAINS_CUDA_VERSION", "CUDA_VERSION"),
-    "agent.cudnn_version": EnvironmentConfig("CAIRNML_CUDNN_VERSION", "TRAINS_CUDNN_VERSION", "CUDNN_VERSION"),
-    "agent.cpu_only": EnvironmentConfig(names=("CAIRNML_CPU_ONLY", "TRAINS_CPU_ONLY", "CPU_ONLY"), type=bool),
+    "api.api_server": EnvironmentConfig("CAIRNML_API_HOST"),
+    "api.web_server": EnvironmentConfig("CAIRNML_WEB_HOST"),
+    "agent.worker_name": EnvironmentConfig("CAIRNML_WORKER_NAME"),
+    "agent.worker_id": EnvironmentConfig("CAIRNML_WORKER_ID"),
+    "agent.cuda_version": EnvironmentConfig("CAIRNML_CUDA_VERSION", "CUDA_VERSION"),
+    "agent.cudnn_version": EnvironmentConfig("CAIRNML_CUDNN_VERSION", "CUDNN_VERSION"),
+    "agent.cpu_only": EnvironmentConfig(names=("CAIRNML_CPU_ONLY", "CPU_ONLY"), type=bool),
     "agent.crash_on_exception": EnvironmentConfig("CAIRNML_AGENT_CRASH_ON_EXCEPTION", type=bool),
     "sdk.aws.s3.key": EnvironmentConfig("AWS_ACCESS_KEY_ID"),
     "sdk.aws.s3.secret": ENV_AWS_SECRET_KEY,
@@ -100,25 +88,13 @@ ENVIRONMENT_CONFIG = {
 }
 
 ENVIRONMENT_SDK_PARAMS = {
-    "task_id": (
-        "CAIRNML_TASK_ID",
-        "TRAINS_TASK_ID",
-    ),
-    "config_file": (
-        "CAIRNML_CONFIG_FILE",
-        "TRAINS_CONFIG_FILE",
-    ),
-    "log_level": (
-        "CAIRNML_LOG_LEVEL",
-        "TRAINS_LOG_LEVEL",
-    ),
-    "log_to_backend": (
-        "CAIRNML_LOG_TASK_TO_BACKEND",
-        "TRAINS_LOG_TASK_TO_BACKEND",
-    ),
+    "task_id": ("CAIRNML_TASK_ID",),
+    "config_file": ("CAIRNML_CONFIG_FILE",),
+    "log_level": ("CAIRNML_LOG_LEVEL",),
+    "log_to_backend": ("CAIRNML_LOG_TASK_TO_BACKEND",),
 }
 
-ENVIRONMENT_BACKWARD_COMPATIBLE = EnvironmentConfig(names=("CAIRNML_AGENT_ALG_ENV", "TRAINS_AGENT_ALG_ENV"), type=bool)
+ENVIRONMENT_BACKWARD_COMPATIBLE = EnvironmentConfig("CAIRNML_AGENT_ALG_ENV", type=bool)
 
 VIRTUAL_ENVIRONMENT_PATH = {
     "python2": normalize_path(CONFIG_DIR, "py2venv"),
@@ -143,8 +119,8 @@ DEFAULT_VCS_CACHE = normalize_path(CONFIG_DIR, "vcs-cache")
 PIP_EXTRA_INDICES = []
 DEFAULT_PIP_DOWNLOAD_CACHE = normalize_path(CONFIG_DIR, "pip-download-cache")
 ENV_PIP_EXTRA_INSTALL_FLAGS = EnvironmentConfig("CAIRNML_EXTRA_PIP_INSTALL_FLAGS", type=list)
-ENV_DOCKER_IMAGE = EnvironmentConfig("CAIRNML_DOCKER_IMAGE", "TRAINS_DOCKER_IMAGE")
-ENV_WORKER_ID = EnvironmentConfig("CAIRNML_WORKER_ID", "TRAINS_WORKER_ID")
+ENV_DOCKER_IMAGE = EnvironmentConfig("CAIRNML_DOCKER_IMAGE")
+ENV_WORKER_ID = EnvironmentConfig("CAIRNML_WORKER_ID")
 ENV_WORKER_TAGS = EnvironmentConfig("CAIRNML_WORKER_TAGS")
 ENV_AGENT_SKIP_PIP_VENV_INSTALL = EnvironmentConfig("CAIRNML_AGENT_SKIP_PIP_VENV_INSTALL")
 ENV_AGENT_SKIP_PYTHON_ENV_INSTALL = EnvironmentConfig("CAIRNML_AGENT_SKIP_PYTHON_ENV_INSTALL", type=bool)
@@ -154,20 +130,18 @@ ENV_AGENT_FORCE_POETRY = EnvironmentConfig("CAIRNML_AGENT_FORCE_POETRY", type=bo
 ENV_AGENT_FORCE_UV = EnvironmentConfig("CAIRNML_AGENT_FORCE_UV", type=bool)
 ENV_BOOTSTRAP_UV_EXEC = EnvironmentConfig("CAIRNML_BOOTSTRAP_UV_EXEC", type=str)
 ENV_AGENT_FORCE_TASK_INIT = EnvironmentConfig("CAIRNML_AGENT_FORCE_TASK_INIT", type=bool)
-ENV_DOCKER_SKIP_GPUS_FLAG = EnvironmentConfig("CAIRNML_DOCKER_SKIP_GPUS_FLAG", "TRAINS_DOCKER_SKIP_GPUS_FLAG")
-ENV_AGENT_GIT_USER = EnvironmentConfig("CAIRNML_AGENT_GIT_USER", "TRAINS_AGENT_GIT_USER")
-ENV_AGENT_GIT_PASS = EnvironmentConfig("CAIRNML_AGENT_GIT_PASS", "TRAINS_AGENT_GIT_PASS")
-ENV_AGENT_GIT_HOST = EnvironmentConfig("CAIRNML_AGENT_GIT_HOST", "TRAINS_AGENT_GIT_HOST")
+ENV_DOCKER_SKIP_GPUS_FLAG = EnvironmentConfig("CAIRNML_DOCKER_SKIP_GPUS_FLAG")
+ENV_AGENT_GIT_USER = EnvironmentConfig("CAIRNML_AGENT_GIT_USER")
+ENV_AGENT_GIT_PASS = EnvironmentConfig("CAIRNML_AGENT_GIT_PASS")
+ENV_AGENT_GIT_HOST = EnvironmentConfig("CAIRNML_AGENT_GIT_HOST")
 ENV_AGENT_DISABLE_SSH_MOUNT = EnvironmentConfig("CAIRNML_AGENT_DISABLE_SSH_MOUNT", type=bool)
 ENV_AGENT_DEBUG_GET_NEXT_TASK = EnvironmentConfig("CAIRNML_AGENT_DEBUG_GET_NEXT_TASK", type=bool)
 ENV_SSH_AUTH_SOCK = EnvironmentConfig("SSH_AUTH_SOCK")
-ENV_TASK_EXECUTE_AS_USER = EnvironmentConfig("CAIRNML_AGENT_EXEC_USER", "TRAINS_AGENT_EXEC_USER")
-ENV_TASK_EXTRA_PYTHON_PATH = EnvironmentConfig("CAIRNML_AGENT_EXTRA_PYTHON_PATH", "TRAINS_AGENT_EXTRA_PYTHON_PATH")
+ENV_TASK_EXECUTE_AS_USER = EnvironmentConfig("CAIRNML_AGENT_EXEC_USER")
+ENV_TASK_EXTRA_PYTHON_PATH = EnvironmentConfig("CAIRNML_AGENT_EXTRA_PYTHON_PATH")
 ENV_DOCKER_HOST_MOUNT = EnvironmentConfig(
     "CAIRNML_AGENT_K8S_HOST_MOUNT",
     "CAIRNML_AGENT_DOCKER_HOST_MOUNT",
-    "TRAINS_AGENT_K8S_HOST_MOUNT",
-    "TRAINS_AGENT_DOCKER_HOST_MOUNT",
 )
 ENV_VENV_CACHE_PATH = EnvironmentConfig("CAIRNML_AGENT_VENV_CACHE_PATH")
 ENV_EXTRA_DOCKER_ARGS = EnvironmentConfig("CAIRNML_AGENT_EXTRA_DOCKER_ARGS", type=list)

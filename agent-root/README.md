@@ -89,6 +89,10 @@ The agent runs the code of every job that reaches its queue, so decide who may e
 
 The **Workers** page of the web app lists this machine once it is running. Send a job to the queue, for example with `Task.enqueue` from the [SDK](https://github.com/gianlucapargaetzi/cairnml), and it starts on this machine.
 
+## Configuration
+
+The agent reads its settings from its configuration file and from environment variables. Each environment variable has one `CAIRNML_` name; [docs/environment.md](docs/environment.md) lists every one with its default and meaning. The older `TRAINS_` names are no longer read: rename them to the `CAIRNML_` names.
+
 ## Next steps
 
 Continue with the [CairnML examples](https://github.com/gianlucapargaetzi/cairnml-examples).

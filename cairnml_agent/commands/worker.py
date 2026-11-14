@@ -3672,12 +3672,8 @@ class Worker(ServiceCommandSection):
         if sys.getfilesystemencoding() == 'ascii' and not os.environ.get("PYTHONIOENCODING"):
             os.environ["PYTHONIOENCODING"] = "utf-8"
 
-        # check if we need to update backwards compatible OS environment
-        if not os.environ.get("TRAINS_CONFIG_FILE") and os.environ.get("CAIRNML_CONFIG_FILE"):
-            os.environ["TRAINS_CONFIG_FILE"] = os.environ.get("CAIRNML_CONFIG_FILE")
         # remove our internal env
         os.environ.pop("CAIRNML_APT_INSTALL", None)
-        os.environ.pop("TRAINS_APT_INSTALL", None)
         # remove UV stuff, just in case
         os.environ.pop("UV_CACHE_DIR", None)
         os.environ.pop("UV_PYTHON_CACHE_DIR", None)
@@ -4611,7 +4607,7 @@ class Worker(ServiceCommandSection):
         # type: (str, str, bool, ExecutionInfo, dict) -> Tuple[Path, RequirementsManager, bool, str]
         """
         Install a new python virtual environment, removing the old one if exists
-        If skip_pip_venv_install is True or contains a string (or if CAIRNML_SKIP_PIP_VENV_INSTALL is set)
+        If skip_pip_venv_install is True or contains a string (or if CAIRNML_AGENT_SKIP_PIP_VENV_INSTALL is set)
         then an emtpy virtual env folder is created and package manager is configured to work with the global python
         interpreter (or using a custom interpreter if an interpreter path is passed in this variable)
         :return: virtualenv directory, requirements manager to use with task, True if there is a cached venv entry
@@ -5676,11 +5672,11 @@ class Worker(ServiceCommandSection):
         command = RunasArgv(
             'bash', '-c',
             'HOME=\"{}\" PATH=\"{}\" PYTHONPATH=\"{}\" '
-            'TRAINS_CONFIG_FILE={} CAIRNML_CONFIG_FILE={} {}'.format(
+            'CAIRNML_CONFIG_FILE={} {}'.format(
                 home_folder,
                 os.environ.get('PATH', '').replace(venv_folder, new_venv_folder),
                 os.environ.get('PYTHONPATH', '').replace(venv_folder, new_venv_folder),
-                user_trains_conf, user_trains_conf,
+                user_trains_conf,
                 command.serialize().replace(venv_folder, new_venv_folder)
             )
         )

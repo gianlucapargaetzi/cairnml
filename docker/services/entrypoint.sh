@@ -6,11 +6,11 @@ if [ -n "$SHUTDOWN_IF_NO_ACCESS_KEY" ] && [ -z "$CAIRNML_AUTH_TOKEN" ] && [ ! -f
 fi
 
 if [ -z "$CAIRNML_WEB_HOST" ] || [ -z "$CAIRNML_API_HOST" ]; then
-    CAIRNML_HOST_IP=${CAIRNML_HOST_IP:-${TRAINS_HOST_IP:-$(curl -s https://ifconfig.me/ip)}}
+    CAIRNML_HOST_IP=${CAIRNML_HOST_IP:-$(curl -s https://ifconfig.me/ip)}
 fi
 
-export CAIRNML_WEB_HOST=${CAIRNML_WEB_HOST:-${TRAINS_WEB_HOST:-"http://$CAIRNML_HOST_IP/cairnml"}}
-export CAIRNML_API_HOST=${CAIRNML_API_HOST:-${TRAINS_API_HOST:-"http://$CAIRNML_HOST_IP/cairnml/api"}}
+export CAIRNML_WEB_HOST=${CAIRNML_WEB_HOST:-"http://$CAIRNML_HOST_IP/cairnml"}
+export CAIRNML_API_HOST=${CAIRNML_API_HOST:-"http://$CAIRNML_HOST_IP/cairnml/api"}
 
 echo $CAIRNML_WEB_HOST $CAIRNML_API_HOST 1>&2
 
@@ -26,14 +26,14 @@ if [ -z "$CAIRNML_AGENT_NO_UPDATE" ]; then
   if [ -n "$CAIRNML_AGENT_UPDATE_REPO" ]; then
     python3 -m pip install -q -U $CAIRNML_AGENT_UPDATE_REPO
   else
-    python3 -m pip install -q -U "cairnml-agent${CAIRNML_AGENT_UPDATE_VERSION:-$TRAINS_AGENT_UPDATE_VERSION}"
+    python3 -m pip install -q -U "cairnml-agent${CAIRNML_AGENT_UPDATE_VERSION}"
   fi
 fi
 
-DOCKER_ARGS="--docker \"${CAIRNML_AGENT_DEFAULT_BASE_DOCKER:-$TRAINS_AGENT_DEFAULT_BASE_DOCKER}\""
+DOCKER_ARGS="--docker \"${CAIRNML_AGENT_DEFAULT_BASE_DOCKER}\""
 
 if [ -n "$CAIRNML_AGENT_NO_DOCKER" ]; then
   DOCKER_ARGS=""
 fi
 
-cairnml-agent daemon $DAEMON_OPTIONS --queue $QUEUES $DOCKER_ARGS --cpu-only ${CAIRNML_AGENT_EXTRA_ARGS:-$TRAINS_AGENT_EXTRA_ARGS}
+cairnml-agent daemon $DAEMON_OPTIONS --queue $QUEUES $DOCKER_ARGS --cpu-only ${CAIRNML_AGENT_EXTRA_ARGS}

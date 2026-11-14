@@ -20,7 +20,6 @@ from .request import Request, BatchRequest
 from .token_manager import TokenManager
 from ..config import load
 from ..utils import get_http_session_with_retry, urllib_log_warning_setup
-from ...backend_config.environment import backward_compatibility_support
 from ...helper.dicts import get_dict_leaves
 from ...idp.device import device_assertion
 from ...version import __version__
@@ -94,8 +93,6 @@ class Session(TokenManager):
         custom_default_config_paths=None,
         **kwargs
     ):
-        # add backward compatibility support for old environment variables
-        backward_compatibility_support()
         self._debug = kwargs.get('debug', False)
         if config is not None:
             self.config = config
