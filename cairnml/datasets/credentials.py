@@ -6,6 +6,9 @@ import re
 from typing import Optional
 
 from .errors import DatasetError
+from ..backend_api.session.defs import MissingConfigError
+from ..backend_api.session.session import NotSignedInError
+from ..backend_config.errors import ConfigurationError
 
 
 @dataclass
@@ -77,15 +80,32 @@ def fetch_git_token(repository: str, task_id: str, session=None) -> Optional[str
     return (response.json().get("data") or {}).get("token")
 
 
+LOGIN_HINT_FOR_TOKENS = (
+    "datasets need a CairnML login, because the server issues the Git tokens of a dataset to the person signed in"
+)
+LOGIN_HINT_FOR_LIST = "datasets need a CairnML login"
+
+
+def _not_signed_in(exc: Exception) -> bool:
+    """True when the failure means the person is not signed in, or the machine is not set up to sign in. A connection
+    error or a bug in the transport is not one of them."""
+    if isinstance(exc, (NotSignedInError, MissingConfigError, ConfigurationError)):
+        return True
+    return isinstance(exc, ValueError) and str(exc).startswith("CairnML host was not set")
+
+
+def _could_not_ask(exc: Exception, what: str, login_hint: str) -> str:
+    """The message for a request that failed. The login hint is added only when the person is not signed in."""
+    message = f"the server could not be asked{what} ({exc})"
+    return f"{message}: {login_hint}" if _not_signed_in(exc) else message
+
+
 def _person_request(session, action: str, json: dict, service: str = "repositories", version: str = "2.40"):
     """A request made for a person, with the login. Without a login the reason is said in the error."""
     try:
         return _session(session).send_request(service=service, action=action, version=version, json=json)
     except Exception as exc:
-        raise DatasetError(
-            f"the server could not be asked ({exc}): datasets need a CairnML login, because the server issues the Git "
-            "tokens of a dataset to the person signed in"
-        ) from None
+        raise DatasetError(_could_not_ask(exc, "", LOGIN_HINT_FOR_TOKENS)) from exc
 
 
 def fetch_person_git_token(repository: str, level: str, session=None) -> Optional[str]:
@@ -209,4 +229,4 @@ def fetch_repository_list(session=None) -> list:
     except DatasetError:
         raise
     except Exception as exc:  # no login, no network, a malformed answer: all mean the server cannot answer
-        raise DatasetError(f"the server could not be asked for the repository list ({exc})") from None
+        raise DatasetError(_could_not_ask(exc, " for the repository list", LOGIN_HINT_FOR_LIST)) from exc
