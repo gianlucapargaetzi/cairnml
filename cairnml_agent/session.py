@@ -7,7 +7,6 @@ import platform
 import re
 import sys
 from copy import deepcopy
-from typing import Any, Callable
 
 import attr
 from pathlib import Path

@@ -26,7 +26,7 @@ from os.path import basename
 from tempfile import mkdtemp, NamedTemporaryFile
 from threading import Thread
 from time import sleep, time
-from typing import Text, Optional, Any, Tuple, List, Dict, Mapping, Union
+from typing import Text, Optional
 
 import attr
 from pathlib import Path
@@ -39,9 +39,12 @@ from cairnml_agent.backend_api.services import tasks as tasks_api
 from cairnml_agent.backend_api.services import workers as workers_api
 from cairnml_agent.backend_api.session import CallResult, Request
 from cairnml_agent.backend_api.session.defs import (
-    ENV_JOB_TOKEN,
-    ENV_ENABLE_ENV_CONFIG_SECTION, ENV_ENABLE_FILES_CONFIG_SECTION,
-    ENV_VENV_CONFIGURED, ENV_PROPAGATE_EXITCODE, ENV_MULTI_NODE_SINGLE_TASK, )
+    ENV_ENABLE_ENV_CONFIG_SECTION,
+    ENV_ENABLE_FILES_CONFIG_SECTION,
+    ENV_VENV_CONFIGURED,
+    ENV_PROPAGATE_EXITCODE,
+    ENV_MULTI_NODE_SINGLE_TASK,
+)
 from cairnml_agent.backend_config import Config
 from cairnml_agent.backend_config.defs import UptimeConf
 from cairnml_agent.backend_config.utils import apply_environment, apply_files
@@ -141,20 +144,23 @@ from cairnml_agent.helper.process import (
     ExitStatus,
     Argv,
     COMMAND_SUCCESS,
-    Executable,
     get_bash_output,
     shutdown_docker_process,
     get_docker_id,
     commit_docker,
     terminate_process,
     check_if_command_exists,
-    terminate_all_child_processes, find_executable,
+    terminate_all_child_processes,
+    find_executable,
 )
 from cairnml_agent.helper.job_token import (
     CONTAINER_DIR, TOKEN_FILE_NAME, TokenRenewer, request_job_token, write_job_token,
 )
-from cairnml_agent.helper.repo import clone_repository_cached, RepoInfo, VCS, fix_package_import_diff_patch, \
-    patch_add_task_init_call
+from cairnml_agent.helper.repo import (
+    clone_repository_cached,
+    fix_package_import_diff_patch,
+    patch_add_task_init_call,
+)
 from cairnml_agent.helper.resource_monitor import ResourceMonitor
 from cairnml_agent.helper.runtime_verification import check_runtime, print_uptime_properties
 from cairnml_agent.helper.singleton import Singleton

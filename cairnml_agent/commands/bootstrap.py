@@ -1,4 +1,3 @@
-import os.path
 from pathlib import Path
 
 
@@ -11,7 +10,7 @@ def check_bootstrap_package_install(config):
 
     # noinspection PyBroadException
     try:
-        from cairnml_agent_bootstrap import install  # noqa
+        from cairnml_agent_bootstrap import install  # noqa: F401  # probe: the optional bootstrap package is installed
         return True
     except ImportError:
         return False

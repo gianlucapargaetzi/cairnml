@@ -1,10 +1,6 @@
-import json
 import re
-import shlex
-from copy import copy
 
 from cairnml_agent.backend_api.session import Request
-from cairnml_agent.helper.docker_args import DockerArgsSanitizer
 from cairnml_agent.helper.package.requirements import (
     RequirementsManager, MarkerRequirement,
     compare_version_rules, )

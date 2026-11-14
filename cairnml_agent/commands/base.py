@@ -8,7 +8,6 @@ from functools import wraps
 from operator import attrgetter
 from traceback import print_exc
 from time import time
-from typing import Text
 
 from cairnml_agent.helper.console import ListFormatter
 
