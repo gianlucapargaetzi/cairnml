@@ -117,7 +117,6 @@ from cairnml_agent.helper.base import (
     add_python_path,
     safe_remove_tree, get_python_version, dump_flat_dict, check_is_binary_python_or_bash,
 )
-from cairnml_agent.helper.check_update import start_check_update_daemon
 from cairnml_agent.helper.console import ensure_text, print_text, decode_binary_lines
 from cairnml_agent.helper.environment.converters import strtobool
 from cairnml_agent.helper.gpu.util import detect_rocm_env
@@ -2269,10 +2268,6 @@ class Worker(ServiceCommandSection):
                 self._bootstrap = True
         else:
             bootstrap.print_bootstrap_missing_notice()
-
-        # check if we have the latest agent version
-        if not self._session.config.get('agent.disable_agent_update_check', None):
-            start_check_update_daemon()
 
         self.check(**kwargs)
         self.log.debug("starting resource monitor thread")

@@ -25,7 +25,7 @@
 
 # Python bindings for ROCm-SMI library
 from ctypes import *
-from os.path import join, realpath, isfile
+from os.path import join, isfile
 import os
 import logging
 import subprocess
