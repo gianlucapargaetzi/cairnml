@@ -266,7 +266,7 @@ class UvAPI(VirtualenvPip):
                 ):
                     args += ["--locked"]
                 self.lock_config.run(*args, cwd=str(self.lockfile_path), func=Argv.check_call)
-            except Exception as e:
+            except Exception:
                 if not self.lock_file_exists:
                     raise
                 print("INFO: failed installing using lock file, trying without")

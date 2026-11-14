@@ -891,7 +891,7 @@ class RequirementsManager(object):
             # noinspection PyBroadException
             try:
                 return list(parse(req_str, cwd=cwd))
-            except Exception as ex:
+            except Exception:
                 return [Requirement(req_str)]
 
         def create_req(x):

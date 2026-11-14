@@ -93,7 +93,7 @@ class Entry(object, metaclass=abc.ABCMeta):
                 continue
             try:
                 value = self.convert(value, converter)
-            except Exception as ex:
+            except Exception:
                 self.error("invalid value {key}={value}: {ex}".format(**locals()))
                 break
             # noinspection PyBroadException

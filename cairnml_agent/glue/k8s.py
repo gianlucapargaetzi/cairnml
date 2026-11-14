@@ -27,7 +27,7 @@ from cairnml_agent.definitions import (
 )
 from cairnml_agent.errors import APIError, UsageError
 from cairnml_agent.glue.errors import GetPodCountError, ReenqueueTaskException
-from cairnml_agent.glue.utilities import get_path, get_bash_output
+from cairnml_agent.glue.utilities import get_path
 from cairnml_agent.glue.pending_pods_daemon import PendingPodsDaemon
 from cairnml_agent.helper.base import safe_remove_file
 from cairnml_agent.helper.dicts import merge_dicts
@@ -1349,7 +1349,6 @@ class K8sIntegration(Worker):
         if not self.k8s_pending_queue_id:
             self._ensure_pending_queue_exists()
 
-        _last_machine_update_ts = 0
         while True:
             # Get used pods and namespaces
             current_pods, namespaces = self._get_used_pods()

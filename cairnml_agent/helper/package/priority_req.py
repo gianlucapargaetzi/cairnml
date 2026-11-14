@@ -88,7 +88,7 @@ class PriorityPackageRequirement(SimpleSubstitution):
                 if "pip" in list_of_requirements:
                     list_of_requirements["pip"] = [self._replaced_packages["setuptools"]] + list_of_requirements["pip"]
 
-            except Exception as ex:  # noqa
+            except Exception:
                 return list_of_requirements
 
         return list_of_requirements

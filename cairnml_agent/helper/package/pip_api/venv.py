@@ -79,7 +79,7 @@ class VirtualenvPip(SystemPip, PackageManager):
                 self.session.command(
                     self.python, "-m", "venv", self.path, *self.create_flags()
                 ).check_call()
-            except Exception as ex:
+            except Exception:
                 # let's try with std library instead
                 print("WARNING: virtualenv and venv failed with [{}] trying virtualenv with python [{}]".format(
                     self.python, sys.executable))

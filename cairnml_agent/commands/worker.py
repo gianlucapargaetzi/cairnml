@@ -1251,7 +1251,7 @@ class Worker(ServiceCommandSection):
                 or (str(value) == str(expected_value))
             ):
                 return restart_value
-        except Exception as ex:
+        except Exception:
             pass
 
     def run_one_task(self, queue, task_id, worker_args, docker=None, task_session=None):
@@ -1636,7 +1636,6 @@ class Worker(ServiceCommandSection):
         if not self._daemon_foreground:
             print('Starting infinite task polling loop...')
 
-        _last_machine_update_ts = 0
         if self._services_mode:
             try:
                 max_num_instances = int(self._services_mode) if not isinstance(self._services_mode, bool) else -1
@@ -2070,9 +2069,9 @@ class Worker(ServiceCommandSection):
             # definitely supported
             self._runtime_props_support = True
             return True
-        except APIError as ex:
+        except APIError:
             self._runtime_props_support = self._session.api_version
-        except Exception as ex:
+        except Exception:
             # not sure what happened
             pass
 
@@ -2582,8 +2581,8 @@ class Worker(ServiceCommandSection):
             stderr = open(stderr_path, "at")
         else:
             stderr = stdout
-        stdout_line_count, stdout_pos_count, stdout_last_lines = 0, 0, []
-        stderr_line_count, stderr_pos_count, stderr_last_lines = 0, 0, []
+        stdout_line_count, stdout_pos_count = 0, 0
+        stderr_line_count, stderr_pos_count = 0, 0
         lines_buffer = defaultdict(list)
 
         def report_lines(lines, source, a_multi_node_single_task=None):
@@ -2614,7 +2613,6 @@ class Worker(ServiceCommandSection):
         last_task_ping = 0
         multi_node_single_task = ENV_MULTI_NODE_SINGLE_TASK.get()
         try:
-            _last_machine_update_ts = time()
             stop_reason = None
 
             process = cmd.call_subprocess(
@@ -3043,7 +3041,7 @@ class Worker(ServiceCommandSection):
                     sleep(5.0)
                 with open(temp_config.as_posix()) as f:
                     lines = [l.strip() for l in f.readlines()]
-            except Exception as ex:
+            except Exception:
                 # print("Failed reading status file [{}], retrying in 2 seconds".format(ex))
                 sleep(2.0)
 
@@ -4674,7 +4672,7 @@ class Worker(ServiceCommandSection):
                     executable_version, executable_version_suffix, executable_name = \
                         self.find_python_executable_for_version(requested_python_version, raise_on_error=False)
                 except Exception:
-                    executable_version = executable_version_suffix = executable_name = None
+                    executable_version_suffix = executable_name = None
                 # make sure we have at least major.minor version in the requested version,
                 # otherwise use what we found
                 if "." not in str(requested_python_version):
@@ -5628,8 +5626,6 @@ class Worker(ServiceCommandSection):
                 os.setuid(self.uid)
 
         # create a home folder for our user
-        cairnml_agent_home = self._run_as_user_home + '{}'.format(
-            '.'+str(Singleton.get_slot()) if Singleton.get_slot() else '')
         try:
             home_folder = self._run_as_user_home
             rm_tree(home_folder)
