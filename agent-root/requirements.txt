@@ -12,3 +12,4 @@ furl>=2.1,<3
 pyparsing>=3,<4
 attrs>=21.3,<26
 jsonschema>=4.17,<5
+packaging>=21

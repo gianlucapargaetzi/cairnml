@@ -1,16 +1,22 @@
 from __future__ import unicode_literals
 import re
-import warnings
 
-# setuptools >= 82 removed pkg_resources, so on any Python where
-# the user has a newer setuptools we fall back to the vendored copy.
-# Setuptools announces pkg_resources as deprecated on import; that notice is not for the agent's users.
-with warnings.catch_warnings():
-    warnings.filterwarnings('ignore', message='pkg_resources is deprecated', category=UserWarning)
-    try:
-        from pkg_resources import Requirement as Req  # noqa
-    except ImportError:
-        from ..._vendor.pkg_resources import Requirement as Req
+from packaging.requirements import Requirement as _PackagingRequirement
+
+
+class Req(object):
+    """A parsed requirement specifier with the attributes this module reads (name, extras, specs)."""
+
+    def __init__(self, requirement):
+        parsed = _PackagingRequirement(requirement)
+        self.unsafe_name = parsed.name
+        self.extras = tuple(sorted(extra.lower() for extra in parsed.extras))
+        self.specs = [(spec.operator, spec.version) for spec in parsed.specifier]
+
+    @classmethod
+    def parse(cls, requirement):
+        return cls(requirement)
+
 
 from .fragment import get_hash_info, parse_fragment, parse_extras_require
 from .vcs import VCS, VCS_SCHEMES
