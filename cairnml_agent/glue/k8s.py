@@ -14,7 +14,7 @@ from pathlib import Path
 from pprint import pformat
 from time import sleep, time
 from datetime import datetime, timedelta, timezone
-from typing import Text, List, Optional, Dict, Tuple
+from typing import Text, List, Optional, Dict, Tuple, Callable, Any, Collection, Union, Iterable, Set
 
 from cairnml_agent.commands.events import Events
 from cairnml_agent.commands.worker import Worker, get_task_container, set_task_container, get_next_task
@@ -35,7 +35,7 @@ from cairnml_agent.helper.hash import md5
 from cairnml_agent.helper.process import get_bash_output, stringify_bash_output
 from cairnml_agent.helper.resource_monitor import ResourceMonitor
 from cairnml_agent.interface.base import ObjectID
-from cairnml_agent.backend_api.session import Request
+from cairnml_agent.backend_api.session.request import Request
 from cairnml_agent.glue.definitions import (
     ENV_START_AGENT_SCRIPT_PATH,
     ENV_DEFAULT_EXECUTION_AGENT_ARGS,

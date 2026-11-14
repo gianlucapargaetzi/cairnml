@@ -10,7 +10,7 @@ from base64 import b64encode
 from os import environ
 from random import random
 from threading import Lock
-from typing import Text, TypeVar, Tuple, Optional
+from typing import Text, TypeVar, Tuple, Optional, Sequence, Mapping, Iterable, Callable
 
 import attr
 from furl import furl
@@ -35,10 +35,12 @@ from cairnml_agent.helper.base import (
     normalize_path,
     create_file_if_not_exists,
     safe_remove_file,
+    ExecutionInfo,
 )
 from cairnml_agent.helper.hash import md5
 from cairnml_agent.helper.os.locks import FileLock
-from cairnml_agent.helper.process import DEVNULL, Argv, COMMAND_SUCCESS, find_executable
+from cairnml_agent.helper.process import DEVNULL, Argv, COMMAND_SUCCESS, find_executable, PathLike
+from cairnml_agent.session import Session
 
 
 class VcsFactory(object):

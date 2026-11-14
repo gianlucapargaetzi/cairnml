@@ -10,8 +10,13 @@ from itertools import chain
 from operator import itemgetter
 
 from ... import services as api_services
-from ....backend_api.session import Session, Request as APIRequest
+from ....backend_api.session.session import Session
+from ....backend_api.session.request import Request as APIRequest
+from ....backend_api.session.callresult import CallResult
 from ....backend_config.defs import LOCAL_CONFIG_FILE_OVERRIDE_VAR
+from types import ModuleType
+from typing import Dict, Text, Tuple, Type, Any, Sequence
+from ....backend_api.session.response import ResponseMeta
 
 SERVICE_TO_ENTITY_CLASS_NAMES = {"storage": "StorageItem"}
 

@@ -1,5 +1,5 @@
 import abc
-from typing import Any, Callable
+from typing import Any, Callable, Optional, Tuple, Dict
 
 
 from .converters import any_to_bool

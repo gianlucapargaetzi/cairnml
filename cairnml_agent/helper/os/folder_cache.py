@@ -8,6 +8,7 @@ import psutil
 from pathlib import Path
 
 from .locks import FileLock
+from typing import List, Optional, Sequence
 
 
 class FolderCache(object):

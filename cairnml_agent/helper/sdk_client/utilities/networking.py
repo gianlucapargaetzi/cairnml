@@ -1,6 +1,7 @@
 import requests
 import socket
 import subprocess
+from typing import Optional
 
 
 def get_private_ip(config_obj):

@@ -1,6 +1,6 @@
 from typing import Optional
 
-from ..backend_api.session import Request
+from ..backend_api.session.request import Request
 
 
 class TaskRuntime(object):

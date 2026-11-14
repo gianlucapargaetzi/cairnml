@@ -8,7 +8,7 @@ from copy import deepcopy, copy
 from itertools import chain, starmap
 from operator import itemgetter
 from os import path
-from typing import Text
+from typing import Text, List, Type, Optional, Tuple, Dict
 
 from pathlib import Path
 
@@ -18,13 +18,14 @@ from cairnml_agent.definitions import PIP_EXTRA_INDICES
 from cairnml_agent.helper.base import (
     warning, is_conda, which, join_lines, is_windows_platform,
     convert_cuda_version_to_int_10_base_str, dump_yaml, )
-from cairnml_agent.helper.process import Argv
+from cairnml_agent.helper.process import Argv, PathLike
 from cairnml_agent.helper.gpu.gpustat import get_driver_cuda_version
-from cairnml_agent.session import normalize_cuda_version
+from cairnml_agent.session import normalize_cuda_version, Session
 from cairnml_agent.external.requirements_parser import parse
 from cairnml_agent.external.requirements_parser.requirement import Requirement
 
 from .translator import RequirementsTranslator
+from cairnml_agent.external.pyhocon import ConfigTree
 
 
 class SpecsResolutionError(Exception):

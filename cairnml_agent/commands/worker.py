@@ -26,7 +26,7 @@ from os.path import basename
 from tempfile import mkdtemp, NamedTemporaryFile
 from threading import Thread
 from time import sleep, time
-from typing import Text, Optional
+from typing import Text, Optional, Any, Tuple, List, Dict
 
 import attr
 from pathlib import Path
@@ -37,7 +37,8 @@ from cairnml_agent.backend_api.services import auth as auth_api
 from cairnml_agent.backend_api.services import queues as queues_api
 from cairnml_agent.backend_api.services import tasks as tasks_api
 from cairnml_agent.backend_api.services import workers as workers_api
-from cairnml_agent.backend_api.session import CallResult, Request
+from cairnml_agent.backend_api.session.callresult import CallResult
+from cairnml_agent.backend_api.session.request import Request
 from cairnml_agent.backend_api.session.defs import (
     ENV_ENABLE_ENV_CONFIG_SECTION,
     ENV_ENABLE_FILES_CONFIG_SECTION,
@@ -45,10 +46,10 @@ from cairnml_agent.backend_api.session.defs import (
     ENV_PROPAGATE_EXITCODE,
     ENV_MULTI_NODE_SINGLE_TASK,
 )
-from cairnml_agent.backend_config import Config
+from cairnml_agent.backend_config.config import Config
 from cairnml_agent.backend_config.defs import UptimeConf
 from cairnml_agent.backend_config.utils import apply_environment, apply_files
-from cairnml_agent.backend_config.converters import text_to_int
+from cairnml_agent.helper.environment.converters import text_to_int
 from cairnml_agent.commands.base import resolve_names, ServiceCommandSection
 from cairnml_agent.commands.resolver import resolve_default_container
 from cairnml_agent.definitions import (
@@ -152,6 +153,7 @@ from cairnml_agent.helper.process import (
     check_if_command_exists,
     terminate_all_child_processes,
     find_executable,
+    Executable,
 )
 from cairnml_agent.helper.job_token import (
     CONTAINER_DIR, TOKEN_FILE_NAME, TokenRenewer, request_job_token, write_job_token,
@@ -160,6 +162,8 @@ from cairnml_agent.helper.repo import (
     clone_repository_cached,
     fix_package_import_diff_patch,
     patch_add_task_init_call,
+    RepoInfo,
+    VCS,
 )
 from cairnml_agent.helper.resource_monitor import ResourceMonitor
 from cairnml_agent.helper.runtime_verification import check_runtime, print_uptime_properties

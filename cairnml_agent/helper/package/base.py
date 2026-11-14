@@ -10,7 +10,9 @@ from cairnml_agent.helper.base import mkstemp, safe_remove_file, join_lines, sel
 from cairnml_agent.helper.console import ensure_binary
 from cairnml_agent.helper.hash import md5
 from cairnml_agent.helper.os.folder_cache import FolderCache
-from cairnml_agent.helper.process import Argv
+from cairnml_agent.helper.process import Argv, Executable, PathLike
+from typing import Text, Iterable, Union, Optional, Dict, List
+from pathlib import Path
 
 
 class PackageManager(object, metaclass=abc.ABCMeta):

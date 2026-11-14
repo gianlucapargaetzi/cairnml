@@ -11,7 +11,7 @@ from copy import copy
 from itertools import chain, repeat, islice
 from os.path import devnull
 from time import sleep
-from typing import Union, Text, TypeVar
+from typing import Union, Text, TypeVar, Sequence, Any, Callable
 
 import psutil
 from furl import furl

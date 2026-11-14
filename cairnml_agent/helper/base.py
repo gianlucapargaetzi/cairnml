@@ -15,7 +15,7 @@ import tempfile
 from abc import ABCMeta
 from collections import OrderedDict
 from functools import total_ordering
-from typing import Text
+from typing import Text, Dict, Any, Optional, AnyStr, IO, Union
 
 import attr
 import furl

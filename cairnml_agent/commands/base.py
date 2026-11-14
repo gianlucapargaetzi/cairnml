@@ -17,6 +17,7 @@ from cairnml_agent.errors import APIError, CommandFailedError
 from cairnml_agent.helper.base import Singleton, return_list, print_parameters, dump_yaml, load_yaml, error, warning
 from cairnml_agent.interface.base import ObjectID
 from cairnml_agent.session import Session
+from typing import Text
 
 
 class NameResolutionError(CommandFailedError):
