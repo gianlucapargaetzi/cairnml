@@ -2,13 +2,8 @@ import base64
 import os
 from os.path import expandvars, expanduser
 from pathlib import Path
-from typing import List, TYPE_CHECKING
 
 from cairnml_agent.external.pyhocon import HOCONConverter, ConfigTree
-
-if TYPE_CHECKING:
-    from .config import Config
-
 
 def get_items(cls):
     """ get key/value items from an enum-like class (members represent enumeration key/value) """

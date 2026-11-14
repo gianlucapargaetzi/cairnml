@@ -2,7 +2,6 @@ import shlex
 from datetime import timedelta
 from enum import IntEnum
 from os import getenv, environ
-from typing import Text, Optional, Union, Tuple, Any
 
 from pathlib import Path
 
