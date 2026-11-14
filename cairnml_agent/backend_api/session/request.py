@@ -1,6 +1,6 @@
 import abc
 
-from ..._vendor import jsonschema
+import jsonschema
 
 from .apimodel import ApiModel
 from .datamodel import DataModel

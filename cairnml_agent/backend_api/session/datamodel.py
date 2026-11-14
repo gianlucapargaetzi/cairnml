@@ -5,7 +5,7 @@ import json
 import warnings
 from datetime import datetime
 
-from ..._vendor import jsonschema
+import jsonschema
 from enum import Enum
 
 
@@ -66,7 +66,7 @@ class DataModel(object):
 
     def validate(self, schema=None):
         schema = schema or self._schema
-        validator = jsonschema.validators.validator_for(schema)
+        validator = jsonschema.validators.validator_for(schema, default=jsonschema.Draft7Validator)
         validator_cls = jsonschema.validators.extend(
             validator=validator,
             type_checker=validator.TYPE_CHECKER.redefine_many({
