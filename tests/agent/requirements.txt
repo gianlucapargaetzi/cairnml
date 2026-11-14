@@ -5,3 +5,4 @@ furl
 attrs
 six
 pytest-env
+pyflakes==4.1.0
