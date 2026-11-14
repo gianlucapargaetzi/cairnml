@@ -226,7 +226,7 @@ class Argv(Executable):
     ARGV_SEPARATOR = " "
 
     def __init__(self, *argv, **kwargs):
-        # type: (*PathLike, Any) -> ()
+        # type: (...) -> None
         """
         Object representing a series of strings used to invoke a process.
         """

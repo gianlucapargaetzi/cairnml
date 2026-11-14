@@ -6,12 +6,10 @@ import warnings
 
 from cairnml_agent.backend_api.session.datamodel import UnusedKwargsWarning
 
-import cairnml_agent
 from cairnml_agent.config import get_config
-from cairnml_agent.definitions import FileBuffering
-from cairnml_agent.helper.base import chain_map, named_temporary_file
+from cairnml_agent.helper.base import named_temporary_file
 from cairnml_agent.helper.process import ExitStatus
-from . import interface, session, definitions, commands
+from . import session, definitions, commands
 from .errors import ConfigFileNotFound, Sigterm, APIError, CustomBuildScriptFailed
 from .helper.trace import PackageTrace
 from .interface import get_parser
