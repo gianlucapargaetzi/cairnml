@@ -19,6 +19,7 @@ from .util import get_command_output, remove_user_pass_from_url
 from ....backend_api import Session
 from ....config import deferred_config, VCS_WORK_DIR, VCS_ENTRY_POINT, VCS_DIFF
 from ....debugging import get_logger
+from ....debugging.ignored import log_ignored
 from .detectors import (
     GitEnvDetector,
     GitDetector,
@@ -95,7 +96,7 @@ class ScriptRequirements:
 
             modules.add("boto3", "cairnml.storage", 0)
         except Exception:
-            pass
+            log_ignored(get_logger("Repository Detection"), "add_trains_used_packages")
         # noinspection PyBroadException
         try:
             # noinspection PyPackageRequirements,PyUnresolvedReferences
@@ -103,7 +104,7 @@ class ScriptRequirements:
 
             modules.add("google_cloud_storage", "cairnml.storage", 0)
         except Exception:
-            pass
+            log_ignored(get_logger("Repository Detection"), "add_trains_used_packages")
         # noinspection PyBroadException
         try:
             # noinspection PyPackageRequirements,PyUnresolvedReferences
@@ -111,7 +112,7 @@ class ScriptRequirements:
 
             modules.add("azure_storage_blob", "cairnml.storage", 0)
         except Exception:
-            pass
+            log_ignored(get_logger("Repository Detection"), "add_trains_used_packages")
 
         # bugfix, replace sklearn with scikit-learn name
         if "sklearn" in modules:
@@ -144,7 +145,7 @@ class ScriptRequirements:
 
                 modules.add("tensorboard", "torch", 0)
             except Exception:
-                pass
+                log_ignored(get_logger("Repository Detection"), "add_trains_used_packages")
 
         # remove setuptools, we should not specify this module version. It is installed by default
         if "setuptools" in modules:
@@ -159,7 +160,7 @@ class ScriptRequirements:
             for package, version in Task._force_requirements.items():
                 modules.add(package, "cairnml", 0)
         except Exception:
-            pass
+            log_ignored(get_logger("Repository Detection"), "add_trains_used_packages")
 
         return modules
 
@@ -224,7 +225,7 @@ class ScriptRequirements:
             # noinspection PyProtectedMember
             ignored_packages = Task._ignore_requirements | ignored_packages
         except Exception:
-            pass
+            log_ignored(get_logger("Repository Detection"), "create_requirements_txt")
 
         # python version header
         python_version = sys.version.replace('\n', ' ').replace('\r', ' ')
@@ -517,7 +518,7 @@ class _JupyterObserver:
                             try:
                                 os.unlink(local_jupyter_filename)
                             except Exception:
-                                pass
+                                log_ignored(get_logger("Repository Detection"), "_daemon")
                             get_ipython().run_line_magic("history", f"-t -f {local_jupyter_filename}")
                             with open(local_jupyter_filename, "r") as f:
                                 script_code = f.read()
@@ -528,6 +529,7 @@ class _JupyterObserver:
                             for nm in set([str(m).split(".")[0] for m in sys.modules]):
                                 fmodules.add(nm, "notebook", 0)
                         except Exception:
+                            log_ignored(get_logger("Repository Detection"), "_daemon")
                             continue
 
                 if _script_exporter is None:
@@ -564,7 +566,7 @@ class _JupyterObserver:
                                     wait_on_upload=True,
                                 )
                             except Exception:
-                                pass
+                                log_ignored(get_logger("Repository Detection"), "_daemon")
 
                     current_script_hash = hash(script_code + (current_cell or ""))
                     if prev_script_hash and prev_script_hash == current_script_hash:
@@ -589,7 +591,7 @@ class _JupyterObserver:
                                 try:
                                     fmodules |= cell_fmodules
                                 except Exception:
-                                    pass
+                                    log_ignored(get_logger("Repository Detection"), "_daemon")
                         # add current cell to the script
                         if current_cell:
                             script_code += "\n" + current_cell
@@ -644,7 +646,7 @@ class _JupyterObserver:
                 # noinspection PyProtectedMember
                 task._update_requirements(requirements=requirements_txt)
             except Exception:
-                pass
+                log_ignored(get_logger("Repository Detection"), "_daemon")
 
 
 class ScriptInfo:
@@ -682,7 +684,7 @@ class ScriptInfo:
                     if log_history:
                         get_ipython().events.register("post_run_cell", _JupyterObserver.signal_sync)
         except Exception:
-            pass
+            log_ignored(get_logger("Repository Detection"), "_jupyter_install_post_store_hook")
 
     @classmethod
     def _get_jupyter_notebook_filename(cls) -> str:
@@ -707,7 +709,7 @@ class ScriptInfo:
 
                     return script_entry_point
             except Exception:
-                pass
+                log_ignored(get_logger("Repository Detection"), "_get_jupyter_notebook_filename")
 
         if (
             not (
@@ -740,7 +742,7 @@ class ScriptInfo:
                         jupyter_servers += [server_info]
 
             except Exception:
-                pass
+                log_ignored(get_logger("Repository Detection"), "_get_jupyter_notebook_filename")
 
             # noinspection PyBroadException
             try:
@@ -755,7 +757,7 @@ class ScriptInfo:
                     if server_info:
                         jupyter_servers += [server_info]
             except Exception:
-                pass
+                log_ignored(get_logger("Repository Detection"), "_get_jupyter_notebook_filename")
 
             current_kernel = sys.argv[2].split(os.path.sep)[-1].replace("kernel-", "").replace(".json", "")
 
@@ -919,6 +921,7 @@ class ScriptInfo:
 
             return script_entry_point
         except Exception:
+            log_ignored(get_logger("Repository Detection"), "_get_jupyter_notebook_filename")
             return None
 
     @classmethod
@@ -1039,7 +1042,7 @@ class ScriptInfo:
 
                 return Path(hydra.utils.get_original_cwd()).absolute()
             except Exception:
-                pass
+                log_ignored(get_logger("Repository Detection"), "_cwd")
         return Path.cwd().absolute()
 
     @classmethod
@@ -1079,7 +1082,7 @@ class ScriptInfo:
             if diff:
                 return diff
         except Exception:
-            pass
+            log_ignored(get_logger("Repository Detection"), "_get_script_code")
 
         # noinspection PyBroadException
         try:
@@ -1087,7 +1090,7 @@ class ScriptInfo:
                 script_code = f.read()
             return script_code
         except Exception:
-            pass
+            log_ignored(get_logger("Repository Detection"), "_get_script_code")
         return ""
 
     @classmethod
@@ -1320,11 +1323,12 @@ class ScriptInfo:
                     with open(f, "r") as json_data:
                         server_info = json.load(json_data)
                 except Exception:
+                    log_ignored(get_logger("Repository Detection"), "__legacy_jupyter_notebook_server_json_parsing")
                     continue
                 if server_info:
                     return server_info
         except Exception:
-            pass
+            log_ignored(get_logger("Repository Detection"), "__legacy_jupyter_notebook_server_json_parsing")
         return None
 
     @classmethod
@@ -1369,6 +1373,7 @@ class ScriptInfo:
         try:
             return "__main__" in sys.modules and vars(sys.modules["__main__"])["__package__"]
         except Exception:
+            log_ignored(get_logger("Repository Detection"), "is_running_from_module")
             return False
 
     @classmethod
@@ -1409,7 +1414,7 @@ class ScriptInfo:
                     else f"-m {module_name}"
                 )
         except Exception:
-            pass
+            log_ignored(get_logger("Repository Detection"), "detect_running_module")
         return script_dict
 
     @staticmethod
@@ -1424,7 +1429,7 @@ class ScriptInfo:
             if get_ipython() and "google.colab" in get_ipython().extension_manager.loaded:
                 return True
         except Exception:
-            pass
+            log_ignored(get_logger("Repository Detection"), "is_google_colab")
         return False
 
     @staticmethod
@@ -1522,6 +1527,7 @@ class _JupyterHistoryLogger:
                 # noinspection PyPackageRequirements
                 from IPython import get_ipython
             except Exception:
+                log_ignored(get_logger("Repository Detection"), "hook")
                 return
             self._ip = get_ipython()
         else:
@@ -1534,7 +1540,7 @@ class _JupyterHistoryLogger:
                 self._ip._org_run_cell = self._ip.run_cell
                 self._ip.run_cell = partial(self._patched_run_cell, self._ip)
         except Exception:
-            pass
+            log_ignored(get_logger("Repository Detection"), "hook")
 
         # start with the current history
         self._initialize_history()
@@ -1548,7 +1554,7 @@ class _JupyterHistoryLogger:
             raw_cell = kwargs.get("raw_cell") or args[0]
             self._current_cell = raw_cell
         except Exception:
-            pass
+            log_ignored(get_logger("Repository Detection"), "_patched_run_cell")
         # noinspection PyProtectedMember
         return shell._org_run_cell(*args, **kwargs)
 
@@ -1585,7 +1591,7 @@ class _JupyterHistoryLogger:
             if self._current_cell:
                 self._current_cell = self._conform_code(self._current_cell, replace_magic_bang=True)
         except Exception:
-            pass
+            log_ignored(get_logger("Repository Detection"), "_pre_cell_callback")
 
     def _post_cell_callback(self, *_: Any, **__: Any) -> None:
         # noinspection PyBroadException
@@ -1602,6 +1608,7 @@ class _JupyterHistoryLogger:
             try:
                 cell_code = "\n" + self._ip.history_manager.input_hist_parsed[-1]
             except Exception:
+                log_ignored(get_logger("Repository Detection"), "_post_cell_callback")
                 return
 
             # fix magic / bang in code
@@ -1610,7 +1617,7 @@ class _JupyterHistoryLogger:
             self._cells_code[self._counter] = cell_code
             self._counter += 1
         except Exception:
-            pass
+            log_ignored(get_logger("Repository Detection"), "_post_cell_callback")
 
     def _initialize_history(self) -> None:
         # only once
@@ -1620,6 +1627,7 @@ class _JupyterHistoryLogger:
         try:
             cell_code = "\n" + "\n".join(self._ip.history_manager.input_hist_parsed[:-1])
         except Exception:
+            log_ignored(get_logger("Repository Detection"), "_initialize_history")
             return
 
         cell_code = self._conform_code(cell_code)
