@@ -1,11 +1,11 @@
 from tempfile import mkdtemp
-from typing import Text
 
 from furl import furl
 from pathlib import Path
 
 from cairnml_agent.config import Config
 from .pip_api.system import SystemPip
+from typing import Text
 
 
 class RequirementsTranslator(object):

@@ -1,9 +1,8 @@
-from typing import Union, Optional, Text
-
-import requests
-from .backend_api import CallResult
-from .backend_api.session.client import APIError as ClientAPIError
+from .backend_api.session.callresult import CallResult
+from .backend_api.session.client.client import APIError as ClientAPIError
 from .backend_api.session.response import ResponseMeta
+from typing import Union, Optional, Text
+import requests
 
 INTERNAL_SERVER_ERROR = 500
 

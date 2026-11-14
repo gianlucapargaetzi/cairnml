@@ -3,12 +3,12 @@ import shutil
 from logging import warning
 from random import random
 from time import time
-from typing import List, Optional, Sequence
 
 import psutil
 from pathlib import Path
 
 from .locks import FileLock
+from typing import List, Optional, Sequence
 
 
 class FolderCache(object):

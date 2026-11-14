@@ -7,7 +7,6 @@ import subprocess
 from collections import OrderedDict
 from functools import partial
 from itertools import chain
-from typing import Text, Iterable, Union, Dict, Set, Sequence, Any
 
 import yaml
 from time import time
@@ -18,14 +17,19 @@ from cairnml_agent.external.requirements_parser.requirement import Requirement
 
 from cairnml_agent.errors import CommandFailedError
 from cairnml_agent.helper.base import (
-    rm_tree, NonStrictAttrs, select_for_platform, is_windows_platform, ExecutionInfo,
-    convert_cuda_version_to_float_single_digit_str, convert_cuda_version_to_int_10_base_str, )
-from cairnml_agent.helper.process import Argv, Executable, DEVNULL, CommandSequence, PathLike, find_executable
+    rm_tree,
+    NonStrictAttrs,
+    select_for_platform,
+    is_windows_platform,
+    convert_cuda_version_to_float_single_digit_str,
+    convert_cuda_version_to_int_10_base_str,
+    ExecutionInfo,
+)
+from cairnml_agent.helper.process import Argv, DEVNULL, CommandSequence, find_executable, Executable, PathLike
 from cairnml_agent.helper.package.requirements import SimpleVersion
-from cairnml_agent.session import Session
 from .base import PackageManager
 from .pip_api.venv import VirtualenvPip
-from .requirements import RequirementsManager, MarkerRequirement
+from .requirements import MarkerRequirement, RequirementsManager
 from ...backend_api.session.defs import ENV_CONDA_ENV_PACKAGE, ENV_USE_CONDA_BASE_ENV
 
 package_normalize = partial(re.compile(r"""\[version=['"](.*)['"]\]""").sub, r"\1")
@@ -35,6 +39,8 @@ def package_set(packages):
     return set(map(package_normalize, packages))
 
 
+from typing import Text, Iterable, Union, Dict, Set, Sequence, Any
+from cairnml_agent.session import Session
 def _package_diff(path, packages):
     # type: (Union[Path, Text], Iterable[Text]) -> Set[Text]
     return package_set(Path(path).read_text().splitlines()) - package_set(packages)

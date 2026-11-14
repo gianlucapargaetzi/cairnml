@@ -10,7 +10,7 @@ from pathlib import Path
 import shutil
 
 from cairnml_agent.definitions import ENV_AGENT_FORCE_UV, PIP_EXTRA_INDICES, ENV_BOOTSTRAP_UV_EXEC
-from cairnml_agent.helper.base import python_version_string, rm_tree
+from cairnml_agent.helper.base import rm_tree
 from cairnml_agent.helper.package.base import get_specific_package_version
 from cairnml_agent.helper.package.pip_api.venv import VirtualenvPip
 from cairnml_agent.helper.process import Argv, DEVNULL, check_if_command_exists, find_executable
@@ -266,7 +266,7 @@ class UvAPI(VirtualenvPip):
                 ):
                     args += ["--locked"]
                 self.lock_config.run(*args, cwd=str(self.lockfile_path), func=Argv.check_call)
-            except Exception as e:
+            except Exception:
                 if not self.lock_file_exists:
                     raise
                 print("INFO: failed installing using lock file, trying without")

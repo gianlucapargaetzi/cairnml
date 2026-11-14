@@ -3,16 +3,16 @@ from __future__ import unicode_literals
 import abc
 from collections import OrderedDict
 from contextlib import contextmanager
-from typing import Text, Iterable, Union, Optional, Dict, List
 
-from pathlib import Path
 
 from cairnml_agent.definitions import ENV_VENV_CACHE_PATH
 from cairnml_agent.helper.base import mkstemp, safe_remove_file, join_lines, select_for_platform
 from cairnml_agent.helper.console import ensure_binary
 from cairnml_agent.helper.hash import md5
 from cairnml_agent.helper.os.folder_cache import FolderCache
-from cairnml_agent.helper.process import Executable, Argv, PathLike
+from cairnml_agent.helper.process import Argv, Executable, PathLike
+from typing import Text, Iterable, Union, Optional, Dict, List
+from pathlib import Path
 
 
 class PackageManager(object, metaclass=abc.ABCMeta):
@@ -402,7 +402,6 @@ class PackageManager(object, metaclass=abc.ABCMeta):
 def get_specific_package_version(cached_requirements, package_name):
     pkg_version = None
     try:
-        from cairnml_agent.external.requirements_parser.requirement import Requirement
         from cairnml_agent.external.requirements_parser import parse
         requirements = []
         if cached_requirements.get("pip", ""):

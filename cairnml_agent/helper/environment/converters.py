@@ -1,5 +1,5 @@
 import base64
-from typing import Union, Optional, Any, TypeVar, Callable, Tuple
+from typing import Any, TypeVar, Callable, Union, Optional, Tuple
 
 
 try:

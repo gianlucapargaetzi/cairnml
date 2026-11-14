@@ -1,5 +1,5 @@
 import abc
-from typing import Optional, Any, Tuple, Callable, Dict
+from typing import Any, Callable, Optional, Tuple, Dict
 
 
 from .converters import any_to_bool
@@ -93,7 +93,7 @@ class Entry(object, metaclass=abc.ABCMeta):
                 continue
             try:
                 value = self.convert(value, converter)
-            except Exception as ex:
+            except Exception:
                 self.error("invalid value {key}={value}: {ex}".format(**locals()))
                 break
             # noinspection PyBroadException

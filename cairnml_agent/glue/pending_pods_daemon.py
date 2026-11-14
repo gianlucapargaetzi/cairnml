@@ -1,7 +1,7 @@
 from time import sleep
 from typing import Dict, List, Optional
 
-from cairnml_agent.backend_api.session import Request
+from cairnml_agent.backend_api.session.request import Request
 from cairnml_agent.glue.utilities import get_bash_output
 
 from .daemon import K8sDaemon

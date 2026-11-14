@@ -1,7 +1,6 @@
 from __future__ import unicode_literals
 
 import abc
-import os
 from argparse import Namespace
 from collections import OrderedDict
 from enum import Enum
@@ -9,14 +8,15 @@ from functools import reduce, wraps, WRAPPER_ASSIGNMENTS
 from importlib import import_module
 from itertools import chain
 from operator import itemgetter
-from types import ModuleType
-from typing import Dict, Text, Tuple, Type, Any, Sequence
 
 from ... import services as api_services
-from ....backend_api.session import CallResult
-from ....backend_api.session import Session, Request as APIRequest
-from ....backend_api.session.response import ResponseMeta
+from ....backend_api.session.session import Session
+from ....backend_api.session.request import Request as APIRequest
+from ....backend_api.session.callresult import CallResult
 from ....backend_config.defs import LOCAL_CONFIG_FILE_OVERRIDE_VAR
+from types import ModuleType
+from typing import Dict, Text, Tuple, Type, Any, Sequence
+from ....backend_api.session.response import ResponseMeta
 
 SERVICE_TO_ENTITY_CLASS_NAMES = {"storage": "StorageItem"}
 

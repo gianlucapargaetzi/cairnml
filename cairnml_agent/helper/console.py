@@ -2,12 +2,12 @@ from __future__ import unicode_literals, print_function
 
 import csv
 import sys
-from collections.abc import Iterable
 from typing import List, Dict, Text, Any
 
 from attr import attrs, attrib
 
 from cairnml_agent.helper.base import nonstrict_in_place_sort
+from collections.abc import Iterable
 
 
 def print_text(text, newline=True):

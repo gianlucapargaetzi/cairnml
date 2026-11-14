@@ -1,6 +1,6 @@
 import argparse
 
-from cairnml_agent.helper.base import warning, is_windows_platform
+from cairnml_agent.helper.base import warning
 from cairnml_agent.interface.base import foreign_object_id
 
 

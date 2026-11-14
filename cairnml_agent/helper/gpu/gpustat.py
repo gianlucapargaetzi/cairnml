@@ -390,7 +390,7 @@ class GPUStatCollection(object):
                 p.join()
 
                 return out.strip()
-            except Exception as ex:
+            except Exception:
                 return None
 
     @staticmethod

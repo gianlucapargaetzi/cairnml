@@ -11,7 +11,6 @@ from os import path
 from typing import Text, List, Type, Optional, Tuple, Dict
 
 from pathlib import Path
-from cairnml_agent.external.pyhocon import ConfigTree
 
 from urllib.parse import unquote  # noqa
 import logging
@@ -21,11 +20,12 @@ from cairnml_agent.helper.base import (
     convert_cuda_version_to_int_10_base_str, dump_yaml, )
 from cairnml_agent.helper.process import Argv, PathLike
 from cairnml_agent.helper.gpu.gpustat import get_driver_cuda_version
-from cairnml_agent.session import Session, normalize_cuda_version
+from cairnml_agent.session import normalize_cuda_version, Session
 from cairnml_agent.external.requirements_parser import parse
 from cairnml_agent.external.requirements_parser.requirement import Requirement
 
 from .translator import RequirementsTranslator
+from cairnml_agent.external.pyhocon import ConfigTree
 
 
 class SpecsResolutionError(Exception):
@@ -892,7 +892,7 @@ class RequirementsManager(object):
             # noinspection PyBroadException
             try:
                 return list(parse(req_str, cwd=cwd))
-            except Exception as ex:
+            except Exception:
                 return [Requirement(req_str)]
 
         def create_req(x):

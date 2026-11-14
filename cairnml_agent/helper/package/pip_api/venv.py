@@ -1,13 +1,13 @@
 import sys
-from typing import Any
 
 from pathlib import Path
 
 from cairnml_agent.helper.base import select_for_platform, rm_tree, ExecutionInfo
 from cairnml_agent.helper.package.base import PackageManager
 from cairnml_agent.helper.process import Argv, PathLike
-from cairnml_agent.session import Session
 from ..pip_api.system import SystemPip
+from typing import Any
+from cairnml_agent.session import Session
 from ..requirements import RequirementsManager
 
 
@@ -82,7 +82,7 @@ class VirtualenvPip(SystemPip, PackageManager):
                 self.session.command(
                     self.python, "-m", "venv", self.path, *self.create_flags()
                 ).check_call()
-            except Exception as ex:
+            except Exception:
                 # let's try with std library instead
                 print("WARNING: virtualenv and venv failed with [{}] trying virtualenv with python [{}]".format(
                     self.python, sys.executable))

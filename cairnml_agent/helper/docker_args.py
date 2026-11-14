@@ -19,7 +19,6 @@ from cairnml_agent.helper.custom_template import CustomTemplate, TemplateResolve
 if TYPE_CHECKING:
     from cairnml_agent.session import Session
 
-
 def sanitize_urls(s: str) -> Tuple[str, bool]:
     """
     Replaces passwords in URLs with asterisks.

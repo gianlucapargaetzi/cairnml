@@ -26,7 +26,7 @@ from os.path import basename
 from tempfile import mkdtemp, NamedTemporaryFile
 from threading import Thread
 from time import sleep, time
-from typing import Text, Optional, Any, Tuple, List, Dict, Mapping, Union
+from typing import Text, Optional, Any, Tuple, List, Dict
 
 import attr
 from pathlib import Path
@@ -37,15 +37,19 @@ from cairnml_agent.backend_api.services import auth as auth_api
 from cairnml_agent.backend_api.services import queues as queues_api
 from cairnml_agent.backend_api.services import tasks as tasks_api
 from cairnml_agent.backend_api.services import workers as workers_api
-from cairnml_agent.backend_api.session import CallResult, Request
+from cairnml_agent.backend_api.session.callresult import CallResult
+from cairnml_agent.backend_api.session.request import Request
 from cairnml_agent.backend_api.session.defs import (
-    ENV_JOB_TOKEN,
-    ENV_ENABLE_ENV_CONFIG_SECTION, ENV_ENABLE_FILES_CONFIG_SECTION,
-    ENV_VENV_CONFIGURED, ENV_PROPAGATE_EXITCODE, ENV_MULTI_NODE_SINGLE_TASK, )
-from cairnml_agent.backend_config import Config
+    ENV_ENABLE_ENV_CONFIG_SECTION,
+    ENV_ENABLE_FILES_CONFIG_SECTION,
+    ENV_VENV_CONFIGURED,
+    ENV_PROPAGATE_EXITCODE,
+    ENV_MULTI_NODE_SINGLE_TASK,
+)
+from cairnml_agent.backend_config.config import Config
 from cairnml_agent.backend_config.defs import UptimeConf
 from cairnml_agent.backend_config.utils import apply_environment, apply_files
-from cairnml_agent.backend_config.converters import text_to_int
+from cairnml_agent.helper.environment.converters import text_to_int
 from cairnml_agent.commands.base import resolve_names, ServiceCommandSection
 from cairnml_agent.commands.resolver import resolve_default_container
 from cairnml_agent.definitions import (
@@ -140,20 +144,26 @@ from cairnml_agent.helper.process import (
     ExitStatus,
     Argv,
     COMMAND_SUCCESS,
-    Executable,
     get_bash_output,
     shutdown_docker_process,
     get_docker_id,
     commit_docker,
     terminate_process,
     check_if_command_exists,
-    terminate_all_child_processes, find_executable,
+    terminate_all_child_processes,
+    find_executable,
+    Executable,
 )
 from cairnml_agent.helper.job_token import (
     CONTAINER_DIR, TOKEN_FILE_NAME, TokenRenewer, request_job_token, write_job_token,
 )
-from cairnml_agent.helper.repo import clone_repository_cached, RepoInfo, VCS, fix_package_import_diff_patch, \
-    patch_add_task_init_call
+from cairnml_agent.helper.repo import (
+    clone_repository_cached,
+    fix_package_import_diff_patch,
+    patch_add_task_init_call,
+    RepoInfo,
+    VCS,
+)
 from cairnml_agent.helper.resource_monitor import ResourceMonitor
 from cairnml_agent.helper.runtime_verification import check_runtime, print_uptime_properties
 from cairnml_agent.helper.singleton import Singleton
@@ -1244,7 +1254,7 @@ class Worker(ServiceCommandSection):
                 or (str(value) == str(expected_value))
             ):
                 return restart_value
-        except Exception as ex:
+        except Exception:
             pass
 
     def run_one_task(self, queue, task_id, worker_args, docker=None, task_session=None):
@@ -1629,7 +1639,6 @@ class Worker(ServiceCommandSection):
         if not self._daemon_foreground:
             print('Starting infinite task polling loop...')
 
-        _last_machine_update_ts = 0
         if self._services_mode:
             try:
                 max_num_instances = int(self._services_mode) if not isinstance(self._services_mode, bool) else -1
@@ -2063,9 +2072,9 @@ class Worker(ServiceCommandSection):
             # definitely supported
             self._runtime_props_support = True
             return True
-        except APIError as ex:
+        except APIError:
             self._runtime_props_support = self._session.api_version
-        except Exception as ex:
+        except Exception:
             # not sure what happened
             pass
 
@@ -2571,8 +2580,8 @@ class Worker(ServiceCommandSection):
             stderr = open(stderr_path, "at")
         else:
             stderr = stdout
-        stdout_line_count, stdout_pos_count, stdout_last_lines = 0, 0, []
-        stderr_line_count, stderr_pos_count, stderr_last_lines = 0, 0, []
+        stdout_line_count, stdout_pos_count = 0, 0
+        stderr_line_count, stderr_pos_count = 0, 0
         lines_buffer = defaultdict(list)
 
         def report_lines(lines, source, a_multi_node_single_task=None):
@@ -2603,7 +2612,6 @@ class Worker(ServiceCommandSection):
         last_task_ping = 0
         multi_node_single_task = ENV_MULTI_NODE_SINGLE_TASK.get()
         try:
-            _last_machine_update_ts = time()
             stop_reason = None
 
             process = cmd.call_subprocess(
@@ -3032,7 +3040,7 @@ class Worker(ServiceCommandSection):
                     sleep(5.0)
                 with open(temp_config.as_posix()) as f:
                     lines = [l.strip() for l in f.readlines()]
-            except Exception as ex:
+            except Exception:
                 # print("Failed reading status file [{}], retrying in 2 seconds".format(ex))
                 sleep(2.0)
 
@@ -4663,7 +4671,7 @@ class Worker(ServiceCommandSection):
                     executable_version, executable_version_suffix, executable_name = \
                         self.find_python_executable_for_version(requested_python_version, raise_on_error=False)
                 except Exception:
-                    executable_version = executable_version_suffix = executable_name = None
+                    executable_version_suffix = executable_name = None
                 # make sure we have at least major.minor version in the requested version,
                 # otherwise use what we found
                 if "." not in str(requested_python_version):
@@ -5617,8 +5625,6 @@ class Worker(ServiceCommandSection):
                 os.setuid(self.uid)
 
         # create a home folder for our user
-        cairnml_agent_home = self._run_as_user_home + '{}'.format(
-            '.'+str(Singleton.get_slot()) if Singleton.get_slot() else '')
         try:
             home_folder = self._run_as_user_home
             rm_tree(home_folder)

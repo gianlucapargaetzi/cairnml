@@ -6,7 +6,7 @@ import tempfile
 import threading
 from pathlib import Path
 
-from cairnml_agent.backend_api.session import Request
+from cairnml_agent.backend_api.session.request import Request
 
 TOKEN_FILE_NAME = "job_token"
 # Where docker mode mounts the folder with the file, inside the job container.

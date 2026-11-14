@@ -1,6 +1,3 @@
-import re
-from functools import partial
-
 import attr
 from attr.validators import instance_of, optional, and_
 

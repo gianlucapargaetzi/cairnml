@@ -2,7 +2,6 @@ import keyword
 
 import enum
 import json
-import warnings
 from datetime import datetime
 
 import jsonschema

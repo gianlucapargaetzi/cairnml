@@ -14,7 +14,7 @@ from pathlib import Path
 from pprint import pformat
 from time import sleep, time
 from datetime import datetime, timedelta, timezone
-from typing import Text, List, Callable, Any, Collection, Optional, Union, Iterable, Dict, Tuple, Set
+from typing import Text, List, Optional, Dict, Tuple, Callable, Any, Collection, Union, Iterable, Set
 
 from cairnml_agent.commands.events import Events
 from cairnml_agent.commands.worker import Worker, get_task_container, set_task_container, get_next_task
@@ -24,11 +24,10 @@ from cairnml_agent.definitions import (
     ENV_AGENT_GIT_PASS,
     ENV_AGENT_GIT_HOST,
     ENV_FORCE_SYSTEM_SITE_PACKAGES,
-    ENV_AGENT_DEBUG_GET_NEXT_TASK,
 )
 from cairnml_agent.errors import APIError, UsageError
 from cairnml_agent.glue.errors import GetPodCountError, ReenqueueTaskException
-from cairnml_agent.glue.utilities import get_path, get_bash_output
+from cairnml_agent.glue.utilities import get_path
 from cairnml_agent.glue.pending_pods_daemon import PendingPodsDaemon
 from cairnml_agent.helper.base import safe_remove_file
 from cairnml_agent.helper.dicts import merge_dicts
@@ -36,7 +35,7 @@ from cairnml_agent.helper.hash import md5
 from cairnml_agent.helper.process import get_bash_output, stringify_bash_output
 from cairnml_agent.helper.resource_monitor import ResourceMonitor
 from cairnml_agent.interface.base import ObjectID
-from cairnml_agent.backend_api.session import Request
+from cairnml_agent.backend_api.session.request import Request
 from cairnml_agent.glue.definitions import (
     ENV_START_AGENT_SCRIPT_PATH,
     ENV_DEFAULT_EXECUTION_AGENT_ARGS,
@@ -1350,7 +1349,6 @@ class K8sIntegration(Worker):
         if not self.k8s_pending_queue_id:
             self._ensure_pending_queue_exists()
 
-        _last_machine_update_ts = 0
         while True:
             # Get used pods and namespaces
             current_pods, namespaces = self._get_used_pods()

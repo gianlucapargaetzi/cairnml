@@ -7,14 +7,14 @@ import platform
 import re
 import sys
 from copy import deepcopy
-from typing import Any, Callable
 
 import attr
 from pathlib import Path
 
 from cairnml_agent.external.pyhocon import ConfigFactory, HOCONConverter, ConfigTree
-from cairnml_agent.backend_api.session import Session as _Session, Request
-from cairnml_agent.backend_api.session.client import APIClient
+from cairnml_agent.backend_api.session.session import Session as _Session
+from cairnml_agent.backend_api.session.request import Request
+from cairnml_agent.backend_api.session.client.client import APIClient
 from cairnml_agent.backend_config.defs import LOCAL_CONFIG_FILE_OVERRIDE_VAR, LOCAL_CONFIG_FILES
 from cairnml_agent.definitions import ENVIRONMENT_CONFIG, ENV_TASK_EXECUTE_AS_USER, ENVIRONMENT_BACKWARD_COMPATIBLE
 from cairnml_agent.errors import APIError
@@ -22,6 +22,7 @@ from cairnml_agent.helper.base import HOCONEncoder
 from cairnml_agent.helper.process import Argv
 from cairnml_agent.helper.docker_args import DockerArgsSanitizer, sanitize_urls
 from .version import __version__
+from typing import Any, Callable
 
 POETRY = "poetry"
 UV = "uv"

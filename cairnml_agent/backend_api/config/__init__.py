@@ -1,4 +1,4 @@
-from ...backend_config import Config
+from ...backend_config.config import Config
 from ...backend_config.defs import ENV_CONFIG_VERBOSE
 from pathlib import Path
 

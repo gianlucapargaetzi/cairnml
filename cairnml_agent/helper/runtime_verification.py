@@ -1,9 +1,9 @@
 import re
 from datetime import datetime, timedelta
 
-from typing import List, Tuple, Optional
 
 from cairnml_agent.backend_config.defs import UptimeConf
+from typing import List, Tuple, Optional
 
 DAYS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"]
 PATTERN = re.compile(r"^(?P<hours>[^\s]+)\s(?P<days>[^\s]+)")

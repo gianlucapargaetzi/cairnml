@@ -2,12 +2,12 @@ import shlex
 from datetime import timedelta
 from enum import IntEnum
 from os import getenv, environ
-from typing import Text, Optional, Union, Tuple, Any
 
 from pathlib import Path
 
 from cairnml_agent.helper.base import normalize_path
 from cairnml_agent.helper.environment.converters import strtobool
+from typing import Text, Optional, Union, Tuple, Any
 
 PROGRAM_NAME = "cairnml-agent"
 FROM_FILE_PREFIX_CHARS = "@"

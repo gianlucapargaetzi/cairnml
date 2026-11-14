@@ -2,9 +2,9 @@ import base64
 import os
 from os.path import expandvars, expanduser
 from pathlib import Path
-from typing import List, TYPE_CHECKING
 
 from cairnml_agent.external.pyhocon import HOCONConverter, ConfigTree
+from typing import List, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .config import Config
