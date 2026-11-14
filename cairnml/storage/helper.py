@@ -77,6 +77,7 @@ from ..backend_config.bucket_config import (
 from .size import format_size
 from ..config import config, deferred_config, SESSION_CACHE_FILE, CAIRNML_CACHE_DIR, DEFAULT_CACHE_DIR
 from ..debugging import get_logger
+from ..debugging.ignored import log_ignored
 from ..errors import UsageError
 from ..utilities.process.mp import ForkSafeRLock, SafeEvent
 
@@ -437,6 +438,7 @@ class _HttpDriver(_Driver):
             url = container_name + object_name
             return container.session.head(url, allow_redirects=True).ok
         except Exception:
+            log_ignored(get_logger("storage"), "exists_file")
             return False
 
 
@@ -791,7 +793,7 @@ class _Boto3Driver(_Driver):
                 try:
                     obj_metadata = container.resource.Object(container.bucket.name, res.key).metadata
                 except Exception:
-                    pass
+                    log_ignored(get_logger("storage"), "list_container_objects")
             yield self.ListResult(name=res.key, size=res.size, metadata=obj_metadata)
 
     def delete_object(self, object: Any, **kwargs: Any) -> bool:
@@ -1020,6 +1022,7 @@ class _Boto3Driver(_Driver):
         try:
             obj.load()
         except Exception:
+            log_ignored(get_logger("storage"), "exists_file")
             return False
         return bool(obj)
 
@@ -1064,7 +1067,7 @@ class _GoogleCloudStorageDriver(_Driver):
                             json.loads(cfg.credentials_json)
                         )
                     except Exception:
-                        pass
+                        log_ignored(get_logger("storage"), "__init__")
             else:
                 credentials = None
 
@@ -1689,6 +1692,7 @@ class _AzureBlobServiceStorageDriver(_Driver):
         try:
             container.blob_service.get_container_properties(container.name)
         except Exception:
+            log_ignored(get_logger("storage"), "test_upload")
             return False
         else:
             # Using the account Key, we can always upload...
@@ -2285,7 +2289,7 @@ class _FileStorageDriver(_Driver):
                 try:
                     os.unlink(file_path)
                 except Exception:
-                    pass
+                    log_ignored(get_logger("storage"), "download_object")
             return False
 
         return True
@@ -2415,6 +2419,7 @@ class _FileStorageDriver(_Driver):
         try:
             os.unlink(path)
         except Exception:  # noqa
+            log_ignored(get_logger("storage"), "delete_object")
             return False
 
         # # Check and delete all the empty parent folders
@@ -2486,6 +2491,7 @@ class _FileStorageDriver(_Driver):
         try:
             shutil.rmtree(path)
         except Exception:
+            log_ignored(get_logger("storage"), "delete_container")
             return False
 
         return True
@@ -2734,7 +2740,7 @@ class _StorageHelper:
             if configs:
                 instance_key += f"_{configs.cache_name}"
         except Exception:
-            pass
+            log_ignored(get_logger("storage"), "get")
 
         force_create = kwargs.pop("__force_create", False)
         if (instance_key in cls._helpers) and (not force_create) and base_url != "file://":
@@ -2901,7 +2907,7 @@ class _StorageHelper:
             try:
                 thread.join(timeout=remaining_timeout)
             except Exception:
-                pass
+                log_ignored(get_logger("storage"), "terminate_uploads")
             remaining_timeout -= time() - t
 
     @classmethod
@@ -3184,7 +3190,7 @@ class _StorageHelper:
                     obj.reload()
                     blob_meta = getattr(obj, "metadata", None)
                 except Exception:
-                    pass
+                    log_ignored(get_logger("storage"), "get_object_metadata")
             sha256 = (blob_meta or {}).get("sha256")
             if sha256:
                 metadata["hash"] = sha256
@@ -3267,7 +3273,7 @@ class _StorageHelper:
                 try:
                     stream.seek(0)
                 except Exception:
-                    pass
+                    log_ignored(get_logger("storage"), "upload_from_stream")
 
         if cb:
             cb.close(report_completed=not bool(last_ex))
@@ -3443,7 +3449,7 @@ class _StorageHelper:
             if tmp_remote_path.exists():
                 remote_path = f"file://{tmp_remote_path}"
         except Exception:
-            pass
+            log_ignored(get_logger("storage"), "download_to_file")
         # Check if driver type supports direct access:
         direct_access_path = self.get_driver_direct_access(remote_path)
         if direct_access_path and direct_access:
@@ -3523,7 +3529,7 @@ class _StorageHelper:
                 try:
                     os.remove(local_path)
                 except Exception:
-                    pass
+                    log_ignored(get_logger("storage"), "download_to_file")
 
             # rename temp file to local_file
             # noinspection PyBroadException
@@ -3534,7 +3540,7 @@ class _StorageHelper:
                 try:
                     os.unlink(temp_local_path)
                 except Exception:
-                    pass
+                    log_ignored(get_logger("storage"), "download_to_file")
                 # file was downloaded by a parallel process, check we have the final output and delete the partial copy
                 path_local_path = Path(local_path)
                 if not path_local_path.is_file() or (not skip_zero_size_check and path_local_path.stat().st_size <= 0):
@@ -3569,7 +3575,7 @@ class _StorageHelper:
                 try:
                     os.remove(temp_local_path)
                 except Exception:
-                    pass
+                    log_ignored(get_logger("storage"), "download_to_file")
             return None
 
     def download_as_stream(
@@ -3917,7 +3923,7 @@ class _StorageHelper:
                 pool.terminate()
                 pool.join()
             except Exception:
-                pass
+                log_ignored(get_logger("storage"), "close_async_threads")
 
     def exists_file(self, remote_url: str) -> bool:
         remote_url = self._canonize_url(remote_url)
@@ -4617,7 +4623,7 @@ class StorageHelper(_StorageHelper):
                         try:
                             locks.pop(key, None)
                         except Exception:
-                            pass
+                            log_ignored(get_logger("storage"), "_download")
                         self._reused_locks.append(lock)
 
                 # now release the lock, if someone was waiting on the lock
@@ -4642,7 +4648,7 @@ class StorageHelper(_StorageHelper):
                 future = self.clean_cache_executor.submit(self._do_clean_cache, self.log)
                 future.result(timeout=0)
             except Exception:
-                pass
+                log_ignored(get_logger("storage"), "_clean_cache")
 
     def _update_cache_file(self, file_path, downloaded=False, log=None):
         """ Update cache size with integer value or file size (if a filename is provided) """
@@ -5002,7 +5008,7 @@ def get_file_mimetype(file_path: str) -> str:
         if mimetype:
             return mimetype
     except Exception:
-        pass
+        log_ignored(get_logger("storage"), "get_file_mimetype")
     return "binary/octet-stream"
 
 
