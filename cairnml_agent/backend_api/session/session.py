@@ -5,7 +5,7 @@ import types
 from random import SystemRandom
 from socket import gethostname
 
-from ..._vendor import jwt
+import jwt
 import requests
 
 from cairnml_agent.external.pyhocon import ConfigTree, ConfigFactory
