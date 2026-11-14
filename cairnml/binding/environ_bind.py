@@ -54,7 +54,7 @@ class EnvironmentBind:
                     {
                         k: os.environ.get(k)
                         for k in os.environ
-                        if not k.startswith("TRAINS_") and not k.startswith("CAIRNML_")
+                        if not k.startswith("CAIRNML_")
                     }
                 )
             elif match.endswith("*"):

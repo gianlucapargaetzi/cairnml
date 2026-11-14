@@ -5526,9 +5526,7 @@ class PipelineDecorator(PipelineController):
 
             def sanitized_env(a_queue: Queue, *a_args: Any, **a_kwargs: Any) -> Any:
                 os.environ.pop("CAIRNML_PROC_MASTER_ID", None)
-                os.environ.pop("TRAINS_PROC_MASTER_ID", None)
                 os.environ.pop("CAIRNML_TASK_ID", None)
-                os.environ.pop("TRAINS_TASK_ID", None)
                 if Task.current_task():
                     # noinspection PyProtectedMember
                     Task.current_task()._reset_current_task_obj()

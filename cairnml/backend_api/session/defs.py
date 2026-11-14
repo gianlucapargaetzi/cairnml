@@ -3,8 +3,8 @@ from typing import Optional
 from ...backend_config import EnvEntry
 from ...backend_config.converters import safe_text_to_bool
 
-ENV_HOST = EnvEntry("CAIRNML_API_HOST", "TRAINS_API_HOST")
-ENV_WEB_HOST = EnvEntry("CAIRNML_WEB_HOST", "TRAINS_WEB_HOST")
+ENV_HOST = EnvEntry("CAIRNML_API_HOST", )
+ENV_WEB_HOST = EnvEntry("CAIRNML_WEB_HOST", )
 ENV_AUTH_TOKEN = EnvEntry("CAIRNML_AUTH_TOKEN")
 # Set by the agent for one job: the token is used as it is and is never exchanged for another.
 ENV_JOB_TOKEN = EnvEntry("CAIRNML_JOB_TOKEN")
@@ -12,21 +12,18 @@ ENV_JOB_TOKEN = EnvEntry("CAIRNML_JOB_TOKEN")
 ENV_JOB_TOKEN_FILE = EnvEntry("CAIRNML_JOB_TOKEN_FILE")
 ENV_VERBOSE = EnvEntry(
     "CAIRNML_API_VERBOSE",
-    "TRAINS_API_VERBOSE",
     converter=safe_text_to_bool,
     type=bool,
     default=False,
 )
-ENV_HOST_VERIFY_CERT = EnvEntry("CAIRNML_API_HOST_VERIFY_CERT", "TRAINS_API_HOST_VERIFY_CERT", default=True)
+ENV_HOST_VERIFY_CERT = EnvEntry("CAIRNML_API_HOST_VERIFY_CERT", default=True)
 ENV_OFFLINE_MODE = EnvEntry(
     "CAIRNML_OFFLINE_MODE",
-    "TRAINS_OFFLINE_MODE",
     type=bool,
     converter=safe_text_to_bool,
 )
 ENV_CAIRNML_NO_DEFAULT_SERVER = EnvEntry(
     "CAIRNML_NO_DEFAULT_SERVER",
-    "TRAINS_NO_DEFAULT_SERVER",
     converter=safe_text_to_bool,
     type=bool,
     default=True,

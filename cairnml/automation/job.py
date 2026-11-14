@@ -729,8 +729,7 @@ class LocalCairnmlJob(CairnmlJob):
         python = sys.executable
         env = dict(**os.environ)
         env.pop("CAIRNML_PROC_MASTER_ID", None)
-        env.pop("TRAINS_PROC_MASTER_ID", None)
-        env["CAIRNML_TASK_ID"] = env["TRAINS_TASK_ID"] = str(self.task.id)
+        env["CAIRNML_TASK_ID"] = str(self.task.id)
         env["CAIRNML_LOG_TASK_TO_BACKEND"] = "1"
         env["CAIRNML_SIMULATE_REMOTE_TASK"] = "1"
         try:

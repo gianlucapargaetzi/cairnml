@@ -12,7 +12,6 @@ from .defs import *  # noqa: F403
 from .remote import running_remotely_task_id as _running_remotely_task_id
 from ..backend_api import load_config
 from ..backend_config import Config
-from ..backend_config.environment import legacy_name_message, warn_deprecated_once
 from ..backend_config.bucket_config import S3BucketConfigurations
 
 # config_obj = load_config(Path(__file__).parent)  # noqa: F405
@@ -272,14 +271,7 @@ def dev_worker_name() -> str:
 def __set_is_master_node() -> Optional[bool]:
     # noinspection PyBroadException
     try:
-        # pop both set the first
-        env_a = os.environ.pop("CAIRNML_FORCE_MASTER_NODE", None)
-        env_b = os.environ.pop("TRAINS_FORCE_MASTER_NODE", None)
-        if env_b and not env_a:
-            warn_deprecated_once(
-                "TRAINS_FORCE_MASTER_NODE", legacy_name_message("TRAINS_FORCE_MASTER_NODE", "CAIRNML_FORCE_MASTER_NODE")
-            )
-        force_master_node = env_a or env_b
+        force_master_node = os.environ.pop("CAIRNML_FORCE_MASTER_NODE", None)
     except Exception:
         force_master_node = None
 
