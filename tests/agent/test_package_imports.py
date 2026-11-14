@@ -49,12 +49,9 @@ def test_the_packages_export_only_the_names_that_are_used_through_them():
         assert not hasattr(module, name), "{}.{} is still re-exported".format(module.__name__, name)
 
 
-# Modules that already fail to import on main (a TypeError in the vendored jsonmodels package). Listed so that a new
-# import failure fails the test, and a fixed one makes the list stale and fails it too.
-KNOWN_IMPORT_FAILURES = {
-    "cairnml_agent.backend_api.session.jsonmodels.utilities",
-    "cairnml_agent.backend_api.session.jsonmodels.validators",
-}
+# Modules that fail to import and are tolerated for now: none. A module that fails and is not listed fails the test, and a listed
+# module that imports again fails it too, because the list is then stale.
+KNOWN_IMPORT_FAILURES = set()
 
 
 def test_every_module_of_the_agent_imports_except_the_known_failures():
