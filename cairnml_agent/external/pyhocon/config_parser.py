@@ -6,9 +6,9 @@ import contextlib
 import codecs
 from datetime import timedelta
 
-from ..._vendor.pyparsing import Forward, Keyword, QuotedString, Word, Literal, Suppress, Regex, Optional, SkipTo, ZeroOrMore, \
+from pyparsing import Forward, Keyword, QuotedString, Word, Literal, Suppress, Regex, Optional, SkipTo, ZeroOrMore, \
     Group, lineno, col, TokenConverter, replaceWith, alphanums, alphas8bit, ParseSyntaxException, StringEnd
-from ..._vendor.pyparsing import ParserElement
+from pyparsing import ParserElement
 from .config_tree import ConfigTree, ConfigSubstitution, ConfigList, ConfigValues, ConfigUnquotedString, \
     ConfigInclude, NoneValue, ConfigQuotedString
 from .exceptions import ConfigSubstitutionException, ConfigMissingException, ConfigException

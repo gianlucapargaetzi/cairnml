@@ -8,7 +8,7 @@ from os.path import expanduser
 from typing import Any
 
 from pathlib import Path
-from .._vendor.pyparsing import (
+from pyparsing import (
     ParseFatalException,
     ParseException,
     RecursiveGrammarException,
