@@ -38,7 +38,9 @@ def test_import_cairnml_loads_no_hyperdataset_module():
         "import sys, cairnml; "
         "print([m for m in sys.modules if m.startswith(('cairnml.hyperdatasets', 'cairnml.backend_interface.datasets'))])"
     )
-    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True).stdout.strip()
+    out = subprocess.run(
+        [sys.executable, "-c", code], capture_output=True, text=True, check=True, cwd=Path(cairnml.__file__).parent.parent
+    ).stdout.strip()
     assert out == "[]"
 
 
