@@ -67,7 +67,7 @@ class K8sIntegration(Worker):
         "echo 'PermitRootLogin yes' >> /etc/ssh/sshd_config",
         "sed -i 's/PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config",
         r"sed 's@session\s*required\s*pam_loginuid.so@session optional pam_loginuid.so@g' -i /etc/pam.d/sshd",
-        "echo 'AcceptEnv TRAINS_API_ACCESS_KEY TRAINS_API_SECRET_KEY CAIRNML_API_ACCESS_KEY CAIRNML_API_SECRET_KEY' "
+        "echo 'AcceptEnv CAIRNML_API_ACCESS_KEY CAIRNML_API_SECRET_KEY' "
         ">> /etc/ssh/sshd_config",
         'echo "export VISIBLE=now" >> /etc/profile',
         'echo "export PATH=$PATH" >> /etc/profile',

@@ -19,6 +19,7 @@ from cairnml_agent.external import pyhocon
 from cairnml_agent.external.pyhocon import ConfigTree, ConfigFactory
 
 from .defs import (
+    ENV_VAR,
     Environment,
     DEFAULT_CONFIG_FOLDER,
     LOCAL_CONFIG_PATHS,
@@ -89,7 +90,7 @@ class Config(object):
         self._folder_name = config_folder or DEFAULT_CONFIG_FOLDER
         self._roots = []
         self._config = ConfigTree()
-        self._env = env or os.environ.get("TRAINS_ENV", Environment.default)
+        self._env = env or os.environ.get(ENV_VAR, Environment.default)
         self.config_paths = set()
         self.is_server = is_server
         self._overrides_configs = None
