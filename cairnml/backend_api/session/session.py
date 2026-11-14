@@ -57,6 +57,10 @@ class LoginError(Exception):
     pass
 
 
+class NotSignedInError(LoginError):
+    """The person is not signed in: the machine has no key or token, or the server refused the sign-in."""
+
+
 class MaxRequestSizeError(Exception):
     pass
 
@@ -182,7 +186,7 @@ class Session(TokenManager):
 
         self.__host = self.__init_host or self.get_api_server_host(config=self.config)
         if not self.__host:
-            raise ValueError("CairnML host was not set, check your configuration file or environment variable")
+            raise MissingConfigError("CairnML host was not set, check your configuration file or environment variable")
         self.__host = self.__host.strip("/")
         self.__http_retries_config = (
             self.__init_http_retries_config or self.config.get("api.http.retries", ConfigTree()).as_plain_ordered_dict()
@@ -853,7 +857,7 @@ class Session(TokenManager):
             return self._exchange_device_assertion()
         if self.__auth_token:
             return self.__auth_token
-        raise LoginError("This machine has no device key or token; run cairnml init to enrol it")
+        raise NotSignedInError("This machine has no device key or token; run cairnml init to enrol it")
 
     def _exchange_device_assertion(self) -> str:
         """Sign an assertion with this device's key and exchange it for a short-lived token."""
@@ -874,7 +878,7 @@ class Session(TokenManager):
             resp = {}
         if res.status_code != 200:
             msg = resp.get("meta", {}).get("result_msg", res.reason)
-            raise LoginError(f"Device sign-in refused (error {res.status_code} from {self.host}): {msg}")
+            raise NotSignedInError(f"Device sign-in refused (error {res.status_code} from {self.host}): {msg}")
         return resp["data"]["access_token"]
 
     def __str__(self) -> str:

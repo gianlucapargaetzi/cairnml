@@ -10,6 +10,8 @@ import pytest
 
 from cairnml.cli.dataset import __main__ as dataset_cli
 from cairnml.datasets import Dataset, DatasetCache, DatasetError, DatasetRepo, SampleWriter, footprint
+from cairnml.backend_api.session.defs import MissingConfigError
+from cairnml.backend_api.session.session import LoginError, NotSignedInError
 from cairnml.datasets.dvcutil import Dvc
 from cairnml.datasets import credentials
 from cairnml.datasets.repo import protection_problems
@@ -593,7 +595,7 @@ def test_the_repository_list_is_asked_of_the_server_with_the_login(monkeypatch):
 def test_the_repository_list_is_unavailable_without_a_login_or_when_refused(monkeypatch):
     class NoLogin:
         def send_request(self, service, action, json, version=None):
-            raise ValueError("CairnML host was not set")
+            raise MissingConfigError("CairnML host was not set")
 
     class Refused:
         def send_request(self, service, action, json, version=None):
@@ -737,7 +739,7 @@ def test_a_credential_that_cannot_read_the_repository_is_warned_about(tmp_path, 
 def test_a_person_without_a_login_is_told_why_datasets_need_one(monkeypatch):
     class NoLogin:
         def send_request(self, service, action, json, version=None):
-            raise ValueError("CairnML host was not set")
+            raise MissingConfigError("CairnML host was not set")
 
     with pytest.raises(DatasetError, match="datasets need a CairnML login"):
         credentials.fetch_person_git_token("https://github.com/acme/cars.git", "read", NoLogin())
@@ -983,3 +985,45 @@ def test_commit_and_push_wait_for_the_remote(work, origin, storage):
         repo.commit("too early")
     with pytest.raises(DatasetError, match="remote add"):
         repo.push()
+
+
+def _failing_session(exc):
+    class FailingSession:
+        def send_request(self, **kwargs):
+            raise exc
+
+    return FailingSession()
+
+
+LOGIN_HINT = "datasets need a CairnML login"
+
+
+@pytest.mark.parametrize(
+    "exc, hinted",
+    [
+        pytest.param(ConnectionError("Max retries exceeded: connection refused"), False, id="connection-refused"),
+        pytest.param(ValueError("no JSON in the answer"), False, id="transport-bug"),
+        pytest.param(
+            LoginError("Device sign-in failed: no answer from https://example.org"), False, id="no-answer-from-host"
+        ),
+        pytest.param(
+            NotSignedInError("This machine has no device key or token; run cairnml init to enrol it"), True, id="no-key"
+        ),
+        pytest.param(
+            NotSignedInError("Device sign-in refused (error 401 from https://example.org): bad key"), True, id="refused"
+        ),
+        pytest.param(MissingConfigError("CairnML host was not set, check your configuration file"), True, id="host-not-set"),
+    ],
+)
+def test_the_login_hint_only_for_a_person_who_is_not_signed_in(exc, hinted):
+    failing = _failing_session(exc)
+
+    with pytest.raises(DatasetError) as personal:
+        credentials.fetch_person_git_token("https://github.com/acme/cars.git", "read", failing)
+    assert (LOGIN_HINT in str(personal.value)) is hinted
+    assert personal.value.__cause__ is exc
+
+    with pytest.raises(DatasetError) as listing:
+        credentials.fetch_repository_list(failing)
+    assert (LOGIN_HINT in str(listing.value)) is hinted
+    assert listing.value.__cause__ is exc
