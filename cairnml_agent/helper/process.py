@@ -14,7 +14,7 @@ from time import sleep
 from typing import Union, Text, Sequence, Any, TypeVar, Callable
 
 import psutil
-from .._vendor.furl import furl
+from furl import furl
 from pathlib import Path
 
 from cairnml_agent.definitions import PROGRAM_NAME, CONFIG_FILE

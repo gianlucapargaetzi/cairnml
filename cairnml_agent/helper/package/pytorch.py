@@ -4,7 +4,7 @@ import os
 import re
 import sys
 import platform
-from ..._vendor.furl import furl
+from furl import furl
 import urllib.parse
 from operator import itemgetter
 from html.parser import HTMLParser

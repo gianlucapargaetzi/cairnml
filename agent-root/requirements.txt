@@ -8,3 +8,4 @@ pyjwt>=2.4.0,<3.0.0
 cryptography>=43.0.0
 pyyaml>=6.0,<7
 python-dateutil>=2.8,<3
+furl>=2.1,<3

@@ -13,7 +13,7 @@ from threading import Lock
 from typing import Text, Sequence, Mapping, Iterable, TypeVar, Callable, Tuple, Optional
 
 from .._vendor import attr
-from .._vendor.furl import furl
+from furl import furl
 from pathlib import Path
 
 
