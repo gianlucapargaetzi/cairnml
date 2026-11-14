@@ -14,7 +14,7 @@ from pathlib import Path
 from pprint import pformat
 from time import sleep, time
 from datetime import datetime, timedelta, timezone
-from typing import Text, List, Callable, Any, Collection, Optional, Union, Iterable, Dict, Tuple, Set
+from typing import Text, List, Optional, Dict, Tuple
 
 from cairnml_agent.commands.events import Events
 from cairnml_agent.commands.worker import Worker, get_task_container, set_task_container, get_next_task
@@ -24,7 +24,6 @@ from cairnml_agent.definitions import (
     ENV_AGENT_GIT_PASS,
     ENV_AGENT_GIT_HOST,
     ENV_FORCE_SYSTEM_SITE_PACKAGES,
-    ENV_AGENT_DEBUG_GET_NEXT_TASK,
 )
 from cairnml_agent.errors import APIError, UsageError
 from cairnml_agent.glue.errors import GetPodCountError, ReenqueueTaskException

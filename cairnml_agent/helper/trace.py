@@ -7,7 +7,7 @@ import time
 import trace
 from itertools import chain
 from types import ModuleType
-from typing import Text, Sequence, Union
+from typing import Text, Union
 
 from pathlib import Path
 

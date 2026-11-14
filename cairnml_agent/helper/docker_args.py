@@ -1,6 +1,6 @@
 import re
 import shlex
-from typing import Tuple, List, TYPE_CHECKING, Optional
+from typing import Tuple, List, Optional
 from urllib.parse import urlunparse, urlparse
 
 from cairnml_agent.definitions import (
@@ -15,10 +15,6 @@ from cairnml_agent.definitions import (
 from cairnml_agent.helper.sdk_client.utilities.networking import get_private_ip
 from cairnml_agent.helper.os.networking import TcpPorts
 from cairnml_agent.helper.custom_template import CustomTemplate, TemplateResolver
-
-if TYPE_CHECKING:
-    from cairnml_agent.session import Session
-
 
 def sanitize_urls(s: str) -> Tuple[str, bool]:
     """

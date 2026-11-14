@@ -8,7 +8,7 @@ from furl import furl
 import urllib.parse
 from operator import itemgetter
 from html.parser import HTMLParser
-from typing import Text, Optional, Dict
+from typing import Text
 
 import attr
 import requests

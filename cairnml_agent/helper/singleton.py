@@ -4,7 +4,6 @@ from time import sleep
 from glob import glob
 from tempfile import gettempdir, NamedTemporaryFile
 
-from typing import List, Tuple, Optional
 
 from cairnml_agent.definitions import ENV_DOCKER_HOST_MOUNT
 from cairnml_agent.helper.base import warning, is_windows_platform, safe_remove_file

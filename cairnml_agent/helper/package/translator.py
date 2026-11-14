@@ -1,5 +1,4 @@
 from tempfile import mkdtemp
-from typing import Text
 
 from furl import furl
 from pathlib import Path
