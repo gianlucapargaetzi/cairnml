@@ -78,6 +78,15 @@ class Log:
 
 
 class Recorder:
+    # the methods execute delegates to: the real ones, so the tests exercise the moved code
+    _prepare_compiled_bootstrap = Worker._prepare_compiled_bootstrap
+    _clone_or_dequeue = Worker._clone_or_dequeue
+    _run_in_worker = Worker._run_in_worker
+    _build_command = Worker._build_command
+    _prepare_environment = Worker._prepare_environment
+    _run_command = Worker._run_command
+    _finish_run = Worker._finish_run
+
     def __init__(self, calls, task, code_dir, exit_code=0):
         self.calls = calls
         self._session = Session(calls, task)
