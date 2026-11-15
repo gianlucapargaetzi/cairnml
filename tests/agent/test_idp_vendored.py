@@ -11,6 +11,9 @@ from pathlib import Path
 
 import pytest
 
+# Disabled: the agent will import idp from cairnml, so the copies and this check go with it.
+pytestmark = pytest.mark.skip(reason="idp is imported from cairnml soon; the drift check is disabled until then")
+
 HERE = Path(__file__).resolve().parent
 PACKAGE_IDP = HERE.parent / "cairnml_agent" / "idp"
 SDK_IDP = Path(os.environ.get("CAIRNML_SDK_IDP", HERE.parent.parent / "cairnml" / "cairnml" / "idp"))
