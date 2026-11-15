@@ -83,20 +83,14 @@ def browser_login(
             if parts.path == "/callback" and query.get("state") == state:
                 reply.update(query)
                 if "error" in query:
-                    body = page(
-                        "Sign-in not completed",
-                        "The identity provider did not complete the sign-in.",
-                        ok=False,
-                        detail=query.get("error_description") or query["error"],
-                    )
+                    body = page("Sign-in not completed", "The identity provider did not complete the sign-in.",
+                                ok=False, detail=query.get("error_description") or query["error"])
                 else:
                     body = page("Signed in", "You can close this tab and go back to your terminal.")
                 self._send(200, body)
                 return
-            self._send(
-                400 if parts.path == "/callback" else 404,
-                page("Not a sign-in reply", "This reply does not match a sign-in in progress.", ok=False),
-            )
+            self._send(400 if parts.path == "/callback" else 404,
+                       page("Not a sign-in reply", "This reply does not match a sign-in in progress.", ok=False))
 
         def _send(self, status, body):
             self.send_response(status)
@@ -116,19 +110,17 @@ def browser_login(
             f"there ({exc.strerror or exc})"
         ) from None
     redirect = f"http://127.0.0.1:{listener.server_address[1]}/callback"
-    query = urlencode(
-        {
-            "response_type": "code",
-            "client_id": client_id,
-            "redirect_uri": redirect,
-            "scope": "openid",
-            "state": state,
-            "code_challenge": challenge,
-            "code_challenge_method": "S256",
-            # Always ask for the credentials: the browser may still hold an earlier sign-in of another person.
-            "prompt": "login",
-        }
-    )
+    query = urlencode({
+        "response_type": "code",
+        "client_id": client_id,
+        "redirect_uri": redirect,
+        "scope": "openid",
+        "state": state,
+        "code_challenge": challenge,
+        "code_challenge_method": "S256",
+        # Always ask for the credentials: the browser may still hold an earlier sign-in of another person.
+        "prompt": "login",
+    })
     url = f"{meta['authorization_endpoint']}?{query}"
     out(f"Signing in at {issuer}; your browser opens the sign-in page.")
     try:
