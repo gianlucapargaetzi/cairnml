@@ -35,7 +35,7 @@ from .environment import check_legacy_config_file
 from .errors import ConfigurationError
 from .log import initialize as initialize_log, logger
 from .utils import get_options
-from ..utilities.pyhocon import ConfigTree, ConfigFactory
+from pyhocon import ConfigTree, ConfigFactory
 
 log = logger(__file__)
 

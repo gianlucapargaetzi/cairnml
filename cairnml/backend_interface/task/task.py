@@ -11,7 +11,6 @@ from enum import Enum
 from multiprocessing import RLock
 from operator import itemgetter
 from tempfile import gettempdir
-from threading import Thread
 from typing import Optional, Sequence, Callable, Mapping, Union, List, Set, Dict, Any
 from uuid import uuid4
 
@@ -35,7 +34,7 @@ from ...backend_api.session.response import Response
 from ...backend_api.services import tasks, models, events, projects
 
 # from ...backend_api.session.defs import ENV_OFFLINE_MODE
-from ...utilities.pyhocon import ConfigTree, ConfigFactory
+from pyhocon import ConfigTree, ConfigFactory
 from ...utilities.config import config_dict_to_text, text_to_config_dict
 from ...errors import ArtifactUriDeleteError
 
@@ -990,7 +989,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
             raise
         except Exception as ex:
             if raise_on_error:
-                raise self.DeleteError(f"Task deletion failed: {ex}")
+                raise self.DeleteError(f"Task deletion failed: {ex}") from ex
             self.log.error(
                 f"Task deletion failed: {ex}",
                 exc_info=self.log.isEnabledFor(logging.DEBUG),
@@ -1414,7 +1413,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
                     if param_type and not isinstance(param_type, str):
                         param_type = param_type.__name__ if hasattr(param_type, "__name__") else str(param_type)
 
-                    def create_description() -> str:
+                    def create_description(org_param=org_param, org_k=org_k, v=v) -> str:
                         if org_param and org_param.description:
                             return org_param.description
                         # don't use get(org_k, "") here in case org_k in descriptions and the value is None
