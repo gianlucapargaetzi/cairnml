@@ -9,7 +9,6 @@ from types import SimpleNamespace
 
 import pytest
 
-from cairnml_agent.backend_api.session.defs import ENV_PROPAGATE_EXITCODE
 from cairnml_agent.commands import worker as worker_module
 from cairnml_agent.commands.worker import Worker
 from cairnml_agent.helper.base import CommandFailedError
