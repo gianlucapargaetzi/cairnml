@@ -1,12 +1,12 @@
 import requests
 
 
-from . import jsonmodels
+from jsonmodels import fields, models
 from .apimodel import ApiModel
 from .datamodel import NonStrictDataModelMixin
 
 
-class FloatOrStringField(jsonmodels.fields.BaseField):
+class FloatOrStringField(fields.BaseField):
 
     """String field."""
 
@@ -17,13 +17,13 @@ class Response(ApiModel, NonStrictDataModelMixin):
     pass
 
 
-class _ResponseEndpoint(jsonmodels.models.Base):
-    name = jsonmodels.fields.StringField()
+class _ResponseEndpoint(models.Base):
+    name = fields.StringField()
     requested_version = FloatOrStringField()
     actual_version = FloatOrStringField()
 
 
-class ResponseMeta(jsonmodels.models.Base):
+class ResponseMeta(models.Base):
     @property
     def is_valid(self):
         return self._is_valid
@@ -37,13 +37,13 @@ class ResponseMeta(jsonmodels.models.Base):
         super(ResponseMeta, self).__init__(**kwargs)
         self._is_valid = is_valid
 
-    id = jsonmodels.fields.StringField(required=True)
-    trx = jsonmodels.fields.StringField(required=True)
-    endpoint = jsonmodels.fields.EmbeddedField([_ResponseEndpoint], required=True)
-    result_code = jsonmodels.fields.IntField(required=True)
-    result_subcode = jsonmodels.fields.IntField()
-    result_msg = jsonmodels.fields.StringField(required=True)
-    error_stack = jsonmodels.fields.StringField()
+    id = fields.StringField(required=True)
+    trx = fields.StringField(required=True)
+    endpoint = fields.EmbeddedField([_ResponseEndpoint], required=True)
+    result_code = fields.IntField(required=True)
+    result_subcode = fields.IntField()
+    result_msg = fields.StringField(required=True)
+    error_stack = fields.StringField()
 
     def __str__(self):
         if self.result_code == requests.codes.ok:
