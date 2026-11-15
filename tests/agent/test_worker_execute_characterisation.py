@@ -156,8 +156,9 @@ def test_docker_mode_still_stops_the_monitor_when_the_run_raises(monkeypatch, no
 def test_clone_asks_the_server_for_a_copy_and_does_not_dequeue(monkeypatch, no_bootstrap):
     session = Session(task())
     session.api_client.tasks.get_by_id = lambda task_id: task(task_id)
-    monkeypatch.setattr(worker_module.tasks_api, "CloneRequest", lambda **kwargs: SimpleNamespace(**kwargs),
-                        raising=False)
+    monkeypatch.setattr(
+        worker_module.tasks_api, "CloneRequest", lambda **kwargs: SimpleNamespace(**kwargs), raising=False
+    )
     session.send_api = lambda request: SimpleNamespace(id="task-2")
     stub = Recorder(session)
     Worker.execute(stub, task_id="task-1", log_level="INFO", docker="ubuntu:22.04", clone=True)
