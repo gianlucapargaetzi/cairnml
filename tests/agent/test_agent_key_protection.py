@@ -40,9 +40,16 @@ def test_mounting_other_folders_of_the_agent_home_does_not_expose_the_key(tmp_pa
 
 
 def test_the_default_job_folders_do_not_expose_the_key():
-    defaults = ["~/.cairnml/apt-cache", "~/.cairnml/pip-cache", "~/.cairnml/poetry-cache",
-                "~/.cairnml/data_cache", "~/.cairnml/vcs-cache", "~/.cairnml/pip-download-cache",
-                "~/.cairnml/venvs-builds", "~/.cairnml/venvs-cache"]
+    defaults = [
+        "~/.cairnml/apt-cache",
+        "~/.cairnml/pip-cache",
+        "~/.cairnml/poetry-cache",
+        "~/.cairnml/data_cache",
+        "~/.cairnml/vcs-cache",
+        "~/.cairnml/pip-download-cache",
+        "~/.cairnml/venvs-builds",
+        "~/.cairnml/venvs-cache",
+    ]
     check_job_mounts(defaults)
     for folder in defaults:
         assert not exposes_device_key(folder), folder

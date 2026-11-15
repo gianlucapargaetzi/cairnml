@@ -4,14 +4,15 @@ from ..backend_api.session.request import Request
 
 
 class TaskRuntime(object):
-
     def __init__(self, session):
         self._session = session
 
     def get_task_runtime(self, task_id) -> Optional[dict]:
         try:
             res = self._session.send_request(
-                service='tasks', action='get_by_id', method=Request.def_method,
+                service="tasks",
+                action="get_by_id",
+                method=Request.def_method,
                 json={"task": task_id, "only_fields": ["runtime"]},
             )
             if not res.ok:
@@ -29,10 +30,10 @@ class TaskRuntime(object):
 
         try:
             res = self._session.send_request(
-                service='tasks', action='edit', method=Request.def_method,
-                json={
-                    "task": task_id, "force": True, "runtime": task_runtime
-                },
+                service="tasks",
+                action="edit",
+                method=Request.def_method,
+                json={"task": task_id, "force": True, "runtime": task_runtime},
             )
             if not res.ok:
                 raise Exception("failed setting runtime property")

@@ -24,8 +24,11 @@ def request_job_token(session, task_id):
     """The job's token and its lifetime in seconds, issued by the server to this agent while the task runs here.
     None when the server refuses for good (401, 403 or 404). Any other failure is raised."""
     res = session.send_request(
-        service='devices', action='job_token', version='2.8', method=Request.def_method,
-        json={'task': task_id},
+        service="devices",
+        action="job_token",
+        version="2.8",
+        method=Request.def_method,
+        json={"task": task_id},
     )
     if res is None:
         raise ConnectionError("no answer to the job token request of task {}".format(task_id))
@@ -33,8 +36,8 @@ def request_job_token(session, task_id):
         return None
     if not res.ok:
         raise RuntimeError("job token request of task {} failed with HTTP {}".format(task_id, res.status_code))
-    data = res.json()['data']
-    return data['access_token'], data.get('expires_in', 3600)
+    data = res.json()["data"]
+    return data["access_token"], data.get("expires_in", 3600)
 
 
 def write_job_token(path: Path, token: str) -> None:
@@ -75,7 +78,10 @@ class TokenRenewer(threading.Thread):
                 self._wait = self._retry_sec
                 continue
             if renewed is None:
-                print("Job token renewal refused for task {}; the job's token is not renewed".format(self._label), flush=True)
+                print(
+                    "Job token renewal refused for task {}; the job's token is not renewed".format(self._label),
+                    flush=True,
+                )
                 return
             token, expires_in = renewed
             write_job_token(self._path, token)

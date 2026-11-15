@@ -40,10 +40,17 @@ def test_the_session_response_meta_is_validated_from_the_package():
     response = importlib.import_module("cairnml_agent.backend_api.session.response")
 
     meta = response.ResponseMeta(
-        id="a", trx="b", endpoint=response._ResponseEndpoint(name="x"), result_code=200, result_msg="ok", result_subcode=1
+        id="a",
+        trx="b",
+        endpoint=response._ResponseEndpoint(name="x"),
+        result_code=200,
+        result_msg="ok",
+        result_subcode=1,
     )
     meta.validate()
     assert (meta.id, meta.endpoint.name, meta.result_code, meta.result_subcode) == ("a", "x", 200, 1)
 
     with pytest.raises(importlib.import_module("jsonmodels.errors").ValidationError):
-        response.ResponseMeta(id="a", trx="b", endpoint=response._ResponseEndpoint(name="x"), result_msg="ok").validate()
+        response.ResponseMeta(
+            id="a", trx="b", endpoint=response._ResponseEndpoint(name="x"), result_msg="ok"
+        ).validate()

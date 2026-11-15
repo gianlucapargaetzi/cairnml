@@ -30,7 +30,6 @@ UV = "uv"
 
 @attr.s
 class ConfigValue(object):
-
     """
     Manages a single config key
     """
@@ -71,28 +70,32 @@ class Session(_Session):
 
     def __init__(self, *args, **kwargs):
         # make sure we set the environment variable so the parent session opens the correct file
-        if kwargs.get('config_file'):
-            config_file = Path(os.path.expandvars(kwargs.get('config_file'))).expanduser().absolute().as_posix()
-            kwargs['config_file'] = config_file
+        if kwargs.get("config_file"):
+            config_file = Path(os.path.expandvars(kwargs.get("config_file"))).expanduser().absolute().as_posix()
+            kwargs["config_file"] = config_file
             LOCAL_CONFIG_FILE_OVERRIDE_VAR.set(config_file)
             if not Path(config_file).is_file():
                 raise ValueError("Could not open configuration file: {}".format(config_file))
 
-        cpu_only = kwargs.get('cpu_only')
+        cpu_only = kwargs.get("cpu_only")
         if cpu_only:
-            Session.set_nvidia_visible_env('none')
+            Session.set_nvidia_visible_env("none")
 
-        if kwargs.get('gpus') and not os.environ.get('KUBERNETES_SERVICE_HOST') \
-                and not os.environ.get('KUBERNETES_PORT'):
+        if (
+            kwargs.get("gpus")
+            and not os.environ.get("KUBERNETES_SERVICE_HOST")
+            and not os.environ.get("KUBERNETES_PORT")
+        ):
             # CUDA_VISIBLE_DEVICES does not support 'all'
-            if kwargs.get('gpus') == 'all':
-                os.environ.pop('CUDA_VISIBLE_DEVICES', None)
-                os.environ['NVIDIA_VISIBLE_DEVICES'] = kwargs.get('gpus')
+            if kwargs.get("gpus") == "all":
+                os.environ.pop("CUDA_VISIBLE_DEVICES", None)
+                os.environ["NVIDIA_VISIBLE_DEVICES"] = kwargs.get("gpus")
             else:
-                Session.set_nvidia_visible_env(kwargs.get('gpus'))
+                Session.set_nvidia_visible_env(kwargs.get("gpus"))
 
-        if kwargs.get('only_load_config'):
+        if kwargs.get("only_load_config"):
             from cairnml_agent.backend_api.config import load
+
             self.config = load()
         else:
             super(Session, self).__init__(*args, **kwargs)
@@ -102,8 +105,8 @@ class Session(_Session):
             self.config["agent"]["debug"] = True
 
         self.log = self.get_logger(__name__)
-        self.trace = kwargs.get('trace', False)
-        self._config_file = kwargs.get('config_file') or LOCAL_CONFIG_FILE_OVERRIDE_VAR.get()
+        self.trace = kwargs.get("trace", False)
+        self._config_file = kwargs.get("config_file") or LOCAL_CONFIG_FILE_OVERRIDE_VAR.get()
         if not self._config_file:
             for f in reversed(LOCAL_CONFIG_FILES):
                 if os.path.exists(os.path.expanduser(os.path.expandvars(f))):
@@ -118,29 +121,29 @@ class Session(_Session):
 
         # HACK: backwards compatibility
         if ENVIRONMENT_BACKWARD_COMPATIBLE.get():
-            os.environ['ALG_CONFIG_FILE'] = self._config_file
-            os.environ['SM_CONFIG_FILE'] = self._config_file
+            os.environ["ALG_CONFIG_FILE"] = self._config_file
+            os.environ["SM_CONFIG_FILE"] = self._config_file
 
-        if not self.config.get('api.host', None) and self.config.get('api.api_server', None):
-            self.config['api']['host'] = self.config.get('api.api_server')
+        if not self.config.get("api.host", None) and self.config.get("api.api_server", None):
+            self.config["api"]["host"] = self.config.get("api.api_server")
 
         # initialize nvidia visibility variables
-        os.environ['CUDA_DEVICE_ORDER'] = "PCI_BUS_ID"
-        if os.environ.get('NVIDIA_VISIBLE_DEVICES') and not os.environ.get('CUDA_VISIBLE_DEVICES'):
+        os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+        if os.environ.get("NVIDIA_VISIBLE_DEVICES") and not os.environ.get("CUDA_VISIBLE_DEVICES"):
             # do not create CUDA_VISIBLE_DEVICES if it doesn't exist, it breaks TF/PyTotch CUDA detection
             # os.environ['CUDA_VISIBLE_DEVICES'] = os.environ.get('NVIDIA_VISIBLE_DEVICES')
             pass
-        elif os.environ.get('CUDA_VISIBLE_DEVICES') and not os.environ.get('NVIDIA_VISIBLE_DEVICES'):
-            os.environ['NVIDIA_VISIBLE_DEVICES'] = os.environ.get('CUDA_VISIBLE_DEVICES')
+        elif os.environ.get("CUDA_VISIBLE_DEVICES") and not os.environ.get("NVIDIA_VISIBLE_DEVICES"):
+            os.environ["NVIDIA_VISIBLE_DEVICES"] = os.environ.get("CUDA_VISIBLE_DEVICES")
 
         # override with environment variables
         # cuda_version & cudnn_version are overridden with os.environ here, and normalized in the next section
         for config_key, env_config in ENVIRONMENT_CONFIG.items():
             # check if the property is of a list:
-            if config_key.endswith('.0'):
+            if config_key.endswith(".0"):
                 if all(not i.get() for i in env_config.values()):
                     continue
-                parent = config_key.partition('.0')[0]
+                parent = config_key.partition(".0")[0]
                 if not self.config[parent]:
                     self.config.put(parent, [])
 
@@ -156,9 +159,11 @@ class Session(_Session):
         # initialize cuda versions
         try:
             from cairnml_agent.helper.package.requirements import RequirementsManager
-            agent = self.config['agent']
-            agent['cuda_version'], agent['cudnn_version'] = \
-                RequirementsManager.get_cuda_version(self.config) if not cpu_only else ('0', '0')
+
+            agent = self.config["agent"]
+            agent["cuda_version"], agent["cudnn_version"] = (
+                RequirementsManager.get_cuda_version(self.config) if not cpu_only else ("0", "0")
+            )
         except Exception:
             pass
 
@@ -167,7 +172,7 @@ class Session(_Session):
         if not worker_name.get():
             worker_name.set(platform.node())
 
-        if not kwargs.get('only_load_config'):
+        if not kwargs.get("only_load_config"):
             self.create_cache_folders()
 
     @property
@@ -190,6 +195,7 @@ class Session(_Session):
     def set_debug_mode(enable):
         if enable:
             import logging
+
             logging.basicConfig(level=logging.DEBUG)
         Session.force_debug = enable
 
@@ -215,14 +221,18 @@ class Session(_Session):
         """
 
         # create target folders:
-        folder_keys = ('agent.venvs_dir', 'agent.vcs_cache.path',
-                       'agent.pip_download_cache.path',
-                       'agent.docker_pip_cache', 'agent.docker_apt_cache')
-        singleton_folders = ('agent.venvs_dir', 'agent.docker_apt_cache')
+        folder_keys = (
+            "agent.venvs_dir",
+            "agent.vcs_cache.path",
+            "agent.pip_download_cache.path",
+            "agent.docker_pip_cache",
+            "agent.docker_apt_cache",
+        )
+        singleton_folders = ("agent.venvs_dir", "agent.docker_apt_cache")
 
         if ENV_TASK_EXECUTE_AS_USER.get():
-            folder_keys = tuple(list(folder_keys) + ['sdk.storage.cache.default_base_dir'])
-            singleton_folders = tuple(list(singleton_folders) + ['sdk.storage.cache.default_base_dir'])
+            folder_keys = tuple(list(folder_keys) + ["sdk.storage.cache.default_base_dir"])
+            singleton_folders = tuple(list(singleton_folders) + ["sdk.storage.cache.default_base_dir"])
 
         for key in folder_keys:
             folder_key = ConfigValue(self.config, key)
@@ -233,7 +243,7 @@ class Session(_Session):
                 f = folder_key.get()
                 if f.endswith(os.path.sep):
                     f = f[:-1]
-                folder_key.set(f + '.{}'.format(slot_index))
+                folder_key.set(f + ".{}".format(slot_index))
 
             # update the configuration for full path
             folder = Path(os.path.expandvars(folder_key.get())).expanduser().absolute()
@@ -258,11 +268,12 @@ class Session(_Session):
             for k in list(dictionary):
                 if not any(r.search(k) for r in dont_hide_secret_keys):
                     if any(r.search(k) for r in hide_secret_keys):
-                        dictionary[k] = '****'
+                        dictionary[k] = "****"
                         continue
                     if any(r.search(k) for r in hide_secret_section_keys):
-                        dictionary[k] = {key: '****' for key in dictionary[k]} \
-                            if isinstance(dictionary[k], dict) else '****'
+                        dictionary[k] = (
+                            {key: "****" for key in dictionary[k]} if isinstance(dictionary[k], dict) else "****"
+                        )
                         continue
                 if any(r.search(k) for r in urls_keys):
                     value = dictionary.get(k, None)
@@ -283,23 +294,22 @@ class Session(_Session):
 
         config = deepcopy(self.config.to_dict())
         # remove the env variable, it's not important
-        config.pop('env', None)
+        config.pop("env", None)
         if hide_secret_keys or hide_secret_section_keys or docker_cmd_keys or urls_keys:
             recursive_remove_secrets(config)
         # remove logging.loggers.urllib3.level from the print
         try:
-            config['logging']['loggers']['urllib3'].pop('level', None)
+            config["logging"]["loggers"]["urllib3"].pop("level", None)
         except (KeyError, TypeError, AttributeError):
             pass
         try:
-            config['logging'].pop('version', None)
+            config["logging"].pop("version", None)
         except (KeyError, TypeError, AttributeError):
             pass
         config = ConfigFactory.from_dict(config)
         self.log.debug("Run by interpreter: %s", sys.executable)
         print(
-            "Current configuration (cairnml_agent v{}, location: {}):\n"
-            "----------------------\n{}\n".format(
+            "Current configuration (cairnml_agent v{}, location: {}):\n----------------------\n{}\n".format(
                 self.version, self._config_file, HOCONConverter.convert(config, "properties")
             )
         )
@@ -313,27 +323,53 @@ class Session(_Session):
             raise APIError(result, extra_info="Invalid response")
         return result.response
 
-    def get(self, service, action, version=None, headers=None,
-            data=None, json=None, async_enable=False, **kwargs):
-        return self._manual_request(service=service, action=action,
-                                    version=version, method=Request.def_method, headers=headers,
-                                    data=data, async_enable=async_enable,
-                                    json=json or kwargs)
+    def get(self, service, action, version=None, headers=None, data=None, json=None, async_enable=False, **kwargs):
+        return self._manual_request(
+            service=service,
+            action=action,
+            version=version,
+            method=Request.def_method,
+            headers=headers,
+            data=data,
+            async_enable=async_enable,
+            json=json or kwargs,
+        )
 
-    def post(self, service, action, version=None, headers=None,
-             data=None, json=None, async_enable=False, **kwargs):
-        return self._manual_request(service=service, action=action,
-                                    version=version, method="post", headers=headers,
-                                    data=data, async_enable=async_enable,
-                                    json=json or kwargs)
+    def post(self, service, action, version=None, headers=None, data=None, json=None, async_enable=False, **kwargs):
+        return self._manual_request(
+            service=service,
+            action=action,
+            version=version,
+            method="post",
+            headers=headers,
+            data=data,
+            async_enable=async_enable,
+            json=json or kwargs,
+        )
 
-    def _manual_request(self, service, action, version=None, method=Request.def_method, headers=None,
-            data=None, json=None, async_enable=False, **kwargs):
+    def _manual_request(
+        self,
+        service,
+        action,
+        version=None,
+        method=Request.def_method,
+        headers=None,
+        data=None,
+        json=None,
+        async_enable=False,
+        **kwargs,
+    ):
 
-        res = self.send_request(service=service, action=action,
-                                version=version, method=method, headers=headers,
-                                data=data, async_enable=async_enable,
-                                json=json or kwargs)
+        res = self.send_request(
+            service=service,
+            action=action,
+            version=version,
+            method=method,
+            headers=headers,
+            data=data,
+            async_enable=async_enable,
+            json=json or kwargs,
+        )
 
         try:
             res_json = res.json()
@@ -348,9 +384,7 @@ class Session(_Session):
         return res_json["data"]
 
     def to_json(self):
-        return json.dumps(
-            self.config.as_plain_ordered_dict(), cls=HOCONEncoder, indent=4
-        )
+        return json.dumps(self.config.as_plain_ordered_dict(), cls=HOCONEncoder, indent=4)
 
     def command(self, *args):
         return Argv(*args, log=self.get_logger(Argv.__module__))
@@ -359,14 +393,15 @@ class Session(_Session):
     def set_nvidia_visible_env(gpus):
         if not gpus:
             gpus = ""
-        visible_env = gpus.replace(".", ":") if isinstance(gpus, str) else \
-            ','.join(str(g).replace(".", ":") for g in gpus)
+        visible_env = (
+            gpus.replace(".", ":") if isinstance(gpus, str) else ",".join(str(g).replace(".", ":") for g in gpus)
+        )
 
-        os.environ['CUDA_VISIBLE_DEVICES'] = os.environ['NVIDIA_VISIBLE_DEVICES'] = visible_env
+        os.environ["CUDA_VISIBLE_DEVICES"] = os.environ["NVIDIA_VISIBLE_DEVICES"] = visible_env
 
     @staticmethod
     def get_nvidia_visible_env():
-        visible_env = os.environ.get('NVIDIA_VISIBLE_DEVICES') or os.environ.get('CUDA_VISIBLE_DEVICES')
+        visible_env = os.environ.get("NVIDIA_VISIBLE_DEVICES") or os.environ.get("CUDA_VISIBLE_DEVICES")
         if visible_env is None:
             return None
         visible_env = str(visible_env).replace(":", ".")

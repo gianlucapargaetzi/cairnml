@@ -49,14 +49,34 @@ def test_the_backward_compatibility_mirror_is_gone():
 @pytest.mark.parametrize(
     "entry, name, value, expected",
     [
-        pytest.param(session_defs.ENV_DISABLE_VAULT_SUPPORT, "CAIRNML_DISABLE_VAULT_SUPPORT", "true", True,
-                     id="disable-vault-support"),
-        pytest.param(session_defs.ENV_ENABLE_ENV_CONFIG_SECTION, "CAIRNML_ENABLE_ENV_CONFIG_SECTION", "true", True,
-                     id="enable-env-config-section"),
-        pytest.param(session_defs.ENV_ENABLE_FILES_CONFIG_SECTION, "CAIRNML_ENABLE_FILES_CONFIG_SECTION", "true", True,
-                     id="enable-files-config-section"),
-        pytest.param(session_defs.ENV_FORCE_MAX_API_VERSION, "CAIRNML_FORCE_MAX_API_VERSION", "2.5", "2.5",
-                     id="force-max-api-version"),
+        pytest.param(
+            session_defs.ENV_DISABLE_VAULT_SUPPORT,
+            "CAIRNML_DISABLE_VAULT_SUPPORT",
+            "true",
+            True,
+            id="disable-vault-support",
+        ),
+        pytest.param(
+            session_defs.ENV_ENABLE_ENV_CONFIG_SECTION,
+            "CAIRNML_ENABLE_ENV_CONFIG_SECTION",
+            "true",
+            True,
+            id="enable-env-config-section",
+        ),
+        pytest.param(
+            session_defs.ENV_ENABLE_FILES_CONFIG_SECTION,
+            "CAIRNML_ENABLE_FILES_CONFIG_SECTION",
+            "true",
+            True,
+            id="enable-files-config-section",
+        ),
+        pytest.param(
+            session_defs.ENV_FORCE_MAX_API_VERSION,
+            "CAIRNML_FORCE_MAX_API_VERSION",
+            "2.5",
+            "2.5",
+            id="force-max-api-version",
+        ),
         pytest.param(config_defs.ENV_CONFIG_VERBOSE, "CAIRNML_CONFIG_VERBOSE", "1", True, id="config-verbose"),
     ],
 )
@@ -69,14 +89,24 @@ def test_the_shared_knob_is_read_under_its_sdk_name(monkeypatch, entry, name, va
 @pytest.mark.parametrize(
     "entry, name, value",
     [
-        pytest.param(session_defs.ENV_DISABLE_VAULT_SUPPORT, "CAIRNML_DISABLE_VAULT_SUPPORT", "true",
-                     id="disable-vault-support"),
-        pytest.param(session_defs.ENV_ENABLE_ENV_CONFIG_SECTION, "CAIRNML_ENABLE_ENV_CONFIG_SECTION", "true",
-                     id="enable-env-config-section"),
-        pytest.param(session_defs.ENV_ENABLE_FILES_CONFIG_SECTION, "CAIRNML_ENABLE_FILES_CONFIG_SECTION", "true",
-                     id="enable-files-config-section"),
-        pytest.param(session_defs.ENV_FORCE_MAX_API_VERSION, "CAIRNML_FORCE_MAX_API_VERSION", "2.5",
-                     id="force-max-api-version"),
+        pytest.param(
+            session_defs.ENV_DISABLE_VAULT_SUPPORT, "CAIRNML_DISABLE_VAULT_SUPPORT", "true", id="disable-vault-support"
+        ),
+        pytest.param(
+            session_defs.ENV_ENABLE_ENV_CONFIG_SECTION,
+            "CAIRNML_ENABLE_ENV_CONFIG_SECTION",
+            "true",
+            id="enable-env-config-section",
+        ),
+        pytest.param(
+            session_defs.ENV_ENABLE_FILES_CONFIG_SECTION,
+            "CAIRNML_ENABLE_FILES_CONFIG_SECTION",
+            "true",
+            id="enable-files-config-section",
+        ),
+        pytest.param(
+            session_defs.ENV_FORCE_MAX_API_VERSION, "CAIRNML_FORCE_MAX_API_VERSION", "2.5", id="force-max-api-version"
+        ),
         pytest.param(config_defs.ENV_CONFIG_VERBOSE, "CAIRNML_CONFIG_VERBOSE", "1", id="config-verbose"),
     ],
 )
@@ -127,8 +157,11 @@ def test_no_removed_access_key_name_is_left():
         DOCUMENTATION,
     ]
     offenders = sorted(
-        {str(path.relative_to(ROOT)) for path in files
-         if any(name in path.read_text(encoding="utf-8") for name in removed)}
+        {
+            str(path.relative_to(ROOT))
+            for path in files
+            if any(name in path.read_text(encoding="utf-8") for name in removed)
+        }
     )
 
     assert offenders == []

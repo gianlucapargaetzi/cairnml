@@ -32,9 +32,7 @@ def param(url, expected, user=False, password=False):
         param("https://bitbucket.org/company/repo", NO_CHANGE),
         param("https://bitbucket.org/company/repo", NO_CHANGE, user=True),
         param("https://bitbucket.org/company/repo", NO_CHANGE, password=True),
-        param(
-            "https://bitbucket.org/company/repo", NO_CHANGE, user=True, password=True
-        ),
+        param("https://bitbucket.org/company/repo", NO_CHANGE, user=True, password=True),
         param("https://user@bitbucket.org/company/repo", NO_CHANGE),
         param("https://user@bitbucket.org/company/repo", NO_CHANGE, user=True),
         param("https://user@bitbucket.org/company/repo", NO_CHANGE, password=True),
@@ -46,9 +44,7 @@ def param(url, expected, user=False, password=False):
         ),
         param("https://user:password@bitbucket.org/company/repo", NO_CHANGE),
         param("https://user:password@bitbucket.org/company/repo", NO_CHANGE, user=True),
-        param(
-            "https://user:password@bitbucket.org/company/repo", NO_CHANGE, password=True
-        ),
+        param("https://user:password@bitbucket.org/company/repo", NO_CHANGE, password=True),
         param(
             "https://user:password@bitbucket.org/company/repo",
             NO_CHANGE,
@@ -58,18 +54,13 @@ def param(url, expected, user=False, password=False):
         param("ssh://git@bitbucket.org/company/repo", NO_CHANGE),
         param("ssh://git@bitbucket.org/company/repo", NO_CHANGE, user=True),
         param("ssh://git@bitbucket.org/company/repo", NO_CHANGE, password=True),
-        param(
-            "ssh://git@bitbucket.org/company/repo", NO_CHANGE, user=True, password=True
-        ),
+        param("ssh://git@bitbucket.org/company/repo", NO_CHANGE, user=True, password=True),
         param("git@bitbucket.org:company/repo.git", NO_CHANGE),
         param("git@bitbucket.org:company/repo.git", NO_CHANGE, user=True),
         param("git@bitbucket.org:company/repo.git", NO_CHANGE, password=True),
-        param(
-            "git@bitbucket.org:company/repo.git", NO_CHANGE, user=True, password=True
-        ),
+        param("git@bitbucket.org:company/repo.git", NO_CHANGE, user=True, password=True),
     ],
 )
-
 
 # TODO: add tests for conversion:
 # git+https://bitbucket.org/seematics/trains-internal.git@master#subdirectory=.

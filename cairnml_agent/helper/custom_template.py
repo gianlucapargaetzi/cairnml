@@ -74,11 +74,11 @@ class CustomTemplate(Template):
 
     # python 3.6 RE does not support inline ASCII flag (?a:...)
     if sys.version_info >= (3, 7):
-        idpattern = r'(?a:[_a-z][_a-z0-9|.|:]*)'
+        idpattern = r"(?a:[_a-z][_a-z0-9|.|:]*)"
     else:
-        idpattern = r'[_a-zA-Z][_a-zA-Z0-9|.|:]*'
+        idpattern = r"[_a-zA-Z][_a-zA-Z0-9|.|:]*"
 
-    delimiter = '$'
+    delimiter = "$"
     prefix = "CAIRNML_"
     filter_sep = "|"
     filter_re = re.compile(r"^(?P<op>[^(]+)(\((?P<args>[^()]*)\))?")
@@ -92,7 +92,9 @@ class CustomTemplate(Template):
         "lower": lambda s, _: s.lower(),
         remove_newlines_op: lambda s, _: s.replace("\n", ""),
     }
-    default_ops = [remove_newlines_op, ]
+    default_ops = [
+        remove_newlines_op,
+    ]
 
     @classmethod
     def get_queue_name(cls, task_session, queue_id):
@@ -113,7 +115,7 @@ class CustomTemplate(Template):
         template,
         support_ops: bool = True,
         force_yaml_string_quotes: bool = False,
-        default_list_delimiter: str = ','
+        default_list_delimiter: str = ",",
     ):
         super().__init__(template)
         self._support_ops = support_ops
@@ -173,7 +175,7 @@ class CustomTemplate(Template):
     def custom_substitute(self, mapping_func, additional_mappings=None, disable_ops_processing=False):
         # Helper function for .sub()
         def convert(mo):
-            named = mo.group('named') or mo.group('braced')
+            named = mo.group("named") or mo.group("braced")
             if not named:
                 return mo.group()
 
@@ -181,10 +183,10 @@ class CustomTemplate(Template):
                 if additional_mappings is None:
                     return mo.group()
                 elif str(named) not in additional_mappings:
-                    raise ValueError('Named group substitution not found', named)
+                    raise ValueError("Named group substitution not found", named)
 
             if str(named).startswith(self.prefix):
-                named = named[len(self.prefix):]
+                named = named[len(self.prefix) :]
 
             if named is not None:
                 parsed_ops: List[Union[str, Tuple[str, str]]] = self.default_ops[:]
@@ -192,9 +194,7 @@ class CustomTemplate(Template):
                     named, *ops = named.split(self.filter_sep)[1:]
                     parsed_ops.extend(
                         (match.group("op"), match.group("args") or None)
-                        for match in (
-                            self.filter_re.match(x) for x in ops if self.filter_re.match(x)
-                        )
+                        for match in (self.filter_re.match(x) for x in ops if self.filter_re.match(x))
                     )
 
                 default_value = None
@@ -207,11 +207,11 @@ class CustomTemplate(Template):
                     return result
                 except KeyError:
                     return mo.group()
-            if mo.group('escaped') is not None:
+            if mo.group("escaped") is not None:
                 return self.delimiter
-            if mo.group('invalid') is not None:
+            if mo.group("invalid") is not None:
                 return mo.group()
-            raise ValueError('Unrecognized named group in pattern', self.pattern)
+            raise ValueError("Unrecognized named group in pattern", self.pattern)
 
         return self.pattern.sub(convert, self.template)
 
@@ -237,7 +237,7 @@ class CustomTemplate(Template):
         project_info: Mapping = None,
         additional_mappings: Mapping = None,
         force_yaml_string_quotes: bool = False,
-        default_list_delimiter: str = ',',
+        default_list_delimiter: str = ",",
     ):
         """
         Notice CAIRNML_ prefix omitted! (i.e. ${QUEUE_ID} is ${QUEUE_ID})
@@ -321,10 +321,7 @@ class CustomTemplate(Template):
                 elif isinstance(cur, list) and all(isinstance(item, (str, bool, int, float)) for item in cur):
                     # support list of base types
                     return format_base_type_to_string(
-                        default_list_delimiter.join(
-                            format_base_type_to_string(item, force_yaml=False)
-                            for item in cur
-                        )
+                        default_list_delimiter.join(format_base_type_to_string(item, force_yaml=False) for item in cur)
                     )
                 # [[ ",${CAIRNML_TASK_tags}," == *",$X,"* ]]
                 elif default:
@@ -400,7 +397,7 @@ class TemplateResolver:
             task_id=self.task_id,
             lines=["ERROR: " + err],
             level="ERROR",
-            session=self.task_session
+            session=self.task_session,
         )
 
     def _load_user_info(self):
@@ -414,9 +411,9 @@ class TemplateResolver:
         result = self.task_session.send_request(
             service="tasks",
             action="get_all",
-            version='2.20',
+            version="2.20",
             method=Request.def_method,
-            json={"id": [self.task_id], "search_hidden": True}
+            json={"id": [self.task_id], "search_hidden": True},
         )
         # we should not fail here
         return result.json().get("data", {}).get("tasks", [])[0] or {}
@@ -426,22 +423,21 @@ class TemplateResolver:
         result = self.task_session.send_request(
             service="projects",
             action="get_all",
-            version='2.20',
+            version="2.20",
             method=Request.def_method,
-            json={"id": [project_id], "search_hidden": True}  # check hidden required?
+            json={"id": [project_id], "search_hidden": True},  # check hidden required?
         )
         # we should not fail here
         project = result.json().get("data", {}).get("projects", [])[0]
-        return {
-            "name": project.get("name"),
-            "id": project.get("id")
-        }
+        return {"name": project.get("name"), "id": project.get("id")}
 
     def _load_provider_info(self):
         token_dict = self.task_session.get_decoded_token(self.task_session.token, verify=False)
         return deepcopy(token_dict.get("providers_info") or {})
 
-    def resolve_string_from_template(self, template: str, force_yaml_string_quotes=False, additional_mappings=None) -> str:
+    def resolve_string_from_template(
+        self, template: str, force_yaml_string_quotes=False, additional_mappings=None
+    ) -> str:
         tmpl = CustomTemplate(template, force_yaml_string_quotes=force_yaml_string_quotes)
         return tmpl.default_custom_substitute(
             queue_id=self.queue_id,
@@ -458,9 +454,7 @@ class TemplateResolver:
 
     def resolve_from_template(self, template: str, force_yaml_string_quotes=False, additional_mappings=None) -> Result:
         resolved_template_str = self.resolve_string_from_template(
-            template,
-            force_yaml_string_quotes=force_yaml_string_quotes,
-            additional_mappings=additional_mappings
+            template, force_yaml_string_quotes=force_yaml_string_quotes, additional_mappings=additional_mappings
         )
         template = yaml.safe_load(resolved_template_str)
         return self.Result(self, template)

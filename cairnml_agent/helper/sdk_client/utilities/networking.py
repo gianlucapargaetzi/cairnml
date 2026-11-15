@@ -39,10 +39,10 @@ def get_public_ip(config_obj):
     """
 
     # todo: add documentation in api section in conf file
-    public_ip_service_urls = (
-            (config_obj.get("api.public_ip_service_urls", None) if config_obj else None)
-            or ["https://api.ipify.org", "https://ident.me"]
-    )
+    public_ip_service_urls = (config_obj.get("api.public_ip_service_urls", None) if config_obj else None) or [
+        "https://api.ipify.org",
+        "https://ident.me",
+    ]
     for external_service in public_ip_service_urls:
         ip = get_public_ip_from_external_service(external_service)
         if ip:

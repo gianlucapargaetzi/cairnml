@@ -3,7 +3,6 @@ from cairnml_agent.session import Session
 
 
 class K8sDaemon(Thread):
-
     def __init__(self, agent):
         super(K8sDaemon, self).__init__(target=self.target)
         self.daemon = True

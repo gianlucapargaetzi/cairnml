@@ -8,13 +8,13 @@ from .portalocker import constants, exceptions, lock, unlock
 
 current_time = getattr(time, "monotonic", time.time)
 
-DEFAULT_TIMEOUT = 10 ** 8
+DEFAULT_TIMEOUT = 10**8
 DEFAULT_CHECK_INTERVAL = 0.25
 LOCK_METHOD = constants.LOCK_EX | constants.LOCK_NB
 
 __all__ = [
-    'FileLock',
-    'open_atomic',
+    "FileLock",
+    "open_atomic",
 ]
 
 
@@ -37,7 +37,7 @@ def open_atomic(filename, binary=True):
     >>> os.remove(filename)
 
     """
-    assert not os.path.exists(filename), '%r exists' % filename
+    assert not os.path.exists(filename), "%r exists" % filename
     path, name = os.path.split(filename)
 
     # Create the parent directory if it doesn't exist
@@ -45,7 +45,7 @@ def open_atomic(filename, binary=True):
         os.makedirs(path)
 
     temp_fh = tempfile.NamedTemporaryFile(
-        mode=binary and 'wb' or 'w',
+        mode=binary and "wb" or "w",
         dir=path,
         delete=False,
     )
@@ -63,11 +63,15 @@ def open_atomic(filename, binary=True):
 
 
 class FileLock(object):
-
     def __init__(
-            self, filename, mode='a', timeout=DEFAULT_TIMEOUT,
-            check_interval=DEFAULT_CHECK_INTERVAL, fail_when_locked=False,
-            **file_open_kwargs):
+        self,
+        filename,
+        mode="a",
+        timeout=DEFAULT_TIMEOUT,
+        check_interval=DEFAULT_CHECK_INTERVAL,
+        fail_when_locked=False,
+        **file_open_kwargs,
+    ):
         """Lock manager with build-in timeout
 
         filename -- filename
@@ -88,9 +92,9 @@ class FileLock(object):
         mode will result in truncate _BEFORE_ the lock is checked.
         """
 
-        if 'w' in mode:
+        if "w" in mode:
             truncate = True
-            mode = mode.replace('w', 'a')
+            mode = mode.replace("w", "a")
         else:
             truncate = False
 
@@ -105,8 +109,7 @@ class FileLock(object):
         self.flags_write = constants.LOCK_EX | constants.LOCK_NB
         self.file_open_kwargs = file_open_kwargs
 
-    def acquire(
-            self, timeout=None, check_interval=None, fail_when_locked=None, readonly=False):
+    def acquire(self, timeout=None, check_interval=None, fail_when_locked=None, readonly=False):
         """Acquire the locked filehandle"""
         if timeout is None:
             timeout = self.timeout
@@ -139,7 +142,6 @@ class FileLock(object):
 
                 # Try again
                 try:
-
                     # We already tried to the get the lock
                     # If fail_when_locked is true, then stop trying
                     if fail_when_locked:

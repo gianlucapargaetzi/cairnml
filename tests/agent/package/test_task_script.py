@@ -2,6 +2,7 @@
 Test handling of jupyter notebook tasks.
 Logging is enabled in `cairnml_agent/tests/pytest.ini`. Search for `pytest live logging` for more info.
 """
+
 import logging
 import re
 import select
@@ -68,9 +69,7 @@ def iterate_output(timeout, command):
     :param command: command to run
     """
     log.info("running: %s", command)
-    process = command.call_subprocess(
-        subprocess.Popen, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
-    )
+    process = command.call_subprocess(subprocess.Popen, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     try:
         yield _iterate_output(timeout, process)
     finally:
@@ -103,7 +102,7 @@ def _iterate_output(timeout, process):
 
     buffer = ""
 
-    for output, in iter(lambda: loop_helper(process.stdout), exit_loop):
+    for (output,) in iter(lambda: loop_helper(process.stdout), exit_loop):
         try:
             added = output.read(1024).decode("utf8")
         except EOFError:
@@ -153,13 +152,14 @@ def search_lines_pattern(lines, pattern, error):
 
 def test_entry_point_warning(client):
     """
-   non-empty script.entry_point should output a warning
+    non-empty script.entry_point should output a warning
     """
-    with create_task(
-        client,
-        script=tasks.Script(diff="print('hello')", entry_point="foo.py", repository=""),
-        **DEFAULT_TASK_ARGS
-    ) as task, iterate_output(SHORT_TIMEOUT, run_task(task)) as output:
+    with (
+        create_task(
+            client, script=tasks.Script(diff="print('hello')", entry_point="foo.py", repository=""), **DEFAULT_TASK_ARGS
+        ) as task,
+        iterate_output(SHORT_TIMEOUT, run_task(task)) as output,
+    ):
         for line in output:
             if "found non-empty script.entry_point" in line:
                 break
@@ -173,11 +173,12 @@ def test_run_no_dirs(client):
     """
     uuid = uuid4().hex
     script = "print('{}')".format(uuid)
-    with create_task(
-        client,
-        script=tasks.Script(diff=script, entry_point="", repository="", working_dir=""),
-        **DEFAULT_TASK_ARGS
-    ) as task, iterate_output(SHORT_TIMEOUT, run_task(task)) as output:
+    with (
+        create_task(
+            client, script=tasks.Script(diff=script, entry_point="", repository="", working_dir=""), **DEFAULT_TASK_ARGS
+        ) as task,
+        iterate_output(SHORT_TIMEOUT, run_task(task)) as output,
+    ):
         search_lines(
             output,
             "found literal script",
@@ -197,16 +198,19 @@ def test_run_working_dir(client):
     """
     uuid = uuid4().hex
     script = "print('{}')".format(uuid)
-    with create_task(
-        client,
-        script=tasks.Script(
-            diff=script,
-            entry_point="",
-            repository="git@bitbucket.org:seematics/roee_test_git.git",
-            working_dir="space dir",
-        ),
-        **DEFAULT_TASK_ARGS
-    ) as task, iterate_output(120, run_task(task)) as output:
+    with (
+        create_task(
+            client,
+            script=tasks.Script(
+                diff=script,
+                entry_point="",
+                repository="git@bitbucket.org:seematics/roee_test_git.git",
+                working_dir="space dir",
+            ),
+            **DEFAULT_TASK_ARGS,
+        ) as task,
+        iterate_output(120, run_task(task)) as output,
+    ):
         search_lines(
             output,
             "found literal script",
@@ -224,34 +228,36 @@ def test_regular_task(client):
     """
     Test a plain old task
     """
-    with create_task(
-        client,
-        script=tasks.Script(
-            entry_point="noop.py",
-            repository="git@bitbucket.org:seematics/roee_test_git.git",
-        ),
-        **DEFAULT_TASK_ARGS
-    ) as task, iterate_output(SHORT_TIMEOUT, run_task(task)) as output:
+    with (
+        create_task(
+            client,
+            script=tasks.Script(
+                entry_point="noop.py",
+                repository="git@bitbucket.org:seematics/roee_test_git.git",
+            ),
+            **DEFAULT_TASK_ARGS,
+        ) as task,
+        iterate_output(SHORT_TIMEOUT, run_task(task)) as output,
+    ):
         message = "Done"
-        search_lines(
-            output, message, "did not reach dummy output message {}".format(message)
-        )
+        search_lines(output, message, "did not reach dummy output message {}".format(message))
 
 
 def test_regular_task_nested(client):
     """
     `entry_point` should be relative to `working_dir` if present
     """
-    with create_task(
-        client,
-        script=tasks.Script(
-            entry_point="noop_nested.py",
-            working_dir="no_reqs",
-            repository="git@bitbucket.org:seematics/roee_test_git.git",
-        ),
-        **DEFAULT_TASK_ARGS
-    ) as task, iterate_output(SHORT_TIMEOUT, run_task(task)) as output:
+    with (
+        create_task(
+            client,
+            script=tasks.Script(
+                entry_point="noop_nested.py",
+                working_dir="no_reqs",
+                repository="git@bitbucket.org:seematics/roee_test_git.git",
+            ),
+            **DEFAULT_TASK_ARGS,
+        ) as task,
+        iterate_output(SHORT_TIMEOUT, run_task(task)) as output,
+    ):
         message = "Done"
-        search_lines(
-            output, message, "did not reach dummy output message {}".format(message)
-        )
+        search_lines(output, message, "did not reach dummy output message {}".format(message))

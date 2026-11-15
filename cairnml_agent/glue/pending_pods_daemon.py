@@ -36,21 +36,21 @@ class PendingPodsDaemon(K8sDaemon):
         return get_path(pod, "metadata", "name")
 
     def _get_task_id(self, pod: dict):
-        prefix, _, value = self._get_k8s_resource_name(pod).rpartition('-')
+        prefix, _, value = self._get_k8s_resource_name(pod).rpartition("-")
         if len(value) > 4:
             return value
         # we assume this is a multi-node rank x (>0) pod
-        return prefix.rpartition('-')[-1] or value
+        return prefix.rpartition("-")[-1] or value
 
     @staticmethod
     def _get_k8s_resource_namespace(pod: dict) -> Optional[str]:
-        return pod.get('metadata', {}).get('namespace', None)
+        return pod.get("metadata", {}).get("namespace", None)
 
     def target(self):
         """
-            Handle pending objects (pods or jobs, depending on the agent mode).
-            - Delete any pending objects that are not expected to recover
-            - Delete any pending objects for whom the associated task was aborted
+        Handle pending objects (pods or jobs, depending on the agent mode).
+        - Delete any pending objects that are not expected to recover
+        - Delete any pending objects for whom the associated task was aborted
         """
         while True:
             # noinspection PyBroadException
@@ -85,13 +85,13 @@ class PendingPodsDaemon(K8sDaemon):
                     msg = None
                     tags = []
 
-                    waiting = get_path(pod, 'status', 'containerStatuses', 0, 'state', 'waiting')
+                    waiting = get_path(pod, "status", "containerStatuses", 0, "state", "waiting")
                     if not waiting:
-                        condition = get_path(pod, 'status', 'conditions', 0)
+                        condition = get_path(pod, "status", "conditions", 0)
                         if condition:
-                            reason = condition.get('reason')
-                            if reason == 'Unschedulable':
-                                message = condition.get('message')
+                            reason = condition.get("reason")
+                            if reason == "Unschedulable":
+                                message = condition.get("message")
                                 msg = reason + (" ({})".format(message) if message else "")
                     else:
                         reason = waiting.get("reason", None)
@@ -106,12 +106,9 @@ class PendingPodsDaemon(K8sDaemon):
                                     task=task_id,
                                     status_reason="K8S glue error: {}".format(msg),
                                     status_message="Changed by K8S glue",
-                                    force=True
+                                    force=True,
                                 )
-                                self._agent.send_logs(
-                                    task_id, ["K8S Error: {}".format(msg)],
-                                    session=self._session
-                                )
+                                self._agent.send_logs(task_id, ["K8S Error: {}".format(msg)], session=self._session)
                             except Exception as ex:
                                 self.log.warning(
                                     'K8S Glue pending monitor: Failed deleting task "{}"\nEX: {}'.format(task_id, ex)
@@ -139,7 +136,7 @@ class PendingPodsDaemon(K8sDaemon):
         delete_cmd = "kubectl delete {kind} {name} -n {namespace} --output name".format(
             kind=self._agent.kind,
             name=self._get_k8s_resource_name(k8s_resource),
-            namespace=self._get_k8s_resource_namespace(k8s_resource)
+            namespace=self._get_k8s_resource_namespace(k8s_resource),
         ).strip()
         self.log.debug(" - deleting {} {}: {}".format(self._agent.kind, (" " + msg) if msg else "", delete_cmd))
         return get_bash_output(delete_cmd).strip()
@@ -150,13 +147,9 @@ class PendingPodsDaemon(K8sDaemon):
     def _handle_aborted_tasks(self, pending_tasks_details: Dict[str, dict]):
         try:
             result = self._session.get(
-                service='tasks',
-                action='get_all',
-                json={
-                    "id": list(pending_tasks_details),
-                    "status": ["stopped"],
-                    "only_fields": ["id"]
-                }
+                service="tasks",
+                action="get_all",
+                json={"id": list(pending_tasks_details), "status": ["stopped"], "only_fields": ["id"]},
             )
             aborted_task_ids = list(filter(None, (task.get("id") for task in result["tasks"])))
 
@@ -178,8 +171,8 @@ class PendingPodsDaemon(K8sDaemon):
                 )
 
                 result = self._session.get(
-                    service='tasks',
-                    action='get_all',
+                    service="tasks",
+                    action="get_all",
                     json={"id": [task_id], "status": ["stopped"], "only_fields": ["id"]},
                 )
                 if not result["tasks"]:
@@ -191,7 +184,7 @@ class PendingPodsDaemon(K8sDaemon):
                     self.log.warning("K8S Glue pending monitor: failed deleting resource {}".format(resource_name))
         except Exception as ex:
             self.log.warning(
-                'K8S Glue pending monitor: failed checking aborted tasks for pending resources: {}'.format(ex)
+                "K8S Glue pending monitor: failed checking aborted tasks for pending resources: {}".format(ex)
             )
 
     def _update_pending_task_msg(self, task_id: str, msg: str, tags: List[str] = None):
@@ -207,26 +200,25 @@ class PendingPodsDaemon(K8sDaemon):
             else:
                 # Make sure the task is queued
                 result = self._session.send_request(
-                    service='tasks',
-                    action='get_all',
+                    service="tasks",
+                    action="get_all",
                     json={"id": task_id, "only_fields": ["status"]},
                     method=Request.def_method,
                     async_enable=False,
                 )
                 if result.ok:
-                    status = get_path(result.json(), 'data', 'tasks', 0, 'status')
+                    status = get_path(result.json(), "data", "tasks", 0, "status")
                     # if task is in progress, change its status to enqueued
                     if status == "in_progress":
                         result = self._session.send_request(
-                            service='tasks', action='enqueue',
-                            json={
-                                "task": task_id, "force": True, "queue": self._agent.k8s_pending_queue_id
-                            },
+                            service="tasks",
+                            action="enqueue",
+                            json={"task": task_id, "force": True, "queue": self._agent.k8s_pending_queue_id},
                             method=Request.def_method,
                             async_enable=False,
                         )
                         if not result.ok:
-                            result_msg = get_path(result.json(), 'meta', 'result_msg')
+                            result_msg = get_path(result.json(), "meta", "result_msg")
                             self.log.debug(
                                 "K8S Glue pods monitor: failed forcing task status change"
                                 " for pending task {}: {}".format(task_id, result_msg)
@@ -236,15 +228,12 @@ class PendingPodsDaemon(K8sDaemon):
             payload = {"task": task_id, "status_message": "K8S glue status: {}".format(msg)}
             if tags:
                 payload["tags"] = tags
-            result = self._session.send_request('tasks', 'update', json=payload, method=Request.def_method)
+            result = self._session.send_request("tasks", "update", json=payload, method=Request.def_method)
             if not result.ok:
-                result_msg = get_path(result.json(), 'meta', 'result_msg')
+                result_msg = get_path(result.json(), "meta", "result_msg")
                 raise Exception(result_msg or result.text)
 
-            self._agent.send_logs(
-                task_id, ["Kubernetes Pod status: {}".format(msg)],
-                session=self._session
-            )
+            self._agent.send_logs(task_id, ["Kubernetes Pod status: {}".format(msg)], session=self._session)
 
             # update last msg for this task
             self._last_tasks_msgs[task_id] = (msg, tags)

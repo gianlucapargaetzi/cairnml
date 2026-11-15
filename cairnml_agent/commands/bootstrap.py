@@ -11,6 +11,7 @@ def check_bootstrap_package_install(config):
     # noinspection PyBroadException
     try:
         from cairnml_agent_bootstrap import install  # noqa: F401  # probe: the optional bootstrap package is installed
+
         return True
     except ImportError:
         return False
@@ -32,6 +33,7 @@ def check_latest_bootstrap_version(timeout: float = 5):
         get_installed_bootstrap_version,
         get_latest_bootstrap_version,
     )
+
     current = get_installed_bootstrap_version()
     if not current:
         print("INFO: cairnml-agent-bootstrap is not installed; skipping version check")
@@ -50,12 +52,14 @@ def check_latest_bootstrap_version(timeout: float = 5):
 def update_bootstrap(config, force=False):
     from cairnml_agent_bootstrap import install  # noqa
     from cairnml_agent_bootstrap.version import __version__ as bootstrap_version  # noqa
+
     target_folder = config.get("agent.bootstrap.host_bootstrap_dir", None) or "~/.cairnml.bootstrap"
     target_folder = Path(target_folder).expanduser()
     target_folder.mkdir(parents=True, exist_ok=True)
-    uv_python_meta_file=config.get("agent.bootstrap.uv_python_meta_file", None)
-    if (uv_python_meta_file and
-            (not uv_python_meta_file.startswith("http://") and not uv_python_meta_file.startswith("https://"))):
+    uv_python_meta_file = config.get("agent.bootstrap.uv_python_meta_file", None)
+    if uv_python_meta_file and (
+        not uv_python_meta_file.startswith("http://") and not uv_python_meta_file.startswith("https://")
+    ):
         uv_python_meta_file = Path(uv_python_meta_file).expanduser().as_posix()
     # override force
     if config.get("agent.bootstrap.always_update", False):
@@ -77,19 +81,21 @@ def get_bootstrap_container_env_vars(config):
     bootstrap_dir = config.get("agent.docker_internal_mounts.bootstrap_folder", None)
     pip_version_string = config.get("agent.package_manager.pip_version", None)
     if pip_version_string:
-        pip_version_string = "-U " + " ".join("\"pip {}\"".format(p) for p in pip_version_string)
+        pip_version_string = "-U " + " ".join('"pip {}"'.format(p) for p in pip_version_string)
 
     envs = dict(
         CAIRNML_PIP_VER=pip_version_string or None,
         CAIRNML_BOOTSTRAP_DIR=bootstrap_dir,
         CAIRNML_BOOTSTRAP_CACHE_DIR=config.get("agent.docker_internal_mounts.bootstrap_cache", None)
-            if config.get("agent.bootstrap.host_bootstrap_cache_dir", None) else None,
+        if config.get("agent.bootstrap.host_bootstrap_cache_dir", None)
+        else None,
         CAIRNML_FORCE_STATIC_GIT_BIN=config.get("agent.bootstrap.always_use_static_git", None),
         CAIRNML_SKIP_GIT_INST=config.get("agent.bootstrap.skip_git_installation", None),
         CAIRNML_SKIP_CA_CERT_INST=config.get("agent.bootstrap.always_install_ca_cert", None),
         SSL_CERT_FILE=config.get("agent.bootstrap.map_external_ssl_cert", None),
         UV_PYTHON_DOWNLOADS_JSON_URL=(bootstrap_dir.rstrip("/") + "/download-metadata.json")
-            if config.get("agent.bootstrap.uv_python_meta_file", None) and bootstrap_dir else None,
+        if config.get("agent.bootstrap.uv_python_meta_file", None) and bootstrap_dir
+        else None,
         CAIRNML_PYTHON_VER=config.get("agent.bootstrap.uv_def_python_ver", None),
         CAIRNML_UPDATE_UV=config.get("agent.bootstrap.auto_update_uv_bin", None),
         UV_INSTALLER_GHE_BASE_URL=config.get("agent.bootstrap.auto_update_uv_url_gh", None),
@@ -99,7 +105,9 @@ def get_bootstrap_container_env_vars(config):
         GIT_SSL_NO_VERIFY=config.get("agent.bootstrap.git_insecure", None),
         UV_DEFAULT_INDEX=config.get("agent.bootstrap.uv_default_index_url", None),
         UV_INDEX=config.get("agent.bootstrap.uv_index_url", None),
-        UV_INDEX_STRATEGY="unsafe-best-match" if config.get("agent.package_manager.uv_unsafe_best_match", False) else None,
+        UV_INDEX_STRATEGY="unsafe-best-match"
+        if config.get("agent.package_manager.uv_unsafe_best_match", False)
+        else None,
     )
     return {k: ("1" if v else "0") if isinstance(v, bool) else str(v) for k, v in envs.items() if v is not None}
 
@@ -109,23 +117,30 @@ def get_bootstrap_container_mounts(config, envs):
 
     # noinspection PyBroadException
     try:
-        host_cairnml_bootstrap_dir=Path(
-            config.get("agent.bootstrap.host_bootstrap_dir", None) or "~/.cairnml.bootstrap"
-        ).expanduser().absolute().as_posix()
+        host_cairnml_bootstrap_dir = (
+            Path(config.get("agent.bootstrap.host_bootstrap_dir", None) or "~/.cairnml.bootstrap")
+            .expanduser()
+            .absolute()
+            .as_posix()
+        )
     except Exception:
-        host_cairnml_bootstrap_dir=None
+        host_cairnml_bootstrap_dir = None
 
     # noinspection PyBroadException
     try:
-        host_cairnml_bootstrap_cache_dir=Path(
-            config.get("agent.bootstrap.host_bootstrap_cache_dir", None) or "~/.cairnml.bootstrap.cache"
-        ).expanduser().absolute().as_posix()
+        host_cairnml_bootstrap_cache_dir = (
+            Path(config.get("agent.bootstrap.host_bootstrap_cache_dir", None) or "~/.cairnml.bootstrap.cache")
+            .expanduser()
+            .absolute()
+            .as_posix()
+        )
     except Exception:
-        host_cairnml_bootstrap_cache_dir=None
+        host_cairnml_bootstrap_cache_dir = None
 
     mounts = {
         host_cairnml_bootstrap_dir: (envs.get("CAIRNML_BOOTSTRAP_DIR") + ":ro")
-        if envs.get("CAIRNML_BOOTSTRAP_DIR") else None,
+        if envs.get("CAIRNML_BOOTSTRAP_DIR")
+        else None,
         host_cairnml_bootstrap_cache_dir: envs.get("CAIRNML_BOOTSTRAP_CACHE_DIR", None),
     }
     return {k: v for k, v in mounts.items() if v is not None}
@@ -138,7 +153,7 @@ def get_bootstrap_docker_configuration(config):
     mounts = get_bootstrap_container_mounts(config, envs)
     docker_args = []
     for k, v in mounts.items():
-        docker_args += ['-v', '{}:{}'.format(k, v)]
+        docker_args += ["-v", "{}:{}".format(k, v)]
     for k, v in envs.items():
-        docker_args += ['-e', '{}={}'.format(k, v)]
+        docker_args += ["-e", "{}={}".format(k, v)]
     return docker_args

@@ -16,8 +16,14 @@ from urllib.parse import unquote  # noqa
 import logging
 from cairnml_agent.definitions import PIP_EXTRA_INDICES
 from cairnml_agent.helper.base import (
-    warning, is_conda, which, join_lines, is_windows_platform,
-    convert_cuda_version_to_int_10_base_str, dump_yaml, )
+    warning,
+    is_conda,
+    which,
+    join_lines,
+    is_windows_platform,
+    convert_cuda_version_to_int_10_base_str,
+    dump_yaml,
+)
 from cairnml_agent.helper.process import Argv, PathLike  # noqa: F401  # named by type comments
 from cairnml_agent.helper.gpu.gpustat import get_driver_cuda_version
 from cairnml_agent.session import normalize_cuda_version, Session  # noqa: F401  # Session is named by type comments
@@ -36,7 +42,6 @@ class FatalSpecsResolutionError(Exception):
 
 
 class MarkerRequirement(object):
-
     # if True pip version above 20.x and with support for "package @ scheme://link"
     # default is True
     pip_new_version = True
@@ -46,7 +51,7 @@ class MarkerRequirement(object):
 
     @property
     def marker(self):
-        match = re.search(r';\s*(.*)', self.req.line)
+        match = re.search(r";\s*(.*)", self.req.line)
         if match:
             return match.group(1)
         return None
@@ -56,7 +61,7 @@ class MarkerRequirement(object):
             parts = [self.name or self.line]
 
             if self.extras:
-                parts.append('[{0}]'.format(','.join(sorted(self.extras))))
+                parts.append("[{0}]".format(",".join(sorted(self.extras))))
 
             if self.specifier:
                 parts.append(self.format_specs())
@@ -68,8 +73,8 @@ class MarkerRequirement(object):
                 # let's build the line manually
                 parts = [
                     self.uri,
-                    '@{}'.format(self.revision) if self.revision else '',
-                    '#subdirectory={}'.format(self.subdirectory) if self.subdirectory else ''
+                    "@{}".format(self.revision) if self.revision else "",
+                    "#subdirectory={}".format(self.subdirectory) if self.subdirectory else "",
                 ]
         elif self.pip_new_version and self.uri and self.name and self.line and self.local_file:
             # package @ file:///example.com/somewheel.whl
@@ -79,9 +84,9 @@ class MarkerRequirement(object):
             parts = [self.uri]
 
         if markers and self.marker:
-            parts.append('; {0}'.format(self.marker))
+            parts.append("; {0}".format(self.marker))
 
-        return ''.join(parts)
+        return "".join(parts)
 
     def clone(self):
         return MarkerRequirement(copy(self.req))
@@ -89,7 +94,7 @@ class MarkerRequirement(object):
     __str__ = tostr
 
     def __repr__(self):
-        return '{self.__class__.__name__}[{self}]'.format(self=self)
+        return "{self.__class__.__name__}[{self}]".format(self=self)
 
     def __eq__(self, other):
         return isinstance(other, MarkerRequirement) and str(self) == str(other)
@@ -100,17 +105,17 @@ class MarkerRequirement(object):
     def format_specs(self, num_parts=None, max_num_parts=None):
         max_num_parts = max_num_parts or num_parts
         if max_num_parts is None or not self.specs:
-            return ','.join(starmap(operator.add, self.specs))
+            return ",".join(starmap(operator.add, self.specs))
 
         op, version = self.specs[0]
         # noinspection PyProtectedMember
         for v in SimpleVersion._sub_versions_pep440:
-            version = version.replace(v, '.')
+            version = version.replace(v, ".")
         if num_parts:
-            version = (version.strip('.').split('.') + ['0'] * num_parts)[:max_num_parts]
+            version = (version.strip(".").split(".") + ["0"] * num_parts)[:max_num_parts]
         else:
-            version = version.strip('.').split('.')[:max_num_parts]
-        return op+'.'.join(version)
+            version = version.strip(".").split(".")[:max_num_parts]
+        return op + ".".join(version)
 
     def __getattr__(self, item):
         return getattr(self.req, item)
@@ -135,9 +140,10 @@ class MarkerRequirement(object):
             if len(set(version for _, version in self.specs)) > 1:
                 raise SpecsResolutionError('more than one "==" spec: {}'.format(specs))
             return specs
-        greater = solve_by(lambda specs: [max(specs, key=itemgetter(1))], '<=', self.specs)
-        smaller = solve_by(lambda specs: [min(specs, key=itemgetter(1))], '>=', self.specs)
-        equal = solve_by(solve_equal, '==', self.specs)
+
+        greater = solve_by(lambda specs: [max(specs, key=itemgetter(1))], "<=", self.specs)
+        smaller = solve_by(lambda specs: [min(specs, key=itemgetter(1))], ">=", self.specs)
+        equal = solve_by(solve_equal, "==", self.specs)
         if equal:
             self.specs = equal
         else:
@@ -165,7 +171,8 @@ class MarkerRequirement(object):
         op = (op or self.specs[0][0]).strip()
 
         return SimpleVersion.compare_versions(
-            version_a=requested_version, op=op, version_b=version, num_parts=num_parts)
+            version_a=requested_version, op=op, version_b=version, num_parts=num_parts
+        )
 
     def remove_local_file_ref(self):
         if not self.local_file or self.vcs or self.editable or self.path:
@@ -174,15 +181,22 @@ class MarkerRequirement(object):
         # if we did not find anything do nothing
         if len(parts) < 2:
             return False
-        self.req.line = ''.join(parts).strip()
+        self.req.line = "".join(parts).strip()
         self.req.uri = None
         self.req.local_file = False
         return True
 
     def is_local_package_ref(self):
         # if local file does not exist, remove the reference to it
-        if self.vcs or self.editable or self.path or not self.local_file or not self.name or \
-                not self.uri or not self.uri.startswith("file://"):
+        if (
+            self.vcs
+            or self.editable
+            or self.path
+            or not self.local_file
+            or not self.name
+            or not self.uri
+            or not self.uri.startswith("file://")
+        ):
             return False
         return True
 
@@ -194,19 +208,25 @@ class MarkerRequirement(object):
         if not self.is_local_package_ref():
             return
 
-        local_path = Path(self.uri[len("file://"):])
+        local_path = Path(self.uri[len("file://") :])
         if not local_path.exists():
-            local_path = Path(unquote(self.uri)[len("file://"):])
+            local_path = Path(unquote(self.uri)[len("file://") :])
             if not local_path.exists():
                 line = self.line
                 if self.remove_local_file_ref():
                     # print warning
-                    logging.getLogger(__name__).warning(
-                        'Local file not found [{}], references removed'.format(line))
+                    logging.getLogger(__name__).warning("Local file not found [{}], references removed".format(line))
 
 
 class SimpleVersion:
-    _sub_versions_pep440 = ['a', 'b', 'rc', '.post', '.dev', '+', ]
+    _sub_versions_pep440 = [
+        "a",
+        "b",
+        "rc",
+        ".post",
+        ".dev",
+        "+",
+    ]
     VERSION_PATTERN = r"""
         v?
         (?:
@@ -279,7 +299,10 @@ class SimpleVersion:
                 version_a = version_a[:-2]
             if version_a == "*":
                 version_a = ""
-            num_parts = min(len(version_a.split('.')), len(version_b.split('.')), )
+            num_parts = min(
+                len(version_a.split(".")),
+                len(version_b.split(".")),
+            )
 
         if "*" in version_b:
             ignore_sub_versions = True
@@ -287,18 +310,24 @@ class SimpleVersion:
                 version_b = version_b[:-2]
             if version_b == "*":
                 version_b = ""
-            num_parts = min(len(version_a.split('.')), len(version_b.split('.')), )
+            num_parts = min(
+                len(version_a.split(".")),
+                len(version_b.split(".")),
+            )
 
         if not num_parts:
-            num_parts = max(len(version_a.split('.')), len(version_b.split('.')), )
+            num_parts = max(
+                len(version_a.split(".")),
+                len(version_b.split(".")),
+            )
 
-        if op == '~=':
-            num_parts = len(version_b.split('.')) - 1
+        if op == "~=":
+            num_parts = len(version_b.split(".")) - 1
             num_parts = max(num_parts, 2)
-            op = '=='
+            op = "=="
             ignore_sub_versions = True
-        elif op == '===':
-            op = '=='
+        elif op == "===":
+            op = "=="
 
         try:
             version_a_key = cls._get_match_key(cls._regex.search(version_a), num_parts, ignore_sub_versions)
@@ -306,46 +335,52 @@ class SimpleVersion:
         except Exception:
             # revert to string based
             for v in cls._sub_versions_pep440:
-                version_a = version_a.replace(v, '.')
-                version_b = version_b.replace(v, '.')
+                version_a = version_a.replace(v, ".")
+                version_b = version_b.replace(v, ".")
 
-            version_a = (version_a.strip('.').split('.') + ['0'] * num_parts)[:num_parts]
-            version_b = (version_b.strip('.').split('.') + ['0'] * num_parts)[:num_parts]
-            version_a_key = ''
-            version_b_key = ''
+            version_a = (version_a.strip(".").split(".") + ["0"] * num_parts)[:num_parts]
+            version_b = (version_b.strip(".").split(".") + ["0"] * num_parts)[:num_parts]
+            version_a_key = ""
+            version_b_key = ""
             for i in range(num_parts):
-                pad = '{:0>%d}.' % max([9, 1 + len(version_a[i]), 1 + len(version_b[i])])
+                pad = "{:0>%d}." % max([9, 1 + len(version_a[i]), 1 + len(version_b[i])])
                 version_a_key += pad.format(version_a[i])
                 version_b_key += pad.format(version_b[i])
 
-        if op == '==':
+        if op == "==":
             return version_a_key == version_b_key
-        if op == '<=':
+        if op == "<=":
             return version_a_key <= version_b_key
-        if op == '>=':
+        if op == ">=":
             return version_a_key >= version_b_key
-        if op == '>':
+        if op == ">":
             return version_a_key > version_b_key
-        if op == '<':
+        if op == "<":
             return version_a_key < version_b_key
-        if op == '!=':
+        if op == "!=":
             return version_a_key != version_b_key
-        raise ValueError('Unrecognized comparison operator [{}]'.format(op))
+        raise ValueError("Unrecognized comparison operator [{}]".format(op))
 
     @classmethod
     def max_version(cls, version_a, version_b):
-        return version_a if cls.compare_versions(
-            version_a=version_a, op='>=', version_b=version_b, num_parts=None) else version_b
+        return (
+            version_a
+            if cls.compare_versions(version_a=version_a, op=">=", version_b=version_b, num_parts=None)
+            else version_b
+        )
 
     @classmethod
     def min_version(cls, version_a, version_b):
-        return version_a if cls.compare_versions(
-            version_a=version_a, op='<=', version_b=version_b, num_parts=None) else version_b
+        return (
+            version_a
+            if cls.compare_versions(version_a=version_a, op="<=", version_b=version_b, num_parts=None)
+            else version_b
+        )
 
     @staticmethod
     def _parse_letter_version(
-            letter,  # type: str
-            number,  # type: Union[str, bytes, SupportsInt]
+        letter,  # type: str
+        number,  # type: Union[str, bytes, SupportsInt]
     ):
         # type: (...) -> Optional[Tuple[str, int]]
 
@@ -383,8 +418,14 @@ class SimpleVersion:
     @staticmethod
     def _get_match_key(match, num_parts, ignore_sub_versions):
         if ignore_sub_versions:
-            return (0, tuple(int(i) for i in match.group("release").split(".")[:num_parts]),
-                    (), (), (), (),)
+            return (
+                0,
+                tuple(int(i) for i in match.group("release").split(".")[:num_parts]),
+                (),
+                (),
+                (),
+                (),
+            )
         return (
             int(match.group("epoch")) if match.group("epoch") else 0,
             tuple(int(i) for i in match.group("release").split(".")[:num_parts]),
@@ -416,6 +457,7 @@ def compare_version_rules(specs_a, specs_b):
     class Section(object):
         def __init__(self, left="-999999999", left_eq=False, right="999999999", right_eq=False):
             self.left, self.left_eq, self.right, self.right_eq = left, left_eq, right, right_eq
+
     # first create a list of in/out sections for each spec
     # >, >= are left rule
     # <, <= are right rule
@@ -426,29 +468,29 @@ def compare_version_rules(specs_a, specs_b):
         section = Section()
         for op, v in specs:
             a = section
-            if op == '>':
+            if op == ">":
                 a.left = v
                 a.left_eq = False
-            elif op == '>=':
+            elif op == ">=":
                 a.left = v
                 a.left_eq = True
-            elif op == '<':
+            elif op == "<":
                 a.right = v
                 a.right_eq = False
-            elif op == '<=':
+            elif op == "<=":
                 a.right = v
                 a.right_eq = True
-            elif op == '==':
+            elif op == "==":
                 a.left = v
                 a.left_eq = True
                 a.right = v
                 a.right_eq = True
-            elif op == '~=':
-                new_v = v.split('.')
-                a_left = '.'.join(new_v[:-1])
+            elif op == "~=":
+                new_v = v.split(".")
+                a_left = ".".join(new_v[:-1])
                 a.left = a_left if not a.left else SimpleVersion.max_version(a_left, a.left)
                 a.left_eq = True
-                a_right = '.'.join(new_v[:-2] + [str(int(new_v[-2])+1)])
+                a_right = ".".join(new_v[:-2] + [str(int(new_v[-2]) + 1)])
                 a.right = a_right if not a.right else SimpleVersion.min_version(a_right, a.right)
                 a.right_eq = False if a.right == a_right else a.right_eq
 
@@ -474,15 +516,16 @@ def compare_version_rules(specs_a, specs_b):
     # return true if any section from A intersects a section from B
     valid = True
     valid &= SimpleVersion.compare_versions(
-        version_a=i.left, op='<=' if i.left_eq else '<', version_b=i.right, num_parts=None)
+        version_a=i.left, op="<=" if i.left_eq else "<", version_b=i.right, num_parts=None
+    )
     valid &= SimpleVersion.compare_versions(
-        version_a=i.right, op='>=' if i.left_eq else '>', version_b=i.left, num_parts=None)
+        version_a=i.right, op=">=" if i.left_eq else ">", version_b=i.left, num_parts=None
+    )
 
     return valid
 
 
 class RequirementSubstitution(object, metaclass=ABCMeta):
-
     _pip_extra_index_url = PIP_EXTRA_INDICES
 
     @classmethod
@@ -494,8 +537,8 @@ class RequirementSubstitution(object, metaclass=ABCMeta):
         # type: (Session) -> ()
         self._session = session
         self.config = session.config  # type: ConfigTree
-        self.suffix = '.post{config[agent.cuda_version]}.dev{config[agent.cudnn_version]}'.format(config=self.config)
-        self.package_manager = self.config['agent.package_manager.type']
+        self.suffix = ".post{config[agent.cuda_version]}.dev{config[agent.cudnn_version]}".format(config=self.config)
+        self.package_manager = self.config["agent.package_manager.type"]
         self._is_already_installed_cb = None
 
     @abstractmethod
@@ -540,36 +583,28 @@ class RequirementSubstitution(object, metaclass=ABCMeta):
     @classmethod
     def get_pip_version(cls, package):
         output = Argv(
-            'pip',
-            'search',
-            package,
-            *(chain.from_iterable(('-i', x) for x in cls._pip_extra_index_url))
+            "pip", "search", package, *(chain.from_iterable(("-i", x) for x in cls._pip_extra_index_url))
         ).get_output()
         # ad-hoc pattern to duplicate the behavior of the old code
-        return re.search(r'{} \((\d+\.\d+\.[^.]+)'.format(package), output).group(1)
+        return re.search(r"{} \((\d+\.\d+\.[^.]+)".format(package), output).group(1)
 
     @property
     def cuda_version(self):
-        return convert_cuda_version_to_int_10_base_str(self.config['agent.cuda_version'])
+        return convert_cuda_version_to_int_10_base_str(self.config["agent.cuda_version"])
 
     @property
     def cudnn_version(self):
-        return self.config['agent.cudnn_version']
+        return self.config["agent.cudnn_version"]
 
 
 class SimpleSubstitution(RequirementSubstitution):
-
     @property
     @abstractmethod
     def name(self):
         pass
 
     def match(self, req):  # type: (MarkerRequirement) -> bool
-        return (self.name == req.name or (
-            req.uri and
-            re.match(r'https?://', req.uri) and
-            self.name in req.uri
-        ))
+        return self.name == req.name or (req.uri and re.match(r"https?://", req.uri) and self.name in req.uri)
 
     def replace(self, req):  # type: (MarkerRequirement) -> Text
         """
@@ -577,11 +612,7 @@ class SimpleSubstitution(RequirementSubstitution):
         :raises: ValueError if version is pre-release
         """
         if req.uri:
-            return re.sub(
-                r'({})(.*?)(-cp)'.format(self.name),
-                r'\1\2{}\3'.format(self.suffix),
-                req.uri,
-                count=1)
+            return re.sub(r"({})(.*?)(-cp)".format(self.name), r"\1\2{}\3".format(self.suffix), req.uri, count=1)
 
         if req.specs:
             _, version_number = req.specs[0]
@@ -589,7 +620,7 @@ class SimpleSubstitution(RequirementSubstitution):
         else:
             version_number = self.get_pip_version(self.name)
 
-        req.specs = [('==', version_number + self.suffix)]
+        req.specs = [("==", version_number + self.suffix)]
         return Text(req)
 
     def replace_back(self, list_of_requirements):  # type: (Dict) -> Dict
@@ -601,10 +632,8 @@ class SimpleSubstitution(RequirementSubstitution):
 
 
 class CudaSensitiveSubstitution(SimpleSubstitution, metaclass=ABCMeta):
-
     def match(self, req):  # type: (MarkerRequirement) -> bool
-        return self.cuda_version and self.cudnn_version and \
-            super(CudaSensitiveSubstitution, self).match(req)
+        return self.cuda_version and self.cudnn_version and super(CudaSensitiveSubstitution, self).match(req)
 
 
 class CudaNotFound(Exception):
@@ -612,27 +641,28 @@ class CudaNotFound(Exception):
 
 
 class RequirementsManager(object):
-
     def __init__(self, session, base_interpreter=None):
         # type: (Session, PathLike) -> ()
         self._session = session
         self.config = deepcopy(session.config)  # type: ConfigTree
         self.handlers = []  # type: List[RequirementSubstitution]
-        agent = self.config['agent']
-        self.active = not agent.get('cpu_only', False)
+        agent = self.config["agent"]
+        self.active = not agent.get("cpu_only", False)
         self.found_cuda = False
         if self.active:
             try:
-                agent['cuda_version'], agent['cudnn_version'] = self.get_cuda_version(self.config)
+                agent["cuda_version"], agent["cudnn_version"] = self.get_cuda_version(self.config)
                 self.found_cuda = True
             except Exception:
                 # if we have a cuda version, it is good enough (we dont have to have cudnn version)
-                if agent.get('cuda_version'):
+                if agent.get("cuda_version"):
                     self.found_cuda = True
         pip_cache_dir = Path(self.config["agent.pip_download_cache.path"]).expanduser() / (
-            'cu'+agent['cuda_version'] if self.found_cuda else 'cpu')
-        self.translator = RequirementsTranslator(session, interpreter=base_interpreter,
-                                                 cache_dir=pip_cache_dir.as_posix())
+            "cu" + agent["cuda_version"] if self.found_cuda else "cpu"
+        )
+        self.translator = RequirementsTranslator(
+            session, interpreter=base_interpreter, cache_dir=pip_cache_dir.as_posix()
+        )
         self._base_interpreter = base_interpreter
         self._cwd = None
         self._installed_parsed_packages = set()
@@ -644,9 +674,9 @@ class RequirementsManager(object):
         self._cwd = str(cwd) if cwd else None
 
     def _replace_one(self, req):  # type: (MarkerRequirement) -> Optional[Text]
-        match = re.search(r';\s*(.*)', Text(req))
+        match = re.search(r";\s*(.*)", Text(req))
         if match:
-            req.markers = match.group(1).split(',')
+            req.markers = match.group(1).split(",")
         if not self.active:
             return None
         for handler in self.handlers:
@@ -655,15 +685,16 @@ class RequirementsManager(object):
         return None
 
     def replace(
-            self,
-            requirements,  # type: Text
-            existing_packages=None,  # type: List[MarkerRequirement]
-            pkg_skip_existing_local=True,  # type: bool
-            pkg_skip_existing_vcs=True,  # type: bool
-            pkg_skip_existing=True,  # type: bool
+        self,
+        requirements,  # type: Text
+        existing_packages=None,  # type: List[MarkerRequirement]
+        pkg_skip_existing_local=True,  # type: bool
+        pkg_skip_existing_vcs=True,  # type: bool
+        pkg_skip_existing=True,  # type: bool
     ):  # type: (...) -> Text
         parsed_requirements = self.parse_requirements_section_to_marker_requirements(
-            requirements=requirements, cwd=self._cwd, skip_local_file_validation=True)
+            requirements=requirements, cwd=self._cwd, skip_local_file_validation=True
+        )
 
         if parsed_requirements and existing_packages:
             skipped_packages = None
@@ -671,9 +702,11 @@ class RequirementsManager(object):
                 skipped_packages = set(parsed_requirements) & set(existing_packages)
             elif pkg_skip_existing_local or pkg_skip_existing_vcs:
                 existing_packages = [
-                    p for p in existing_packages if (
-                        (pkg_skip_existing_local and p.is_local_package_ref()) or
-                        (pkg_skip_existing_vcs and p.is_vcs_ref())
+                    p
+                    for p in existing_packages
+                    if (
+                        (pkg_skip_existing_local and p.is_local_package_ref())
+                        or (pkg_skip_existing_vcs and p.is_vcs_ref())
                     )
                 ]
                 skipped_packages = set(parsed_requirements) & set(existing_packages)
@@ -687,11 +720,11 @@ class RequirementsManager(object):
                     skipped_packages_str = dump_yaml(sorted([str(p) for p in skipped_packages]))
                 except Exception:
                     skipped_packages_str = "\n".join(sorted([" - " + str(p) for p in skipped_packages]))
-                print("Skipping {} pre-installed packages:\n{}Remaining {} additional packages to install".format(
-                    num_skipped_packages,
-                    skipped_packages_str,
-                    len(parsed_requirements)
-                ))
+                print(
+                    "Skipping {} pre-installed packages:\n{}Remaining {} additional packages to install".format(
+                        num_skipped_packages, skipped_packages_str, len(parsed_requirements)
+                    )
+                )
 
                 # nothing to install!
                 if not parsed_requirements:
@@ -711,19 +744,20 @@ class RequirementsManager(object):
             try:
                 return self._replace_one(req)
             except FatalSpecsResolutionError:
-                warning('could not resolve python wheel replacement for {}'.format(req))
+                warning("could not resolve python wheel replacement for {}".format(req))
                 raise
             except Exception:
-                warning('could not resolve python wheel replacement for \"{}\", '
-                        'using original requirements line: {}'.format(req, i))
+                warning(
+                    'could not resolve python wheel replacement for "{}", using original requirements line: {}'.format(
+                        req, i
+                    )
+                )
                 return None
 
         new_requirements = tuple(replace_one(i, req) for i, req in enumerate(parsed_requirements))
         conda = is_conda(self.config)
         result = map(
-            lambda x, y: (x if x is not None else y.tostr(markers=not conda)),
-            new_requirements,
-            parsed_requirements
+            lambda x, y: x if x is not None else y.tostr(markers=not conda), new_requirements, parsed_requirements
         )
         if not conda:
             result = map(self.translator.translate, result)
@@ -735,18 +769,20 @@ class RequirementsManager(object):
             reqs = h.post_scan_add_req()
             if reqs:
                 if double_req_set is None:
+
                     def safe_parse_name(line):
                         try:
                             return Requirement.parse(line).name
                         except:  # noqa
                             return None
+
                     double_req_set = set([safe_parse_name(r) for r in result if r])
 
-                for r in (reqs if isinstance(reqs, (tuple, list)) else [reqs]):
+                for r in reqs if isinstance(reqs, (tuple, list)) else [reqs]:
                     if r and (not r.name or r.name not in double_req_set):
                         result.append(r.tostr())
                     elif r:
-                        print("SKIPPING additional auto installed package: \"{}\"".format(r))
+                        print('SKIPPING additional auto installed package: "{}"'.format(r))
 
         return join_lines(result)
 
@@ -757,7 +793,7 @@ class RequirementsManager(object):
             try:
                 h.post_install(session)
             except Exception as ex:
-                print('RequirementsManager handler {} raised exception: {}'.format(h, ex))
+                print("RequirementsManager handler {} raised exception: {}".format(h, ex))
                 raise
 
     def replace_back(self, requirements):
@@ -782,7 +818,8 @@ class RequirementsManager(object):
         """
         requirements = requirements if not isinstance(requirements, dict) else requirements.get("pip")
         self._installed_parsed_packages = self.parse_requirements_section_to_marker_requirements(
-                requirements=requirements, cwd=self._cwd)
+            requirements=requirements, cwd=self._cwd
+        )
         for h in self.handlers:
             h.set_is_already_installed_cb(self._callback_is_already_installed)
 
@@ -794,7 +831,7 @@ class RequirementsManager(object):
         return self._installed_parsed_packages
 
     def _callback_is_already_installed(self, req):
-        for p in (self._installed_parsed_packages or []):
+        for p in self._installed_parsed_packages or []:
             if p.name != req.name:
                 continue
             # if this is version control package, only return true of both installed and requests specify commit ID
@@ -812,8 +849,8 @@ class RequirementsManager(object):
     @staticmethod
     def get_cuda_version(config):  # type: (ConfigTree) -> (Text, Text)
         # we assume os.environ already updated the config['agent.cuda_version'] & config['agent.cudnn_version']
-        cuda_version = config['agent.cuda_version']
-        cudnn_version = config['agent.cudnn_version']
+        cuda_version = config["agent.cuda_version"]
+        cudnn_version = config["agent.cudnn_version"]
         if cuda_version and cudnn_version:
             return normalize_cuda_version(cuda_version), normalize_cuda_version(cudnn_version)
 
@@ -822,8 +859,11 @@ class RequirementsManager(object):
 
         if not cuda_version and is_windows_platform():
             try:
-                cuda_vers = [int(k.replace('CUDA_PATH_V', '').replace('_', '')) for k in os.environ.keys()
-                             if k.startswith('CUDA_PATH_V')]
+                cuda_vers = [
+                    int(k.replace("CUDA_PATH_V", "").replace("_", ""))
+                    for k in os.environ.keys()
+                    if k.startswith("CUDA_PATH_V")
+                ]
                 cuda_vers = max(cuda_vers)
                 if cuda_vers > 40:
                     cuda_version = cuda_vers
@@ -833,14 +873,14 @@ class RequirementsManager(object):
         if not cuda_version:
             try:
                 try:
-                    nvcc = 'nvcc.exe' if is_windows_platform() else 'nvcc'
-                    if is_windows_platform() and 'CUDA_PATH' in os.environ:
-                        nvcc = os.path.join(os.environ['CUDA_PATH'], nvcc)
+                    nvcc = "nvcc.exe" if is_windows_platform() else "nvcc"
+                    if is_windows_platform() and "CUDA_PATH" in os.environ:
+                        nvcc = os.path.join(os.environ["CUDA_PATH"], nvcc)
 
-                    output = Argv(nvcc, '--version').get_output()
+                    output = Argv(nvcc, "--version").get_output()
                 except OSError:
-                    raise CudaNotFound('nvcc not found') from None
-                match = re.search(r'release (.{3})', output).group(1)
+                    raise CudaNotFound("nvcc not found") from None
+                match = re.search(r"release (.{3})", output).group(1)
                 cuda_version = Text(int(float(match) * 10))
             except Exception:
                 pass
@@ -848,42 +888,43 @@ class RequirementsManager(object):
         if not cuda_version:
             try:
                 try:
-                    output = Argv('nvidia-smi',).get_output()
+                    output = Argv(
+                        "nvidia-smi",
+                    ).get_output()
                 except OSError:
-                    raise CudaNotFound('nvcc not found') from None
-                match = re.search(r'CUDA Version: ([0-9]+).([0-9]+)', output)
-                match = match.group(1)+'.'+match.group(2)
+                    raise CudaNotFound("nvcc not found") from None
+                match = re.search(r"CUDA Version: ([0-9]+).([0-9]+)", output)
+                match = match.group(1) + "." + match.group(2)
                 cuda_version = Text(int(float(match) * 10))
             except Exception:
                 pass
 
         if not cudnn_version:
             try:
-                cuda_lib = which('nvcc')
+                cuda_lib = which("nvcc")
                 if is_windows_platform:
-                    cudnn_h = path.sep.join(cuda_lib.split(path.sep)[:-2] + ['include', 'cudnn.h'])
+                    cudnn_h = path.sep.join(cuda_lib.split(path.sep)[:-2] + ["include", "cudnn.h"])
                 else:
-                    cudnn_h = path.join(path.sep, *(cuda_lib.split(path.sep)[:-2] + ['include', 'cudnn.h']))
+                    cudnn_h = path.join(path.sep, *(cuda_lib.split(path.sep)[:-2] + ["include", "cudnn.h"]))
 
                 cudnn_major, cudnn_minor = None, None
                 try:
                     include_file = open(cudnn_h)
                 except OSError:
-                    raise CudaNotFound('Could not read cudnn.h') from None
+                    raise CudaNotFound("Could not read cudnn.h") from None
                 with include_file:
                     for line in include_file:
-                        if 'CUDNN_MAJOR' in line:
+                        if "CUDNN_MAJOR" in line:
                             cudnn_major = line.split()[-1]
-                        if 'CUDNN_MINOR' in line:
+                        if "CUDNN_MINOR" in line:
                             cudnn_minor = line.split()[-1]
                         if cudnn_major and cudnn_minor:
                             break
-                cudnn_version = cudnn_major + (cudnn_minor or '0')
+                cudnn_version = cudnn_major + (cudnn_minor or "0")
             except Exception:
                 pass
 
-        return (normalize_cuda_version(cuda_version or 0),
-                normalize_cuda_version(cudnn_version or 0))
+        return (normalize_cuda_version(cuda_version or 0), normalize_cuda_version(cudnn_version or 0))
 
     @staticmethod
     def parse_requirements_section_to_marker_requirements(requirements, cwd=None, skip_local_file_validation=False):
@@ -906,8 +947,11 @@ class RequirementsManager(object):
         parsed_requirements = tuple(
             map(
                 create_req,
-                [r for line in (requirements.splitlines() if isinstance(requirements, str) else requirements)
-                 for r in safe_parse(line)]
+                [
+                    r
+                    for line in (requirements.splitlines() if isinstance(requirements, str) else requirements)
+                    for r in safe_parse(line)
+                ],
             )
         )
         return parsed_requirements

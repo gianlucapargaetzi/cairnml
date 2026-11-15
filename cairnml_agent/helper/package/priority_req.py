@@ -7,18 +7,23 @@ from .requirements import SimpleSubstitution
 
 
 class PriorityPackageRequirement(SimpleSubstitution):
-
-    name = ("cython", "numpy", "setuptools", "pip", "uv", )
+    name = (
+        "cython",
+        "numpy",
+        "setuptools",
+        "pip",
+        "uv",
+    )
     optional_package_names = tuple()
 
     def __init__(self, *args, **kwargs):
         super(PriorityPackageRequirement, self).__init__(*args, **kwargs)
         self._replaced_packages = {}
         # check if we need to replace the packages:
-        priority_packages = self.config.get('agent.package_manager.priority_packages', None)
+        priority_packages = self.config.get("agent.package_manager.priority_packages", None)
         if priority_packages:
             self.__class__.name = [p.lower() for p in priority_packages]
-        priority_optional_packages = self.config.get('agent.package_manager.priority_optional_packages', None)
+        priority_optional_packages = self.config.get("agent.package_manager.priority_optional_packages", None)
         if priority_optional_packages:
             self.__class__.optional_package_names = [p.lower() for p in priority_optional_packages]
 
@@ -40,7 +45,7 @@ class PriorityPackageRequirement(SimpleSubstitution):
                     return Text(req)
             except Exception:
                 pass
-            return Text('')
+            return Text("")
         PackageManager.out_of_scope_install_package(str(req))
         return Text(req)
 
@@ -71,12 +76,12 @@ class PriorityPackageRequirement(SimpleSubstitution):
             try:
                 for k, lines in list_of_requirements.items():
                     # k is either pip/conda
-                    if k not in ('pip', 'conda'):
+                    if k not in ("pip", "conda"):
                         continue
                     for i, line in enumerate(lines):
-                        if not line or line.lstrip().startswith('#'):
+                        if not line or line.lstrip().startswith("#"):
                             continue
-                        parts = [p for p in re.split(r'\s|=|\.|<|>|~|!|@|#', line) if p]
+                        parts = [p for p in re.split(r"\s|=|\.|<|>|~|!|@|#", line) if p]
                         if not parts:
                             continue
                         # if we found setuptools, do nothing
@@ -95,8 +100,10 @@ class PriorityPackageRequirement(SimpleSubstitution):
 
 
 class CachedPackageRequirement(PriorityPackageRequirement):
-
-    name = ("setuptools", "pip", )
+    name = (
+        "setuptools",
+        "pip",
+    )
     optional_package_names = tuple()
 
     def replace(self, req):
@@ -113,6 +120,7 @@ class PackageCollectorRequirement(SimpleSubstitution):
     This RequirementSubstitution class will allow you to have multiple instances of the same
     package, it will output the last one (by order) to be actually used.
     """
+
     name = tuple()
 
     def __init__(self, session, collect_package):
@@ -130,7 +138,7 @@ class PackageCollectorRequirement(SimpleSubstitution):
         :raises: ValueError if version is pre-release
         """
         self._last_req = req.clone()
-        return ''
+        return ""
 
     def post_scan_add_req(self):
         """
@@ -152,6 +160,7 @@ class LocalSdkRequirement(SimpleSubstitution):
     The job never installs the SDK from PyPI: the PyPI SDK cannot sign in to a server that serves device sign-in
     (KNOWN DEFECT D1). The agent sets LOCAL_SDK_WHEEL_ENV in every job container it starts.
     """
+
     name = "cairnml"
 
     def replace(self, req):

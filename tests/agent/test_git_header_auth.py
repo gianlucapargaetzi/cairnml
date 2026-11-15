@@ -17,8 +17,10 @@ def basic(token):
 
 
 def test_the_header_carries_the_installation_token_as_x_access_token():
-    assert github_header(TOKEN) == "AUTHORIZATION: basic " + base64.b64encode(
-        "x-access-token:{}".format(TOKEN).encode()).decode()
+    assert (
+        github_header(TOKEN)
+        == "AUTHORIZATION: basic " + base64.b64encode("x-access-token:{}".format(TOKEN).encode()).decode()
+    )
 
 
 def test_scrubbing_removes_the_token_in_every_form_from_text_and_bytes():

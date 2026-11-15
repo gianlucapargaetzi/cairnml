@@ -21,8 +21,7 @@ from typing import Text  # noqa: F401  # named by type comments
 
 
 class NameResolutionError(CommandFailedError):
-
-    def __init__(self, message, suggestions=''):
+    def __init__(self, message, suggestions=""):
         super(NameResolutionError, self).__init__(message)
         self.message = message
         self.suggestions = suggestions
@@ -60,6 +59,7 @@ def resolve_names(func):
         args = [_resolve_single(self, arg) for arg in args]
         kwargs = {key: _resolve_single(self, value) for key, value in kwargs.items()}
         return func(self, *args, **kwargs)
+
     return newfunc
 
 
@@ -68,6 +68,7 @@ class BaseCommandSection(object):
     Base class for command sections which do not interact with the allegro API.
     Has basic utilities for user interaction.
     """
+
     warning = staticmethod(warning)
     error = staticmethod(error)
 
@@ -116,7 +117,7 @@ class ServiceCommandSection(BaseCommandSection, metaclass=Singleton):
     @property
     @abstractmethod
     def service(self):
-        """ The name of the REST service used by this command """
+        """The name of the REST service used by this command"""
         pass
 
     def get(self, endpoint, *args, service=None, session=None, **kwargs):
@@ -138,11 +139,11 @@ class ServiceCommandSection(BaseCommandSection, metaclass=Singleton):
 
     @property
     def name_single(self):
-        return self.name.rstrip('s')
+        return self.name.rstrip("s")
 
     @property
     def service_single(self):
-        return self.service.rstrip('s')
+        return self.service.rstrip("s")
 
     @resolve_names
     def __info(self, id=None, yaml=None, **kwargs):
@@ -155,10 +156,10 @@ class ServiceCommandSection(BaseCommandSection, metaclass=Singleton):
         for i in ids:
             get_fields = {self.service_single: i}
             try:
-                info = self.get('get_by_id', **get_fields)
+                info = self.get("get_by_id", **get_fields)
                 yaml_dump[i] = info[self.service_single]
             except APIError:
-                self.error('Failed retrieving info for {} {}'.format(self.service_single, i))
+                self.error("Failed retrieving info for {} {}".format(self.service_single, i))
 
         self.output_info(yaml_dump, yaml_path=yaml, **kwargs)
         return yaml_dump
@@ -173,42 +174,44 @@ class ServiceCommandSection(BaseCommandSection, metaclass=Singleton):
             print_parameters(entries, indent=4)
 
         if yaml_path:
-            print('Storing entries to [{}]'.format(yaml_path))
+            print("Storing entries to [{}]".format(yaml_path))
             dump_yaml(entries, yaml_path)
 
     @staticmethod
     def _make_query(json, table, sort=None, projection_from_table=False, extra_fields=None):
         json = json.copy()
         if isinstance(table, str):
-            table = table.split('#')
+            table = table.split("#")
 
         if extra_fields:
             table.extend(extra_fields)
 
         if projection_from_table:
-            json['only_fields'] = table
+            json["only_fields"] = table
 
         if sort:
             # does nothing if 'order_by' is not in get_fields
-            json['order_by'] = sort.split('#')[0]
+            json["order_by"] = sort.split("#")[0]
         return json, table
 
     def _get_all(self, endpoint, json, retpoint=None):
         return self.get(endpoint, **json).get(retpoint or self.service, [])
 
     @resolve_names
-    def _update(self,
-                endpoint='update',
-                send_diff=False,
-                quiet=False,
-                primary_key='id',
-                override=None,
-                model_desc=None,
-                yaml=None,
-                **kwargs):
+    def _update(
+        self,
+        endpoint="update",
+        send_diff=False,
+        quiet=False,
+        primary_key="id",
+        override=None,
+        model_desc=None,
+        yaml=None,
+        **kwargs,
+    ):
 
         if not yaml and primary_key not in kwargs:
-            raise ValueError('Update must supply either yaml file or %s-id' % self.service_single)
+            raise ValueError("Update must supply either yaml file or %s-id" % self.service_single)
 
         data_entries = {}
         original_data_entries = {}
@@ -223,16 +226,16 @@ class ServiceCommandSection(BaseCommandSection, metaclass=Singleton):
                 original_data_entries[i] = copy.deepcopy(original_info)
             if yaml and i not in data_entries:
                 if len(data_entries) > 1:
-                    raise ValueError(
-                        'Error: yaml file [%s] contains more than one task id' % yaml)
+                    raise ValueError("Error: yaml file [%s] contains more than one task id" % yaml)
                 first_key = next(iter(data_entries))
                 if first_key != i:
-                    if kwargs.get('force'):
+                    if kwargs.get("force"):
                         if not quiet:
-                            print('Warning: overriding yaml task id [%s] with id=%s' % (first_key, i))
+                            print("Warning: overriding yaml task id [%s] with id=%s" % (first_key, i))
                     else:
                         raise ValueError(
-                            'Error: yaml task id [%s] != id [%s], use --force to override' % (first_key, i))
+                            "Error: yaml task id [%s] != id [%s], use --force to override" % (first_key, i)
+                        )
                     data_entries = {i: data_entries[first_key]}
                     data_entries[i][primary_key] = i
             elif not yaml:
@@ -243,15 +246,15 @@ class ServiceCommandSection(BaseCommandSection, metaclass=Singleton):
             with open(model_desc) as f:
                 proto_data = f.read()
                 info = data_entries[first_key]
-                info['execution']['model_desc']['prototxt'] = proto_data
+                info["execution"]["model_desc"]["prototxt"] = proto_data
 
         if override:
             first_key = next(iter(data_entries))
             info = data_entries[first_key]
             for p in override:
-                key, val = p.split('=') if isinstance(p, str) else p
+                key, val = p.split("=") if isinstance(p, str) else p
                 info_key = info
-                keys = key.split('.')
+                keys = key.split(".")
                 for k in keys[:-1]:
                     if not info_key.get(k):
                         info_key[k] = dict()
@@ -261,9 +264,9 @@ class ServiceCommandSection(BaseCommandSection, metaclass=Singleton):
             # always make sure tags is a list of strings
             # split string to tokens ':'
             # examples tags='auto_generated:draft'
-            if info.get('tags') is not None:
+            if info.get("tags") is not None:
                 # remove empty strings from list
-                info['tags'] = [t for t in info['tags'].split(':') if t]
+                info["tags"] = [t for t in info["tags"].split(":") if t]
 
         # send only change set
         if send_diff:
@@ -277,41 +280,41 @@ class ServiceCommandSection(BaseCommandSection, metaclass=Singleton):
         for i, info in data_entries.items():
             if not info or len(info) == 0 or list(info) == [primary_key]:
                 if not quiet:
-                    print('Skipping: nothing to update for %s id [%s]' % (self.service_single, i))
+                    print("Skipping: nothing to update for %s id [%s]" % (self.service_single, i))
                 continue
             if not quiet:
-                print('Updating %s id [%s]' % (self.service_single, i))
+                print("Updating %s id [%s]" % (self.service_single, i))
             info[self.service_single] = i
             result = self.get(endpoint, **info)
-            if not result['updated']:
-                raise ValueError('Failed updating %s id [%s]' % (self.service_single, i))
+            if not result["updated"]:
+                raise ValueError("Failed updating %s id [%s]" % (self.service_single, i))
             if not quiet:
-                print('%s [%s] updated fields: %s' % (self.name_single, i, result.get('fields', '')))
+                print("%s [%s] updated fields: %s" % (self.name_single, i, result.get("fields", "")))
 
     @resolve_names
     def remove(self, ids, **kwargs):
         return self._apply_command(
             request_cls=getattr(services, self.service).DeleteRequest,
             object_ids=ids,
-            response_validation_field='deleted',
-            **kwargs
+            response_validation_field="deleted",
+            **kwargs,
         )
 
     def _apply_command(self, request_cls, object_ids, response_validation_field=None, **kwargs):
         object_ids = return_list(object_ids)
 
         def call_one(object_id):
-            error_message = '[{object_id}]: failed'.format(**locals())
+            error_message = "[{object_id}]: failed".format(**locals())
             try:
                 response = self._session.send_api(request_cls(object_id, **kwargs))
             except APIError as e:
                 if not self._session.debug_mode:
-                    self.error('{}: {}'.format(error_message, e))
+                    self.error("{}: {}".format(error_message, e))
                 else:
                     traceback = e.format_traceback()
                     if traceback:
                         print(traceback)
-                        print('Own traceback:')
+                        print("Own traceback:")
                     print_exc()
                 return False
 
@@ -322,7 +325,7 @@ class ServiceCommandSection(BaseCommandSection, metaclass=Singleton):
                 return False
 
         succeeded = [call_one(object_id) for object_id in object_ids].count(True)
-        message = '{}/{} succeeded'.format(succeeded, len(object_ids))
+        message = "{}/{} succeeded".format(succeeded, len(object_ids))
         (self.log if succeeded == len(object_ids) else self.exit)(message)
 
     def get_service(self, service_class):
@@ -342,15 +345,15 @@ class ServiceCommandSection(BaseCommandSection, metaclass=Singleton):
         :rtype: str
         """
         service = service or self.service
-        if re.match(r'^[-a-f0-9]{30,}$', name):
+        if re.match(r"^[-a-f0-9]{30,}$", name):
             return name
 
         try:
             request_cls = getattr(services, service).GetAllRequest
         except AttributeError:
-            raise NameResolutionError('Name resolution unavailable for {}'.format(service)) from None
+            raise NameResolutionError("Name resolution unavailable for {}".format(service)) from None
 
-        req_dict = {"name": re.escape(name), "only_fields": ['name', 'id']}
+        req_dict = {"name": re.escape(name), "only_fields": ["name", "id"]}
         if search_hidden:
             req_dict["_allow_extra_fields_"] = True
             req_dict["search_hidden"] = True
@@ -362,10 +365,11 @@ class ServiceCommandSection(BaseCommandSection, metaclass=Singleton):
         def truncated_bullet_list(format_string, elements, callback, **kwargs):
             if len(elements) > self.MAX_SUGGESTIONS:
                 kwargs.update(
-                    dict(details=' (showing {}/{})'.format(self.MAX_SUGGESTIONS, len(elements)), suffix='\n...'))
+                    dict(details=" (showing {}/{})".format(self.MAX_SUGGESTIONS, len(elements)), suffix="\n...")
+                )
             else:
-                kwargs.update(dict(details='', suffix=''))
-            bullet_list = '\n'.join('* {}'.format(callback(item)) for item in elements[:self.MAX_SUGGESTIONS])
+                kwargs.update(dict(details="", suffix=""))
+            bullet_list = "\n".join("* {}".format(callback(item)) for item in elements[: self.MAX_SUGGESTIONS])
             return format_string.format(bullet_list, **kwargs)
 
         if len(matches) == 1:
@@ -374,19 +378,20 @@ class ServiceCommandSection(BaseCommandSection, metaclass=Singleton):
             message = truncated_bullet_list(
                 'Found multiple {service} with name "{name}"{details}:\n{}{suffix}',
                 matches,
-                callback=attrgetter('id'),
-                **locals())
+                callback=attrgetter("id"),
+                **locals(),
+            )
             self.exit(message)
 
-        message = 'Could not find {} with name/id "{}"'.format(service.rstrip('s'), name)
+        message = 'Could not find {} with name/id "{}"'.format(service.rstrip("s"), name)
 
         if not response:
             raise NameResolutionError(message)
 
         suggestions = truncated_bullet_list(
-            '. Did you mean this?{details}\n{}{suffix}',
-            sorted(response, key=attrgetter('name')),
-            lambda db_object: '({}) {}'.format(db_object.id, db_object.name)
+            ". Did you mean this?{details}\n{}{suffix}",
+            sorted(response, key=attrgetter("name")),
+            lambda db_object: "({}) {}".format(db_object.id, db_object.name),
         )
         raise NameResolutionError(message, suggestions)
 
@@ -405,20 +410,20 @@ class ServiceCommandSection(BaseCommandSection, metaclass=Singleton):
         """
         service = service or self.service
         # check if this is a name not an ID
-        if not re.match(r'^[-a-f0-9]{30,}$', id):
+        if not re.match(r"^[-a-f0-9]{30,}$", id):
             return id
 
         cache_entry = self.SERVICE_ID_NAME_LOOKUP_CACHE.get(id)
         if cache_entry:
-            if time() - cache_entry['timestamp'] < self.LOOKUP_CACHE_TIMEOUT_SEC:
-                return cache_entry['name']
+            if time() - cache_entry["timestamp"] < self.LOOKUP_CACHE_TIMEOUT_SEC:
+                return cache_entry["name"]
 
         try:
             request_cls = getattr(services, service).GetAllRequest
         except AttributeError:
-            raise NameResolutionError('Name resolution unavailable for {}'.format(service)) from None
+            raise NameResolutionError("Name resolution unavailable for {}".format(service)) from None
 
-        req_dict = {"id": [re.escape(id)], "only_fields": ['name', 'id']}
+        req_dict = {"id": [re.escape(id)], "only_fields": ["name", "id"]}
         if search_hidden:
             req_dict["_allow_extra_fields_"] = True
             req_dict["search_hidden"] = True
@@ -430,28 +435,24 @@ class ServiceCommandSection(BaseCommandSection, metaclass=Singleton):
         if len(matches) == 1:
             cache_entry = dict(timestamp=time(), name=matches.pop().name)
             self.SERVICE_ID_NAME_LOOKUP_CACHE[id] = cache_entry
-            return cache_entry['name']
+            return cache_entry["name"]
         elif len(matches) > 1:
             raise NameResolutionError('Found multiple {} with Id "{}" (#{})'.format(service, id, len(matches)))
 
-        message = 'Could not find {} with name/id "{}"'.format(service.rstrip('s'), id)
+        message = 'Could not find {} with name/id "{}"'.format(service.rstrip("s"), id)
         raise NameResolutionError(message)
 
 
 def recursive_diff(org, upd, out):
     if isinstance(upd, dict) and isinstance(org, dict):
-        diff_keys = [
-            k for k in upd
-            if k not in org or upd[k] != org[k]
-        ]
+        diff_keys = [k for k in upd if k not in org or upd[k] != org[k]]
         if diff_keys:
             has_nested_dict = False
             for k in diff_keys:
                 if isinstance(upd[k], dict):
                     out[k] = {}
                     has_nested_dict = True
-                    k_has_nested = recursive_diff(
-                        org.get(k, {}), upd[k], out[k])
+                    k_has_nested = recursive_diff(org.get(k, {}), upd[k], out[k])
                     if not k_has_nested:
                         out[k] = upd[k]
                 elif upd[k] is not None:

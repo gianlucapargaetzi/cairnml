@@ -9,7 +9,7 @@ def filter_keys(filter_, dct):  # type: (Callable[[Any], bool], Dict) -> Dict
 
 def merge_dicts(dict1, dict2, custom_merge_func=None):
     # type: (Any, Any, Optional[Callable[[str, Any, Any, Any], Any]]) -> Any
-    """ Recursively merges dict2 into dict1 """
+    """Recursively merges dict2 into dict1"""
     if not isinstance(dict1, dict) or not isinstance(dict2, dict):
         return dict2
     for k in dict2:
@@ -37,7 +37,7 @@ def leaf_keys(d, prefix=""):
 
 def get_dict_leaves(dict_data):
     # type: (Dict) -> list
-    return[k for k in leaf_keys(dict_data)]
+    return [k for k in leaf_keys(dict_data)]
 
 
 def print_dict_leaves(dict_data):

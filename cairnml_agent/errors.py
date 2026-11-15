@@ -29,7 +29,7 @@ class APIError(ClientAPIError, ValueError):
                 data = response.json()
             except ValueError:
                 data = {}
-            meta = data.get('meta')
+            meta = data.get("meta")
             if meta:
                 response_meta = ResponseMeta(is_valid=False, **meta)
             else:
@@ -43,16 +43,15 @@ class APIError(ClientAPIError, ValueError):
 
     def format_traceback(self):
         if self.code != INTERNAL_SERVER_ERROR:
-            return ''
+            return ""
         traceback = self.get_traceback()
         if traceback:
-            return 'Server traceback:\n{}'.format(traceback)
+            return "Server traceback:\n{}".format(traceback)
         else:
-            return 'Could not print server traceback'
+            return "Could not print server traceback"
 
 
 class CommandFailedError(Exception):
-
     def __init__(self, message=None, *args, **kwargs):
         super(CommandFailedError, self).__init__(message, *args, **kwargs)
         self.message = message
@@ -62,6 +61,7 @@ class UsageError(CommandFailedError):
     """
     Used for usage errors that are checked post-argparsing
     """
+
     pass
 
 
@@ -79,8 +79,11 @@ class MissingPackageError(CommandFailedError):
         self.name = name
 
     def __str__(self):
-        return '{self.__class__.__name__}: ' \
-               '"{self.name}" package is required. Please run "pip install {self.name}"'.format(self=self)
+        return (
+            '{self.__class__.__name__}: "{self.name}" package is required. Please run "pip install {self.name}"'.format(
+                self=self
+            )
+        )
 
 
 class CustomBuildScriptFailed(CommandFailedError):

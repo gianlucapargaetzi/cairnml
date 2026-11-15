@@ -25,12 +25,8 @@ import urllib.request
 
 BOOTSTRAP_REPO = "cairnml/cairnml-agent-bootstrap"
 GITHUB_API_VERSION = "2022-11-28"
-RELEASES_API = "https://api.github.com/repos/{repo}/releases".format(
-    repo=BOOTSTRAP_REPO
-)
-ASSET_API = "https://api.github.com/repos/{repo}/releases/assets/{{asset_id}}".format(
-    repo=BOOTSTRAP_REPO
-)
+RELEASES_API = "https://api.github.com/repos/{repo}/releases".format(repo=BOOTSTRAP_REPO)
+ASSET_API = "https://api.github.com/repos/{repo}/releases/assets/{{asset_id}}".format(repo=BOOTSTRAP_REPO)
 
 CHUNK_SIZE = 64 * 1024  # 64 KiB
 
@@ -97,9 +93,7 @@ def _find_whl(version: str | None = None, timeout: float = 30) -> tuple[str, int
                 raise
 
         if not release:
-            raise RuntimeError(
-                "No release found matching version '{}'.".format(version)
-            )
+            raise RuntimeError("No release found matching version '{}'.".format(version))
     else:
         url = "{}/latest".format(RELEASES_API)
         try:
@@ -115,9 +109,7 @@ def _find_whl(version: str | None = None, timeout: float = 30) -> tuple[str, int
         if name.endswith(".whl"):
             return tag, int(asset["id"]), name
 
-    raise RuntimeError(
-        "Release '{}' in {} has no .whl asset attached.".format(tag, BOOTSTRAP_REPO)
-    )
+    raise RuntimeError("Release '{}' in {} has no .whl asset attached.".format(tag, BOOTSTRAP_REPO))
 
 
 # ---------------------------------------------------------------------------
@@ -197,10 +189,7 @@ def _find_installer() -> tuple[list[str], str]:
         except (subprocess.CalledProcessError, FileNotFoundError):
             continue
 
-    raise RuntimeError(
-        "No supported package manager found. "
-        "Please install pip, uv, or pipx and try again."
-    )
+    raise RuntimeError("No supported package manager found. Please install pip, uv, or pipx and try again.")
 
 
 # ---------------------------------------------------------------------------
@@ -208,9 +197,7 @@ def _find_installer() -> tuple[list[str], str]:
 # ---------------------------------------------------------------------------
 
 
-def _install_and_verify(
-    wheel_path: str, current_version: str | None, force: bool = False
-) -> None:
+def _install_and_verify(wheel_path: str, current_version: str | None, force: bool = False) -> None:
     """
     Install the wheel, flush the import cache, and print whether the
     version changed.  Exits with a non-zero status on failure.
@@ -237,13 +224,9 @@ def _install_and_verify(
     new_version = _get_installed_version()
     if new_version:
         if current_version and current_version == new_version and not force:
-            print(
-                "cairnml-agent-bootstrap v{} is already up-to-date".format(new_version)
-            )
+            print("cairnml-agent-bootstrap v{} is already up-to-date".format(new_version))
         else:
-            print(
-                "Successfully installed cairnml-agent-bootstrap v{}".format(new_version)
-            )
+            print("Successfully installed cairnml-agent-bootstrap v{}".format(new_version))
     else:
         print("WARNING: installation completed but package could not be imported")
 
@@ -293,9 +276,7 @@ def install_bootstrap(
     current_version = _get_installed_version()
 
     if current_version:
-        print(
-            "Currently installed: cairnml-agent-bootstrap v{}".format(current_version)
-        )
+        print("Currently installed: cairnml-agent-bootstrap v{}".format(current_version))
     else:
         print("cairnml-agent-bootstrap is not currently installed")
 

@@ -30,8 +30,9 @@ def monitor_with(session, report):
 
 def test_a_report_says_who_is_alive_what_runs_and_which_version_it_is():
     session = Recording()
-    monitor = monitor_with(session, ResourceMonitor.StatusReport(
-        task="task-1", queue="default", queues=["default", "cpu"]))
+    monitor = monitor_with(
+        session, ResourceMonitor.StatusReport(task="task-1", queue="default", queues=["default", "cpu"])
+    )
     assert monitor.send_report(stats={"cpu_usage": [10.0]})
 
     service, action, report = session.sent[0]

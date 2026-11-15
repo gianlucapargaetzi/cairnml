@@ -25,17 +25,14 @@ import psutil
 import pynvml as N
 from ..gpu import pyrsmi as R
 
-NOT_SUPPORTED = 'Not Supported'
+NOT_SUPPORTED = "Not Supported"
 MB = 1024 * 1024
 
 
 class GPUStat(object):
-
     def __init__(self, entry):
         if not isinstance(entry, dict):
-            raise TypeError(
-                'entry should be a dict, {} given'.format(type(entry))
-            )
+            raise TypeError("entry should be a dict, {} given".format(type(entry)))
         self.entry = entry
 
     def keys(self):
@@ -49,7 +46,7 @@ class GPUStat(object):
         """
         Returns the index of GPU (as in nvidia-smi).
         """
-        return self.entry['index']
+        return self.entry["index"]
 
     @property
     def uuid(self):
@@ -57,7 +54,7 @@ class GPUStat(object):
         Returns the uuid returned by nvidia-smi,
         e.g. GPU-12345678-abcd-abcd-uuid-123456abcdef
         """
-        return self.entry['uuid']
+        return self.entry["uuid"]
 
     @property
     def mig_index(self):
@@ -79,21 +76,21 @@ class GPUStat(object):
         """
         Returns the name of GPU card (e.g. Geforce Titan X)
         """
-        return self.entry['name']
+        return self.entry["name"]
 
     @property
     def memory_total(self):
         """
         Returns the total memory (in MB) as an integer.
         """
-        return int(self.entry['memory.total'])
+        return int(self.entry["memory.total"])
 
     @property
     def memory_used(self):
         """
         Returns the occupied memory (in MB) as an integer.
         """
-        return int(self.entry['memory.used'])
+        return int(self.entry["memory.used"])
 
     @property
     def memory_free(self):
@@ -117,7 +114,7 @@ class GPUStat(object):
         Returns the temperature (in celcius) of GPU as an integer,
         or None if the information is not available.
         """
-        v = self.entry['temperature.gpu']
+        v = self.entry["temperature.gpu"]
         return int(v) if v is not None else None
 
     @property
@@ -126,7 +123,7 @@ class GPUStat(object):
         Returns the fan speed percentage (0-100) of maximum intended speed
         as an integer, or None if the information is not available.
         """
-        v = self.entry['fan.speed']
+        v = self.entry["fan.speed"]
         return int(v) if v is not None else None
 
     @property
@@ -135,7 +132,7 @@ class GPUStat(object):
         Returns the GPU utilization (in percentile),
         or None if the information is not available.
         """
-        v = self.entry['utilization.gpu']
+        v = self.entry["utilization.gpu"]
         return int(v) if v is not None else None
 
     @property
@@ -144,7 +141,7 @@ class GPUStat(object):
         Returns the GPU power usage in Watts,
         or None if the information is not available.
         """
-        v = self.entry['power.draw']
+        v = self.entry["power.draw"]
         return int(v) if v is not None else None
 
     @property
@@ -153,7 +150,7 @@ class GPUStat(object):
         Returns the (enforced) GPU power limit in Watts,
         or None if the information is not available.
         """
-        v = self.entry['enforced.power.limit']
+        v = self.entry["enforced.power.limit"]
         return int(v) if v is not None else None
 
     @property
@@ -161,15 +158,14 @@ class GPUStat(object):
         """
         Get the list of running processes on the GPU.
         """
-        return self.entry['processes']
+        return self.entry["processes"]
 
     def jsonify(self):
         o = dict(self.entry)
-        if self.entry['processes'] is not None:
-            o['processes'] = [{k: v for (k, v) in p.items() if k != 'gpu_uuid'}
-                              for p in self.entry['processes']]
+        if self.entry["processes"] is not None:
+            o["processes"] = [{k: v for (k, v) in p.items() if k != "gpu_uuid"} for p in self.entry["processes"]]
         else:
-            o['processes'] = '({})'.format(NOT_SUPPORTED)
+            o["processes"] = "({})".format(NOT_SUPPORTED)
         return o
 
 
@@ -347,6 +343,7 @@ class GPUStatCollection(object):
     @staticmethod
     def _test_amd_smi_init(write_fd, debug=False):
         import os, sys
+
         if not debug:
             # Redirect stderr to /dev/null
             devnull = os.open(os.devnull, os.O_WRONLY)
@@ -355,6 +352,7 @@ class GPUStatCollection(object):
         os.dup2(write_fd, sys.stdout.fileno())
         os.close(write_fd)
         from cairnml_agent.helper.gpu.pyrsmi import smi_get_kernel_version, smi_initialize
+
         smi_initialize()
         print(smi_get_kernel_version())
 
@@ -373,11 +371,18 @@ class GPUStatCollection(object):
             try:
                 import os
                 import multiprocessing as mp
+
                 # Create a pipe and run as a separate process
                 read_fd, write_fd = os.pipe()
 
                 # Start the process, passing the write end
-                p = mp.Process(target=GPUStatCollection._test_amd_smi_init, args=(write_fd, False, ))
+                p = mp.Process(
+                    target=GPUStatCollection._test_amd_smi_init,
+                    args=(
+                        write_fd,
+                        False,
+                    ),
+                )
                 p.start()
 
                 # Parent doesn't need the write end
@@ -419,9 +424,8 @@ class GPUStatCollection(object):
                 """Get the process information of specific pid"""
                 process = {}
                 if nv_process.pid not in GPUStatCollection.global_processes:
-                    GPUStatCollection.global_processes[nv_process.pid] = \
-                        psutil.Process(pid=nv_process.pid)
-                process['pid'] = nv_process.pid
+                    GPUStatCollection.global_processes[nv_process.pid] = psutil.Process(pid=nv_process.pid)
+                process["pid"] = nv_process.pid
                 # noinspection PyBroadException
                 try:
                     # ps_process = GPUStatCollection.global_processes[nv_process.pid]
@@ -442,7 +446,7 @@ class GPUStatCollection(object):
                     #     round((ps_process.memory_percent() / 100.0) *
                     #           psutil.virtual_memory().total)
                     # Bytes to MBytes
-                    process['gpu_memory_usage'] = nv_process.usedGpuMemory // MB
+                    process["gpu_memory_usage"] = nv_process.usedGpuMemory // MB
                 except Exception:
                     # insufficient permissions
                     pass
@@ -458,9 +462,7 @@ class GPUStatCollection(object):
             name, uuid = device_info[index]
 
             try:
-                temperature = N.nvmlDeviceGetTemperature(
-                    handle, N.NVML_TEMPERATURE_GPU
-                )
+                temperature = N.nvmlDeviceGetTemperature(handle, N.NVML_TEMPERATURE_GPU)
             except N.NVMLError:
                 temperature = None  # Not supported
 
@@ -490,13 +492,11 @@ class GPUStatCollection(object):
                 power_limit = None
 
             try:
-                nv_comp_processes = \
-                    N.nvmlDeviceGetComputeRunningProcesses(handle)
+                nv_comp_processes = N.nvmlDeviceGetComputeRunningProcesses(handle)
             except N.NVMLError:
                 nv_comp_processes = None  # Not supported
             try:
-                nv_graphics_processes = \
-                    N.nvmlDeviceGetGraphicsRunningProcesses(handle)
+                nv_graphics_processes = N.nvmlDeviceGetGraphicsRunningProcesses(handle)
             except N.NVMLError:
                 nv_graphics_processes = None  # Not supported
 
@@ -525,19 +525,18 @@ class GPUStatCollection(object):
 
             index = N.nvmlDeviceGetIndex(handle)
             gpu_info = {
-                'index': index,
-                'uuid': uuid,
-                'name': name,
-                'temperature.gpu': temperature,
-                'fan.speed': fan_speed,
-                'utilization.gpu': utilization.gpu if utilization else None,
-                'power.draw': power // 1000 if power is not None else None,
-                'enforced.power.limit': power_limit // 1000
-                if power_limit is not None else None,
+                "index": index,
+                "uuid": uuid,
+                "name": name,
+                "temperature.gpu": temperature,
+                "fan.speed": fan_speed,
+                "utilization.gpu": utilization.gpu if utilization else None,
+                "power.draw": power // 1000 if power is not None else None,
+                "enforced.power.limit": power_limit // 1000 if power_limit is not None else None,
                 # Convert bytes into MBytes
-                'memory.used': memory.used // MB if memory else None,
-                'memory.total': memory.total // MB if memory else None,
-                'processes': None if (processes and all(p is None for p in processes)) else processes
+                "memory.used": memory.used // MB if memory else None,
+                "memory.total": memory.total // MB if memory else None,
+                "processes": None if (processes and all(p is None for p in processes)) else processes,
             }
             if per_process_stats:
                 GPUStatCollection.clean_processes()
@@ -600,8 +599,9 @@ class GPUStatCollection(object):
                     cuda_driver_version = None
             if cuda_driver_version:
                 try:
-                    cuda_driver_version = '{}.{}'.format(
-                        int(cuda_driver_version)//1000, (int(cuda_driver_version) % 1000)//10)
+                    cuda_driver_version = "{}.{}".format(
+                        int(cuda_driver_version) // 1000, (int(cuda_driver_version) % 1000) // 10
+                    )
                 except (ValueError, TypeError):
                     pass
         else:
@@ -643,40 +643,36 @@ class GPUStatCollection(object):
         return self.gpus[index]
 
     def __repr__(self):
-        s = 'GPUStatCollection(host=%s, [\n' % self.hostname
-        s += '\n'.join('  ' + str(g) for g in self.gpus)
-        s += '\n])'
+        s = "GPUStatCollection(host=%s, [\n" % self.hostname
+        s += "\n".join("  " + str(g) for g in self.gpus)
+        s += "\n])"
         return s
 
     # --- Printing Functions ---
     def jsonify(self):
-        return {
-            'hostname': self.hostname,
-            'query_time': self.query_time,
-            "gpus": [g.jsonify() for g in self]
-        }
+        return {"hostname": self.hostname, "query_time": self.query_time, "gpus": [g.jsonify() for g in self]}
 
     def print_json(self, fp=sys.stdout):
         def date_handler(obj):
-            if hasattr(obj, 'isoformat'):
+            if hasattr(obj, "isoformat"):
                 return obj.isoformat()
             else:
                 raise TypeError(type(obj))
 
         o = self.jsonify()
-        json.dump(o, fp, indent=4, separators=(',', ': '),
-                  default=date_handler)
-        fp.write('\n')
+        json.dump(o, fp, indent=4, separators=(",", ": "), default=date_handler)
+        fp.write("\n")
         fp.flush()
 
 
 def new_query(shutdown=False, per_process_stats=False, get_driver_info=False):
-    '''
+    """
     Obtain a new GPUStatCollection instance by querying nvidia-smi
     to get the list of GPUs and running process information.
-    '''
-    return GPUStatCollection.new_query(shutdown=shutdown, per_process_stats=per_process_stats,
-                                       get_driver_info=get_driver_info)
+    """
+    return GPUStatCollection.new_query(
+        shutdown=shutdown, per_process_stats=per_process_stats, get_driver_info=get_driver_info
+    )
 
 
 def get_driver_cuda_version():
@@ -699,7 +695,7 @@ def get_driver_cuda_version():
         try:
             cuda_version = str(N.nvmlSystemGetCudaDriverVersion_v2())
         except BaseException:
-            cuda_version = ''
+            cuda_version = ""
 
     # noinspection PyBroadException
     try:
@@ -708,7 +704,7 @@ def get_driver_cuda_version():
         return None
 
     # for some reason we get CUDA version 11020 instead of 11200, so this is the fix
-    if cuda_version and len(cuda_version) >= 4 and cuda_version[2] == '0' and cuda_version[3] != '0':
-        return cuda_version[:2]+cuda_version[3]
+    if cuda_version and len(cuda_version) >= 4 and cuda_version[2] == "0" and cuda_version[3] != "0":
+        return cuda_version[:2] + cuda_version[3]
 
     return cuda_version[:3] if cuda_version else None

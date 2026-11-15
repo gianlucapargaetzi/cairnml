@@ -26,7 +26,7 @@ def format_option(option, argument_required):
     :param option: flag to format
     :param argument_required: whether argument is required
     """
-    return option + '=' if argument_required else option + ' '
+    return option + "=" if argument_required else option + " "
 
 
 def get_options(parser):
@@ -57,7 +57,7 @@ def main():
             parser = parser[word]
             continue
         actions = {name: action for action in parser._actions for name in action.option_strings}
-        first, _, rest = word.partition('=')
+        first, _, rest = word.partition("=")
         is_one_word_store_action = rest and first in actions
         if is_one_word_store_action:
             word = first
@@ -77,9 +77,9 @@ def main():
 
     options = [format_option(option, argument_required=False) for option in options]
     options.extend(get_options(parser))
-    options = [option for option in options if option.rstrip('= ') not in seen]
+    options = [option for option in options if option.rstrip("= ") not in seen]
 
-    print('\n'.join(options))
+    print("\n".join(options))
     return 0
 
 

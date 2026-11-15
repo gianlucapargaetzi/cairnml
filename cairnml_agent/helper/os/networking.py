@@ -24,8 +24,9 @@ class TcpPorts(object):
             self._used_ports.append(port)
         return True
 
-    def find_port_range(self, number_of_ports: int, remember_port: bool = True,
-                        range_min: int = None, range_max: int = None) -> list:
+    def find_port_range(
+        self, number_of_ports: int, remember_port: bool = True, range_min: int = None, range_max: int = None
+    ) -> list:
         """
         Find an available ports range for the number of ports requested. min and max are defined as
          TcpPorts.remap_port_min as TcpPorts.remap_port_max, and will be affected by the allowed port
@@ -40,7 +41,7 @@ class TcpPorts(object):
         new_allocation = []
         for p in ports:
             # find consecutive ports
-            if new_allocation and (new_allocation[-1]+1) != p:
+            if new_allocation and (new_allocation[-1] + 1) != p:
                 new_allocation = []
 
             new_allocation.append(p)

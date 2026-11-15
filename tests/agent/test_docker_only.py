@@ -20,6 +20,7 @@ def test_venv_mode_is_accepted_only_with_the_flag():
 
 def test_venv_mode_with_the_flag_warns_about_the_device_key():
     from cairnml_agent.commands.worker import VENV_MODE_WARNING
+
     assert check_execution_mode(use_docker=False, allow_venv=True) == VENV_MODE_WARNING
     assert "device key" in VENV_MODE_WARNING
 

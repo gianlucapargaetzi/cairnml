@@ -28,8 +28,16 @@ class FakeServer:
     def post(self, url, json=None, headers=None, timeout=None):
         if not self.reachable:
             raise requests.ConnectionError("refused")
-        return FakeResponse(200, {"public_url": SERVER, "issuer": "x", "sdk_client_id": "cairnml-sdk",
-                                  "web_url": "http://cairnml/", "github_app": self.github_app})
+        return FakeResponse(
+            200,
+            {
+                "public_url": SERVER,
+                "issuer": "x",
+                "sdk_client_id": "cairnml-sdk",
+                "web_url": "http://cairnml/",
+                "github_app": self.github_app,
+            },
+        )
 
 
 def write_conf(path, server=SERVER):
@@ -42,7 +50,9 @@ def docker_ok(args, **kwargs):
 
 
 def docker_down(args, **kwargs):
-    return SimpleNamespace(returncode=1, stdout="", stderr="Cannot connect to the Docker daemon at unix:///var/run/docker.sock.\n")
+    return SimpleNamespace(
+        returncode=1, stdout="", stderr="Cannot connect to the Docker daemon at unix:///var/run/docker.sock.\n"
+    )
 
 
 def by_name(checks):
@@ -54,8 +64,9 @@ def run(conf, http=None, which=lambda name: "/usr/bin/docker", docker=docker_ok)
 
 
 def test_a_healthy_machine_passes_every_check(tmp_path):
-    checks = doctor.run_checks(write_conf(tmp_path / "a.conf"), http=FakeServer(),
-                               which=lambda name: "/usr/bin/docker", run=docker_ok)
+    checks = doctor.run_checks(
+        write_conf(tmp_path / "a.conf"), http=FakeServer(), which=lambda name: "/usr/bin/docker", run=docker_ok
+    )
     assert [c.name for c in checks] == ["config", "server", "docker", "daemon", "github"]
     assert all(c.ok is True and not c.warning for c in checks), [c.line() for c in checks]
     assert all(c.line().startswith("ok") for c in checks)
@@ -117,16 +128,16 @@ def test_a_configured_github_app_passes_without_warning(tmp_path):
 
 def test_the_command_exits_zero_with_only_a_warning(tmp_path, capsys):
     conf = write_conf(tmp_path / "a.conf")
-    code = doctor.doctor_main(file=str(conf), http=FakeServer(github_app=False),
-                              which=lambda name: "/usr/bin/docker", run=docker_ok)
+    code = doctor.doctor_main(
+        file=str(conf), http=FakeServer(github_app=False), which=lambda name: "/usr/bin/docker", run=docker_ok
+    )
     assert code == 0
     assert "warn" in capsys.readouterr().out
 
 
 def test_the_command_exits_one_when_docker_is_down(tmp_path, capsys):
     conf = write_conf(tmp_path / "a.conf")
-    code = doctor.doctor_main(file=str(conf), http=FakeServer(), which=lambda name: "/usr/bin/docker",
-                              run=docker_down)
+    code = doctor.doctor_main(file=str(conf), http=FakeServer(), which=lambda name: "/usr/bin/docker", run=docker_down)
     assert code == 1
     captured = capsys.readouterr()
     assert "FAIL daemon" in captured.out

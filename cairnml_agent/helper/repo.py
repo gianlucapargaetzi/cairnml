@@ -141,9 +141,7 @@ class VCS(object, metaclass=abc.ABCMeta):
         :param revision: desired clone revision
         """
         self.session = session
-        self.log = self.session.get_logger(
-            "{}.{}".format(__name__, type(self).__name__)
-        )
+        self.log = self.session.get_logger("{}.{}".format(__name__, type(self).__name__))
         self.url = url
         self.location = Text(location)
         self._revision = revision
@@ -202,9 +200,7 @@ class VCS(object, metaclass=abc.ABCMeta):
 
         # noinspection PyBroadException
         try:
-            for match in filter(
-                None, map(self.PATCH_ADDED_FILE_RE.match, patch_content.splitlines())
-            ):
+            for match in filter(None, map(self.PATCH_ADDED_FILE_RE.match, patch_content.splitlines())):
                 file_path = None
                 # noinspection PyBroadException
                 try:
@@ -216,9 +212,7 @@ class VCS(object, metaclass=abc.ABCMeta):
         except Exception:
             pass
 
-        return_code, errors = self.call_with_stdin(
-            patch_content, *self.patch_base, cwd=location
-        )
+        return_code, errors = self.call_with_stdin(patch_content, *self.patch_base, cwd=location)
         if return_code:
             self.log.error("Failed applying diff")
             lines = errors.splitlines()
@@ -261,9 +255,7 @@ class VCS(object, metaclass=abc.ABCMeta):
         :
         (?P<path>{regular}.*)?
         $
-        """.format(
-            regular=r"[^/@:#]"
-        ),
+        """.format(regular=r"[^/@:#]"),
         re.VERBOSE,
     )
 
@@ -278,27 +270,17 @@ class VCS(object, metaclass=abc.ABCMeta):
             """
             Remove special SSH users hg/git
             """
-            return (
-                None
-                if user_ and user_.lower() in ["hg", "git"] and not password
-                else user_
-            )
+            return None if user_ and user_.lower() in ["hg", "git"] and not password else user_
 
         match = cls.SSH_URL_GIT_SYNTAX.match(url)
         if match:
             user, host, path = match.groups()
-            return (
-                furl()
-                .set(scheme=replacement_scheme, username=get_username(user), host=host, path=path)
-                .url
-            )
+            return furl().set(scheme=replacement_scheme, username=get_username(user), host=host, path=path).url
         parsed_url = furl(url)
         if parsed_url.scheme == "ssh":
             return parsed_url.set(
                 scheme=replacement_scheme,
-                username=get_username(
-                    parsed_url.username, password=parsed_url.password
-                ),
+                username=get_username(parsed_url.username, password=parsed_url.password),
             ).url
         return url
 
@@ -337,22 +319,22 @@ class VCS(object, metaclass=abc.ABCMeta):
         Replace instance URL with SSH substitution result and report to log.
         According to ``man ssh-add``, ``SSH_AUTH_SOCK`` must be set in order for ``ssh-add`` to work.
         """
-        if self.session.config.get('agent.force_git_ssh_protocol', None) and self.url:
+        if self.session.config.get("agent.force_git_ssh_protocol", None) and self.url:
             parsed_url = furl(self.url)
             # only apply to a specific domain (if requested)
-            config_domain = \
-                ENV_AGENT_GIT_HOST.get() or self.session.config.get("agent.git_host", None)
+            config_domain = ENV_AGENT_GIT_HOST.get() or self.session.config.get("agent.git_host", None)
             if config_domain and config_domain != parsed_url.host:
                 return
             if parsed_url.scheme == "https":
                 new_url = self.replace_http_url(
                     self.url,
-                    port=self.session.config.get('agent.force_git_ssh_port', None),
-                    username=self.session.config.get('agent.force_git_ssh_user', None)
+                    port=self.session.config.get("agent.force_git_ssh_port", None),
+                    username=self.session.config.get("agent.force_git_ssh_user", None),
                 )
                 if new_url != self.url:
-                    print("Using SSH credentials - replacing https url '{}' with ssh url '{}'".format(
-                        self.url, new_url))
+                    print(
+                        "Using SSH credentials - replacing https url '{}' with ssh url '{}'".format(self.url, new_url)
+                    )
                     self.url = new_url
                 return
 
@@ -360,17 +342,16 @@ class VCS(object, metaclass=abc.ABCMeta):
             # TODO: fix, when url is in the form of `git@domain.com:user/project.git` we will fail to get scheme
             # need to add ssh:// and replace first ":" with / , unless port is specified
             if parsed_url.scheme == "ssh" and (
-                self.session.config.get('agent.force_git_ssh_port', None) or
-                self.session.config.get('agent.force_git_ssh_user', None)
+                self.session.config.get("agent.force_git_ssh_port", None)
+                or self.session.config.get("agent.force_git_ssh_user", None)
             ):
                 new_url = self.rewrite_ssh_url(
                     self.url,
-                    port=self.session.config.get('agent.force_git_ssh_port', None),
-                    username=self.session.config.get('agent.force_git_ssh_user', None)
+                    port=self.session.config.get("agent.force_git_ssh_port", None),
+                    username=self.session.config.get("agent.force_git_ssh_user", None),
                 )
                 if new_url != self.url:
-                    print("Using SSH credentials - ssh url '{}' with ssh url '{}'".format(
-                        self.url, new_url))
+                    print("Using SSH credentials - ssh url '{}' with ssh url '{}'".format(self.url, new_url))
                     self.url = new_url
                 return
             elif parsed_url.scheme == "ssh":
@@ -389,7 +370,7 @@ class VCS(object, metaclass=abc.ABCMeta):
             if not ssh_git_url_match
             else f"{ssh_git_url_match.groupdict().get('host')}:{ssh_git_url_match.groupdict().get('path')}",
             url_host=(ssh_git_url_match and ssh_git_url_match.groupdict().get("host")) or furl(self.url).host,
-            log=self.log
+            log=self.log,
         )
         if not (config_user and config_pass):
             return
@@ -403,8 +384,7 @@ class VCS(object, metaclass=abc.ABCMeta):
         )
         new_url = self.replace_ssh_url(self.url, replacement_scheme=repl_scheme)
         if new_url != self.url:
-            print("Using user/pass credentials - replacing ssh url '{}' with https url '{}'".format(
-                self.url, new_url))
+            print("Using user/pass credentials - replacing ssh url '{}' with https url '{}'".format(self.url, new_url))
             self.url = new_url
 
         # # if we have git_user / git_pass replace ssh credentials with https authentication
@@ -473,11 +453,7 @@ class VCS(object, metaclass=abc.ABCMeta):
         Returns result string without user's password.
         NOTE: ``self.get_stderr``'s result might or might not have the same type as ``e.output`` in case of error.
         """
-        string_type = (
-            ensure_text
-            if isinstance(result, str)
-            else ensure_binary
-        )
+        string_type = ensure_text if isinstance(result, str) else ensure_binary
         result = result.replace(
             string_type(self.url),
             string_type(furl(self.url).remove(password=True).tostr()),
@@ -517,7 +493,7 @@ class VCS(object, metaclass=abc.ABCMeta):
         Run command with `input_` as stdin
         """
         input_ = input_.encode("utf-8")
-        # always add extra empty line 
+        # always add extra empty line
         # (there is no downside, and it solves empty lines issue at end of patch cause corrupt message)
         input_ += b"\n"
         process = self._call_subprocess(
@@ -528,7 +504,7 @@ class VCS(object, metaclass=abc.ABCMeta):
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-            )
+            ),
         )
         _, stderr = process.communicate(input_)
         if stderr:
@@ -541,17 +517,13 @@ class VCS(object, metaclass=abc.ABCMeta):
         Remove stdin so git/hg can't ask for passwords.
         ``kwargs`` can override all arguments passed to subprocess.
         """
-        process = self._call_subprocess(
-            subprocess.Popen, argv, **dict(kwargs, stderr=subprocess.PIPE, stdout=None)
-        )
+        process = self._call_subprocess(subprocess.Popen, argv, **dict(kwargs, stderr=subprocess.PIPE, stdout=None))
         _, stderr = process.communicate()
         code = process.poll()
         if code == COMMAND_SUCCESS:
             return stderr
         with Argv.normalize_exception(censor_password=True):
-            raise subprocess.CalledProcessError(
-                returncode=code, cmd=argv, output=stderr
-            )
+            raise subprocess.CalledProcessError(returncode=code, cmd=argv, output=stderr)
 
     def _call_subprocess(self, func, argv, **kwargs):
         # type: (Callable[..., RType], Iterable[Text], dict) ->  RType
@@ -565,7 +537,7 @@ class VCS(object, metaclass=abc.ABCMeta):
                 stdout=DEVNULL,
                 env=dict(self.COMMAND_ENV, **environ),
             ),
-            **kwargs
+            **kwargs,
         )
         command = self._get_vcs_command(argv)
         self.log.debug("Running: %s", list(command))
@@ -591,11 +563,7 @@ class VCS(object, metaclass=abc.ABCMeta):
                 else url_host == h.lower()
             )
 
-        result = (
-            (config_user, config_pass)
-            if not config_host or match_host(config_host)
-            else (None, None)
-        )
+        result = (config_user, config_pass) if not config_host or match_host(config_host) else (None, None)
 
         extra_credentials = config.get(f"agent.{cls.executable_name}.extra_credentials", None)
         if extra_credentials and log:
@@ -627,18 +595,14 @@ class VCS(object, metaclass=abc.ABCMeta):
             parsed_url = furl(url)
         except ValueError:
             return url
-        if parsed_url.scheme in ["", "ssh"] or (parsed_url.scheme or '').startswith("git"):
+        if parsed_url.scheme in ["", "ssh"] or (parsed_url.scheme or "").startswith("git"):
             return parsed_url.url
         if reset_auth:
             parsed_url.set(username=None, password=None)
             return parsed_url.url
 
         config_user, config_pass = cls._get_config_creds(config=config, full_url=url, url_host=parsed_url.host, log=log)
-        if (
-            (not (parsed_url.username and parsed_url.password))
-            and config_user
-            and config_pass
-        ):
+        if (not (parsed_url.username and parsed_url.password)) and config_user and config_pass:
             parsed_url.set(username=config_user, password=config_pass)
         return parsed_url.url
 
@@ -646,7 +610,7 @@ class VCS(object, metaclass=abc.ABCMeta):
     def info_commands(self):
         # type: () -> Mapping[Text, Argv]
         """
-    `   Mapping from `RepoInfo` attribute name (except `type`) to command which acquires it
+        `   Mapping from `RepoInfo` attribute name (except `type`) to command which acquires it
         """
         pass
 
@@ -679,15 +643,16 @@ class Git(VCS):
         # this instance's own environment, so a token given to it is not shared with other repositories
         self.COMMAND_ENV = dict(self.COMMAND_ENV)
 
-        self._use_ask_pass = False if not self.session.config.get('agent.enable_git_ask_pass', True) \
-            else sys.platform == "linux"
-
-        self._use_ms_entra_token = (
-            ENV_AGENT_GIT_USE_MS_ENTRA_TOKEN.get() or self.session.config.get("agent.git_use_ms_entra_token", False)
+        self._use_ask_pass = (
+            False if not self.session.config.get("agent.enable_git_ask_pass", True) else sys.platform == "linux"
         )
 
-        self._use_azure_pat = (
-            ENV_AGENT_GIT_USE_AZURE_PAT.get() or self.session.config.get("agent.git_use_azure_pat", False)
+        self._use_ms_entra_token = ENV_AGENT_GIT_USE_MS_ENTRA_TOKEN.get() or self.session.config.get(
+            "agent.git_use_ms_entra_token", False
+        )
+
+        self._use_azure_pat = ENV_AGENT_GIT_USE_AZURE_PAT.get() or self.session.config.get(
+            "agent.git_use_azure_pat", False
         )
 
         if self._use_ms_entra_token and self._use_azure_pat:
@@ -701,26 +666,17 @@ class Git(VCS):
 
     @staticmethod
     def remote_branch_name(branch):
-        return [
-            "origin/{}".format(b) for b in ([branch] if isinstance(branch, str) else branch)
-        ]
+        return ["origin/{}".format(b) for b in ([branch] if isinstance(branch, str) else branch)]
 
     def clone_flags(self):
-        return (
-            "--recursive",
-            "--verbose" if ENV_GIT_CLONE_VERBOSE.get() else "--quiet"
-        )
+        return ("--recursive", "--verbose" if ENV_GIT_CLONE_VERBOSE.get() else "--quiet")
 
     def executable_not_found_error_help(self):
         return 'Cannot find "{}" executable. {}'.format(
             self.executable_name,
             select_for_platform(
-                linux="You can install it by running: sudo apt-get install {}".format(
-                    self.executable_name
-                ),
-                windows="You can download it here: {}".format(
-                    "https://gitforwindows.org/"
-                ),
+                linux="You can install it by running: sudo apt-get install {}".format(self.executable_name),
+                windows="You can download it here: {}".format("https://gitforwindows.org/"),
             ),
         )
 
@@ -770,7 +726,7 @@ class Git(VCS):
                 self.COMMAND_ENV["AZURE_PAT_HEADER_VALUE"] = f"Authorization: Basic {b64_pat}"
                 # call git command
                 try:
-                    ret = func('--config-env=http.extraheader=AZURE_PAT_HEADER_VALUE', *args, **kwargs)
+                    ret = func("--config-env=http.extraheader=AZURE_PAT_HEADER_VALUE", *args, **kwargs)
                 finally:
                     # delete temp password file
                     self.COMMAND_ENV.pop("AZURE_PAT_HEADER_VALUE", None)
@@ -781,17 +737,19 @@ class Git(VCS):
             return func(*args, **kwargs)
 
         # create the askpass script; it holds no credentials, it echoes them from the environment
-        fp, pass_file = tempfile.mkstemp(prefix='cairnml_git_', suffix='.sh')
+        fp, pass_file = tempfile.mkstemp(prefix="cairnml_git_", suffix=".sh")
         os.close(fp)
-        with open(pass_file, 'wt') as f:
+        with open(pass_file, "wt") as f:
             # get first letter only (username / password are the argument options)
             # then echo the correct information
-            f.writelines([
-                '#!/bin/bash\n',
-                'c="$1"\n',
-                'c="${c%"${c#?}"}"\n',
-                'if [ "$c" == "u" ] || [ "$c" == "U" ]; then echo "$CAIRNML_GIT_USERNAME"; else echo "$CAIRNML_GIT_PASSWORD"; fi\n',
-            ])
+            f.writelines(
+                [
+                    "#!/bin/bash\n",
+                    'c="$1"\n',
+                    'c="${c%"${c#?}"}"\n',
+                    'if [ "$c" == "u" ] || [ "$c" == "U" ]; then echo "$CAIRNML_GIT_USERNAME"; else echo "$CAIRNML_GIT_PASSWORD"; fi\n',
+                ]
+            )
         # mark executable
         st = os.stat(pass_file)
         os.chmod(pass_file, st.st_mode | stat.S_IEXEC)
@@ -854,7 +812,10 @@ class Git(VCS):
         root=Argv(executable_name, "rev-parse", "--show-toplevel"),
     )
 
-    patch_base = ("apply", "--unidiff-zero",)
+    patch_base = (
+        "apply",
+        "--unidiff-zero",
+    )
 
 
 class Hg(VCS):
@@ -867,22 +828,13 @@ class Hg(VCS):
         return 'Cannot find "{}" executable. {}'.format(
             self.executable_name,
             select_for_platform(
-                linux="You can install it by running: sudo apt-get install {}".format(
-                    self.executable_name
-                ),
-                windows="You can download it here: {}".format(
-                    "https://www.mercurial-scm.org/wiki/Download"
-                ),
+                linux="You can install it by running: sudo apt-get install {}".format(self.executable_name),
+                windows="You can download it here: {}".format("https://www.mercurial-scm.org/wiki/Download"),
             ),
         )
 
     def pull(self):
-        self.call(
-            "pull",
-            self.url_with_auth,
-            cwd=self.location,
-            *(("-r", self._revision) if self._revision else ())
-        )
+        self.call("pull", self.url_with_auth, cwd=self.location, *(("-r", self._revision) if self._revision else ()))
 
     info_commands = dict(
         url=Argv(executable_name, "paths", "--verbose"),
@@ -895,7 +847,10 @@ class Hg(VCS):
 def request_git_token(session, task_id):
     """The server's answer to the Git credential request for the task's repository, or None when there is no answer."""
     return session.send_request(
-        service="devices", action="git_token", version="2.8", method=Request.def_method,
+        service="devices",
+        action="git_token",
+        version="2.8",
+        method=Request.def_method,
         json={"task": task_id},
     )
 
@@ -989,8 +944,11 @@ def resolve_git_clone(session, repository_url, task_id):
         return None, None
     res = request_git_token(session, task_id)
     if res is None or not res.ok:
-        print("The server has no Git credential for {}, using the configured credentials".format(
-            furl(repository_url).host))
+        print(
+            "The server has no Git credential for {}, using the configured credentials".format(
+                furl(repository_url).host
+            )
+        )
         return None, None
     credential = git_credential_from_answer(res)
     clone_url = res.json()["data"].get("url")
@@ -1023,7 +981,7 @@ def clone_repository_cached(session, execution, destination, task_id=None):
     # mock lock
     repo_lock = Lock()
     repo_lock_timeout_sec = 300
-    repo_url = execution.repository or ''  # type: str
+    repo_url = execution.repository or ""  # type: str
     parsed_url = furl(repo_url)
     no_password_url = parsed_url.copy().remove(password=True).url
 
@@ -1037,24 +995,25 @@ def clone_repository_cached(session, execution, destination, task_id=None):
         vcs_cache_path = Path(session.config["agent.vcs_cache.path"]).expanduser()
         repo_hash = md5(ensure_binary(repo_url)).hexdigest()
         # create lock
-        repo_lock = FileLock(filename=(vcs_cache_path / '{}.lock'.format(repo_hash)).as_posix())
+        repo_lock = FileLock(filename=(vcs_cache_path / "{}.lock".format(repo_hash)).as_posix())
         # noinspection PyBroadException
         try:
             print("INFO: acquiring [timeout={}s] lock for repo cache folder".format(repo_lock_timeout_sec))
             repo_lock.acquire(timeout=repo_lock_timeout_sec)
         except BaseException:
-            print('Could not lock cache folder "{}" (timeout {} sec), using temp vcs cache.'.format(
-                clone_folder_name, repo_lock_timeout_sec))
-            repo_hash = '{}_{}'.format(repo_hash, str(random()).replace('.', ''))
+            print(
+                'Could not lock cache folder "{}" (timeout {} sec), using temp vcs cache.'.format(
+                    clone_folder_name, repo_lock_timeout_sec
+                )
+            )
+            repo_hash = "{}_{}".format(repo_hash, str(random()).replace(".", ""))
             # use mock lock for the context
             repo_lock = Lock()
         # select vcs cache folder
         cached_repo_path = vcs_cache_path / "{}.{}".format(clone_folder_name, repo_hash) / clone_folder_name
 
     with repo_lock:
-        vcs = VcsFactory.create(
-            session, execution_info=execution, location=cached_repo_path
-        )
+        vcs = VcsFactory.create(session, execution_info=execution, location=cached_repo_path)
         if not find_executable(vcs.executable_name):
             raise CommandFailedError(vcs.executable_not_found_error_help())
         clone_url = None
@@ -1080,9 +1039,8 @@ def clone_repository_cached(session, execution, destination, task_id=None):
                 vcs.pull()
             except Exception as ex:
                 print("git pull failed: {}".format(ex))
-                if (
-                        session.config.get("agent.vcs_cache.enabled", False) and
-                        session.config.get("agent.vcs_cache.clone_on_pull_fail", False)
+                if session.config.get("agent.vcs_cache.enabled", False) and session.config.get(
+                    "agent.vcs_cache.clone_on_pull_fail", False
                 ):
                     print("pulling git failed, re-cloning: {}".format(no_password_url))
                     rm_tree(cached_repo_path)
@@ -1092,14 +1050,15 @@ def clone_repository_cached(session, execution, destination, task_id=None):
             print("pulling git completed")
 
             rm_tree(destination)
-            shutil.copytree(Text(cached_repo_path), Text(clone_folder),
-                            symlinks=select_for_platform(linux=True, windows=False),
-                            ignore_dangling_symlinks=True)
+            shutil.copytree(
+                Text(cached_repo_path),
+                Text(clone_folder),
+                symlinks=select_for_platform(linux=True, windows=False),
+                ignore_dangling_symlinks=True,
+            )
             if not clone_folder.is_dir():
                 raise CommandFailedError(
-                    "copying of repository failed: from {} to {}".format(
-                        cached_repo_path, clone_folder
-                    )
+                    "copying of repository failed: from {} to {}".format(cached_repo_path, clone_folder)
                 )
 
             # checkout in the newly copy destination
@@ -1117,19 +1076,22 @@ def clone_repository_cached(session, execution, destination, task_id=None):
 def fix_package_import_diff_patch(entry_script_file):
     # noinspection PyBroadException
     try:
-        with open(entry_script_file, 'rt') as f:
+        with open(entry_script_file, "rt") as f:
             lines = f.readlines()
     except Exception:
         return
     # make sure we are the first import (i.e. we patched the source code)
-    if len(lines or []) < 2 or not lines[0].strip().startswith('from cairnml ') or 'Task.init' not in lines[1]:
+    if len(lines or []) < 2 or not lines[0].strip().startswith("from cairnml ") or "Task.init" not in lines[1]:
         return
 
     original_lines = lines
     # skip over the first two lines, they are ours
     # then skip over empty or comment lines
-    lines = [(i, line.split('#', 1)[0].rstrip()) for i, line in enumerate(lines)
-             if i >= 2 and line.strip('\r\n\t ') and not line.strip().startswith('#')]
+    lines = [
+        (i, line.split("#", 1)[0].rstrip())
+        for i, line in enumerate(lines)
+        if i >= 2 and line.strip("\r\n\t ") and not line.strip().startswith("#")
+    ]
 
     # remove triple quotes ' """ '
     nested_c = -1
@@ -1156,11 +1118,11 @@ def fix_package_import_diff_patch(entry_script_file):
             # check the last import block
             i, line = lines[found_index]
             # wither we have \\ character at the end of the line or the line is indented
-            parenthesized_lines = '(' in line and ')' not in line
-            while line.endswith('\\') or parenthesized_lines:
+            parenthesized_lines = "(" in line and ")" not in line
+            while line.endswith("\\") or parenthesized_lines:
                 found_index += 1
                 i, line = lines[found_index]
-                if ')' in line:
+                if ")" in line:
                     break
 
         else:
@@ -1172,10 +1134,10 @@ def fix_package_import_diff_patch(entry_script_file):
 
     # now we need to move back the patched two lines
     entry_line = lines[found_index][0]
-    new_lines = original_lines[2:entry_line + 1] + original_lines[0:2] + original_lines[entry_line + 1:]
+    new_lines = original_lines[2 : entry_line + 1] + original_lines[0:2] + original_lines[entry_line + 1 :]
     # noinspection PyBroadException
     try:
-        with open(entry_script_file, 'wt') as f:
+        with open(entry_script_file, "wt") as f:
             f.writelines(new_lines)
     except Exception:
         return
@@ -1189,8 +1151,11 @@ def _locate_future_import(lines):
     """
     # skip over the first two lines, they are ours
     # then skip over empty or comment lines
-    lines = [(i, line.split('#', 1)[0].rstrip()) for i, line in enumerate(lines)
-             if line.strip('\r\n\t ') and not line.strip().startswith('#')]
+    lines = [
+        (i, line.split("#", 1)[0].rstrip())
+        for i, line in enumerate(lines)
+        if line.strip("\r\n\t ") and not line.strip().startswith("#")
+    ]
 
     # remove triple quotes ' """ '
     nested_c = -1
@@ -1217,11 +1182,11 @@ def _locate_future_import(lines):
             # check the last import block
             i, line = lines[found_index]
             # wither we have \\ character at the end of the line or the line is indented
-            parenthesized_lines = '(' in line and ')' not in line
-            while line.endswith('\\') or parenthesized_lines:
+            parenthesized_lines = "(" in line and ")" not in line
+            while line.endswith("\\") or parenthesized_lines:
                 found_index += 1
                 i, line = lines[found_index]
-                if ')' in line:
+                if ")" in line:
                     break
 
         else:
@@ -1237,7 +1202,7 @@ def patch_add_task_init_call(local_filename):
     idx_a = 0
     # find the right entry for the patch if we have a local file (basically after __future__
     try:
-        with open(local_filename, 'rt') as f:
+        with open(local_filename, "rt") as f:
             lines = f.readlines()
     except Exception as ex:
         print("Failed patching entry point file {}: {}".format(local_filename, ex))
@@ -1248,19 +1213,22 @@ def patch_add_task_init_call(local_filename):
         idx_a = future_found + 1
 
     # check if we have not already patched it, no need to add another one
-    if len(lines or []) >= idx_a + 2 and lines[idx_a].strip().startswith('from cairnml ') and 'Task.init' in lines[
-        idx_a + 1]:
+    if (
+        len(lines or []) >= idx_a + 2
+        and lines[idx_a].strip().startswith("from cairnml ")
+        and "Task.init" in lines[idx_a + 1]
+    ):
         print("File {} already patched with Task.init()".format(local_filename))
         return
 
     patch = [
         "from cairnml import Task\n",
-        "(__name__ != \"__main__\") or Task.init()\n",
+        '(__name__ != "__main__") or Task.init()\n',
     ]
     lines = lines[:idx_a] + patch + lines[idx_a:]
     # noinspection PyBroadException
     try:
-        with open(local_filename, 'wt') as f:
+        with open(local_filename, "wt") as f:
             f.writelines(lines)
     except Exception as ex:
         print("Failed patching entry point file {}: {}".format(local_filename, ex))

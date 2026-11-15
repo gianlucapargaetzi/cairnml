@@ -12,7 +12,6 @@ PATTERN = re.compile(r"^(?P<hours>[^\s]+)\s(?P<days>[^\s]+)")
 def check_runtime(ranges_list, is_uptime=True):
     # type: (List[str], bool) -> bool
     for entry in ranges_list:
-
         days_list = get_days_list(entry)
         if not check_day(days_list):
             continue
@@ -40,9 +39,7 @@ def get_days_list(entry):
     for days in days_intervals:
         start, end = days.split("-") if "-" in days else (days, days)
         try:
-            days_total.extend(
-                [*range(DAYS.index(start.upper()), DAYS.index(end.upper()) + 1)]
-            )
+            days_total.extend([*range(DAYS.index(start.upper()), DAYS.index(end.upper()) + 1)])
         except ValueError:
             print(
                 "Warning: days interval '{}' is invalid, use intervals of the format <start>-<end>."
@@ -67,14 +64,10 @@ def get_hours_list(entry):
 def get_start_end_hours(hours):
     # type: (str) -> Tuple[int, int]
     try:
-        start, end = (
-            tuple(map(int, hours.split("-"))) if "-" in hours else (int(hours), 24)
-        )
+        start, end = tuple(map(int, hours.split("-"))) if "-" in hours else (int(hours), 24)
     except Exception as ex:
         print(
-            "Warning: hours interval '{}' is invalid ({}), use intervals of the format <start>-<end>".format(
-                hours, ex
-            )
+            "Warning: hours interval '{}' is invalid ({}), use intervals of the format <start>-<end>".format(hours, ex)
         )
         start, end = (None, None)
     if end == 0:
@@ -82,9 +75,7 @@ def get_start_end_hours(hours):
     return start, end
 
 
-def print_uptime_properties(
-    ranges_list, queues_info, runtime_properties, is_uptime=True
-):
+def print_uptime_properties(ranges_list, queues_info, runtime_properties, is_uptime=True):
     # type: (List[str], List[dict], List[dict], bool) -> None
     if ranges_list:
         uptime_string = ["Working hours {} configurations".format("uptime" if is_uptime else "downtime")]
@@ -121,9 +112,7 @@ def get_uptime_string(entry):
         if not (start and end):
             continue
         res.append(
-            "  - {}:00-{}:59 on {}".format(start, end - 1, ' and '.join(days_list))
-            if not (start == end)
-            else ""
+            "  - {}:00-{}:59 on {}".format(start, end - 1, " and ".join(days_list)) if not (start == end) else ""
         )
     return "\n".join(res)
 
@@ -146,7 +135,7 @@ def get_runtime_properties_string(runtime_properties):
         )
         expires = " expires at {}".format(expiry_hour) if expiry_hour else ""
         server_string.append(
-            "  - Server runtime property '{}: {}'{}".format(force_flag['key'], force_flag['value'], expires)
+            "  - Server runtime property '{}: {}'{}".format(force_flag["key"], force_flag["value"], expires)
         )
     return is_server_forced, "\n".join(server_string)
 
@@ -165,7 +154,5 @@ def get_queues_tags_string(queues_info):
         else:
             tag = None
         tagged = " (tagged '{}')'".format(tag) if tag else ""
-        queues_string.append(
-            "  - Listening to queue '{}'{}".format(queue.get('name', ''), tagged)
-        )
+        queues_string.append("  - Listening to queue '{}'{}".format(queue.get("name", ""), tagged))
     return is_queue_forced, "\n".join(queues_string)

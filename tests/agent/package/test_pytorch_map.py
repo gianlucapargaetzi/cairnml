@@ -26,6 +26,6 @@ wheels = [
 ]
 
 
-@pytest.mark.parametrize('wheel', wheels, ids=[','.join(map(str, attr.astuple(wheel))) for wheel in wheels])
+@pytest.mark.parametrize("wheel", wheels, ids=[",".join(map(str, attr.astuple(wheel))) for wheel in wheels])
 def test_map(wheel):
     assert requests.head(wheel.url).ok

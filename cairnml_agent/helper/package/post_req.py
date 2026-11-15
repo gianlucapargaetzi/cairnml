@@ -5,18 +5,17 @@ from .requirements import SimpleSubstitution
 
 
 class PostRequirement(SimpleSubstitution):
-
-    name = ("horovod", )
+    name = ("horovod",)
     optional_package_names = tuple()
 
     def __init__(self, *args, **kwargs):
         super(PostRequirement, self).__init__(*args, **kwargs)
         self.post_install_req = []
         # check if we need to replace the packages:
-        post_packages = self.config.get('agent.package_manager.post_packages', None)
+        post_packages = self.config.get("agent.package_manager.post_packages", None)
         if post_packages:
             self.__class__.name = post_packages
-        post_optional_packages = self.config.get('agent.package_manager.post_optional_packages', None)
+        post_optional_packages = self.config.get("agent.package_manager.post_optional_packages", None)
         if post_optional_packages:
             self.__class__.optional_package_names = post_optional_packages
 
@@ -45,4 +44,4 @@ class PostRequirement(SimpleSubstitution):
         # Store in post req install, and return nothing
         self.post_install_req.append(req)
         # mark skip package, we will install it in post install hook
-        return Text('')
+        return Text("")

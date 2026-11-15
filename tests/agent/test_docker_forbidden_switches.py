@@ -8,11 +8,14 @@ def _shipped_defaults():
     import re
     from pathlib import Path
 
-    text = (Path(__file__).resolve().parents[1] / "cairnml_agent" / "backend_api" / "config" / "default"
-            / "agent.conf").read_text()
+    text = (
+        Path(__file__).resolve().parents[1] / "cairnml_agent" / "backend_api" / "config" / "default" / "agent.conf"
+    ).read_text()
     block = re.search(r"forbidden_docker_args: \[(.*?)\]", text, re.S).group(1)
-    return {"agent.forbidden_docker_args": re.findall(r'"([^"]+)"', block),
-            "agent.docker_args_extra_precedes_task": True}
+    return {
+        "agent.forbidden_docker_args": re.findall(r'"([^"]+)"', block),
+        "agent.docker_args_extra_precedes_task": True,
+    }
 
 
 DEFAULTS = _shipped_defaults()
@@ -73,9 +76,16 @@ def test_a_kept_switch_keeps_the_words_after_it_and_a_stripped_one_drops_them():
 
 
 def test_host_files_are_read_or_written_only_by_the_admin():
-    for args in (["--env-file", "/home/u/.cairnml/agent/device.key"], ["--env-file=/etc/shadow"],
-                 ["--label-file", "/etc/passwd"], ["--log-opt", "path=/etc/x"], ["--log-driver", "none"],
-                 ["--cidfile", "/tmp/x"], ["--group-add", "docker"], ["--device-cgroup-rule", "c 1:* rwm"]):
+    for args in (
+        ["--env-file", "/home/u/.cairnml/agent/device.key"],
+        ["--env-file=/etc/shadow"],
+        ["--label-file", "/etc/passwd"],
+        ["--log-opt", "path=/etc/x"],
+        ["--log-driver", "none"],
+        ["--cidfile", "/tmp/x"],
+        ["--group-add", "docker"],
+        ["--device-cgroup-rule", "c 1:* rwm"],
+    ):
         base, stripped = _merge(args)
         assert base == [], args
         assert stripped, args
@@ -117,8 +127,9 @@ def test_no_shipped_docker_mount_covers_the_agent_key_folder():
 
     from cairnml_agent.idp.device import DEVICE_KEY_PATH
 
-    text = (Path(__file__).resolve().parents[1] / "cairnml_agent" / "backend_api" / "config" / "default"
-            / "agent.conf").read_text()
+    text = (
+        Path(__file__).resolve().parents[1] / "cairnml_agent" / "backend_api" / "config" / "default" / "agent.conf"
+    ).read_text()
     key_folder = str(DEVICE_KEY_PATH.parent.relative_to(Path.home()))
     for path in re.findall(r"~/(\.cairnml[^\s\"']*)", text):
         assert path != key_folder and not path.startswith(key_folder + "/"), path

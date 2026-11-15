@@ -11,14 +11,14 @@ from typing import List, Tuple, Optional  # noqa: F401  # named by type comments
 
 
 class Singleton(object):
-    prefix = '.cairnmlagent'
-    sep = '_'
-    ext = '.tmp'
+    prefix = ".cairnmlagent"
+    sep = "_"
+    ext = ".tmp"
     worker_id = None
-    worker_name_sep = ':'
+    worker_name_sep = ":"
     instance_slot = None
     _pid_file = None
-    _lock_file_name = sep+prefix+sep+'global.lock'
+    _lock_file_name = sep + prefix + sep + "global.lock"
     _lock_timeout = 10
     _pid = None
 
@@ -64,7 +64,7 @@ class Singleton(object):
         timeout = 0
         while os.path.exists(lock_file):
             if timeout > cls._lock_timeout:
-                warning('lock file timed out {}sec - clearing lock'.format(cls._lock_timeout))
+                warning("lock file timed out {}sec - clearing lock".format(cls._lock_timeout))
                 try:
                     os.remove(lock_file)
                 except Exception:
@@ -74,13 +74,16 @@ class Singleton(object):
             sleep(1)
             timeout += 1
 
-        with open(lock_file, 'wb') as f:
+        with open(lock_file, "wb") as f:
             f.write(bytes(os.getpid()))
             f.flush()
             try:
                 ret = cls._register_instance(
-                    unique_worker_id=unique_worker_id, worker_name=worker_name,
-                    api_client=api_client, allow_double=allow_double)
+                    unique_worker_id=unique_worker_id,
+                    worker_name=worker_name,
+                    api_client=api_client,
+                    allow_double=allow_double,
+                )
             except Exception:
                 ret = None, None
 
@@ -95,7 +98,7 @@ class Singleton(object):
     def get_running_pids(cls):
         # type: () -> List[Tuple[int, Optional[str], Optional[int], str]]
         temp_folder = cls._get_temp_folder()
-        files = glob(os.path.join(temp_folder, cls.prefix + cls.sep + '*' + cls.ext))
+        files = glob(os.path.join(temp_folder, cls.prefix + cls.sep + "*" + cls.ext))
         pids = []
         for file in files:
             parts = os.path.basename(file).split(cls.sep)
@@ -111,8 +114,8 @@ class Singleton(object):
             uid, slot = None, None
             # noinspection PyBroadException
             try:
-                with open(file, 'r') as f:
-                    uid, slot = str(f.read()).split('\n')
+                with open(file, "r") as f:
+                    uid, slot = str(f.read()).split("\n")
                     slot = int(slot)
             except Exception:
                 pass
@@ -150,8 +153,10 @@ class Singleton(object):
 
             if uid == unique_worker_id:
                 if allow_double:
-                    warning('Instance with the same WORKER_ID [{}] was found on this machine. '
-                            'We are ignoring it, make sure this not a mistake.'.format(unique_worker_id))
+                    warning(
+                        "Instance with the same WORKER_ID [{}] was found on this machine. "
+                        "We are ignoring it, make sure this not a mistake.".format(unique_worker_id)
+                    )
                 else:
                     return None, None
 
@@ -162,7 +167,7 @@ class Singleton(object):
             cls.instance_slot = 0
         else:
             # guarantee we have the minimal slot possible
-            for i in range(max(slots.keys())+2):
+            for i in range(max(slots.keys()) + 2):
                 if i not in slots:
                     cls.instance_slot = i
                     break
@@ -174,10 +179,12 @@ class Singleton(object):
         # create lock
         cls._pid = str(os.getpid())
         cls._pid_file = NamedTemporaryFile(
-            dir=cls._get_temp_folder(), prefix=cls.prefix + cls.sep + cls._pid + cls.sep, suffix=cls.ext,
-            delete=False if is_windows_platform() else True
+            dir=cls._get_temp_folder(),
+            prefix=cls.prefix + cls.sep + cls._pid + cls.sep,
+            suffix=cls.ext,
+            delete=False if is_windows_platform() else True,
         )
-        cls._pid_file.write(('{}\n{}'.format(unique_worker_id, cls.instance_slot)).encode())
+        cls._pid_file.write(("{}\n{}".format(unique_worker_id, cls.instance_slot)).encode())
         cls._pid_file.flush()
         cls.worker_id = unique_worker_id
 
@@ -186,7 +193,7 @@ class Singleton(object):
     @classmethod
     def _get_temp_folder(cls):
         if ENV_DOCKER_HOST_MOUNT.get():
-            return ENV_DOCKER_HOST_MOUNT.get().split(':')[-1]
+            return ENV_DOCKER_HOST_MOUNT.get().split(":")[-1]
         return gettempdir()
 
     @classmethod

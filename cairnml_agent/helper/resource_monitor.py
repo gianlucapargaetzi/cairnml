@@ -35,12 +35,12 @@ class BytesSizes(object):
     @staticmethod
     def megabytes(x):
         # type: (float) -> float
-        return x / (1024*1024)
+        return x / (1024 * 1024)
 
     @staticmethod
     def gigabytes(x):
         # type: (float) -> float
-        return x / (1024*1024*1024)
+        return x / (1024 * 1024 * 1024)
 
 
 class ResourceMonitor(object):
@@ -51,11 +51,7 @@ class ResourceMonitor(object):
         queues = attr.ib(default=None, type=Sequence[str])
 
         def to_dict(self):
-            return {
-                key: value
-                for key, value in attr.asdict(self).items()
-                if value is not None
-            }
+            return {key: value for key, value in attr.asdict(self).items() if value is not None}
 
     @attr.s
     class ClusterReport:
@@ -108,12 +104,12 @@ class ResourceMonitor(object):
         if not worker_tags and ENV_WORKER_TAGS.get():
             worker_tags = shlex.split(ENV_WORKER_TAGS.get())
         self._worker_tags = worker_tags
-        if Session.get_nvidia_visible_env() == 'none':
+        if Session.get_nvidia_visible_env() == "none":
             # NVIDIA_VISIBLE_DEVICES set to none, marks cpu_only flag
             # active_gpus == False means no GPU reporting
             self._active_gpus = False
         elif not self._gpustat:
-            log.warning('CairnML-Agent Resource Monitor: GPU monitoring is not available')
+            log.warning("CairnML-Agent Resource Monitor: GPU monitoring is not available")
         else:
             # None means no filtering, report all gpus
             self._active_gpus = None
@@ -126,16 +122,14 @@ class ResourceMonitor(object):
                         try:
                             self._active_gpus = os.listdir(active_gpus)
                         except OSError as e:
-                            log.warning(
-                                "Failed listing {}: {}".format(active_gpus, e)
-                            )
+                            log.warning("Failed listing {}: {}".format(active_gpus, e))
                     else:
                         self._active_gpus = [g.strip() for g in active_gpus.split(",")]
             except Exception:
                 pass
-        self._cluster_report_interval_sec = int(session.config.get(
-            "agent.resource_monitoring.cluster_report_interval_sec", 60
-        ))
+        self._cluster_report_interval_sec = int(
+            session.config.get("agent.resource_monitoring.cluster_report_interval_sec", 60)
+        )
         self._cluster_report = None
 
     def set_report(self, report):
@@ -165,8 +159,8 @@ class ResourceMonitor(object):
         capacity = {}
         for key, read in (
             ("cpus", lambda: psutil.cpu_count() or 0),
-            ("ram_gb", lambda: round(psutil.virtual_memory().total / 1024 ** 3, 2)),
-            ("disk_gb", lambda: round(psutil.disk_usage(os.path.expanduser("~")).total / 1024 ** 3, 2)),
+            ("ram_gb", lambda: round(psutil.virtual_memory().total / 1024**3, 2)),
+            ("disk_gb", lambda: round(psutil.disk_usage(os.path.expanduser("~")).total / 1024**3, 2)),
         ):
             try:
                 capacity[key] = read()
@@ -186,7 +180,7 @@ class ResourceMonitor(object):
             agent_version=__version__,
             # where the agent runs jobs: "docker", "venv" or "host"
             run_mode=self._run_mode,
-            **self.get_report().to_dict()
+            **self.get_report().to_dict(),
         )
         log.debug("sending report: %s", report)
 
@@ -292,7 +286,9 @@ class ResourceMonitor(object):
         except Exception as ex:
             print("Error: failed setting cluster report: {}".format(ex))
 
-    def setup_dynamic_gpu_cluster_report(self, available_gpus, gpu_queues, worker_id=None, cluster_key=None, resource_groups=None):
+    def setup_dynamic_gpu_cluster_report(
+        self, available_gpus, gpu_queues, worker_id=None, cluster_key=None, resource_groups=None
+    ):
         # type: (List[int], Dict[str, int], Optional[str], Optional[str], Optional[List[str]]) -> ()
         """
         Set up a cluster report for the enterprise server dashboard feature, for a damon with dynamic GPU support.
@@ -303,7 +299,7 @@ class ResourceMonitor(object):
             cluster_key=cluster_key,
             max_gpus=len(available_gpus),
             max_workers=len(available_gpus) // min(x for x, _ in gpu_queues.values()),
-            resource_groups=resource_groups
+            resource_groups=resource_groups,
         )
         self.send_cluster_report()
 
@@ -330,9 +326,9 @@ class ResourceMonitor(object):
         if not self._gpustat:
             return
         active_gpus = os.environ.get("NVIDIA_VISIBLE_DEVICES", "") or os.environ.get("CUDA_VISIBLE_DEVICES", "")
-        if active_gpus in ("none", ):
+        if active_gpus in ("none",):
             return
-        
+
         try:
             gpu_stat = self._gpustat.new_query(per_process_stats=False)
             skips_all = True
@@ -343,9 +339,7 @@ class ResourceMonitor(object):
             if skips_all and active_gpus != "none":
                 self._active_gpus = None
         except Exception as e:
-            logging.getLogger("cairnml.resource_monitor").warning(
-                "Could not fetch GPU stats: {}".format(e)
-            )
+            logging.getLogger("cairnml.resource_monitor").warning("Could not fetch GPU stats: {}".format(e))
 
     def _skip_nonactive_gpu(self, gpu: Any) -> bool:
         if self._active_gpus is False:
@@ -365,7 +359,6 @@ class ResourceMonitor(object):
             pass
         return False
 
-
     def _daemon(self):
         self._fix_active_gpus()
 
@@ -376,9 +369,7 @@ class ResourceMonitor(object):
             while True:
                 try:
                     last_report = time()
-                    current_report_frequency = (
-                        self._report_frequency if reported != 0 else self._first_report_sec
-                    )
+                    current_report_frequency = self._report_frequency if reported != 0 else self._first_report_sec
                     while (time() - last_report) < current_report_frequency:
                         # wait for self._sample_frequency seconds, if event set quit
                         if self._exit_event.wait(1 / self._sample_frequency):
@@ -412,8 +403,8 @@ class ResourceMonitor(object):
                     reported += 1
 
                     if (
-                        self._cluster_report and
-                        self._cluster_report_interval_sec
+                        self._cluster_report
+                        and self._cluster_report_interval_sec
                         and time() - last_cluster_report > self._cluster_report_interval_sec
                     ):
                         if self._cluster_report.pending:
@@ -499,11 +490,7 @@ class ResourceMonitor(object):
         stats["memory_free"] = BytesSizes.megabytes(virtual_memory.available)
         disk_use_percentage = psutil.disk_usage(self._disk_use_path).percent
         stats["disk_free_percent"] = 100 - disk_use_percentage
-        sensor_stat = (
-            psutil.sensors_temperatures()
-            if hasattr(psutil, "sensors_temperatures")
-            else {}
-        )
+        sensor_stat = psutil.sensors_temperatures() if hasattr(psutil, "sensors_temperatures") else {}
         if "coretemp" in sensor_stat and len(sensor_stat["coretemp"]):
             stats["cpu_temperature"] = max([t.current for t in sensor_stat["coretemp"]])
 
@@ -535,20 +522,17 @@ class ResourceMonitor(object):
                             log.error("Failed fetching GPU utilization")
                             self._gpu_utilization_warning_sent = True
 
-                    stats["gpu_mem_usage_{}".format(report_index)] = (
-                        100.0 * g["memory.used"] / g["memory.total"]
-                    )
+                    stats["gpu_mem_usage_{}".format(report_index)] = 100.0 * g["memory.used"] / g["memory.total"]
                     # already in MBs
-                    stats["gpu_mem_free_{}".format(report_index)] = (
-                        g["memory.total"] - g["memory.used"]
-                    )
+                    stats["gpu_mem_free_{}".format(report_index)] = g["memory.total"] - g["memory.used"]
 
                     stats["gpu_mem_used_{}".format(report_index)] = g["memory.used"] or 0
 
                     if self._fractions_handler:
                         fractions = self._fractions_handler.fractions
-                        stats["gpu_fraction_{}".format(report_index)] = \
+                        stats["gpu_fraction_{}".format(report_index)] = (
                             (fractions[i] if i < len(fractions) else fractions[-1]) if fractions else 1.0
+                        )
                     report_index += 1
 
             except Exception as ex:
@@ -561,9 +545,7 @@ class ResourceMonitor(object):
     def _failure(self):
         self._gpustat_fail += 1
         if self._gpustat_fail >= 3:
-            log.error(
-                "GPU monitoring failed getting GPU reading, switching off GPU monitoring"
-            )
+            log.error("GPU monitoring failed getting GPU reading, switching off GPU monitoring")
             self._gpustat = None
 
     BACKEND_STAT_MAP = {
@@ -580,7 +562,7 @@ class ResourceMonitor(object):
         "gpu_mem_used_*": "gpu_memory_used",
         "gpu_mem_free_*": "gpu_memory_free",
         "gpu_utilization_*": "gpu_usage",
-        "gpu_fraction_*": "gpu_fraction"
+        "gpu_fraction_*": "gpu_fraction",
     }
 
 
@@ -614,8 +596,10 @@ class GpuFractionsHandler:
 
     def __init__(self):
         self._total_memory_gb = [
-            (self._gpu_name_to_memory_gb.get(name.upper().replace(" ", "-")) or
-             self._gpu_name_to_memory_gb.get("NVIDIA-"+name.upper().replace(" ", "-"), 0))
+            (
+                self._gpu_name_to_memory_gb.get(name.upper().replace(" ", "-"))
+                or self._gpu_name_to_memory_gb.get("NVIDIA-" + name.upper().replace(" ", "-"), 0)
+            )
             for name in (self._get_gpu_names() or [])
         ]
         self._fractions = self._get_fractions()
@@ -708,7 +692,11 @@ class GpuFractionsHandler:
                 # So if the pod uses 3 GPUs, it means it's using 3 times a 1.000 fraction of a GPU.
                 # If the pod is using 0.5 GPUs, it means it's using 1 time a 0.5 fraction of a GPU.
                 # CFGI supports fractions only BELOW 1, so this logic holds.
-                return ",".join(("%.03f" % min(float(v), 1.000)) for k, v in sorted(labels.items()) if cls._frac_gpu_injector_re.match(k))
+                return ",".join(
+                    ("%.03f" % min(float(v), 1.000))
+                    for k, v in sorted(labels.items())
+                    if cls._frac_gpu_injector_re.match(k)
+                )
         elif annotations:
             if any(cls._custom_gpu_fraction_re.match(x) for x in (annotations or {})):
                 return ",".join(str(v) for k, v in sorted(annotations.items()) if cls._custom_gpu_fraction_re.match(k))
@@ -722,10 +710,7 @@ class GpuFractionsHandler:
                 # comma-separated float fractions
                 return [float(k) for k, _ in tuples]
             # comma-separated slice:count items
-            return {
-                k.strip(): int(v.strip())
-                for k, v in tuples
-            }
+            return {k.strip(): int(v.strip()) for k, v in tuples}
         except Exception as ex:
             log.error("Failed decoding GPU fractions '{}': {}".format(fractions, ex))
         return {}

@@ -1,12 +1,10 @@
-
 from pyhocon import ConfigTree
 from cairnml_agent.helper.base import Singleton
 
 
 class Config(object, metaclass=Singleton):
-
     def __init__(self, tree=None):
-        self.__dict__['_tree'] = tree or ConfigTree()
+        self.__dict__["_tree"] = tree or ConfigTree()
 
     def __getitem__(self, item):
         return self._tree[item]
