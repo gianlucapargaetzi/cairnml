@@ -96,8 +96,11 @@ def _bound(stub):
     from cairnml_agent.commands import worker as worker_module
 
     for name in dir(worker_module.Worker):
-        if name.startswith("_docker_") or name in ("_filter_docker_args", "_amd_gpu_docker_args",
-                                                    "_resolve_docker_env_args"):
+        if name.startswith("_docker_") or name in (
+            "_filter_docker_args",
+            "_amd_gpu_docker_args",
+            "_resolve_docker_env_args",
+        ):
             raw = inspect.getattr_static(worker_module.Worker, name)
             if not (inspect.isfunction(raw) or isinstance(raw, staticmethod)):
                 continue
@@ -130,17 +133,19 @@ def test_the_docker_command_string_is_unchanged(monkeypatch):
         mounted_vcs_cache="/mnt/vcs",
         mounted_venvs_cache="/mnt/venvs",
     )
-    worker = _bound(SimpleNamespace(
-        debug=lambda *args, **kwargs: None,
-        log=mock.MagicMock(),
-        _bootstrap=False,
-        _services_mode=False,
-        _server_is_loopback=lambda: False,
-        _worker_label="cairnml-worker={}",
-        _parent_worker_label="cairnml-parent-worker={}",
-        _session=SimpleNamespace(config=SimpleNamespace(get=lambda key, default=None: default)),
-        _use_podman=False,
-    ))
+    worker = _bound(
+        SimpleNamespace(
+            debug=lambda *args, **kwargs: None,
+            log=mock.MagicMock(),
+            _bootstrap=False,
+            _services_mode=False,
+            _server_is_loopback=lambda: False,
+            _worker_label="cairnml-worker={}",
+            _parent_worker_label="cairnml-parent-worker={}",
+            _session=SimpleNamespace(config=SimpleNamespace(get=lambda key, default=None: default)),
+            _use_podman=False,
+        )
+    )
     command = worker_module.Worker._get_docker_cmd(worker, worker_module.DockerRun(**arguments))
     assert command == [
         "docker",
