@@ -23,7 +23,7 @@ from typing import Optional, List, Iterator, TextIO, Any
 
 import psutil
 
-from ..gpu import pynvml as N
+import pynvml as N  # NVIDIA's bindings, the nvidia-ml-py package (extra cairnml[gpu])
 from ..gpu import pyrsmi as R
 
 NOT_SUPPORTED = "Not Supported"

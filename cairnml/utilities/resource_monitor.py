@@ -4,7 +4,7 @@ import platform
 import sys
 import warnings
 from time import time
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 
 import psutil
 from pathlib2 import Path
@@ -16,8 +16,19 @@ from ..config import config, ENV_MULTI_NODE_SINGLE_TASK
 
 try:
     from .gpu import gpustat
-except ImportError:
+except ImportError as _gpu_import_error:
     gpustat = None
+    _GPU_IMPORT_ERROR = _gpu_import_error
+else:
+    _GPU_IMPORT_ERROR = None
+
+
+def gpu_unavailable_message(import_error: Optional[ImportError]) -> str:
+    """What the task log says when GPU monitoring is off. A missing NVIDIA binding names the extra that installs it."""
+    message = "CairnML Monitor: GPU monitoring is not available"
+    if import_error is not None and getattr(import_error, "name", None) == "pynvml":
+        message += ', because the NVIDIA bindings are missing: pip install "cairnml[gpu]"'
+    return message
 
 
 class ResourceMonitor(BackgroundMonitor):
@@ -101,7 +112,7 @@ class ResourceMonitor(BackgroundMonitor):
             self._debug_mode = False
 
         if not self._gpustat:
-            self._task.get_logger().report_text("CairnML Monitor: GPU monitoring is not available")
+            self._task.get_logger().report_text(gpu_unavailable_message(_GPU_IMPORT_ERROR))
         else:  # if running_remotely():
             # noinspection PyBroadException
             try:
