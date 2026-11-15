@@ -18,7 +18,6 @@ from ...backend_api.services import events
 from ...config import deferred_config
 from ...debugging.log import LoggerRoot
 from ...storage.url import quote_url
-from ...utilities.attrs import attrs
 from ...utilities.process.mp import SingletonLock
 
 
@@ -36,7 +35,7 @@ class MetricsEventAdapter(ABC):
     _report_nan_warning_iteration = float("inf")
     _report_inf_warning_iteration = float("inf")
 
-    @attrs(cmp=False, slots=True)
+    @attr.attrs(eq=False, slots=True)
     class FileEntry:
         """File entry used to report on file data that needs to be uploaded prior to sending the event"""
 
