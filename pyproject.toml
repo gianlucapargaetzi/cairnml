@@ -9,7 +9,7 @@ description = "CairnML - experiment tracking, remote jobs and git-based datasets
 readme = "README.md"
 requires-python = ">=3.9"
 license = "Apache-2.0"
-license-files = ["LICENSE", "NOTICE"]
+license-files = ["LICENSE", "NOTICE", "THIRD_PARTY_NOTICES"]
 authors = [{ name = "Gianluca Pargaetzi", email = "121188387+gianlucapargaetzi@users.noreply.github.com" }]
 keywords = ["cairnml", "clearml", "development", "machine learning", "deep learning", "version control", "experiment manager", "mlops"]
 classifiers = [
