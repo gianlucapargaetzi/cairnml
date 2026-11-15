@@ -5316,72 +5316,54 @@ class Worker(ServiceCommandSection):
         return args
 
     def _get_docker_cmd(self, run):
-        """Build the docker run command of a task from a DockerRun."""
-        (worker_id, parent_worker_id, docker_image, docker_arguments, python_version, conf_file, host_apt_cache, host_pip_cache, host_poetry_cache, host_ssh_cache, host_cache, mounted_cache, host_pip_dl, mounted_pip_dl, host_vcs_cache, mounted_vcs_cache, host_venvs_cache, mounted_venvs_cache, standalone_mode, extra_docker_arguments, extra_shell_script, host_git_credentials, bash_script, preprocess_bash_script, install_opencv_libs, docker_bash_setup_script, auth_token, job_token_dir, worker_tags, name, mount_ssh, mount_ssh_ro, mount_apt_cache, mount_pip_cache, mount_poetry_cache, env_task_id, restart,) = (
-            run.worker_id,
-            run.parent_worker_id,
-            run.docker_image,
-            run.docker_arguments,
-            run.python_version,
-            run.conf_file,
-            run.host_apt_cache,
-            run.host_pip_cache,
-            run.host_poetry_cache,
-            run.host_ssh_cache,
-            run.host_cache,
-            run.mounted_cache,
-            run.host_pip_dl,
-            run.mounted_pip_dl,
-            run.host_vcs_cache,
-            run.mounted_vcs_cache,
-            run.host_venvs_cache,
-            run.mounted_venvs_cache,
-            run.standalone_mode,
-            run.extra_docker_arguments,
-            run.extra_shell_script,
-            run.host_git_credentials,
-            run.bash_script,
-            run.preprocess_bash_script,
-            run.install_opencv_libs,
-            run.docker_bash_setup_script,
-            run.auth_token,
-            run.job_token_dir,
-            run.worker_tags,
-            run.name,
-            run.mount_ssh,
-            run.mount_ssh_ro,
-            run.mount_apt_cache,
-            run.mount_pip_cache,
-            run.mount_poetry_cache,
-            run.env_task_id,
-            run.restart,
-        )
+        """Build the docker run command of a task from a DockerRun, one stage after another."""
         self.debug("Constructing docker command", context="docker")
         docker = 'docker'
-
         base_cmd = [docker, 'run', '-t']
-        use_rm = True
-        if restart:
-            if restart in ("unless-stopped", "no", "always") or restart.startswith("on-failure"):
-                base_cmd += ["--restart", restart]
-                use_rm = False
-            else:
-                self.log.error("Invalid restart value \"{}\" , ignoring".format(restart))
+        run.use_rm = True
+        self._docker_restart_args(run, base_cmd)
+        self._docker_gpu_args(run, base_cmd)
+        self._docker_user_args(run, base_cmd)
+        self._docker_labels_and_ports(run, base_cmd)
+        self._docker_loopback_network(run, base_cmd)
+        self._docker_kubernetes_args(run, base_cmd)
+        self._docker_host_folders(run, base_cmd)
+        self._docker_env_args(run, base_cmd)
+        self._docker_wheel_args(run, base_cmd)
+        self._docker_mount_defaults(run, base_cmd)
+        self._docker_standalone_script(run, base_cmd)
+        self._docker_setup_script(run, base_cmd)
+        self._docker_log_mounts(run, base_cmd)
+        self._docker_bootstrap_args(run, base_cmd)
+        self._docker_mount_args(run, base_cmd)
+        self._docker_command_tail(run, base_cmd)
+        return base_cmd
 
-        update_scheme = ""
-        dockers_nvidia_visible_devices = 'all'
+    def _docker_restart_args(self, run, base_cmd):
+        """restart part of the docker run command (see _get_docker_cmd)."""
+        if run.restart:
+            if run.restart in ("unless-stopped", "no", "always") or run.restart.startswith("on-failure"):
+                base_cmd += ["--restart", run.restart]
+                run.use_rm = False
+            else:
+                self.log.error("Invalid restart value \"{}\" , ignoring".format(run.restart))
+
+    def _docker_gpu_args(self, run, base_cmd):
+        """gpu part of the docker run command (see _get_docker_cmd)."""
+        run.update_scheme = ""
+        run.dockers_nvidia_visible_devices = 'all'
         gpu_devices = Session.get_nvidia_visible_env()
         if gpu_devices is None or gpu_devices.lower().strip() == 'all':
             if ENV_DOCKER_SKIP_GPUS_FLAG.get():
-                dockers_nvidia_visible_devices = Session.get_nvidia_visible_env() or \
-                                                 dockers_nvidia_visible_devices
+                run.dockers_nvidia_visible_devices = Session.get_nvidia_visible_env() or \
+                                                 run.dockers_nvidia_visible_devices
             elif detect_rocm_env():
                 base_cmd += self._amd_gpu_docker_args()
             else:
                 base_cmd += ['--gpus', 'all', ]
         elif gpu_devices.strip() and gpu_devices.strip() != 'none':
             if ENV_DOCKER_SKIP_GPUS_FLAG.get():
-                dockers_nvidia_visible_devices = gpu_devices
+                run.dockers_nvidia_visible_devices = gpu_devices
             elif detect_rocm_env():
                 base_cmd += self._amd_gpu_docker_args(visible=gpu_devices)
             else:
@@ -5393,27 +5375,29 @@ class Worker(ServiceCommandSection):
             # We are using --gpu, so we should not pass NVIDIA_VISIBLE_DEVICES, I think.
             # base_cmd += ['-e', 'NVIDIA_VISIBLE_DEVICES=' + gpu_devices, ]
         elif gpu_devices.strip() == 'none':
-            dockers_nvidia_visible_devices = gpu_devices
+            run.dockers_nvidia_visible_devices = gpu_devices
 
-        if docker_arguments:
-            docker_arguments = list(docker_arguments) \
-                if isinstance(docker_arguments, (list, tuple)) else [docker_arguments]
-            docker_arguments = self._filter_docker_args(docker_arguments)
+    def _docker_user_args(self, run, base_cmd):
+        """args part of the docker run command (see _get_docker_cmd)."""
+        if run.docker_arguments:
+            run.docker_arguments = list(run.docker_arguments) \
+                if isinstance(run.docker_arguments, (list, tuple)) else [run.docker_arguments]
+            run.docker_arguments = self._filter_docker_args(run.docker_arguments)
             if self._session.config.get("agent.docker_allow_host_environ", None):
-                docker_arguments = self._resolve_docker_env_args(docker_arguments)
+                run.docker_arguments = self._resolve_docker_env_args(run.docker_arguments)
 
-        if extra_docker_arguments:
+        if run.extra_docker_arguments:
             # we always resolve environments in the `extra_docker_arguments` because the admin set them (not users)
-            extra_docker_arguments = self._resolve_docker_env_args(extra_docker_arguments)
-            extra_docker_arguments = [extra_docker_arguments] \
-                if isinstance(extra_docker_arguments, str) else extra_docker_arguments
+            run.extra_docker_arguments = self._resolve_docker_env_args(run.extra_docker_arguments)
+            run.extra_docker_arguments = [run.extra_docker_arguments] \
+                if isinstance(run.extra_docker_arguments, str) else run.extra_docker_arguments
 
         # decide on order of docker args when merging overlapping arguments
         # from extra_docker_args and the Task's docker_args
         merged, stripped_switches = DockerArgsSanitizer.merge_docker_args(
             config=self._session.config,
-            task_docker_arguments=docker_arguments,
-            extra_docker_arguments=extra_docker_arguments
+            task_docker_arguments=run.docker_arguments,
+            extra_docker_arguments=run.extra_docker_arguments
         )
         base_cmd += merged
 
@@ -5423,9 +5407,11 @@ class Worker(ServiceCommandSection):
                 "they would give the task access to the host or override the agent startup script"
             ).format(", ".join(("-" if len(s) == 1 else "--") + s for s in stripped_switches))
             self.log.warning(warn_msg)
-            if env_task_id:
-                self.send_logs(env_task_id, [warn_msg + '\n'], session=self._session)
+            if run.env_task_id:
+                self.send_logs(run.env_task_id, [warn_msg + '\n'], session=self._session)
 
+    def _docker_labels_and_ports(self, run, base_cmd):
+        """ports part of the docker run command (see _get_docker_cmd)."""
         # check if we have mapped ports
         try:
             port_mappings_struct = DockerArgsSanitizer.resolve_port_mapping(
@@ -5437,13 +5423,13 @@ class Worker(ServiceCommandSection):
                 if additional_task_runtime:
                     from cairnml_agent.helper.task_runtime import TaskRuntime
                     task_runtime = TaskRuntime(self._session)
-                    task_runtime.update_task_runtime(env_task_id, additional_task_runtime)
+                    task_runtime.update_task_runtime(run.env_task_id, additional_task_runtime)
         except Exception as e:
             self.log.warning("WARNING: Failed parsing port mapping requested for docker execution: {}".format(e))
 
         # set docker labels
-        base_cmd += ['-l', self._worker_label.format(worker_id)]
-        base_cmd += ['-l', self._parent_worker_label.format(parent_worker_id)]
+        base_cmd += ['-l', self._worker_label.format(run.worker_id)]
+        base_cmd += ['-l', self._parent_worker_label.format(run.parent_worker_id)]
 
         extra_labels = ENV_EXTRA_DOCKER_LABELS.get()
         for label in (extra_labels or []):
@@ -5451,11 +5437,15 @@ class Worker(ServiceCommandSection):
 
         self.debug("Command: {}".format(base_cmd), context="docker")
 
+    def _docker_loopback_network(self, run, base_cmd):
+        """loop part of the docker run command (see _get_docker_cmd)."""
         # A server on this machine's loopback address is reachable only from the host's network, so the job container
         # shares it. The rule follows from the address; there is no setting for it.
         if self._server_is_loopback() and not any(a.strip().startswith('--network') for a in base_cmd):
             base_cmd += ['--network', 'host']
 
+    def _docker_kubernetes_args(self, run, base_cmd):
+        """k8s part of the docker run command (see _get_docker_cmd)."""
         # check if running inside a kubernetes
         if ENV_DOCKER_HOST_MOUNT.get() or (os.environ.get('KUBERNETES_SERVICE_HOST') and
                                            os.environ.get('KUBERNETES_PORT')):
@@ -5469,17 +5459,19 @@ class Worker(ServiceCommandSection):
                         base_cmd += ['--network', network_mode]
                 except Exception:
                     pass
-            base_cmd += ['-e', 'NVIDIA_VISIBLE_DEVICES={}'.format(dockers_nvidia_visible_devices)]
+            base_cmd += ['-e', 'NVIDIA_VISIBLE_DEVICES={}'.format(run.dockers_nvidia_visible_devices)]
 
             self.debug("Running in k8s: {}".format(base_cmd), context="docker")
 
+    def _docker_host_folders(self, run, base_cmd):
+        """hostm part of the docker run command (see _get_docker_cmd)."""
         # check if we need to map host folders
         if ENV_DOCKER_HOST_MOUNT.get():
             # expect CAIRNML_AGENT_K8S_HOST_MOUNT = '/mnt/host/data:/root/.cairnml'
             k8s_node_mnt, _, k8s_pod_mnt = ENV_DOCKER_HOST_MOUNT.get().partition(':')
             # search and replace all the host folders with the k8s
-            host_mounts = [host_apt_cache, host_pip_cache, host_poetry_cache, host_pip_dl,
-                           host_cache, host_vcs_cache, host_venvs_cache]
+            host_mounts = [run.host_apt_cache, run.host_pip_cache, run.host_poetry_cache, run.host_pip_dl,
+                           run.host_cache, run.host_vcs_cache, run.host_venvs_cache]
             self.debug("Mapping host mounts: {}".format(host_mounts), context="docker")
             for i, m in enumerate(host_mounts):
                 if not m:
@@ -5490,52 +5482,54 @@ class Worker(ServiceCommandSection):
                 else:
                     host_mounts[i] = m.replace(k8s_pod_mnt, k8s_node_mnt, 1)
             self.debug("Mapped host mounts: {}".format(host_mounts), context="docker")
-            host_apt_cache, host_pip_cache, host_poetry_cache, host_pip_dl, \
-                host_cache, host_vcs_cache, host_venvs_cache = host_mounts
+            run.host_apt_cache, run.host_pip_cache, run.host_poetry_cache, run.host_pip_dl, \
+                run.host_cache, run.host_vcs_cache, run.host_venvs_cache = host_mounts
 
             # copy the configuration file into the mounted folder
-            new_conf_file = os.path.join(k8s_pod_mnt, '.cairnml_agent.{}.cfg'.format(quote(worker_id, safe="")))
+            new_conf_file = os.path.join(k8s_pod_mnt, '.cairnml_agent.{}.cfg'.format(quote(run.worker_id, safe="")))
             try:
                 rm_tree(new_conf_file)
                 rm_file(new_conf_file)
-                shutil.copy(conf_file, new_conf_file)
-                conf_file = new_conf_file.replace(k8s_pod_mnt, k8s_node_mnt)
+                shutil.copy(run.conf_file, new_conf_file)
+                run.conf_file = new_conf_file.replace(k8s_pod_mnt, k8s_node_mnt)
             except Exception as ex:
                 raise ValueError('Error: could not copy configuration file into: {}'.format(new_conf_file)) from ex
 
-            self.debug("Config file target: {}, host: {}".format(new_conf_file, conf_file), context="docker")
+            self.debug("Config file target: {}, host: {}".format(new_conf_file, run.conf_file), context="docker")
 
-            if host_ssh_cache:
-                new_ssh_cache = os.path.join(k8s_pod_mnt, '.cairnml_agent.{}.ssh'.format(quote(worker_id, safe="")))
+            if run.host_ssh_cache:
+                new_ssh_cache = os.path.join(k8s_pod_mnt, '.cairnml_agent.{}.ssh'.format(quote(run.worker_id, safe="")))
                 try:
                     rm_tree(new_ssh_cache)
-                    shutil.copytree(host_ssh_cache, new_ssh_cache)
-                    host_ssh_cache = new_ssh_cache.replace(k8s_pod_mnt, k8s_node_mnt)
+                    shutil.copytree(run.host_ssh_cache, new_ssh_cache)
+                    run.host_ssh_cache = new_ssh_cache.replace(k8s_pod_mnt, k8s_node_mnt)
                 except Exception as ex:
                     raise ValueError('Error: could not copy .ssh directory into: {}'.format(new_ssh_cache)) from ex
                 self.debug(
-                    "Copied host SSH cache to: {}, host {}".format(new_ssh_cache, host_ssh_cache),
+                    "Copied host SSH cache to: {}, host {}".format(new_ssh_cache, run.host_ssh_cache),
                     context="docker"
                 )
 
-        base_cmd += ['-e', 'CAIRNML_WORKER_ID='+worker_id, ]
+    def _docker_env_args(self, run, base_cmd):
+        """env part of the docker run command (see _get_docker_cmd)."""
+        base_cmd += ['-e', 'CAIRNML_WORKER_ID='+run.worker_id, ]
         # update the docker image, so the system knows where it runs
-        base_cmd += ['-e', 'CAIRNML_DOCKER_IMAGE={}'.format(docker_image)]
+        base_cmd += ['-e', 'CAIRNML_DOCKER_IMAGE={}'.format(run.docker_image)]
 
-        if env_task_id:
-            base_cmd += ['-e', 'CAIRNML_TASK_ID={}'.format(env_task_id), ]
+        if run.env_task_id:
+            base_cmd += ['-e', 'CAIRNML_TASK_ID={}'.format(run.env_task_id), ]
 
-        if auth_token:
+        if run.auth_token:
             # if auth token is passed then put it in the env var
-            base_cmd += ['-e', '{}={}'.format(ENV_AGENT_AUTH_TOKEN.vars[0], auth_token)]
+            base_cmd += ['-e', '{}={}'.format(ENV_AGENT_AUTH_TOKEN.vars[0], run.auth_token)]
 
-        if job_token_dir:
+        if run.job_token_dir:
             # the job's token file, renewed by the agent while the job runs; the container reads it from its folder
-            base_cmd += ['-v', '{}:{}'.format(job_token_dir, CONTAINER_DIR),
+            base_cmd += ['-v', '{}:{}'.format(run.job_token_dir, CONTAINER_DIR),
                          '-e', 'CAIRNML_JOB_TOKEN_FILE={}/{}'.format(CONTAINER_DIR, TOKEN_FILE_NAME)]
 
-        if worker_tags:
-            base_cmd += ['-e', '{}={}'.format(ENV_WORKER_TAGS.vars[0], " ".join(shlex.quote(t) for t in worker_tags))]
+        if run.worker_tags:
+            base_cmd += ['-e', '{}={}'.format(ENV_WORKER_TAGS.vars[0], " ".join(shlex.quote(t) for t in run.worker_tags))]
 
         skip_pip_venv_install = ENV_AGENT_SKIP_PIP_VENV_INSTALL.get()
         if skip_pip_venv_install:
@@ -5544,6 +5538,8 @@ class Worker(ServiceCommandSection):
         if self._services_mode:
             base_cmd += ['-e', 'CAIRNML_AGENT_SERVICE_TASK=1']
 
+    def _docker_wheel_args(self, run, base_cmd):
+        """wheel part of the docker run command (see _get_docker_cmd)."""
         # if we are running a RC version, install the same version in the docker
         # because the default latest, will be a release version (not RC)
         # The job container installs this agent from a wheel of its own source tree, and never from PyPI.
@@ -5551,30 +5547,34 @@ class Worker(ServiceCommandSection):
         local_wheel = local_agent_wheel()
         docker_wheel = '/tmp/{}'.format(basename(local_wheel))
         base_cmd += ['-v', local_wheel + ':' + docker_wheel]
-        cairnml_agent_wheel = docker_wheel if self._bootstrap else '\"{}\"'.format(docker_wheel)
+        run.cairnml_agent_wheel = docker_wheel if self._bootstrap else '\"{}\"'.format(docker_wheel)
         sdk_wheel = local_sdk_wheel()
         docker_sdk_wheel = '/tmp/{}'.format(basename(sdk_wheel))
         base_cmd += ['-v', sdk_wheel + ':' + docker_sdk_wheel, '-e', '{}={}'.format(LOCAL_SDK_WHEEL_ENV, docker_sdk_wheel)]
 
-        mount_ssh = mount_ssh or '/root/.ssh'
-        mount_ssh_ro = mount_ssh_ro or "{}_ro".format(mount_ssh.rstrip("/"))
-        mount_apt_cache = mount_apt_cache or '/var/cache/apt/archives'
-        mount_pip_cache = mount_pip_cache or '/root/.cache/pip'
-        mount_poetry_cache = mount_poetry_cache or '/root/.cache/pypoetry'
-        mount_git_ro = "{}.git".format(mount_ssh_ro.rstrip("/"))
+    def _docker_mount_defaults(self, run, base_cmd):
+        """mdef part of the docker run command (see _get_docker_cmd)."""
+        run.mount_ssh = run.mount_ssh or '/root/.ssh'
+        run.mount_ssh_ro = run.mount_ssh_ro or "{}_ro".format(run.mount_ssh.rstrip("/"))
+        run.mount_apt_cache = run.mount_apt_cache or '/var/cache/apt/archives'
+        run.mount_pip_cache = run.mount_pip_cache or '/root/.cache/pip'
+        run.mount_poetry_cache = run.mount_poetry_cache or '/root/.cache/pypoetry'
+        run.mount_git_ro = "{}.git".format(run.mount_ssh_ro.rstrip("/"))
 
-        if not standalone_mode and not self._bootstrap:
-            if not bash_script:
+    def _docker_standalone_script(self, run, base_cmd):
+        """std part of the docker run command (see _get_docker_cmd)."""
+        if not run.standalone_mode and not self._bootstrap:
+            if not run.bash_script:
                 # Find the highest python version installed, or install from apt-get
                 # python+pip is the requirement to match
-                bash_script = [
+                run.bash_script = [
                     "echo 'Binary::apt::APT::Keep-Downloaded-Packages \"true\";' > /etc/apt/apt.conf.d/docker-clean",
                     "chown -R $(whoami) $HOME/.cache/pip",
                     "export DEBIAN_FRONTEND=noninteractive",
                     "export CAIRNML_APT_INSTALL=\"$CAIRNML_APT_INSTALL{}\"".format(
-                        ' libsm6 libxext6 libxrender-dev libglib2.0-0' if install_opencv_libs else ""),
-                    "cp -Rf {mount_ssh_ro} -T {mount_ssh}" if host_ssh_cache else "",
-                    "cp -Rf {mount_git_ro} -T ~/" if host_git_credentials else "",
+                        ' libsm6 libxext6 libxrender-dev libglib2.0-0' if run.install_opencv_libs else ""),
+                    "cp -Rf {mount_ssh_ro} -T {mount_ssh}" if run.host_ssh_cache else "",
+                    "cp -Rf {mount_git_ro} -T ~/" if run.host_git_credentials else "",
                     "[ ! -z $(which git 2> /dev/null || command -v git) ] || export CAIRNML_APT_INSTALL=\"$CAIRNML_APT_INSTALL git\"",
                     "declare LOCAL_PYTHON",
                     "[ ! -z $LOCAL_PYTHON ] || for i in {{20..5}}; do (which {python_single_digit}.$i 2> /dev/null || command -v {python_single_digit}.$i) && " +
@@ -5587,94 +5587,102 @@ class Worker(ServiceCommandSection):
                     "rm -f /usr/lib/python3.*/EXTERNALLY-MANAGED",  # remove PEP 668
                 ]
 
-            if preprocess_bash_script:
-                bash_script = preprocess_bash_script + bash_script
+            if run.preprocess_bash_script:
+                run.bash_script = run.preprocess_bash_script + run.bash_script
 
-            docker_bash_script = " ; ".join([line for line in bash_script if line]) \
-                if not isinstance(bash_script, str) else bash_script
+            docker_bash_script = " ; ".join([line for line in run.bash_script if line]) \
+                if not isinstance(run.bash_script, str) else run.bash_script
 
             # make sure that if we do not have $LOCAL_PYTHON defined, we set it to python3
             # notice that if $LOCAL_PYTHON -m pip fails, that means we might have a broken python in the path
             # so we set to default path and try to set global python
-            update_scheme += (
+            run.update_scheme += (
                     docker_bash_script + " ; " +
                     "[ ! -z $LOCAL_PYTHON ] || export LOCAL_PYTHON={python} ; " +
                     "$LOCAL_PYTHON -m pip --version > /dev/null || export LOCAL_PYTHON=$(PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin command -v python3) ; " +
                     "$LOCAL_PYTHON -m pip install -U {pip_version} ; " +
                     "$LOCAL_PYTHON -m pip install -U {cairnml_agent_wheel} ; ").format(
-                python_single_digit=python_version.split('.')[0],
-                python=python_version, pip_version=" ".join(PackageManager.get_pip_versions(wrap='\"')),
-                cairnml_agent_wheel=cairnml_agent_wheel,
-                mount_ssh_ro=mount_ssh_ro, mount_ssh=mount_ssh, mount_git_ro=mount_git_ro,
+                python_single_digit=run.python_version.split('.')[0],
+                python=run.python_version, pip_version=" ".join(PackageManager.get_pip_versions(wrap='\"')),
+                cairnml_agent_wheel=run.cairnml_agent_wheel,
+                mount_ssh_ro=run.mount_ssh_ro, mount_ssh=run.mount_ssh, mount_git_ro=run.mount_git_ro,
             )
 
-        if host_git_credentials:
-            for git_credentials in host_git_credentials:
-                base_cmd += ['-v', '{}:{}/{}'.format(git_credentials, mount_git_ro, Path(git_credentials).name)]
+    def _docker_setup_script(self, run, base_cmd):
+        """git part of the docker run command (see _get_docker_cmd)."""
+        if run.host_git_credentials:
+            for git_credentials in run.host_git_credentials:
+                base_cmd += ['-v', '{}:{}/{}'.format(git_credentials, run.mount_git_ro, Path(git_credentials).name)]
 
-        if docker_bash_setup_script and docker_bash_setup_script.strip('\n '):
-            extra_shell_script = (extra_shell_script or '') + \
+        if run.docker_bash_setup_script and run.docker_bash_setup_script.strip('\n '):
+            run.extra_shell_script = (run.extra_shell_script or '') + \
                 ' ; '.join(line.strip()
-                           for line in docker_bash_setup_script.split('\n')
+                           for line in run.docker_bash_setup_script.split('\n')
                            if line.strip() and not line.lstrip().startswith("#")) + \
                 ' ; '
 
+    def _docker_log_mounts(self, run, base_cmd):
+        """dbg part of the docker run command (see _get_docker_cmd)."""
         self.debug(
             "Adding mounts: host_ssh_cache={}, host_apt_cache={}, host_pip_cache={}, host_poetry_cache={}, "
             "host_pip_dl={}, host_cache={}, host_vcs_cache={}, host_venvs_cache={}".format(
-                host_ssh_cache, host_apt_cache, host_pip_cache, host_poetry_cache, host_pip_dl, host_cache,
-                host_vcs_cache, host_venvs_cache,
+                run.host_ssh_cache, run.host_apt_cache, run.host_pip_cache, run.host_poetry_cache, run.host_pip_dl, run.host_cache,
+                run.host_vcs_cache, run.host_venvs_cache,
             ),
             context="docker"
         )
 
+    def _docker_bootstrap_args(self, run, base_cmd):
+        """boot part of the docker run command (see _get_docker_cmd)."""
         if self._bootstrap:
             base_cmd += bootstrap.get_bootstrap_docker_configuration(
                 config=self._session.config)
 
-            if preprocess_bash_script:
-                preprocess_bash_script_str = "\n".join([line for line in preprocess_bash_script if line]) \
-                    if not isinstance(preprocess_bash_script, str) else preprocess_bash_script
+            if run.preprocess_bash_script:
+                preprocess_bash_script_str = "\n".join([line for line in run.preprocess_bash_script if line]) \
+                    if not isinstance(run.preprocess_bash_script, str) else run.preprocess_bash_script
 
                 base_cmd += ["-e", "CAIRNML_BOOTSTRAP_CUSTOM_CMD_BASE64={}".format(
                     base64.b64encode(preprocess_bash_script_str.encode('ascii')).decode('ascii'))]
 
-            if extra_shell_script:
-                base_cmd += ["-e", "CAIRNML_PRE_CUSTOM_CMD={}".format(extra_shell_script)]
+            if run.extra_shell_script:
+                base_cmd += ["-e", "CAIRNML_PRE_CUSTOM_CMD={}".format(run.extra_shell_script)]
 
-            if cairnml_agent_wheel:
-                base_cmd += ["-e", "CAIRNML_AGENT_VERSION={}".format(cairnml_agent_wheel)]
+            if run.cairnml_agent_wheel:
+                base_cmd += ["-e", "CAIRNML_AGENT_VERSION={}".format(run.cairnml_agent_wheel)]
 
+    def _docker_mount_args(self, run, base_cmd):
+        """mounts part of the docker run command (see _get_docker_cmd)."""
         base_cmd += (
-            (['--name', name] if name else []) +
-            ['-v', conf_file + ':' + DOCKER_ROOT_CONF_FILE] +
+            (['--name', run.name] if run.name else []) +
+            ['-v', run.conf_file + ':' + DOCKER_ROOT_CONF_FILE] +
             ['-e', "CAIRNML_CONFIG_FILE={}".format(DOCKER_ROOT_CONF_FILE)] +
-            (['-v', host_ssh_cache + ':' + mount_ssh_ro] if host_ssh_cache else []) +
-            (['-v', host_apt_cache + ':' + mount_apt_cache] if host_apt_cache else []) +
-            (['-v', host_pip_cache + ':' + mount_pip_cache] if host_pip_cache else []) +
-            (['-v', host_poetry_cache + ':' + mount_poetry_cache] if host_poetry_cache else []) +
-            (['-v', host_pip_dl + ':' + mounted_pip_dl] if host_pip_dl else []) +
-            (['-v', host_cache + ':' + mounted_cache] if host_cache else []) +
-            (['-v', host_vcs_cache + ':' + mounted_vcs_cache] if host_vcs_cache else []) +
-            (['-v', host_venvs_cache + ':' + mounted_venvs_cache] if host_venvs_cache else []) +
-            (['--rm'] if use_rm else [])
+            (['-v', run.host_ssh_cache + ':' + run.mount_ssh_ro] if run.host_ssh_cache else []) +
+            (['-v', run.host_apt_cache + ':' + run.mount_apt_cache] if run.host_apt_cache else []) +
+            (['-v', run.host_pip_cache + ':' + run.mount_pip_cache] if run.host_pip_cache else []) +
+            (['-v', run.host_poetry_cache + ':' + run.mount_poetry_cache] if run.host_poetry_cache else []) +
+            (['-v', run.host_pip_dl + ':' + run.mounted_pip_dl] if run.host_pip_dl else []) +
+            (['-v', run.host_cache + ':' + run.mounted_cache] if run.host_cache else []) +
+            (['-v', run.host_vcs_cache + ':' + run.mounted_vcs_cache] if run.host_vcs_cache else []) +
+            (['-v', run.host_venvs_cache + ':' + run.mounted_venvs_cache] if run.host_venvs_cache else []) +
+            (['--rm'] if run.use_rm else [])
         )
 
+    def _docker_command_tail(self, run, base_cmd):
+        """tail part of the docker run command (see _get_docker_cmd)."""
         if self._bootstrap:
             base_cmd += [
-                docker_image, 'bash', '-c', "$CAIRNML_BOOTSTRAP_DIR/bootstrap.sh "
+                run.docker_image, 'bash', '-c', "$CAIRNML_BOOTSTRAP_DIR/bootstrap.sh "
             ]
         else:
             base_cmd += [
-                docker_image, 'bash', '-c',
-                update_scheme +
-                extra_shell_script +
+                run.docker_image, 'bash', '-c',
+                run.update_scheme +
+                run.extra_shell_script +
                 "cp {} {} ; ".format(DOCKER_ROOT_CONF_FILE, DOCKER_DEFAULT_CONF_FILE) +
                 "NVIDIA_VISIBLE_DEVICES={nv_visible} $LOCAL_PYTHON -u -m cairnml_agent ".format(
-                    nv_visible=dockers_nvidia_visible_devices)
+                    nv_visible=run.dockers_nvidia_visible_devices)
              ]
-
-        return base_cmd
 
     def _run_as_user_patch(self, command, trains_conf, script_dir, venv_folder, sdk_cache_folder, user_uid):
         class RunasArgv(Argv):

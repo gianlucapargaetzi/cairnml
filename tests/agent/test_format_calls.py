@@ -88,6 +88,23 @@ def test_an_invalid_hours_interval_prints_the_error(capsys):
     assert "invalid literal for int()" in out
 
 
+def _bound(stub):
+    """Give the stub worker the real helpers that the docker command builder calls on self."""
+    import inspect
+    import types
+
+    from cairnml_agent.commands import worker as worker_module
+
+    for name in dir(worker_module.Worker):
+        if name.startswith("_docker_") or name in ("_filter_docker_args", "_amd_gpu_docker_args",
+                                                    "_resolve_docker_env_args"):
+            raw = inspect.getattr_static(worker_module.Worker, name)
+            if not (inspect.isfunction(raw) or isinstance(raw, staticmethod)):
+                continue
+            setattr(stub, name, raw.__func__ if isinstance(raw, staticmethod) else types.MethodType(raw, stub))
+    return stub
+
+
 def test_the_docker_command_string_is_unchanged(monkeypatch):
     from unittest import mock
 
@@ -113,7 +130,7 @@ def test_the_docker_command_string_is_unchanged(monkeypatch):
         mounted_vcs_cache="/mnt/vcs",
         mounted_venvs_cache="/mnt/venvs",
     )
-    worker = SimpleNamespace(
+    worker = _bound(SimpleNamespace(
         debug=lambda *args, **kwargs: None,
         log=mock.MagicMock(),
         _bootstrap=False,
@@ -123,7 +140,7 @@ def test_the_docker_command_string_is_unchanged(monkeypatch):
         _parent_worker_label="cairnml-parent-worker={}",
         _session=SimpleNamespace(config=SimpleNamespace(get=lambda key, default=None: default)),
         _use_podman=False,
-    )
+    ))
     command = worker_module.Worker._get_docker_cmd(worker, worker_module.DockerRun(**arguments))
     assert command == [
         "docker",
