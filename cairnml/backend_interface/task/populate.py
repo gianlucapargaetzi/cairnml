@@ -639,8 +639,8 @@ class CreateAndPopulate:
                 parts = a.split("=", 1)
                 assert len(parts) == 2
                 args_list.append(parts)
-            except Exception:
-                raise ValueError("Failed parsing argument '{}', arguments must be in '<key>=<value>' format")
+            except Exception as ex:
+                raise ValueError("Failed parsing argument '{}', arguments must be in '<key>=<value>' format") from ex
 
         if not self.task:
             return
@@ -1091,11 +1091,7 @@ if __name__ == '__main__':
         try:
             import ast
 
-            try:
-                # available in Python3.9+
-                from ast import unparse
-            except ImportError:
-                from ...utilities.lowlevel.astor_unparse import unparse
+            from ast import unparse  # Python 3.9 and newer, the only versions the SDK supports
         except ImportError:
             return function_source
 
