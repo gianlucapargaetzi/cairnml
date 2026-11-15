@@ -6,8 +6,8 @@ from pprint import pprint
 from cairnml import Task
 from cairnml.backend_api.session import Session
 from cairnml.config import ConfigWrapper
-from cairnml.utilities.pyhocon import HOCONConverter
-from cairnml.utilities.pyhocon.exceptions import ConfigMissingException
+from pyhocon import HOCONConverter
+from pyhocon.exceptions import ConfigMissingException
 from cairnml.version import __version__
 
 verbose = 0
@@ -46,8 +46,8 @@ def do_dump(args: argparse.Namespace) -> None:
         try:
             config = config.get(args.path)
             prefix = args.path
-        except ConfigMissingException:
-            raise ValueError("Request path {} cannot be found in configuration", format(args.path))
+        except ConfigMissingException as ex:
+            raise ValueError("Request path {} cannot be found in configuration", format(args.path)) from ex
 
     if args.format.lower() == "dict":
         pprint(config.as_plain_ordered_dict(), indent=args.indent, width=120)

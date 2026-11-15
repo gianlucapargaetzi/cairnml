@@ -49,7 +49,7 @@ def test_a_finished_outer_bar_is_replaced_by_the_next_one(tracker):
     tracker.update(loading, 5)
     tracker.end(loading)
     assert tracker.state() == IDLE  # nothing is running between the two bars
-    epochs = tracker.start("epochs", 4)
+    tracker.start("epochs", 4)
     state = tracker.state()
     assert labels(state) == ["epochs"] and state["percent"] == 0
 
@@ -60,7 +60,7 @@ def test_a_pinned_bar_hides_the_others(tracker):
     tracker.update(loading, 3)
     assert tracker.state() == IDLE and not tracker.pinned_seen  # a bar that does not count: idle
     tracker.end(loading)
-    epochs = tracker.start("epochs:", 10)  # tqdm descriptions often end with a colon
+    tracker.start("epochs:", 10)  # tqdm descriptions often end with a colon
     inner = tracker.start("batches", 10)
     tracker.update(inner, 5)
     state = tracker.state()
@@ -231,3 +231,36 @@ def test_the_reporter_sends_the_idle_state_once(tracker):
     reporter.report()
     reporter.report()
     assert [(sent.get("percent"), len(sent.get("bars") or [])) for sent in task.sent] == [(50, 1), (None, 0)]
+
+
+def test_a_bar_at_its_total_that_is_never_closed_is_idle_not_100(tracker):
+    bar = tracker.start("epochs", 10)
+    tracker.update(bar, 10)
+    assert tracker.state() == IDLE
+
+
+def test_one_step_below_the_total_is_99_not_100(tracker):
+    bar = tracker.start("epochs", 100)
+    tracker.update(bar, 99)
+    assert tracker.state()["percent"] == 99
+
+
+def test_past_the_total_is_idle_not_100(tracker):
+    bar = tracker.start("epochs", 10)
+    tracker.update(bar, 11)
+    assert tracker.state() == IDLE
+
+
+def test_a_bar_at_its_total_with_a_running_inner_bar_is_never_100(tracker):
+    outer = tracker.start("epochs", 10)
+    tracker.update(outer, 10)
+    inner = tracker.start("batches", 100)
+    tracker.update(inner, 50)
+    assert tracker.state()["percent"] != 100
+
+
+def test_closing_a_bar_at_its_total_stays_idle(tracker):
+    bar = tracker.start("epochs", 10)
+    tracker.update(bar, 10)
+    tracker.end(bar)
+    assert tracker.state() == IDLE

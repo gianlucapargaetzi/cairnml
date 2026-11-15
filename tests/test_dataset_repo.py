@@ -464,7 +464,7 @@ def test_a_public_repository_is_read_without_any_credential(first, origin, tmp_p
     monkeypatch.setattr(Task, "_get_default_session", staticmethod(lambda: Session()))
     dataset = Dataset.get(public, sha, cache=cache, record=False)
     assert (dataset.path / "a.txt").read_bytes() == b"alpha"
-    assert [call for call in asked if call[1] != "find"] == [("repositories", "git_token", {"repository": public, "level": "read"})]
+    assert [call for call in asked if call[1] != "find"] == [("repositories", "git_token", {"ref": public, "level": "read"})]
     assert seen and all(token is None for token in seen)
 
 

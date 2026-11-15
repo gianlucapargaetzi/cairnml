@@ -4,7 +4,7 @@ from os.path import expandvars, expanduser
 from pathlib2 import Path
 from typing import List, TYPE_CHECKING, ValuesView, Dict, Any
 
-from ..utilities.pyhocon import HOCONConverter, ConfigTree
+from pyhocon import HOCONConverter, ConfigTree
 
 if TYPE_CHECKING:
     from .config import Config
@@ -89,9 +89,9 @@ def apply_files(config: "Config") -> None:
             if target_fmt == "bytes":
                 try:
                     target.write_bytes(contents)
-                except TypeError:
+                except TypeError as ex:
                     # simpler error so the user won't get confused
-                    raise TypeError("a bytes-like object is required")
+                    raise TypeError("a bytes-like object is required") from ex
             else:
                 try:
                     if target_fmt == "json":
