@@ -3540,69 +3540,13 @@ class Worker(ServiceCommandSection):
         venv_folder = ""
 
         custom_build_script = self._session.config.get("agent.custom_build_script", "") or ENV_CUSTOM_BUILD_SCRIPT.get()
-        if custom_build_script:
-            try:
-                venv_folder = Path(self._session.config["agent.venvs_dir"], python_ver or "3")
-                venv_folder = Path(os.path.expanduser(os.path.expandvars(venv_folder.as_posix())))
-                directory, vcs, repo_info = self.get_repo_info(
-                    execution, current_task, str(venv_folder)
-                )
-                binary, entry_point, working_dir = self.run_custom_build_script(
-                    custom_build_script,
-                    current_task,
-                    execution,
-                    venv_folder=venv_folder,
-                    git_root=vcs.location,
-                )
-
-                execution.entry_point = str(entry_point)
-                execution.working_dir = str(working_dir)
-                script_dir = str(working_dir)
-
-                self.package_api = VirtualenvPip(
-                    session=self._session,
-                    interpreter=str(binary),
-                    python=str(binary),
-                    requirements_manager=RequirementsManager(self._session),
-                    execution_info=execution,
-                    path=venv_folder,
-                )
-
-                self.global_package_api = SystemPip(
-                    session=self._session,
-                    interpreter=str(binary),
-                )
-
-            except SkippedCustomBuildScript as ex:
-                print("Warning: {}".format(str(ex)))
-                custom_build_script = None
+        custom_build_script, venv_folder, repo_info, script_dir = self._run_custom_build(
+            current_task, execution, python_ver, custom_build_script
+        )
 
         requested_python_version = python_ver
         if not custom_build_script:
-            if self._session.config.get("agent.package_manager.force_repo_requirements_txt", False):
-                requirements = None
-                print("\n[package_manager.force_repo_requirements_txt=true] "
-                      "Skipping requirements, using repository \"requirements.txt\" \n")
-            elif self._session.config.get("agent.package_manager.force_original_requirements", False):
-                try:
-                    requirements = current_task.script.requirements
-                    if isinstance(requirements, dict):
-                        # prefer "pip" we do not fill in "conda" entry in the SDK
-                        if 'org_pip' in requirements:
-                            requirements['pip'] = requirements['org_pip']
-                            print("\n[package_manager.force_original_requirements=true] "
-                                  "Using original requirements: \n{}\n".format(requirements['org_pip']))
-                        elif 'org_conda' in requirements:
-                            requirements['conda'] = requirements['org_conda']
-                            print("\n[package_manager.force_original_requirements=true] "
-                                  "Using original requirements: \n{}\n".format(requirements['org_conda']))
-                except AttributeError:
-                    requirements = None
-            else:
-                try:
-                    requirements = current_task.script.requirements
-                except AttributeError:
-                    requirements = None
+            requirements = self._select_requirements(current_task)
 
             alternative_code_folder = None
             if ENV_AGENT_SKIP_PYTHON_ENV_INSTALL.get():
@@ -3691,27 +3635,7 @@ class Worker(ServiceCommandSection):
                 # default for standalone to get commands, implies just python
                 self.package_api = SystemPip(session=self._session)
 
-            # do not update the task packages if we are using conda,
-            # it will most likely make the task environment unreproducible
-            skip_freeze_update = self.is_conda and not self._session.config.get(
-                "agent.package_manager.conda_full_env_update", False)
-
-            # skip update requirements on nodes that are not Rank 0 (only update requirements on RANK 0)
-            if self._get_node_rank():
-                skip_freeze_update = True
-
-            # skip python freeze if we installed nothing
-            # (i.e. no requirements and no git repo to install requirement from there)
-            skip_freeze = ENV_AGENT_SKIP_PYTHON_ENV_INSTALL.get() or (no_requirements and not execution.repository)
-
-            if not skip_freeze:
-                freeze = self.freeze_task_environment(
-                    task_id=current_task.id,
-                    requirements_manager=requirements_manager,
-                    add_venv_folder_cache=venv_folder,
-                    execution_info=execution,
-                    update_requirements=not skip_freeze_update,
-                )
+            freeze = self._take_freeze(current_task, execution, requirements_manager, venv_folder, no_requirements)
 
             script_dir = (directory if isinstance(directory, Path) else Path(directory)
                           ).expanduser().absolute().as_posix()
@@ -3790,6 +3714,107 @@ class Worker(ServiceCommandSection):
             self._unregister()
 
         return 1 if exit_code is None else exit_code
+
+    def _run_custom_build(self, current_task, execution, python_ver, custom_build_script):
+        """Run the custom build script, if there is one, and return what it leaves behind.
+
+        Returns the custom build script (None when it was skipped), the environment folder, the repository
+        information and the script folder.
+        """
+        venv_folder = ""
+        repo_info = None
+        script_dir = ""
+        if custom_build_script:
+            try:
+                venv_folder = Path(self._session.config["agent.venvs_dir"], python_ver or "3")
+                venv_folder = Path(os.path.expanduser(os.path.expandvars(venv_folder.as_posix())))
+                directory, vcs, repo_info = self.get_repo_info(
+                    execution, current_task, str(venv_folder)
+                )
+                binary, entry_point, working_dir = self.run_custom_build_script(
+                    custom_build_script,
+                    current_task,
+                    execution,
+                    venv_folder=venv_folder,
+                    git_root=vcs.location,
+                )
+
+                execution.entry_point = str(entry_point)
+                execution.working_dir = str(working_dir)
+                script_dir = str(working_dir)
+
+                self.package_api = VirtualenvPip(
+                    session=self._session,
+                    interpreter=str(binary),
+                    python=str(binary),
+                    requirements_manager=RequirementsManager(self._session),
+                    execution_info=execution,
+                    path=venv_folder,
+                )
+
+                self.global_package_api = SystemPip(
+                    session=self._session,
+                    interpreter=str(binary),
+                )
+
+            except SkippedCustomBuildScript as ex:
+                print("Warning: {}".format(str(ex)))
+                custom_build_script = None
+        return custom_build_script, venv_folder, repo_info, script_dir
+
+    def _select_requirements(self, current_task):
+        """Return the requirements the task asks for, or the repository's or the original ones when the configuration says so."""
+        if self._session.config.get("agent.package_manager.force_repo_requirements_txt", False):
+            requirements = None
+            print("\n[package_manager.force_repo_requirements_txt=true] "
+                  "Skipping requirements, using repository \"requirements.txt\" \n")
+        elif self._session.config.get("agent.package_manager.force_original_requirements", False):
+            try:
+                requirements = current_task.script.requirements
+                if isinstance(requirements, dict):
+                    # prefer "pip" we do not fill in "conda" entry in the SDK
+                    if 'org_pip' in requirements:
+                        requirements['pip'] = requirements['org_pip']
+                        print("\n[package_manager.force_original_requirements=true] "
+                              "Using original requirements: \n{}\n".format(requirements['org_pip']))
+                    elif 'org_conda' in requirements:
+                        requirements['conda'] = requirements['org_conda']
+                        print("\n[package_manager.force_original_requirements=true] "
+                              "Using original requirements: \n{}\n".format(requirements['org_conda']))
+            except AttributeError:
+                requirements = None
+        else:
+            try:
+                requirements = current_task.script.requirements
+            except AttributeError:
+                requirements = None
+        return requirements
+
+    def _take_freeze(self, current_task, execution, requirements_manager, venv_folder, no_requirements):
+        """Take the freeze of the task environment and update the task's requirements, unless that is skipped."""
+        freeze = None
+        # do not update the task packages if we are using conda,
+        # it will most likely make the task environment unreproducible
+        skip_freeze_update = self.is_conda and not self._session.config.get(
+            "agent.package_manager.conda_full_env_update", False)
+
+        # skip update requirements on nodes that are not Rank 0 (only update requirements on RANK 0)
+        if self._get_node_rank():
+            skip_freeze_update = True
+
+        # skip python freeze if we installed nothing
+        # (i.e. no requirements and no git repo to install requirement from there)
+        skip_freeze = ENV_AGENT_SKIP_PYTHON_ENV_INSTALL.get() or (no_requirements and not execution.repository)
+
+        if not skip_freeze:
+            freeze = self.freeze_task_environment(
+                task_id=current_task.id,
+                requirements_manager=requirements_manager,
+                add_venv_folder_cache=venv_folder,
+                execution_info=execution,
+                update_requirements=not skip_freeze_update,
+            )
+        return freeze
 
     def _get_job_os_envs(self, current_task, log_level):
         sdk_env = {
