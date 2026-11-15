@@ -120,7 +120,10 @@ from cairnml_agent.helper.base import (
     is_linux_platform,
     rm_file,
     add_python_path,
-    safe_remove_tree, get_python_version, dump_flat_dict, check_is_binary_python_or_bash,
+    safe_remove_tree,
+    get_python_version,
+    dump_flat_dict,
+    check_is_binary_python_or_bash,
 )
 from cairnml_agent.helper.console import ensure_text, print_text, decode_binary_lines
 from cairnml_agent.helper.environment.converters import strtobool
@@ -134,11 +137,17 @@ from cairnml_agent.helper.package.pip_api.venv import VirtualenvPip
 from cairnml_agent.helper.package.poetry_api import PoetryConfig, PoetryAPI
 from cairnml_agent.helper.package.uv_api import UvConfig, UvAPI
 from cairnml_agent.helper.package.post_req import PostRequirement
-from cairnml_agent.helper.package.priority_req import PriorityPackageRequirement, PackageCollectorRequirement, \
-    CachedPackageRequirement, LocalSdkRequirement, LOCAL_SDK_WHEEL_ENV
+from cairnml_agent.helper.package.priority_req import (
+    PriorityPackageRequirement,
+    PackageCollectorRequirement,
+    CachedPackageRequirement,
+    LocalSdkRequirement,
+    LOCAL_SDK_WHEEL_ENV,
+)
 from cairnml_agent.helper.package.pytorch import PytorchRequirement
 from cairnml_agent.helper.package.requirements import (
-    RequirementsManager, )
+    RequirementsManager,
+)
 from cairnml_agent.helper.process import (
     kill_all_child_processes,
     WorkerParams,
@@ -156,7 +165,11 @@ from cairnml_agent.helper.process import (
     Executable,  # noqa: F401  # used in type comments
 )
 from cairnml_agent.helper.job_token import (
-    CONTAINER_DIR, TOKEN_FILE_NAME, TokenRenewer, request_job_token, write_job_token,
+    CONTAINER_DIR,
+    TOKEN_FILE_NAME,
+    TokenRenewer,
+    request_job_token,
+    write_job_token,
 )
 from cairnml_agent.helper.repo import (
     clone_repository_cached,
@@ -193,8 +206,9 @@ def check_job_mounts(host_paths) -> None:
     for path in host_paths:
         if path and exposes_device_key(path):
             raise ValueError(
-                "The job folder {} would give the job the agent's device key ({}). Choose a folder outside "
-                "{}.".format(path, DEVICE_KEY_PATH, DEVICE_KEY_PATH.parent)
+                "The job folder {} would give the job the agent's device key ({}). Choose a folder outside {}.".format(
+                    path, DEVICE_KEY_PATH, DEVICE_KEY_PATH.parent
+                )
             )
 
 
@@ -263,8 +277,9 @@ class LiteralScriptManager(object):
         # test git submodule prefix
         # noinspection PyBroadException
         try:
-            if diff.lstrip().lower().startswith("submodule ") and \
-                    diff.splitlines()[1].lstrip().lower().startswith("diff "):
+            if diff.lstrip().lower().startswith("submodule ") and diff.splitlines()[1].lstrip().lower().startswith(
+                "diff "
+            ):
                 return False
         except Exception:
             pass
@@ -283,12 +298,12 @@ class LiteralScriptManager(object):
             if os.path.exists(full_path):
                 return entry_point
 
-            with open(full_path, "wt", encoding='utf-8') as f:
+            with open(full_path, "wt", encoding="utf-8") as f:
                 f.write(task.script.diff)
                 return full_path
 
         with named_temporary_file(
-            delete=False, prefix="script_", suffix=".py", dir=Text(directory), mode="wt", encoding='utf-8'
+            delete=False, prefix="script_", suffix=".py", dir=Text(directory), mode="wt", encoding="utf-8"
         ) as f:
             f.write(task.script.diff)
             return f.name
@@ -304,23 +319,25 @@ class LiteralScriptManager(object):
         is_python_binary, is_bash_binary = check_is_binary_python_or_bash(task.script.binary)
 
         if execution.entry_point and (
-                execution.entry_point.strip().startswith("-m ") or
-                execution.entry_point.strip().startswith("-c ")
+            execution.entry_point.strip().startswith("-m ") or execution.entry_point.strip().startswith("-c ")
         ):
             # this is a module we cannot use it as file name
-            target_file_name_module_call = 'untitled.sh' \
-                if is_bash_binary and execution.entry_point.strip().startswith("-c ") else 'untitled.py'
+            target_file_name_module_call = (
+                "untitled.sh" if is_bash_binary and execution.entry_point.strip().startswith("-c ") else "untitled.py"
+            )
             # let's parse the working_dir and override the default literal file
             if execution.working_dir and ":" in execution.working_dir:
                 execution.working_dir, target_file_name_module_call = execution.working_dir.split(":", 1)
             log.warning(
-                "found task with `script.entry_point` "
-                "using a module defaulting to: {}".format(target_file_name_module_call))
+                "found task with `script.entry_point` using a module defaulting to: {}".format(
+                    target_file_name_module_call
+                )
+            )
 
         if repo_info and repo_info.root:
             location = Path(repo_info.root, execution.working_dir)
         else:
-            if execution.working_dir and execution.working_dir.strip() != '.':
+            if execution.working_dir and execution.working_dir.strip() != ".":
                 log.warning(
                     "found task with `script.working_dir` (`%s`) but without `script.repository`, ignoring",
                     execution.working_dir,
@@ -333,7 +350,7 @@ class LiteralScriptManager(object):
             location.mkdir(exist_ok=True, parents=True)
 
         if not execution.entry_point:
-            execution.entry_point = 'untitled.sh' if is_bash_binary else 'untitled.py'
+            execution.entry_point = "untitled.sh" if is_bash_binary else "untitled.py"
         elif not target_file_name_module_call:
             # try shlex parsing first, decide if we managed based on the filename extension
             try:
@@ -347,9 +364,7 @@ class LiteralScriptManager(object):
 
         log.debug("selected execution directory: {}".format(location))
         target_file = self.write(task, location, target_file_name_module_call or execution.entry_point)
-        return (Text(location),
-                execution.entry_point if target_file_name_module_call else target_file,
-                target_file)
+        return (Text(location), execution.entry_point if target_file_name_module_call else target_file, target_file)
 
 
 _LOCAL_WHEELS = {}
@@ -375,20 +390,28 @@ def build_local_wheel(source: Path, name: str) -> str:
     key = str(source)
     if key not in _LOCAL_WHEELS:
         if not is_source_tree(source, name):
-            raise CommandFailedError("{} is not a source tree of {} (no pyproject.toml naming it, and no setup.py): "
-                                     "the job containers need the local wheel built from it".format(source, name))
+            raise CommandFailedError(
+                "{} is not a source tree of {} (no pyproject.toml naming it, and no setup.py): "
+                "the job containers need the local wheel built from it".format(source, name)
+            )
         out = Path(mkdtemp(prefix="cairnml-wheel-"))
         # pip writes egg-info and build output into the source tree, which may be read-only for this user (the
         # agent can run from a tree owned by another user). Build from a copy so the tree is never written to.
         build_src = Path(mkdtemp(prefix="cairnml-src-")) / source.name
-        shutil.copytree(source, build_src, ignore=shutil.ignore_patterns(
-            ".git", "build", "dist", "*.egg-info", "__pycache__"))
-        for root, dirs, files in os.walk(build_src):  # the copy keeps read-only modes, so make it writable for the build
+        shutil.copytree(
+            source, build_src, ignore=shutil.ignore_patterns(".git", "build", "dist", "*.egg-info", "__pycache__")
+        )
+        for root, dirs, files in os.walk(
+            build_src
+        ):  # the copy keeps read-only modes, so make it writable for the build
             for name in dirs + files + ["."]:
                 path = os.path.join(root, name)
                 os.chmod(path, os.stat(path).st_mode | stat.S_IWUSR)
-        subprocess.run([sys.executable, "-m", "pip", "wheel", "--no-deps", "-q", "-w", str(out), str(build_src)],
-                       check=True, timeout=900)
+        subprocess.run(
+            [sys.executable, "-m", "pip", "wheel", "--no-deps", "-q", "-w", str(out), str(build_src)],
+            check=True,
+            timeout=900,
+        )
         wheels = sorted(out.glob("*.whl"))
         if not wheels:
             raise CommandFailedError("building the wheel of {} produced no file".format(source))
@@ -408,6 +431,7 @@ def local_sdk_wheel() -> str:
     the first folder above the package that is a source tree of the SDK (see ``is_source_tree``).
     """
     import cairnml
+
     for package_dir in cairnml.__path__:
         for folder in [Path(package_dir).resolve(), *Path(package_dir).resolve().parents]:
             if is_source_tree(folder, "cairnml"):
@@ -436,12 +460,12 @@ class TaskNotFoundError(APIError):
 
 
 class TaskStopReason(object):
-    no_stop = 0         # type: TaskStopReason
-    stopped = 1         # type: TaskStopReason
-    reset = 2           # type: TaskStopReason
+    no_stop = 0  # type: TaskStopReason
+    stopped = 1  # type: TaskStopReason
+    reset = 2  # type: TaskStopReason
     status_changed = 3  # type: TaskStopReason
-    exception = 4       # type: TaskStopReason
-    not_found = 5       # type: TaskStopReason
+    exception = 4  # type: TaskStopReason
+    not_found = 5  # type: TaskStopReason
 
     @classmethod
     def to_str(cls, reason):
@@ -455,9 +479,9 @@ def get_task(session, task_id, **kwargs):
     """Use manual api call so that we can pass 'search_hidden' param from api v2.14"""
     # return session.api_client.tasks.get_all(id=[task_id], **kwargs)[0]
     res = session.send_request(
-        service='tasks',
-        action='get_all',
-        version='2.14',
+        service="tasks",
+        action="get_all",
+        version="2.14",
         json={"id": [task_id], "search_hidden": True, **kwargs},
         method=Request.def_method,
         async_enable=False,
@@ -466,8 +490,8 @@ def get_task(session, task_id, **kwargs):
         res=res,
         request_cls=tasks_api.GetAllRequest,
         logger=session._logger,
-        service='tasks',
-        action='get_all',
+        service="tasks",
+        action="get_all",
         session=session,
     )
     if not result.ok():
@@ -484,15 +508,15 @@ def get_next_task(session, queue, get_task_info=False):
     Returns dict that contains next task and its additional info (company, user)
     """
     debug = ENV_AGENT_DEBUG_GET_NEXT_TASK.get()
-    request = {'queue': queue}
+    request = {"queue": queue}
     if get_task_info:
         request["get_task_info"] = True
     if debug:
         print(f"debug> get_next_task: {Request.def_method} payload {request}")
     result = session.send_request(
-        service='queues',
-        action='get_next_task',
-        version='2.14',
+        service="queues",
+        action="get_next_task",
+        version="2.14",
         json=request,
         method=Request.def_method,
         async_enable=False,
@@ -501,7 +525,7 @@ def get_next_task(session, queue, get_task_info=False):
         print(f"debug> get_next_task: response {result.status_code} text {result.text}")
     if not result.ok:
         raise APIError(result)
-    data = result.json().get('data')
+    data = result.json().get("data")
     if data is None:
         raise APIError(result, extra_info="Invalid response")
     return data
@@ -512,16 +536,16 @@ def get_task_fields(session, task_id, fields: list, log=None) -> dict:
     Returns dict with Task docker container setup {container: '', arguments: '', setup_shell_script: ''}
     """
     result = session.send_request(
-        service='tasks',
-        action='get_all',
-        json={'id': [task_id], 'only_fields': list(fields), 'search_hidden': True},
+        service="tasks",
+        action="get_all",
+        json={"id": [task_id], "only_fields": list(fields), "search_hidden": True},
         method=Request.def_method,
         async_enable=False,
     )
     # noinspection PyBroadException
     try:
         results = {}
-        result = result.json()['data']['tasks'][0]
+        result = result.json()["data"]["tasks"][0]
         for field in fields:
             cur = result
             for part in field.split("."):
@@ -545,44 +569,45 @@ def get_task_container(session, task_id, ignore_match_rules=False, allow_force_c
     raw_container = {}
     if session.check_min_api_version("2.13"):
         result = session.send_request(
-            service='tasks',
-            action='get_all',
-            version='2.14',
-            json={'id': [task_id], 'only_fields': ['container'], 'search_hidden': True},
+            service="tasks",
+            action="get_all",
+            version="2.14",
+            json={"id": [task_id], "only_fields": ["container"], "search_hidden": True},
             method=Request.def_method,
             async_enable=False,
         )
         try:
-            container = result.json()['data']['tasks'][0]['container'] if result.ok else {}
+            container = result.json()["data"]["tasks"][0]["container"] if result.ok else {}
             raw_container = copy(container or {})
-            if container.get('arguments'):
-                container['arguments'] = shlex.split(str(container.get('arguments')).strip())
-            if container.get('image'):
-                container['image'] = container.get('image').strip()
+            if container.get("arguments"):
+                container["arguments"] = shlex.split(str(container.get("arguments")).strip())
+            if container.get("image"):
+                container["image"] = container.get("image").strip()
         except (ValueError, TypeError):
             container = {}
     else:
         response = get_task(session, task_id, only_fields=["execution.docker_cmd"])
         container = {}
         if response.execution:
-            task_docker_cmd_parts = shlex.split(str(response.execution.docker_cmd or '').strip())
+            task_docker_cmd_parts = shlex.split(str(response.execution.docker_cmd or "").strip())
             if task_docker_cmd_parts:
                 try:
                     container = dict(
                         image=task_docker_cmd_parts[0],
-                        arguments=task_docker_cmd_parts[1:] if len(task_docker_cmd_parts[0]) > 1 else ''
+                        arguments=task_docker_cmd_parts[1:] if len(task_docker_cmd_parts[0]) > 1 else "",
                     )
                 except (ValueError, TypeError):
                     pass
             raw_container = copy(container or {})
             if raw_container.get("arguments"):
-                raw_container["arguments"] = ' '.join(shlex.quote(x) for x in raw_container["arguments"])
+                raw_container["arguments"] = " ".join(shlex.quote(x) for x in raw_container["arguments"])
 
-    no_default_container = not container or not container.get('image')
+    no_default_container = not container or not container.get("image")
     if no_default_container or allow_force_container_rules and session.check_min_api_version("2.13"):
         original_container = copy(container or {})
         updated_container, entry = resolve_default_container(
-            session=session, task_id=task_id,
+            session=session,
+            task_id=task_id,
             container_config=original_container,
             ignore_match_rules=ignore_match_rules and not no_default_container,
         )
@@ -590,7 +615,7 @@ def get_task_container(session, task_id, ignore_match_rules=False, allow_force_c
             # if we do not have a default container image / args, use the defaults from the resolver
             container = updated_container
             updated = True
-        elif entry and allow_force_container_rules and updated_container.get('force_container_rules'):
+        elif entry and allow_force_container_rules and updated_container.get("force_container_rules"):
             # if we allow to force rules (and we have requested container)
             # and the 'force_container_rules' is turned on in the rule, then overwrite container
             container = updated_container
@@ -599,33 +624,36 @@ def get_task_container(session, task_id, ignore_match_rules=False, allow_force_c
             updated = False
 
         if updated:
-            print('INFO: Updating Task Container with matched rule:\n{}'.format(json.dumps(entry or {})))
+            print("INFO: Updating Task Container with matched rule:\n{}".format(json.dumps(entry or {})))
 
             # make sure we pop the new added fields
             container.pop("force_container_rules", None)
 
             # check if we need to update the Task based on the new matched container defaults or overrides
-            update_back_task = container.pop("update_back_task", None) or updated_container.pop("update_back_task", None)
+            update_back_task = container.pop("update_back_task", None) or updated_container.pop(
+                "update_back_task", None
+            )
             if update_back_task and container != original_container and session.check_min_api_version("2.13"):
                 # update back the task
-                print('INFO: Updating the Task with the selected container with rule')
+                print("INFO: Updating the Task with the selected container with rule")
                 try:
                     res = session.send_request(
-                        service='tasks', action='edit', method=Request.def_method,
-                        version='2.13',
+                        service="tasks",
+                        action="edit",
+                        method=Request.def_method,
+                        version="2.13",
                         json={
                             "task": task_id,
                             "force": True,
                             "container": {
-                                "image": str(container.get('image') or ""),
+                                "image": str(container.get("image") or ""),
                                 # fix if we are left with the list of arguments, take the original arguments text,
                                 # because combining back the list is a bit off
-                                "arguments":
-                                    str(raw_container.get('arguments') or "")
-                                    if isinstance(container.get('arguments'), (list, tuple))
-                                    else str(container.get('arguments') or ""),
-                                "setup_shell_script": str(container.get('setup_shell_script') or ""),
-                            }
+                                "arguments": str(raw_container.get("arguments") or "")
+                                if isinstance(container.get("arguments"), (list, tuple))
+                                else str(container.get("arguments") or ""),
+                                "setup_shell_script": str(container.get("setup_shell_script") or ""),
+                            },
                         },
                     )
                     if not res.ok:
@@ -634,10 +662,10 @@ def get_task_container(session, task_id, ignore_match_rules=False, allow_force_c
                     print("WARNING: failed setting container properties for task '{}': {}".format(task_id, ex))
 
             # make sure we preserve backwards compatibility with the expected entries types
-            if isinstance(container.get('arguments'), str):
-                container['arguments'] = shlex.split(str(container.get('arguments') or '').strip())
-            if container.get('image'):
-                container['image'] = container.get('image').strip()
+            if isinstance(container.get("arguments"), str):
+                container["arguments"] = shlex.split(str(container.get("arguments") or "").strip())
+            if container.get("image"):
+                container["image"] = container.get("image").strip()
 
     return container
 
@@ -648,24 +676,31 @@ def set_task_container(session, task_id, docker_image=None, docker_arguments=Non
 
     if session.check_min_api_version("2.13"):
         container = dict(
-            image=docker_image or '',
-            arguments=' '.join(docker_arguments) if docker_arguments else '',
-            setup_shell_script=docker_bash_script or '',
+            image=docker_image or "",
+            arguments=" ".join(docker_arguments) if docker_arguments else "",
+            setup_shell_script=docker_bash_script or "",
         )
         result = session.send_request(
-            service='tasks',
-            action='edit',
-            version='2.13',
-            json={'task': task_id, 'container': container, 'force': True},
+            service="tasks",
+            action="edit",
+            version="2.13",
+            json={"task": task_id, "container": container, "force": True},
             method=Request.def_method,
             async_enable=False,
         )
         return result.ok
     else:
         return session.send_api(
-            tasks_api.EditRequest(task_id, force=True, execution=dict(  # noqa
-                docker_cmd=' '.join([docker_image] + docker_arguments)
-                if docker_arguments else str(docker_image or ''))))
+            tasks_api.EditRequest(
+                task_id,
+                force=True,
+                execution=dict(  # noqa
+                    docker_cmd=" ".join([docker_image] + docker_arguments)
+                    if docker_arguments
+                    else str(docker_image or "")
+                ),
+            )
+        )
 
 
 class TaskStopSignal(object):
@@ -706,7 +741,7 @@ class TaskStopSignal(object):
         self._support_callback = None
         self._active_callback_timestamp = None
         self._active_callback_timeout = None
-        self._abort_callback_max_timeout = float(self.session.config.get('agent.abort_callback_max_timeout', 1800))
+        self._abort_callback_max_timeout = float(self.session.config.get("agent.abort_callback_max_timeout", 1800))
         self._bash_callback_cwd = bash_cwd
         self._bash_callback = None
         self._bash_callback_timeout = None
@@ -715,9 +750,11 @@ class TaskStopSignal(object):
 
     @classmethod
     def check_registered_bash_callback(cls):
-        return bool((ENV_ABORT_CALLBACK_CMD.get() or
-                     os.environ.get(ENV_ABORT_CALLBACK_CMD.vars[0] + "_REGISTERED") or
-                     "").strip())
+        return bool(
+            (
+                ENV_ABORT_CALLBACK_CMD.get() or os.environ.get(ENV_ABORT_CALLBACK_CMD.vars[0] + "_REGISTERED") or ""
+            ).strip()
+        )
 
     def register_bash_callback(self):
         if self._bash_callback:
@@ -727,7 +764,7 @@ class TaskStopSignal(object):
             return
         self._bash_callback = shlex.split(ENV_ABORT_CALLBACK_CMD.get())
         # make sure we are re-testing in subprocesses
-        os.environ[ENV_ABORT_CALLBACK_CMD.vars[0]+"_REGISTERED"] = ENV_ABORT_CALLBACK_CMD.get()
+        os.environ[ENV_ABORT_CALLBACK_CMD.vars[0] + "_REGISTERED"] = ENV_ABORT_CALLBACK_CMD.get()
         ENV_ABORT_CALLBACK_CMD.pop()
 
         # noinspection PyBroadException
@@ -739,26 +776,33 @@ class TaskStopSignal(object):
         # update the task runtime properties
         try:
             task_info = self.session.get(
-                service="tasks", action="get_all", version="2.13",
-                id=[self.task_id], only_fields=["runtime"])['tasks'][0]
+                service="tasks", action="get_all", version="2.13", id=[self.task_id], only_fields=["runtime"]
+            )["tasks"][0]
             runtime_properties = task_info.get("runtime") or {}
             runtime_properties[self.property_abort_callback_timeout] = str(self._bash_callback_timeout)
             runtime_properties[self.property_abort_poll_freq] = str(10)
-            self.session.post(service="tasks", action="edit", version="2.13",
-                              task=self.task_id, runtime=runtime_properties, force=True)
+            self.session.post(
+                service="tasks",
+                action="edit",
+                version="2.13",
+                task=self.task_id,
+                runtime=runtime_properties,
+                force=True,
+            )
         except Exception as ex:
             print("WARNING: failed registering bash callback: {}".format(ex))
             return
 
-        print("INFO: registering bash callback, timout {}s: {}".format(
-            self._bash_callback_timeout, self._bash_callback))
+        print(
+            "INFO: registering bash callback, timout {}s: {}".format(self._bash_callback_timeout, self._bash_callback)
+        )
 
     def start_monitor_thread(self, polling_interval_sec=10):
         self.register_bash_callback()
 
         if self._self_monitor_thread:
-           return
-        self._self_monitor_thread = Thread(target=self._monitor_thread_loop, args=(polling_interval_sec, ))
+            return
+        self._self_monitor_thread = Thread(target=self._monitor_thread_loop, args=(polling_interval_sec,))
         self._self_monitor_thread.daemon = True
         self._self_monitor_thread.start()
         print("INFO: bash on_abort monitor thread started")
@@ -800,12 +844,18 @@ class TaskStopSignal(object):
         # update the task runtime properties
         try:
             task_info = self.session.get(
-                service="tasks", action="get_all", version="2.13",
-                id=[self.task_id], only_fields=["runtime"])['tasks'][0]
+                service="tasks", action="get_all", version="2.13", id=[self.task_id], only_fields=["runtime"]
+            )["tasks"][0]
             runtime_properties = task_info.get("runtime") or {}
             runtime_properties[self.property_abort_callback_completed] = str(1)
-            self.session.post(service="tasks", action="edit", version="2.13",
-                              task=self.task_id, runtime=runtime_properties, force=True)
+            self.session.post(
+                service="tasks",
+                action="edit",
+                version="2.13",
+                task=self.task_id,
+                runtime=runtime_properties,
+                force=True,
+            )
         except Exception as ex:
             print("WARNING: failed updating bash callback completed: {}".format(ex))
 
@@ -841,24 +891,28 @@ class TaskStopSignal(object):
                 cb_completed = None
                 try:
                     task_info = self.session.get(
-                        service="tasks", action="get_all", version="2.13", id=[self.task_id],
+                        service="tasks",
+                        action="get_all",
+                        version="2.13",
+                        id=[self.task_id],
                         only_fields=[
-                            "status", "status_message",
-                            "runtime.{}".format(self.property_abort_callback_completed)
-                        ]
+                            "status",
+                            "status_message",
+                            "runtime.{}".format(self.property_abort_callback_completed),
+                        ],
                     )
-                    cb_completed = task_info['tasks'][0]['runtime'].get(self.property_abort_callback_completed, None)
+                    cb_completed = task_info["tasks"][0]["runtime"].get(self.property_abort_callback_completed, None)
                 except:  # noqa
                     pass
 
                 if not bool(cb_completed):
                     return False
 
-                msg = "Task abort callback completed in {:.2f} seconds".format(
-                    time() - self._active_callback_timestamp)
+                msg = "Task abort callback completed in {:.2f} seconds".format(time() - self._active_callback_timestamp)
             else:
                 msg = "Task abort callback timed out [timeout: {}, elapsed: {:.2f}]".format(
-                    self._active_callback_timeout, time() - self._active_callback_timestamp)
+                    self._active_callback_timeout, time() - self._active_callback_timestamp
+                )
 
             self.command.send_logs(self.task_id, ["### " + msg + " ###"], session=self.session)
             return True
@@ -873,14 +927,15 @@ class TaskStopSignal(object):
         try:
             timeout = min(float(abort_timeout) + float(poll_timeout), self._abort_callback_max_timeout)
         except:  # noqa
-            self.command.log("Failed parsing runtime timeout shutdown callback [{}, {}]".format(
-                abort_timeout, poll_timeout))
+            self.command.log(
+                "Failed parsing runtime timeout shutdown callback [{}, {}]".format(abort_timeout, poll_timeout)
+            )
             return None
 
         self.command.send_logs(
             self.task_id,
             ["### Task abort callback timeout set, waiting for max {} sec ###".format(timeout)],
-            session=self.session
+            session=self.session,
         )
 
         # launch bash callback if exists
@@ -898,17 +953,21 @@ class TaskStopSignal(object):
         # TODO: add retries on network error with timeout
         try:
             task_info = self.session.get(
-                service="tasks", action="get_all", version="2.13", id=[self.task_id],
+                service="tasks",
+                action="get_all",
+                version="2.13",
+                id=[self.task_id],
                 only_fields=[
-                    "status", "status_message",
+                    "status",
+                    "status_message",
                     "runtime.{}".format(self.property_abort_callback_timeout),
                     "runtime.{}".format(self.property_abort_poll_freq),
-                    "runtime.{}".format(self.property_abort_callback_completed)
-                ]
+                    "runtime.{}".format(self.property_abort_callback_completed),
+                ],
             )
-            abort_timeout = task_info['tasks'][0]['runtime'].get(self.property_abort_callback_timeout, 0)
-            poll_timeout = task_info['tasks'][0]['runtime'].get(self.property_abort_poll_freq, 0)
-            cb_completed = task_info['tasks'][0]['runtime'].get(self.property_abort_callback_completed, None)
+            abort_timeout = task_info["tasks"][0]["runtime"].get(self.property_abort_callback_timeout, 0)
+            poll_timeout = task_info["tasks"][0]["runtime"].get(self.property_abort_poll_freq, 0)
+            cb_completed = task_info["tasks"][0]["runtime"].get(self.property_abort_callback_completed, None)
         except:  # noqa
             abort_timeout = None
             poll_timeout = None
@@ -942,9 +1001,7 @@ class TaskStopSignal(object):
             # test if backend support callback
             self._support_callback = self.session.check_min_api_version("2.13")
 
-        task_info = get_task(
-            self.session, self.task_id, only_fields=["status", "status_message"]
-        )
+        task_info = get_task(self.session, self.task_id, only_fields=["status", "status_message"])
         status = task_info.status
         message = task_info.status_message
 
@@ -966,10 +1023,7 @@ class TaskStopSignal(object):
             return TaskStopReason.exception if status == self.statuses.failed else TaskStopReason.status_changed
 
         if status == self.statuses.created:
-            if (
-                self._task_reset_state_counter
-                >= self._number_of_consecutive_reset_tests
-            ):
+            if self._task_reset_state_counter >= self._number_of_consecutive_reset_tests:
                 self.command.log("task was reset, task will terminate")
                 # actively waiting for task to complete
                 if self._wait_for_abort_callback() is False:
@@ -1008,10 +1062,10 @@ class Worker(ServiceCommandSection):
         PriorityPackageRequirement,
         PostRequirement,
         ExternalRequirements,
-        partial(PackageCollectorRequirement, collect_package=['trains']),
-        partial(PackageCollectorRequirement, collect_package=['cairnml']),
-        partial(PackageCollectorRequirement, collect_package=['nbconvert']),
-        partial(PackageCollectorRequirement, collect_package=['ipython']),
+        partial(PackageCollectorRequirement, collect_package=["trains"]),
+        partial(PackageCollectorRequirement, collect_package=["cairnml"]),
+        partial(PackageCollectorRequirement, collect_package=["nbconvert"]),
+        partial(PackageCollectorRequirement, collect_package=["ipython"]),
     )
 
     # default poll queues every _polling_interval seconds
@@ -1031,8 +1085,8 @@ class Worker(ServiceCommandSection):
     # label with parent worker id for worker agent docker in services mode
     _parent_worker_label = "cairnml-parent-worker-id={}"
 
-    _run_as_user_home = '/cairnml_agent_home'
-    _docker_fixed_user_cache = '/cairnml_agent_cache'
+    _run_as_user_home = "/cairnml_agent_home"
+    _docker_fixed_user_cache = "/cairnml_agent_cache"
     _temp_cleanup_list = []
 
     hostname_task_runtime_prop = "_exec_agent_hostname"
@@ -1041,7 +1095,7 @@ class Worker(ServiceCommandSection):
 
     @property
     def service(self):
-        """ Worker command service endpoint """
+        """Worker command service endpoint"""
         return "workers"
 
     @property
@@ -1082,7 +1136,7 @@ class Worker(ServiceCommandSection):
                 for e in reversed(extra_url):
                     self._pip_extra_index_url.insert(0, e)
         except Exception:
-            self.log.warning('Failed adding extra-index-url to pip environment: {}'.format(extra_url))
+            self.log.warning("Failed adding extra-index-url to pip environment: {}".format(extra_url))
 
         self.worker_id = self._session.config["agent.worker_id"] or "{}:{}".format(
             self._session.config["agent.worker_name"], os.getpid()
@@ -1104,8 +1158,8 @@ class Worker(ServiceCommandSection):
         # if True, docker default passed on command line, which means we ignore the default docker match rules
         self._docker_default_cmd_override = False
         PackageManager.set_pip_version(self._session.config.get("agent.package_manager.pip_version", None))
-        self._extra_docker_arguments = (
-                ENV_EXTRA_DOCKER_ARGS.get() or self._session.config.get("agent.extra_docker_arguments", None)
+        self._extra_docker_arguments = ENV_EXTRA_DOCKER_ARGS.get() or self._session.config.get(
+            "agent.extra_docker_arguments", None
         )
         self._extra_shell_script = self._session.config.get("agent.extra_docker_shell_script", None)
         self._docker_force_pull = self._session.config.get("agent.docker_force_pull", False)
@@ -1132,11 +1186,11 @@ class Worker(ServiceCommandSection):
 
         # allow docker sanitization, needs backend support
         if ENV_DOCKER_ARGS_FILTERS.get():
-            self._docker_args_filters = \
-                [re.compile(f) for f in shlex.split(ENV_DOCKER_ARGS_FILTERS.get())]
-        elif self._session.config.get('agent.docker_args_filters', None):
-            self._docker_args_filters = \
-                [re.compile(f) for f in self._session.config.get('agent.docker_args_filters', [])]
+            self._docker_args_filters = [re.compile(f) for f in shlex.split(ENV_DOCKER_ARGS_FILTERS.get())]
+        elif self._session.config.get("agent.docker_args_filters", None):
+            self._docker_args_filters = [
+                re.compile(f) for f in self._session.config.get("agent.docker_args_filters", [])
+            ]
         else:
             self._docker_args_filters = []
 
@@ -1152,26 +1206,22 @@ class Worker(ServiceCommandSection):
         :param kwargs:
         :return: kwargs
         """
-        if kwargs.get('services_mode'):
-            kwargs['cpu_only'] = True
+        if kwargs.get("services_mode"):
+            kwargs["cpu_only"] = True
             # kwargs['docker'] = kwargs.get('docker') or []
-            kwargs['gpus'] = None
+            kwargs["gpus"] = None
 
         return kwargs
 
     def _get_requirements_manager(self, os_override=None, base_interpreter=None, requirement_substitutions=None):
-        requirements_manager = RequirementsManager(
-            self._session, base_interpreter=base_interpreter
-        )
+        requirements_manager = RequirementsManager(self._session, base_interpreter=base_interpreter)
         requirement_substitutions = requirement_substitutions or self._requirement_substitutions
         for requirement_cls in requirement_substitutions:
             if os_override and issubclass(requirement_cls, PytorchRequirement):
                 requirement_cls = partial(requirement_cls, os_override=os_override)
             requirements_manager.register(requirement_cls)
         if not requirements_manager.found_cuda:
-            self.warning(
-                "could not find installed CUDA/CuDNN version using original requirements file"
-            )
+            self.warning("could not find installed CUDA/CuDNN version using original requirements file")
         return requirements_manager
 
     def handle_user_abort(self, task_id, session=None):
@@ -1180,9 +1230,7 @@ class Worker(ServiceCommandSection):
         """
         session = session or self._session
         try:
-            task_status = session.send_api(
-                tasks_api.GetByIdRequest(task_id)
-            ).task.status
+            task_status = session.send_api(tasks_api.GetByIdRequest(task_id)).task.status
             if task_status == tasks_api.TaskStatusEnum.in_progress:
                 print("\nUser abort - stopping task {}".format(task_id))
                 session.send_api(tasks_api.StoppedRequest(task_id))
@@ -1200,7 +1248,7 @@ class Worker(ServiceCommandSection):
 
     def _get_docker_restart_value(self, task_session, task_id: str):
         try:
-            self._session.verify_feature_set('advanced')
+            self._session.verify_feature_set("advanced")
         except ValueError:
             return
 
@@ -1213,7 +1261,7 @@ class Worker(ServiceCommandSection):
 
         if restart_value not in ("unless-stopped", "no", "always") and not restart_value.startswith("on-failure"):
             self.log.error(
-                "Invalid value \"{}\" provided for {}, ignoring".format(restart, ENV_SERVICES_DOCKER_RESTART.vars[0])
+                'Invalid value "{}" provided for {}, ignoring'.format(restart, ENV_SERVICES_DOCKER_RESTART.vars[0])
             )
             return
 
@@ -1223,21 +1271,21 @@ class Worker(ServiceCommandSection):
         path, _, expected_value = selector.partition("=")
 
         result = task_session.send_request(
-            service='tasks',
-            action='get_all',
-            json={'id': [task_id], 'only_fields': [path], 'search_hidden': True},
+            service="tasks",
+            action="get_all",
+            json={"id": [task_id], "only_fields": [path], "search_hidden": True},
             method=Request.def_method,
         )
         if not result.ok:
-            result_msg = self._get_path(result.json(), 'meta', 'result_msg')
+            result_msg = self._get_path(result.json(), "meta", "result_msg")
             self.log.error(
-                "Failed obtaining selector value for restart option \"{}\", ignoring: {}".format(selector, result_msg)
+                'Failed obtaining selector value for restart option "{}", ignoring: {}'.format(selector, result_msg)
             )
             return
 
         not_found = object()
         try:
-            value = self._get_path(result.json(), 'data', 'tasks', 0, *path.split("."), default=not_found)
+            value = self._get_path(result.json(), "data", "tasks", 0, *path.split("."), default=not_found)
         except (ValueError, TypeError):
             return
 
@@ -1278,21 +1326,21 @@ class Worker(ServiceCommandSection):
         # noinspection PyBroadException
         try:
             result = task_session.send_request(
-                service='tasks',
-                action='get_all',
-                version='2.15',
+                service="tasks",
+                action="get_all",
+                version="2.15",
                 method=Request.def_method,
-                json={'id': [task_id], 'only_fields': ["runtime"], 'search_hidden': True}
+                json={"id": [task_id], "only_fields": ["runtime"], "search_hidden": True},
             )
 
             runtime = result.json().get("data", {}).get("tasks", [])[0].get("runtime") or {}
             runtime[self.hostname_task_runtime_prop] = socket.gethostname()
 
             res = task_session.send_request(
-                service='tasks', action='edit', method=Request.def_method,
-                json={
-                    "task": task_id, "force": True, "runtime": runtime
-                },
+                service="tasks",
+                action="edit",
+                method=Request.def_method,
+                json={"task": task_id, "force": True, "runtime": runtime},
             )
             if not res.ok:
                 raise Exception("failed setting runtime property")
@@ -1303,7 +1351,9 @@ class Worker(ServiceCommandSection):
         if not self._get_node_rank():
             # noinspection PyBroadException
             try:
-                task_session.send_api(tasks_api.StartedRequest(task=task_id, status_message="launch by agent", force=True))
+                task_session.send_api(
+                    tasks_api.StartedRequest(task=task_id, status_message="launch by agent", force=True)
+                )
             except Exception:
                 print("Warning: Could not set status=in_progress task id '{}', skipping".format(task_id))
                 return
@@ -1325,47 +1375,48 @@ class Worker(ServiceCommandSection):
         # temp_stderr_name = safe_mkstemp(suffix=".txt", prefix=".cairnml_agent_err.", name_only=True)
         temp_stderr_name = None
         print(
-            "Storing stdout and stderr log to '{}', '{}'".format(
-                temp_stdout_name, temp_stderr_name or temp_stdout_name
-            )
+            "Storing stdout and stderr log to '{}', '{}'".format(temp_stdout_name, temp_stderr_name or temp_stdout_name)
         )
 
         docker_image = None
-        worker_id = '{}:service:{}'.format(self.worker_id, task_id) \
-            if self._services_mode and not self._dynamic_gpus else self.worker_id
+        worker_id = (
+            "{}:service:{}".format(self.worker_id, task_id)
+            if self._services_mode and not self._dynamic_gpus
+            else self.worker_id
+        )
 
         if self.docker_image_func:
             # noinspection PyBroadException
             try:
                 task_container = get_task_container(
-                    task_session, task_id, ignore_match_rules=self._docker_default_cmd_override)
+                    task_session, task_id, ignore_match_rules=self._docker_default_cmd_override
+                )
             except Exception:
                 task_container = {}
 
-            default_docker = (
-                self._session.config.get('agent.disable_task_docker_override', False)
-                or not bool(task_container.get('image'))
+            default_docker = self._session.config.get("agent.disable_task_docker_override", False) or not bool(
+                task_container.get("image")
             )
             if default_docker:
                 docker_image = self._docker_image
                 docker_arguments = self._docker_arguments
             else:
-                docker_image = task_container.get('image') or self._docker_image
-                docker_arguments = task_container.get(
-                    'arguments', self._docker_arguments if default_docker else None)
+                docker_image = task_container.get("image") or self._docker_image
+                docker_arguments = task_container.get("arguments", self._docker_arguments if default_docker else None)
 
-            docker_setup_script = task_container.get('setup_shell_script')
+            docker_setup_script = task_container.get("setup_shell_script")
 
             self.send_logs(
                 task_id=task_id,
                 lines=[
-                    'Running Task {} inside {}docker: {} arguments: {}\n'.format(
+                    "Running Task {} inside {}docker: {} arguments: {}\n".format(
                         task_id,
-                        "default " if default_docker else '',
+                        "default " if default_docker else "",
                         docker_image,
-                        DockerArgsSanitizer.sanitize_docker_command(self._session, docker_arguments or [])
+                        DockerArgsSanitizer.sanitize_docker_command(self._session, docker_arguments or []),
                     )
-                ] + (['custom_setup_bash_script:\n{}\n'.format(docker_setup_script)] if docker_setup_script else []),
+                ]
+                + (["custom_setup_bash_script:\n{}\n".format(docker_setup_script)] if docker_setup_script else []),
                 level="INFO",
                 session=task_session,
             )
@@ -1388,21 +1439,18 @@ class Worker(ServiceCommandSection):
                 # if this is services mode, give the docker a unique worker id, as it will register itself.
                 docker_params["worker_id"] = worker_id
 
-            name_format = self._session.config.get('agent.docker_container_name_format', None)
+            name_format = self._session.config.get("agent.docker_container_name_format", None)
             if name_format:
                 custom_fields = {}
-                name_format_fields = self._session.config.get('agent.docker_container_name_format_fields', None)
+                name_format_fields = self._session.config.get("agent.docker_container_name_format_fields", None)
                 if name_format_fields:
                     field_values = get_task_fields(task_session, task_id, name_format_fields.values(), log=self.log)
-                    custom_fields = {
-                        k: field_values.get(v)
-                        for k, v in name_format_fields.items()
-                    }
+                    custom_fields = {k: field_values.get(v) for k, v in name_format_fields.items()}
 
                 try:
                     name = name_format.format(
-                        task_id=re.sub(r'[^a-zA-Z0-9._-]', '-', task_id),
-                        worker_id=re.sub(r'[^a-zA-Z0-9._-]', '-', worker_id),
+                        task_id=re.sub(r"[^a-zA-Z0-9._-]", "-", task_id),
+                        worker_id=re.sub(r"[^a-zA-Z0-9._-]", "-", worker_id),
                         rand_string="".join(sys_random.choice(string.ascii_lowercase) for _ in range(32)),
                         **custom_fields,
                     )
@@ -1425,25 +1473,26 @@ class Worker(ServiceCommandSection):
                 # todo cache with timout invalidation?!
                 queue_name=self._resolve_id(id=queue, service="queues", search_hidden=True),
                 worker_id=worker_id,
-                task_info=None
+                task_info=None,
             )
             if docker_params.get("docker_arguments"):
                 docker_params["docker_arguments"] = docker_args_template_resolver.resolve_from_docker_cmd(
-                    full_docker_cmd=docker_params["docker_arguments"])
+                    full_docker_cmd=docker_params["docker_arguments"]
+                )
 
             # Inject the task owner's vault `environment` section as host-side `-e KEY=VAL`
             # args so they are visible to the docker container (entrypoint, init bash
             # scripts, etc.) before cairnml-agent boots inside it. Only relevant when
             # impersonating the task owner — the agent's own vault is handled by
             # _apply_extra_configuration(), so we only inject the owner's vault here.
-            if self._session.config.get("agent.docker_apply_environment_from_vault") \
-                    and self._impersonate_as_task_owner \
-                    and task_session.check_min_api_version("2.20"):
+            if (
+                self._session.config.get("agent.docker_apply_environment_from_vault")
+                and self._impersonate_as_task_owner
+                and task_session.check_min_api_version("2.20")
+            ):
                 vault_env_args = self._load_vault_env_as_docker_args(task_session)
                 if vault_env_args:
-                    docker_params["extra_docker_arguments"] = (
-                        list(self._extra_docker_arguments or []) + vault_env_args
-                    )
+                    docker_params["extra_docker_arguments"] = list(self._extra_docker_arguments or []) + vault_env_args
 
             full_docker_cmd = self.docker_image_func(env_task_id=task_id, **docker_params)
 
@@ -1465,22 +1514,24 @@ class Worker(ServiceCommandSection):
             # Notice we do not parse the last part of the docker cmd because that's
             # the actual command to be executed inside the docker
             full_docker_cmd = docker_args_template_resolver.resolve_from_docker_cmd(
-                full_docker_cmd=full_docker_cmd[:-1]) + [full_docker_cmd[-1]]
+                full_docker_cmd=full_docker_cmd[:-1]
+            ) + [full_docker_cmd[-1]]
 
             # if this is services_mode, change the worker_id to a unique name
             # abd use full-monitoring, ot it registers itself as a worker for this specific service.
             # notice, the internal agent will monitor itself once the docker is up and running
-            full_docker_cmd[-1] = full_docker_cmd[-1] + 'execute {} {} --id {}'.format(
-                '--full-monitoring' if self._services_mode else '--disable-monitoring',
-                '--standalone-mode' if self._standalone_mode else '',
-                task_id)
+            full_docker_cmd[-1] = full_docker_cmd[-1] + "execute {} {} --id {}".format(
+                "--full-monitoring" if self._services_mode else "--disable-monitoring",
+                "--standalone-mode" if self._standalone_mode else "",
+                task_id,
+            )
 
             display_docker_command = DockerArgsSanitizer.sanitize_docker_command(self._session, full_docker_cmd)
 
             # send the actual used command line to the backend
             self.send_logs(
                 task_id=task_id,
-                lines=['Executing: {}\n'.format(display_docker_command)],
+                lines=["Executing: {}\n".format(display_docker_command)],
                 level="INFO",
                 session=task_session,
             )
@@ -1491,10 +1542,10 @@ class Worker(ServiceCommandSection):
 
             cmd = Argv(*full_docker_cmd, display_argv=display_docker_command)
 
-            print('Running Docker:\n{}\n'.format(str(cmd)))
+            print("Running Docker:\n{}\n".format(str(cmd)))
         else:
             cmd = worker_args.get_argv_for_command("execute") + (
-                '--full-monitoring' if self._services_mode else '--disable-monitoring',
+                "--full-monitoring" if self._services_mode else "--disable-monitoring",
                 "--id",
                 task_id,
             )
@@ -1514,7 +1565,7 @@ class Worker(ServiceCommandSection):
             ENV_WORKER_ID.set(worker_id)
 
             if self._docker_force_pull and docker_image:
-                full_pull_cmd = ['docker', 'pull', docker_image]
+                full_pull_cmd = ["docker", "pull", docker_image]
                 pull_cmd = Argv(*full_pull_cmd)
                 status, stop_signal_status = self._log_command_output(
                     task_id=task_id,
@@ -1527,8 +1578,10 @@ class Worker(ServiceCommandSection):
                 )
 
             env = job_environment(
-                os.environ, impersonated_token=task_session.token if self._impersonate_as_task_owner else None,
-                job_token=job_token, job_token_file=job_token_file,
+                os.environ,
+                impersonated_token=task_session.token if self._impersonate_as_task_owner else None,
+                job_token=job_token,
+                job_token_file=job_token_file,
             )
             if self._worker_tags:
                 env[ENV_WORKER_TAGS.vars[0]] = " ".join(shlex.quote(t) for t in self._worker_tags)
@@ -1536,7 +1589,10 @@ class Worker(ServiceCommandSection):
             if not self._impersonate_as_task_owner:
                 # keep the job's token current for as long as the job runs
                 renewer = TokenRenewer(
-                    job_token_file, lambda: request_job_token(self._session, task_id), job_token_lifetime, label=task_id,
+                    job_token_file,
+                    lambda: request_job_token(self._session, task_id),
+                    job_token_lifetime,
+                    label=task_id,
                 )
                 renewer.start()
             status, stop_signal_status = self._log_command_output(
@@ -1553,13 +1609,9 @@ class Worker(ServiceCommandSection):
             if errors:
                 print("\nEncountered errors:\n\n{}\n".format(errors))
             if status is None and self._services_mode:
-                print(
-                    "Service bootstrap completed: task '{}'".format(task_id)
-                )
+                print("Service bootstrap completed: task '{}'".format(task_id))
             elif status is None:
-                print(
-                    "DONE: Running task '{}' (user aborted)".format(task_id)
-                )
+                print("DONE: Running task '{}' (user aborted)".format(task_id))
             else:
                 print("DONE: Running task '{}', exit status {}".format(task_id, status))
         except KeyboardInterrupt:
@@ -1573,12 +1625,12 @@ class Worker(ServiceCommandSection):
             if not keep_token:
                 shutil.rmtree(job_token_dir, ignore_errors=True)
             if self._services_mode and stop_signal_status is None:
-                print('Service started, docker running in the background')
+                print("Service started, docker running in the background")
             else:
                 self.handle_task_termination(task_id, status, stop_signal_status, session=task_session)
                 # remove temp files after we sent everything to the backend
                 if self.docker_image_func:
-                    shutdown_docker_process(docker_cmd_contains='--id {}\'\"'.format(task_id))
+                    shutdown_docker_process(docker_cmd_contains="--id {}'\"".format(task_id))
                 safe_remove_file(temp_stdout_name)
                 safe_remove_file(temp_stderr_name)
                 if self._services_mode and status == ExitStatus.interrupted:
@@ -1596,10 +1648,10 @@ class Worker(ServiceCommandSection):
         to get the auth token for the tenant and return the session for it
         Requires that agent session credentials will allow impersonation as task user
         """
+
         def get_new_session(session, headers):
             result = session.send(
-                auth_api.LoginRequest(expiration_sec=session.req_token_expiration_sec),
-                headers=headers
+                auth_api.LoginRequest(expiration_sec=session.req_token_expiration_sec), headers=headers
             )
             if not (result.ok() and result.response):
                 try:
@@ -1638,7 +1690,7 @@ class Worker(ServiceCommandSection):
         """
 
         if not self._daemon_foreground:
-            print('Starting infinite task polling loop...')
+            print("Starting infinite task polling loop...")
 
         if self._services_mode:
             try:
@@ -1649,8 +1701,8 @@ class Worker(ServiceCommandSection):
             max_num_instances = None
 
         # store in runtime configuration,
-        if max_num_instances and not self.set_runtime_properties(key='max_num_instances', value=max_num_instances):
-            warning('Maximum number of service instance not supported, removing limit.')
+        if max_num_instances and not self.set_runtime_properties(key="max_num_instances", value=max_num_instances):
+            warning("Maximum number of service instance not supported, removing limit.")
             max_num_instances = -1
 
         # get current running instances
@@ -1703,7 +1755,6 @@ class Worker(ServiceCommandSection):
 
                 # iterate over queues (priority style, queues[0] is highest)
                 for queue in queues:
-
                     if queue_tags is None or runtime_props is None:
                         queue_tags, runtime_props = self.get_worker_properties(queues)
 
@@ -1731,10 +1782,12 @@ class Worker(ServiceCommandSection):
                         if gpu_queues[queue][0] > max(float(max_available_gpus), min_available_fract_gpu):
                             # not enough available_gpus, we should sleep and start over
                             if self._daemon_foreground or worker_params.debug:
-                                print("Not enough free GPUs {}/{}, sleeping for {:.1f} seconds".format(
-                                    max(float(max_available_gpus), min_available_fract_gpu),
-                                    gpu_queues[queue][0],
-                                    self._polling_interval)
+                                print(
+                                    "Not enough free GPUs {}/{}, sleeping for {:.1f} seconds".format(
+                                        max(float(max_available_gpus), min_available_fract_gpu),
+                                        gpu_queues[queue][0],
+                                        self._polling_interval,
+                                    )
                                 )
                             sleep(self._polling_interval)
                             break
@@ -1745,11 +1798,7 @@ class Worker(ServiceCommandSection):
                             self._session, queue=queue, get_task_info=self._impersonate_as_task_owner
                         )
                     except Exception as e:
-                        print(
-                            "Warning: Could not access task queue [{}], error: {}".format(
-                                queue, e
-                            )
-                        )
+                        print("Warning: Could not access task queue [{}], error: {}".format(queue, e))
                         continue
                     else:
                         try:
@@ -1760,8 +1809,11 @@ class Worker(ServiceCommandSection):
                             continue
 
                         # clear output log if we start a new Task
-                        if not worker_params.debug and self._redirected_stdout_file_no is not None and \
-                                self._redirected_stdout_file_no > 2:
+                        if (
+                            not worker_params.debug
+                            and self._redirected_stdout_file_no is not None
+                            and self._redirected_stdout_file_no > 2
+                        ):
                             # noinspection PyBroadException
                             try:
                                 os.lseek(self._redirected_stdout_file_no, 0, 0)
@@ -1775,9 +1827,14 @@ class Worker(ServiceCommandSection):
                             # noinspection PyBroadException
                             try:
                                 self._session.send_api(
-                                    tasks_api.StartedRequest(task=task_id, status_message="pulled by agent", force=True))
+                                    tasks_api.StartedRequest(task=task_id, status_message="pulled by agent", force=True)
+                                )
                             except Exception:
-                                print("Warning: Could not set status=in_progress task id '{}', retrying in a bit".format(task_id))
+                                print(
+                                    "Warning: Could not set status=in_progress task id '{}', retrying in a bit".format(
+                                        task_id
+                                    )
+                                )
 
                         # check if we need to impersonate
                         task_session = None
@@ -1813,7 +1870,7 @@ class Worker(ServiceCommandSection):
                                 gpus = [g for g, v in available_gpus.items() if v >= 1]
                                 if gpus:
                                     # get as many gpus as possible with max_gpus as limit, the min is covered before
-                                    gpus = gpus[:int(gpu_queues.get(queue)[1])]
+                                    gpus = gpus[: int(gpu_queues.get(queue)[1])]
                                     fractions = [1] * len(gpus)
                                     # update available gpus
                                     available_gpus = {g: v for g, v in available_gpus.items() if g not in gpus}
@@ -1824,11 +1881,13 @@ class Worker(ServiceCommandSection):
                             # if this is under 1 GPU
                             if not gpus:
                                 # find the GPU with availability that covers the minimum
-                                _max_req_gpu = min(float(gpu_queues.get(queue)[1]), 1.)
+                                _max_req_gpu = min(float(gpu_queues.get(queue)[1]), 1.0)
                                 _min_req_gpu = float(gpu_queues.get(queue)[0])
                                 _potential_gpus = {
-                                    g: (v - float(_max_req_gpu)) for g, v in available_gpus.items()
-                                    if v >= float(_min_req_gpu)}
+                                    g: (v - float(_max_req_gpu))
+                                    for g, v in available_gpus.items()
+                                    if v >= float(_min_req_gpu)
+                                }
                                 # sort based on the least available that can fit the maximum
                                 # find the first instance that is positive or 0
                                 _potential_gpus = sorted(_potential_gpus.items(), key=lambda a: a[1])
@@ -1843,22 +1902,27 @@ class Worker(ServiceCommandSection):
                                     # now it is hardcoded to 1/8th
                                     _base_fract = 8
                                     avail_fract = int(float(available_gpus[_potential_gpus[-1][0]]) * _base_fract)
-                                    fractions = [avail_fract/float(avail_fract)]
+                                    fractions = [avail_fract / float(avail_fract)]
                                     available_gpus[_potential_gpus[-1][0]] -= fractions[0]
 
                                 try:
                                     from cairnml_agent_fractional_gpu import patch_docker_cmd_gpu_fraction  # noqa
+
                                     # new docker image func
                                     self._patch_docker_cmd_func = lambda docker_cmd, fractions=fractions: (
-                                        patch_docker_cmd_gpu_fraction(docker_cmd, gpu_fraction=fractions[0]))
+                                        patch_docker_cmd_gpu_fraction(docker_cmd, gpu_fraction=fractions[0])
+                                    )
                                 except Exception:
-                                    print("Error! could not load cairnml_agent_fractional_gpu module! "
-                                          "failed configuring fractional GPU support")
+                                    print(
+                                        "Error! could not load cairnml_agent_fractional_gpu module! "
+                                        "failed configuring fractional GPU support"
+                                    )
                                     raise
 
                             self.set_runtime_properties(
-                                key='available_gpus',
-                                value=','.join("{}_{}".format(g, str(f)[2:]) for g, f in available_gpus.items()))
+                                key="available_gpus",
+                                value=",".join("{}_{}".format(g, str(f)[2:]) for g, f in available_gpus.items()),
+                            )
 
                             # this is where we set the fractions as well as gpus
                             Session.set_nvidia_visible_env(gpus)
@@ -1868,21 +1932,24 @@ class Worker(ServiceCommandSection):
                                 gpu_idx_fract = ["{}.{}".format(g, str(f)[2:]) for g, f in zip(gpus, fractions)]
                                 # check a new available unique name (id) for us
                                 from string import ascii_lowercase
+
                                 for x in ascii_lowercase:
-                                    if gpu_idx_fract[0]+x not in allocated_gpus:
-                                        gpu_idx_fract[0] = gpu_idx_fract[0]+x
+                                    if gpu_idx_fract[0] + x not in allocated_gpus:
+                                        gpu_idx_fract[0] = gpu_idx_fract[0] + x
                                         break
 
                                 # add the new task
                                 allocated_gpus[gpu_idx_fract[0]] = fractions[0]
                                 dict_task_gpus_ids.update({str(g): task_id for g in gpu_idx_fract})
-                                self.worker_id = ':'.join(
-                                    self.worker_id.split(':')[:-1] + ['gpu'+','.join(str(g) for g in gpu_idx_fract)])
+                                self.worker_id = ":".join(
+                                    self.worker_id.split(":")[:-1] + ["gpu" + ",".join(str(g) for g in gpu_idx_fract)]
+                                )
                             else:
                                 # update the task list
                                 dict_task_gpus_ids.update({str(g): task_id for g in gpus})
-                                self.worker_id = ':'.join(
-                                    self.worker_id.split(':')[:-1] + ['gpu'+','.join(str(g) for g in gpus)])
+                                self.worker_id = ":".join(
+                                    self.worker_id.split(":")[:-1] + ["gpu" + ",".join(str(g) for g in gpus)]
+                                )
 
                         self.send_logs(
                             task_id=task_id,
@@ -1922,7 +1989,7 @@ class Worker(ServiceCommandSection):
             # if we are in dynamic gpus mode, shutdown all active runs
             if self.docker_image_func:
                 for t_id in set(dict_task_gpus_ids.values()):
-                    if shutdown_docker_process(docker_cmd_contains='--id {}\'\"'.format(t_id)):
+                    if shutdown_docker_process(docker_cmd_contains="--id {}'\"".format(t_id)):
                         self.handle_task_termination(task_id=t_id, exit_code=0, stop_reason=TaskStopReason.stopped)
             else:
                 # if we are in dynamic gpus / services mode,
@@ -1941,30 +2008,27 @@ class Worker(ServiceCommandSection):
     def _dynamic_gpu_get_available(self, gpu_indexes):
         # key: cast to string, value: 1 (i.e. gull GPU)
         gpu_indexes = {str(g): 1 for g in gpu_indexes}
-        worker_name = self._session.config.get("agent.worker_name", "") + ':gpu'
+        worker_name = self._session.config.get("agent.worker_name", "") + ":gpu"
 
         # only return "Our" workers (requires server API +2, otherwise the selecort pattern is ignored)
         # noinspection PyBroadException
         try:
-            response = self._session.send_api(workers_api.GetAllRequest(
-                last_seen=600,
-                worker_pattern="{}*".format(worker_name),
-                _allow_extra_fields_=True
-            ))
+            response = self._session.send_api(
+                workers_api.GetAllRequest(
+                    last_seen=600, worker_pattern="{}*".format(worker_name), _allow_extra_fields_=True
+                )
+            )
         except Exception:
             return None
 
         # filter only our workers, in case the selector pattern above was ignored due to lower version API server
-        our_workers = [
-            w.id for w in response.workers
-            if w.id.startswith(worker_name) and w.id != self.worker_id
-        ]
+        our_workers = [w.id for w in response.workers if w.id.startswith(worker_name) and w.id != self.worker_id]
         gpus = {}
         allocated_gpus = {}
         gpu_pattern = re.compile(r"\d+[.]?\d*[a-z]?")
         fract_gpu_pattern = re.compile(r"\d+[.]?\d*[a-z]+")
         for w in our_workers:
-            for g in w.split(':')[-1].lower().replace('gpu', '').split(','):
+            for g in w.split(":")[-1].lower().replace("gpu", "").split(","):
                 try:
                     # verify pattern "int.int" or "int.int[a-z]"
                     gpu_idx_name = g.strip()
@@ -1994,15 +2058,15 @@ class Worker(ServiceCommandSection):
         available_gpus = self.get_runtime_properties()
         if available_gpus is None:
             raise ValueError("Dynamic GPU allocation is not supported by your CairnML-server")
-        available_gpus = [prop["value"] for prop in available_gpus if prop["key"] == 'available_gpus']
+        available_gpus = [prop["value"] for prop in available_gpus if prop["key"] == "available_gpus"]
         if available_gpus:
             gpus = {}
-            for g_v in available_gpus[-1].split(','):
+            for g_v in available_gpus[-1].split(","):
                 g, v = g_v.split("_")
                 try:
                     # verify "int.int_float"
                     if float(g.strip()) >= 0:
-                        gpus[g.strip()] = float("0."+v)
+                        gpus[g.strip()] = float("0." + v)
                 except (ValueError, TypeError):
                     print("INFO: failed parsing GPU int('{}') - skipping".format(g))
             available_gpus = gpus
@@ -2011,7 +2075,8 @@ class Worker(ServiceCommandSection):
             gpu_queues = dict(gpu_queues)
 
         if not self.set_runtime_properties(
-                key='available_gpus', value=','.join("{}_{}".format(g, str(v)[2:]) for g, v in available_gpus.items())):
+            key="available_gpus", value=",".join("{}_{}".format(g, str(v)[2:]) for g, v in available_gpus.items())
+        ):
             raise ValueError("Dynamic GPU allocation is not supported by your CairnML-server")
 
         # because it sets the MAX not the actual available (i.e. free) GPUS
@@ -2025,10 +2090,8 @@ class Worker(ServiceCommandSection):
 
     def get_worker_properties(self, queue_ids):
         queue_tags = {
-            q.id: {'name': q.name, 'tags': q.tags}
-            for q in self._session.send_api(
-                queues_api.GetAllRequest(id=queue_ids, only_fields=["id", "tags"])
-            ).queues
+            q.id: {"name": q.name, "tags": q.tags}
+            for q in self._session.send_api(queues_api.GetAllRequest(id=queue_ids, only_fields=["id", "tags"])).queues
         }
         runtime_props = self.get_runtime_properties()
         return queue_tags, runtime_props
@@ -2066,10 +2129,10 @@ class Worker(ServiceCommandSection):
 
         # noinspection PyBroadException
         try:
-            self.post("set_runtime_properties",
-                      json={
-                          'runtime_properties': [{'key': key, 'value': str(value)}],
-                          'worker': self.worker_id})
+            self.post(
+                "set_runtime_properties",
+                json={"runtime_properties": [{"key": key, "value": str(value)}], "worker": self.worker_id},
+            )
             # definitely supported
             self._runtime_props_support = True
             return True
@@ -2086,28 +2149,28 @@ class Worker(ServiceCommandSection):
         Checks if a worker is active according to queue tags, worker's runtime properties and uptime schedule.
         """
         runtime_properties = runtime_properties or []
-        if UptimeConf.queue_tag_off in current_queue['tags']:
-            self.log.debug("Queue {} is tagged '{}', worker will not pull tasks".format(
-                current_queue['name'], UptimeConf.queue_tag_off)
+        if UptimeConf.queue_tag_off in current_queue["tags"]:
+            self.log.debug(
+                "Queue {} is tagged '{}', worker will not pull tasks".format(
+                    current_queue["name"], UptimeConf.queue_tag_off
+                )
             )
             return False
-        if UptimeConf.queue_tag_on in current_queue['tags']:
-            self.log.debug("Queue {} is tagged '{}', worker will pull tasks".format(
-                current_queue['name'], UptimeConf.queue_tag_on)
+        if UptimeConf.queue_tag_on in current_queue["tags"]:
+            self.log.debug(
+                "Queue {} is tagged '{}', worker will pull tasks".format(current_queue["name"], UptimeConf.queue_tag_on)
             )
             return True
-        force_flag = next(
-            (prop for prop in runtime_properties if prop["key"] == UptimeConf.worker_key), None
-        )
+        force_flag = next((prop for prop in runtime_properties if prop["key"] == UptimeConf.worker_key), None)
         if force_flag:
             if force_flag["value"].lower() in UptimeConf.worker_value_off:
-                self.log.debug("worker has the following runtime property: '{}'. worker will not pull tasks".format(
-                    force_flag)
+                self.log.debug(
+                    "worker has the following runtime property: '{}'. worker will not pull tasks".format(force_flag)
                 )
                 return False
             elif force_flag["value"].lower() in UptimeConf.worker_value_on:
-                self.log.debug("worker has the following runtime property: '{}'. worker will pull tasks".format(
-                    force_flag)
+                self.log.debug(
+                    "worker has the following runtime property: '{}'. worker will pull tasks".format(force_flag)
                 )
                 return True
             else:
@@ -2132,11 +2195,7 @@ class Worker(ServiceCommandSection):
             self.log_traceback(ex)
         else:
             if reloaded:
-                self.log(
-                    'Config file change detected, reloading and updating "{.temp_config_path}"'.format(
-                        self
-                    )
-                )
+                self.log('Config file change detected, reloading and updating "{.temp_config_path}"'.format(self))
                 self.dump_config(self.temp_config_path, clean_api_credentials=self._impersonate_as_task_owner)
 
     def check(self, **_):
@@ -2153,9 +2212,7 @@ class Worker(ServiceCommandSection):
                 if value:
                     check_directory_path(value)
             except CommandFailedError as e:
-                raise CommandFailedError(
-                    'Invalid config key "{}": {.message}'.format(key, e)
-                ) from e
+                raise CommandFailedError('Invalid config key "{}": {.message}'.format(key, e)) from e
 
         self._session.print_configuration()
 
@@ -2165,6 +2222,7 @@ class Worker(ServiceCommandSection):
     def _server_is_loopback(self):
         """True when the API server is on this machine's loopback address (127.0.0.1, ::1 or localhost)."""
         from urllib.parse import urlparse
+
         host = urlparse(self._session.config.get("api.api_server", "") or "").hostname
         return host in ("localhost", "127.0.0.1", "::1")
 
@@ -2201,18 +2259,18 @@ class Worker(ServiceCommandSection):
 
         self.is_daemon = True
 
-        self._worker_tags = kwargs.get('child_report_tags', None)
+        self._worker_tags = kwargs.get("child_report_tags", None)
 
-        self._use_owner_token(kwargs.get('use_owner_token', False))
+        self._use_owner_token(kwargs.get("use_owner_token", False))
 
-        self._standalone_mode = kwargs.get('standalone_mode', False)
-        self._polling_interval = ENV_QUEUE_POLL_FREQ_SEC.get() or max(kwargs.get('polling_interval', 5), 5)
-        self._services_mode = kwargs.get('services_mode', False)
+        self._standalone_mode = kwargs.get("standalone_mode", False)
+        self._polling_interval = ENV_QUEUE_POLL_FREQ_SEC.get() or max(kwargs.get("polling_interval", 5), 5)
+        self._services_mode = kwargs.get("services_mode", False)
         # must have docker in services_mode
         if self._services_mode:
             kwargs = self._verify_command_states(kwargs)
-        self._uptime_config = kwargs.get('uptime', None) or self._uptime_config
-        self._downtime_config = kwargs.get('downtime', None) or self._downtime_config
+        self._uptime_config = kwargs.get("uptime", None) or self._uptime_config
+        self._downtime_config = kwargs.get("downtime", None) or self._downtime_config
         if self._uptime_config and self._downtime_config:
             self.log.error(
                 "Both uptime and downtime were specified when only one of them could be used. Both will be ignored."
@@ -2227,14 +2285,15 @@ class Worker(ServiceCommandSection):
             raise ValueError("Combining --dynamic-gpus and --services-mode is not supported")
 
         if self._dynamic_gpus == "fractional" and not use_docker:
-            raise ValueError("Fractional GPUs are only supported in docker-mode, "
-                             "add --docker to allow docker-mode operation")
+            raise ValueError(
+                "Fractional GPUs are only supported in docker-mode, add --docker to allow docker-mode operation"
+            )
 
         # We are not running a daemon we are killing one.
         # find the pid send termination signal and leave
-        if kwargs.get('stop', False) is not False:
+        if kwargs.get("stop", False) is not False:
             return_code = 0
-            for worker_id in kwargs.get('stop') or [None]:
+            for worker_id in kwargs.get("stop") or [None]:
                 if not self._kill_daemon(dynamic_gpus=dynamic_gpus, worker_id=worker_id):
                     return_code = 1
             return return_code
@@ -2243,14 +2302,9 @@ class Worker(ServiceCommandSection):
         # match previous behaviour when we validated queue names before everything else
         queues = self.resolve_daemon_queue_names(queues)
 
-        queues_info = [
-            q.to_dict()
-            for q in self._session.send_api(
-                queues_api.GetAllRequest(id=queues)
-            ).queues
-        ]
+        queues_info = [q.to_dict() for q in self._session.send_api(queues_api.GetAllRequest(id=queues)).queues]
 
-        if kwargs.get('status', False):
+        if kwargs.get("status", False):
             runtime_properties = self.get_runtime_properties()
             if self._downtime_config:
                 print_uptime_properties(self._downtime_config, queues_info, runtime_properties, is_uptime=False)
@@ -2267,7 +2321,7 @@ class Worker(ServiceCommandSection):
 
         # check if we have bootstrap package installed
         if bootstrap.check_bootstrap_package_install(config=self._session.config):
-            check_latest = kwargs.get('check_bootstrap', False) or self._session.config.get(
+            check_latest = kwargs.get("check_bootstrap", False) or self._session.config.get(
                 "agent.bootstrap.check_for_latest", False
             )
             if check_latest:
@@ -2281,69 +2335,64 @@ class Worker(ServiceCommandSection):
 
         self.check(**kwargs)
         self.log.debug("starting resource monitor thread")
-        print("Worker \"{}\" - ".format(self.worker_id), end='')
+        print('Worker "{}" - '.format(self.worker_id), end="")
 
         columns = ("id", "name", "tags")
         print("Listening to queues:")
         if dynamic_gpus:
             columns = ("id", "name", "tags", "gpus (min, max)")
             for q in queues_info:
-                q['gpus'] = str(dict(dynamic_gpus).get(q['id']) or '')
+                q["gpus"] = str(dict(dynamic_gpus).get(q["id"]) or "")
         print_table(queues_info, columns=columns, titles=columns)
 
         # register worker
         self._register(queues)
 
         # create temp config file with current configuration
-        self.temp_config_path = NamedTemporaryFile(
-            suffix=".cfg", prefix=".cairnml_agent.", mode='w+t').name
+        self.temp_config_path = NamedTemporaryFile(suffix=".cfg", prefix=".cairnml_agent.", mode="w+t").name
 
         # print docker image
         if use_docker:
-            self._force_current_version = kwargs.get('force_current_version', False)
+            self._force_current_version = kwargs.get("force_current_version", False)
             self.set_docker_variables(docker, clean_api_credentials=self._impersonate_as_task_owner)
         else:
             self.dump_config(self.temp_config_path, clean_api_credentials=self._impersonate_as_task_owner)
             # only in none docker we have to make sure we have CUDA setup
 
             # make sure we have CUDA set if we have --gpus
-            if kwargs.get('gpus') and self._session.config.get('agent.cuda_version', None) in (None, 0, '0'):
-                message = 'Running with GPUs but no CUDA version was detected!\n' \
-                          '\tSet OS environment CUDA_VERSION & CUDNN_VERSION to the correct version\n' \
-                          '\tExample: export CUDA_VERSION=10.1 or (Windows: set CUDA_VERSION=10.1)'
+            if kwargs.get("gpus") and self._session.config.get("agent.cuda_version", None) in (None, 0, "0"):
+                message = (
+                    "Running with GPUs but no CUDA version was detected!\n"
+                    "\tSet OS environment CUDA_VERSION & CUDNN_VERSION to the correct version\n"
+                    "\tExample: export CUDA_VERSION=10.1 or (Windows: set CUDA_VERSION=10.1)"
+                )
                 if is_conda(self._session.config):
                     self._unregister(queues)
                     safe_remove_file(self.temp_config_path)
                     raise ValueError(message)
                 else:
-                    warning(message+'\n')
+                    warning(message + "\n")
 
         if self._services_mode:
-            print('CairnML-Agent running in services mode')
+            print("CairnML-Agent running in services mode")
 
         self._daemon_foreground = foreground
         if not foreground:
             out_file, name = safe_mkstemp(
                 prefix=".cairnml_agent_daemon_out",
                 suffix=".txt",
-                open_kwargs={
-                    "buffering": self._session.config.get("agent.log_files_buffering", 1)
-                },
+                open_kwargs={"buffering": self._session.config.get("agent.log_files_buffering", 1)},
                 dir=(ENV_TEMP_STDOUT_FILE_DIR.get() or None),
                 mode="a",
             )
-            print(
-                "Running CAIRNML-AGENT daemon in background mode, writing stdout/stderr to {}".format(
-                    name
-                )
-            )
+            print("Running CAIRNML-AGENT daemon in background mode, writing stdout/stderr to {}".format(name))
 
             if not self._session.debug_mode:
                 self._temp_cleanup_list.append(name)
 
             # on widows we do nothing
             if detached and is_windows_platform():
-                print('Detached not supported on Windows, ignoring --detached')
+                print("Detached not supported on Windows, ignoring --detached")
                 detached = False
 
             if not detached:
@@ -2357,7 +2406,7 @@ class Worker(ServiceCommandSection):
                 # make sure we update the singleton lock file to the new pid
                 Singleton.update_pid_file()
                 # reprint headers to std file (we are now inside the daemon process)
-                print("Worker \"{}\" :".format(self.worker_id))
+                print('Worker "{}" :'.format(self.worker_id))
                 self._session.print_configuration()
                 print_table(queues_info, columns=columns, titles=columns)
 
@@ -2386,65 +2435,67 @@ class Worker(ServiceCommandSection):
                         raise e
 
                     crash_file, name = safe_mkstemp(
-                        prefix=".cairnml_agent-crash",
-                        suffix=".log",
-                        dir=(ENV_TEMP_STDOUT_FILE_DIR.get() or None)
+                        prefix=".cairnml_agent-crash", suffix=".log", dir=(ENV_TEMP_STDOUT_FILE_DIR.get() or None)
                     )
                     try:
                         with crash_file:
                             crash_file.write(tb)
                     except Exception:
-                        print(
-                            "Could not write crash log to {}\nException:\n{}".format(
-                                name, tb
-                            )
-                        )
+                        print("Could not write crash log to {}\nException:\n{}".format(name, tb))
                     sleep(1)
         finally:
             self._unregister(queues)
             safe_remove_file(self.temp_config_path)
 
     def _parse_dynamic_gpus(self, kwargs, queues):
-        dynamic_gpus = kwargs.get('dynamic_gpus', None)
+        dynamic_gpus = kwargs.get("dynamic_gpus", None)
         if not dynamic_gpus:
             return None, None, queues
 
         has_fractional = False
         queue_names = [q.name for q in queues]
-        if not all('=' in q for q in queue_names):
-            raise ValueError("using --dynamic-gpus, --queue [{}], "
-                             "queue must be in format <queue_name>=<num_gpus>".format(queue_names))
+        if not all("=" in q for q in queue_names):
+            raise ValueError(
+                "using --dynamic-gpus, --queue [{}], queue must be in format <queue_name>=<num_gpus>".format(
+                    queue_names
+                )
+            )
 
-        gpu_indexes = kwargs.get('gpus')
+        gpu_indexes = kwargs.get("gpus")
 
         # test gpus were passed correctly
-        if not gpu_indexes or len(gpu_indexes.split('-')) > 2 or (',' in gpu_indexes and '-' in gpu_indexes):
-            raise ValueError('--gpus must be provided, in one of two ways: '
-                             'comma separated \'0,1,2,3\' or range \'0-3\'')
+        if not gpu_indexes or len(gpu_indexes.split("-")) > 2 or ("," in gpu_indexes and "-" in gpu_indexes):
+            raise ValueError("--gpus must be provided, in one of two ways: comma separated '0,1,2,3' or range '0-3'")
         try:
-            if '-' in gpu_indexes:
-                gpu_indexes = list(range(int(gpu_indexes.split('-')[0]), 1 + int(gpu_indexes.split('-')[1])))
+            if "-" in gpu_indexes:
+                gpu_indexes = list(range(int(gpu_indexes.split("-")[0]), 1 + int(gpu_indexes.split("-")[1])))
             else:
-                gpu_indexes = [str(g).replace(":", ".").strip() for g in gpu_indexes.split(',')]
+                gpu_indexes = [str(g).replace(":", ".").strip() for g in gpu_indexes.split(",")]
             # verify (basically numbers with single "." dot)
             gpu_indexes = [str(g) for g in gpu_indexes if float(g) >= 0]
         except Exception as ex:
             raise ValueError(
                 'Failed parsing --gpus "{}". '
-                '--dynamic_gpus must be use with '
-                'specific gpus for example "0-7" or "0,1,2,3" or "0:0,0:1,1:0,1:1"'.format(kwargs.get('gpus'))) from ex
+                "--dynamic_gpus must be use with "
+                'specific gpus for example "0-7" or "0,1,2,3" or "0:0,0:1,1:0,1:1"'.format(kwargs.get("gpus"))
+            ) from ex
 
         dynamic_gpus = []
         for s in queue_names:
-            s_p = s.split('=')
-            name = s[:-1 - len(s_p[-1])]
-            min_max_g = float(s_p[-1].split('-')[0] or 1), float(s_p[-1].split('-')[-1])
+            s_p = s.split("=")
+            name = s[: -1 - len(s_p[-1])]
+            min_max_g = float(s_p[-1].split("-")[0] or 1), float(s_p[-1].split("-")[-1])
             if min(min_max_g) <= 0:
-                raise ValueError("Parsing min/max number of gpus <= 0 is not allowed: \"{}\"".format(s))
+                raise ValueError('Parsing min/max number of gpus <= 0 is not allowed: "{}"'.format(s))
             if any(g for g in min_max_g if 1 < g != int(g)):
-                raise ValueError("Parsing min/max number of gpus, fractional gpu cannot be > 1: \"{}\"".format(s))
+                raise ValueError('Parsing min/max number of gpus, fractional gpu cannot be > 1: "{}"'.format(s))
             has_fractional = min(min_max_g) < 1
-            dynamic_gpus.append((name, min_max_g,))
+            dynamic_gpus.append(
+                (
+                    name,
+                    min_max_g,
+                )
+            )
         queue_names = [q for q, _ in dynamic_gpus]
         # resolve queue ids
         dynamic_gpus_q = self._resolve_queue_names(queue_names)
@@ -2460,8 +2511,8 @@ class Worker(ServiceCommandSection):
         # test server support
         available_gpus, allocated_gpus = self._dynamic_gpu_get_available(gpu_indexes)
         if not self.set_runtime_properties(
-                key='available_gpus',
-                value=','.join("{}_{}".format(g, str(v)[2:]) for g, v in available_gpus.items())):
+            key="available_gpus", value=",".join("{}_{}".format(g, str(v)[2:]) for g, v in available_gpus.items())
+        ):
             raise ValueError("Dynamic GPU allocation is not supported by your CairnML-server")
 
     def report_monitor(self, report):
@@ -2537,7 +2588,7 @@ class Worker(ServiceCommandSection):
         cwd=None,  # type: Text
         stop_signal=None,  # type: Optional[TaskStopSignal]
         session=None,
-        **kwargs  # type: Any
+        **kwargs,  # type: Any
     ):
         # type: (...) -> Tuple[Optional[int], Optional[TaskStopReason]]
         def _print_file(file_path, prev_pos=0):
@@ -2564,14 +2615,16 @@ class Worker(ServiceCommandSection):
                 return [], prev_pos
 
             # skip the previously printed lines,
-            blines = binary_text.split(b'\n') if binary_text else []
+            blines = binary_text.split(b"\n") if binary_text else []
             if not blines:
                 return blines, pos
             return (
-                decode_binary_lines(blines if blines[-1] else blines[:-1],
-                                    replace_cr=not self._suppress_cr,
-                                    overwrite_cr=self._suppress_cr),
-                pos
+                decode_binary_lines(
+                    blines if blines[-1] else blines[:-1],
+                    replace_cr=not self._suppress_cr,
+                    overwrite_cr=self._suppress_cr,
+                ),
+                pos,
             )
 
         safe_remove_file(stdout_path)
@@ -2592,7 +2645,7 @@ class Worker(ServiceCommandSection):
                 if rank:
                     # see ANSI color: https://en.wikipedia.org/wiki/ANSI_escape_code#8-bit
                     # Only the "RANK x: line is colored to preserve the original color reporting
-                    lines = ["\033[38;5;{}mRANK {}:\033[0m\n".format(20+(rank % 210), rank)] + lines
+                    lines = ["\033[38;5;{}mRANK {}:\033[0m\n".format(20 + (rank % 210), rank)] + lines
 
             if not self._truncate_task_output_files:
                 # non-buffered
@@ -2616,15 +2669,10 @@ class Worker(ServiceCommandSection):
             stop_reason = None
 
             process = cmd.call_subprocess(
-                subprocess.Popen,
-                stdout=stdout,
-                stderr=stderr,
-                cwd=cwd and str(cwd),
-                **kwargs
+                subprocess.Popen, stdout=stdout, stderr=stderr, cwd=cwd and str(cwd), **kwargs
             )
 
             while status is None and not stopping:
-
                 stop_reason = stop_signal.test() if stop_signal else TaskStopSignal.default
                 if stop_reason != TaskStopSignal.default:
                     # mark quit loop
@@ -2632,16 +2680,19 @@ class Worker(ServiceCommandSection):
                     if daemon:
                         self.send_logs(
                             task_id=task_id,
-                            lines=["{}: stopping task ({}) {}\n".format(
-                                "User aborted" if stop_reason != TaskStopReason.exception else "Task failed",
-                                stop_reason,
-                                TaskStopReason.to_str(stop_reason))
+                            lines=[
+                                "{}: stopping task ({}) {}\n".format(
+                                    "User aborted" if stop_reason != TaskStopReason.exception else "Task failed",
+                                    stop_reason,
+                                    TaskStopReason.to_str(stop_reason),
+                                )
                             ],
                             level="ERROR",
                             session=session,
                         )
                         kill_all_child_processes(
-                            process.pid, debug=self._session.debug_mode if self._session else False)
+                            process.pid, debug=self._session.debug_mode if self._session else False
+                        )
                 else:
                     sleep(self._polling_interval)
                     status = process.poll()
@@ -2651,8 +2702,11 @@ class Worker(ServiceCommandSection):
                 if stderr:
                     stderr.flush()
 
-                if not stopping and self._task_ping_interval_sec and \
-                        time() - last_task_ping > self._task_ping_interval_sec:
+                if (
+                    not stopping
+                    and self._task_ping_interval_sec
+                    and time() - last_task_ping > self._task_ping_interval_sec
+                ):
                     # noinspection PyBroadException
                     try:
                         res = (session or self._session).send(tasks_api.PingRequest(task=task_id))
@@ -2670,9 +2724,10 @@ class Worker(ServiceCommandSection):
                     # if the internal agent started running the task itself, it will return status==0,
                     # then we can quit the monitoring loop of this process
                     printed_lines, service_mode_internal_agent_started, status = self._check_if_internal_agent_started(
-                        printed_lines, service_mode_internal_agent_started, task_id)
+                        printed_lines, service_mode_internal_agent_started, task_id
+                    )
                     if status is not None:
-                        stop_reason = 'Service started'
+                        stop_reason = "Service started"
 
                 stdout_line_count += report_lines(printed_lines, "stdout", multi_node_single_task)
 
@@ -2701,7 +2756,7 @@ class Worker(ServiceCommandSection):
 
         # if running in services mode, keep the file open
         # in case the docker was so quick it started and finished, check the stop reason
-        if self._services_mode and service_mode_internal_agent_started and stop_reason == 'Service started':
+        if self._services_mode and service_mode_internal_agent_started and stop_reason == "Service started":
             return None, None
 
         # full cleanup (just in case)
@@ -2737,7 +2792,7 @@ class Worker(ServiceCommandSection):
         for i, line in enumerate(printed_lines):
             if not service_mode_internal_agent_started and line.startswith(log_start_msg):
                 service_mode_internal_agent_started = True
-                filter_lines = printed_lines[:i+1]
+                filter_lines = printed_lines[: i + 1]
             elif line.startswith(log_control_end_msg):
                 service_mode_internal_agent_started = True
                 return filter_lines, service_mode_internal_agent_started, 0
@@ -2761,13 +2816,11 @@ class Worker(ServiceCommandSection):
 
         # remove backspaces from the text log, they look bad.
         for i, l in enumerate(lines):
-            lines[i] = l.replace('\x08', '')
+            lines[i] = l.replace("\x08", "")
 
         events_service = self.get_service(Events)
         try:
-            events_service.send_log_events(
-                self.worker_id, task_id=task_id, lines=lines, level=level, session=session
-            )
+            events_service.send_log_events(self.worker_id, task_id=task_id, lines=lines, level=level, session=session)
             return len(lines)
         except Exception as e:
             print("\n### Error sending log: %s ###\n" % e)
@@ -2783,9 +2836,7 @@ class Worker(ServiceCommandSection):
         self.log("Updating task commit ID: %s", repo_info.commit)
         try:
             self._session.send_api(
-                tasks_api.EditRequest(
-                    task_id, script=dict(binary=None, version_num=repo_info.commit), force=True
-                )
+                tasks_api.EditRequest(task_id, script=dict(binary=None, version_num=repo_info.commit), force=True)
             )
         except Exception:
             pass
@@ -2806,8 +2857,9 @@ class Worker(ServiceCommandSection):
             success = False
 
         if not success:
-            raise ValueError("Failed applying git diff:\n{}\n\n"
-                             "ERROR! Failed applying git diff, see diff above.".format(diff))
+            raise ValueError(
+                "Failed applying git diff:\n{}\n\nERROR! Failed applying git diff, see diff above.".format(diff)
+            )
 
     def _apply_extra_configuration(self):
         # store a few things we updated in runtime (TODO: we should list theme somewhere)
@@ -2826,9 +2878,11 @@ class Worker(ServiceCommandSection):
         if vault_loaded:
             for restore_key in agent_config_keys:
                 if restore_key in agent_config and agent_config[restore_key] != config["agent"].get(restore_key, None):
-                    print("Ignoring vault value for '{}' (agent config takes precedence), using '{}'".format(
-                        restore_key, agent_config[restore_key]
-                    ))
+                    print(
+                        "Ignoring vault value for '{}' (agent config takes precedence), using '{}'".format(
+                            restore_key, agent_config[restore_key]
+                        )
+                    )
                     config["agent"][restore_key] = agent_config[restore_key]
 
         default = config.get("agent.apply_environment", False)
@@ -2862,11 +2916,11 @@ class Worker(ServiceCommandSection):
         entry_point=None,
         install_globally=False,
         force_docker=False,
-        **_
+        **_,
     ):
         if not task_id:
             raise CommandFailedError("Worker build must have valid task id")
-        
+
         if target and not os.path.isabs(target):
             # Non absolute target path will lead to errors with relative python executable
             target = os.path.abspath(target)
@@ -2882,8 +2936,10 @@ class Worker(ServiceCommandSection):
 
         if self._session.config.get("agent.package_manager.force_repo_requirements_txt", False):
             requirements = None
-            print("[package_manager.force_repo_requirements_txt=true] "
-                  "Skipping requirements, using repository \"requirements.txt\" ")
+            print(
+                "[package_manager.force_repo_requirements_txt=true] "
+                'Skipping requirements, using repository "requirements.txt" '
+            )
         else:
             try:
                 requirements = current_task.script.requirements
@@ -2894,8 +2950,11 @@ class Worker(ServiceCommandSection):
             python_version = self._get_task_python_version(current_task)
 
         venv_folder, requirements_manager, is_cached, requested_python_version = self.install_virtualenv(
-            venv_dir=target, requested_python_version=python_version, execution_info=execution,
-            cached_requirements=requirements)
+            venv_dir=target,
+            requested_python_version=python_version,
+            execution_info=execution,
+            cached_requirements=requirements,
+        )
 
         if not is_cached and self._default_pip:
             if install_globally and self.global_package_api:
@@ -2919,11 +2978,13 @@ class Worker(ServiceCommandSection):
             # for the external git reference chance (in the replace callback)
             package_api.requirements_manager.update_installed_packages_state(package_api.freeze())
             # make sure we run the handlers
-            cached_requirements = \
-                {k: package_api.requirements_manager.replace(
-                    requirements=requirements[k] or '',
-                    existing_packages=package_api.requirements_manager.get_installed_packages_state())
-                 for k in requirements}
+            cached_requirements = {
+                k: package_api.requirements_manager.replace(
+                    requirements=requirements[k] or "",
+                    existing_packages=package_api.requirements_manager.get_installed_packages_state(),
+                )
+                for k in requirements
+            }
             package_api.load_requirements(cached_requirements)
             # make sure we call the correct freeze
             requirements_manager = package_api.requirements_manager
@@ -2935,11 +2996,12 @@ class Worker(ServiceCommandSection):
                 cached_requirements=requirements,
                 cwd=cwd,
                 package_api=self.global_package_api if install_globally else None,
-                requested_python_version=requested_python_version
+                requested_python_version=requested_python_version,
             )
 
         freeze = self.freeze_task_environment(
-            task_id=task_id, requirements_manager=requirements_manager, update_requirements=False)
+            task_id=task_id, requirements_manager=requirements_manager, update_requirements=False
+        )
         script_dir = directory
 
         # Summary
@@ -2950,7 +3012,7 @@ class Worker(ServiceCommandSection):
         else:
             print("No freeze information available")
 
-        print("Virtual environment: {}".format(venv_folder / 'bin'))
+        print("Virtual environment: {}".format(venv_folder / "bin"))
         print("Source code: {}".format(repo_info.root if repo_info else execution.entry_point))
         print("Entry point: {}".format(Path(script_dir) / execution.entry_point))
 
@@ -2963,7 +3025,7 @@ class Worker(ServiceCommandSection):
             prefix=".cairnml_agent.",
             text=True,
             name_only=True,
-            dir=(ENV_TEMP_STDOUT_FILE_DIR.get() or None)
+            dir=(ENV_TEMP_STDOUT_FILE_DIR.get() or None),
         )
         if not target:
             target = "task_id_{}".format(task_id)
@@ -2977,51 +3039,46 @@ class Worker(ServiceCommandSection):
         docker_setup_script = None
 
         if force_docker:
-            print('Ignoring any task container info, using docker image {}'.format(docker_image))
+            print("Ignoring any task container info, using docker image {}".format(docker_image))
         else:
             # noinspection PyBroadException
             try:
                 task_container = get_task_container(
-                    self._session, task_id, ignore_match_rules=self._docker_default_cmd_override)
-                if (
-                    task_container.get('image')
-                    and not self._session.config.get('agent.disable_task_docker_override', False)
+                    self._session, task_id, ignore_match_rules=self._docker_default_cmd_override
+                )
+                if task_container.get("image") and not self._session.config.get(
+                    "agent.disable_task_docker_override", False
                 ):
-                    docker_image = task_container.get('image')
-                    print('Ignoring default docker image, using task docker image {}'.format(docker_image))
-                    docker_arguments = task_container.get('arguments')
-                    docker_setup_script = task_container.get('setup_shell_script')
+                    docker_image = task_container.get("image")
+                    print("Ignoring default docker image, using task docker image {}".format(docker_image))
+                    docker_arguments = task_container.get("arguments")
+                    docker_setup_script = task_container.get("setup_shell_script")
             except Exception:
                 pass
 
-        print('Building Task {} inside docker image: {} {} setup_script={}\n'.format(
-            task_id, docker_image, docker_arguments or '', docker_setup_script or ''))
+        print(
+            "Building Task {} inside docker image: {} {} setup_script={}\n".format(
+                task_id, docker_image, docker_arguments or "", docker_setup_script or ""
+            )
+        )
         full_docker_cmd = self.docker_image_func(
             docker_image=docker_image, docker_arguments=docker_arguments, docker_bash_setup_script=docker_setup_script
         )
 
         # convert docker template arguments (i.e. ${CAIRNML_} ) based on the current Task
         docker_args_template_resolver = DockerArgsTemplateResolver(
-            task_session=self._session,
-            task_id=task_id,
-            queue_id=None,
-            queue_name=None,
-            worker_id=None,
-            task_info=None
+            task_session=self._session, task_id=task_id, queue_id=None, queue_name=None, worker_id=None, task_info=None
         )
-        full_docker_cmd = docker_args_template_resolver.resolve_from_docker_cmd(
-            full_docker_cmd=full_docker_cmd)
+        full_docker_cmd = docker_args_template_resolver.resolve_from_docker_cmd(full_docker_cmd=full_docker_cmd)
 
         end_of_build_marker = "build.done=true"
-        docker_cmd_suffix = ' build --id {task_id} --install-globally; ' \
-                            'ORG=$(stat -c "%u:%g" {conf_file}) ; chown $(whoami):$(whoami) {conf_file} ; ' \
-                            'echo "" >> {conf_file} ; echo {end_of_build_marker} >> {conf_file} ; ' \
-                            'chown $ORG {conf_file} ; ' \
-                            'bash'.format(
-                                task_id=task_id,
-                                end_of_build_marker=end_of_build_marker,
-                                conf_file=DOCKER_ROOT_CONF_FILE
-                            )
+        docker_cmd_suffix = (
+            " build --id {task_id} --install-globally; "
+            'ORG=$(stat -c "%u:%g" {conf_file}) ; chown $(whoami):$(whoami) {conf_file} ; '
+            'echo "" >> {conf_file} ; echo {end_of_build_marker} >> {conf_file} ; '
+            "chown $ORG {conf_file} ; "
+            "bash".format(task_id=task_id, end_of_build_marker=end_of_build_marker, conf_file=DOCKER_ROOT_CONF_FILE)
+        )
         full_docker_cmd[-1] = full_docker_cmd[-1] + docker_cmd_suffix
         cmd = Argv(*full_docker_cmd)
 
@@ -3030,7 +3087,7 @@ class Worker(ServiceCommandSection):
         base_time_stamp = temp_config.stat().st_mtime
 
         # start the docker
-        print('Starting docker build')
+        print("Starting docker build")
         cmd.call_subprocess(subprocess.Popen)
 
         # now we need to wait until the line shows on our configuration file.
@@ -3045,31 +3102,33 @@ class Worker(ServiceCommandSection):
                 # print("Failed reading status file [{}], retrying in 2 seconds".format(ex))
                 sleep(2.0)
 
-            if 'build.done=true' in lines:
+            if "build.done=true" in lines:
                 break
             base_time_stamp = temp_config.stat().st_mtime
 
-        print('\nDocker build done')
+        print("\nDocker build done")
 
         # get the docker id.
-        docker_id = get_docker_id(docker_cmd_contains='--id {} '.format(task_id))
+        docker_id = get_docker_id(docker_cmd_contains="--id {} ".format(task_id))
         if not docker_id:
             print("Error: cannot locate docker for storage")
             return
 
         if entry_point == "clone_task" or entry_point == "reuse_task":
-            change = 'ENTRYPOINT if [ ! -s "{trains_conf}" ] ; then ' \
-                     'cp {default_trains_conf} {trains_conf} && export CAIRNML_CONFIG_FILE={trains_conf}; ' \
-                     ' fi ; cairnml-agent execute --id {task_id} --standalone-mode {clone}'.format(
-                        default_trains_conf=DOCKER_DEFAULT_CONF_FILE,
-                        trains_conf=DOCKER_ROOT_CONF_FILE,
-                        task_id=task_id,
-                        clone=("--clone" if entry_point == "clone_task" else ""),
-                     )
+            change = (
+                'ENTRYPOINT if [ ! -s "{trains_conf}" ] ; then '
+                "cp {default_trains_conf} {trains_conf} && export CAIRNML_CONFIG_FILE={trains_conf}; "
+                " fi ; cairnml-agent execute --id {task_id} --standalone-mode {clone}".format(
+                    default_trains_conf=DOCKER_DEFAULT_CONF_FILE,
+                    trains_conf=DOCKER_ROOT_CONF_FILE,
+                    task_id=task_id,
+                    clone=("--clone" if entry_point == "clone_task" else ""),
+                )
+            )
         else:
-            change = 'ENTRYPOINT []'
+            change = "ENTRYPOINT []"
 
-        print('Committing docker container to: {}'.format(target))
+        print("Committing docker container to: {}".format(target))
         print(commit_docker(container_name=target, docker_id=docker_id, apply_change=change))
         shutdown_docker_process(docker_id=docker_id)
 
@@ -3082,17 +3141,17 @@ class Worker(ServiceCommandSection):
         # noinspection PyBroadException
         try:
             python_ver = task.script.binary
-            python_ver = python_ver.split('/')[-1]
+            python_ver = python_ver.split("/")[-1]
             if not python_ver.startswith("python"):
                 return None
 
-            python_ver = python_ver.replace('python', '')
+            python_ver = python_ver.replace("python", "")
             # if we can cast it, we are good
-            parts = python_ver.split('.')
+            parts = python_ver.split(".")
             if len(parts) < 2:
-                return '{}'.format(int(parts[0]))
+                return "{}".format(int(parts[0]))
             else:
-                return '{}.{}'.format(int(parts[0]), int(parts[1]))
+                return "{}.{}".format(int(parts[0]), int(parts[1]))
         except Exception:
             return None
 
@@ -3109,7 +3168,7 @@ class Worker(ServiceCommandSection):
         standalone_mode=None,
         docker=False,
         clone=False,
-        **_
+        **_,
     ):
         self._standalone_mode = standalone_mode
 
@@ -3122,9 +3181,7 @@ class Worker(ServiceCommandSection):
                 pass
         except AttributeError as ex:
             raise ValueError(
-                "Could not find task id={} (for host: {})".format(
-                    task_id, self._session.config.get("api.host", "")
-                )
+                "Could not find task id={} (for host: {})".format(task_id, self._session.config.get("api.host", ""))
             ) from ex
         except Exception as ex:
             raise ValueError(
@@ -3135,8 +3192,9 @@ class Worker(ServiceCommandSection):
 
         # check if we have bootstrap only if we are in docker mode
         if docker not in (False, None):
-            if (bootstrap.check_bootstrap_package_install(config=self._session.config) and
-                    bootstrap.update_bootstrap(config=self._session.config)):
+            if bootstrap.check_bootstrap_package_install(config=self._session.config) and bootstrap.update_bootstrap(
+                config=self._session.config
+            ):
                 self._bootstrap = True
 
         # if we are in bootstrap compiled execution run, there is no actual python executable and env.
@@ -3196,29 +3254,31 @@ class Worker(ServiceCommandSection):
         os.environ.update(self._get_task_os_env(self._session.config, current_task) or dict())
 
         # Add the script CWD to the python path
-        if repo_info and repo_info.root and self._session.config.get('agent.force_git_root_python_path', None):
-            python_path = get_python_path(repo_info.root, None, self.package_api,
-                                          is_conda_env=self.is_conda or self.uv.enabled)
+        conda = self.is_conda or self.uv.enabled
+        if repo_info and repo_info.root and self._session.config.get("agent.force_git_root_python_path", None):
+            python_path = get_python_path(repo_info.root, None, self.package_api, is_conda_env=conda)
         else:
-            python_path = get_python_path(script_dir, execution.entry_point, self.package_api,
-                                          is_conda_env=self.is_conda or self.uv.enabled)
+            python_path = get_python_path(script_dir, execution.entry_point, self.package_api, is_conda_env=conda)
         if ENV_TASK_EXTRA_PYTHON_PATH.get():
             python_path = add_python_path(python_path, ENV_TASK_EXTRA_PYTHON_PATH.get())
         if python_path:
-            os.environ['PYTHONPATH'] = os.pathsep.join(filter(None, (os.environ.get('PYTHONPATH', None), python_path)))
+            os.environ["PYTHONPATH"] = os.pathsep.join(filter(None, (os.environ.get("PYTHONPATH", None), python_path)))
 
         # check if we want to run as another user, only supported on linux
-        # Note: User execution requires a virtual environment, so it's disabled when 
+        # Note: User execution requires a virtual environment, so it's disabled when
         # ENV_AGENT_SKIP_PYTHON_ENV_INSTALL is set
         if ENV_TASK_EXECUTE_AS_USER.get() and is_linux_platform() and not ENV_AGENT_SKIP_PYTHON_ENV_INSTALL.get():
             command, script_dir = self._run_as_user_patch(
-                command, self._session.config_file,
-                script_dir, venv_folder,
-                self._session.config.get('sdk.storage.cache.default_base_dir'),
-                ENV_TASK_EXECUTE_AS_USER.get())
+                command,
+                self._session.config_file,
+                script_dir,
+                venv_folder,
+                self._session.config.get("sdk.storage.cache.default_base_dir"),
+                ENV_TASK_EXECUTE_AS_USER.get(),
+            )
             use_execv = False
         else:
-            use_execv = is_linux_platform() and not isinstance(self.package_api, (PoetryAPI, UvAPI ,CondaAPI))
+            use_execv = is_linux_platform() and not isinstance(self.package_api, (PoetryAPI, UvAPI, CondaAPI))
 
         self._session.api_client.tasks.started(
             task=current_task.id,
@@ -3235,12 +3295,12 @@ class Worker(ServiceCommandSection):
                 session=self._session,
                 events_service=self.get_service(Events),
                 task_id=task_id,
-                bash_cwd=script_dir
+                bash_cwd=script_dir,
             )
             stop_signal.start_monitor_thread(polling_interval_sec=self._polling_interval)
 
         # check if we need to add encoding to the subprocess
-        if sys.getfilesystemencoding() == 'ascii' and not os.environ.get("PYTHONIOENCODING"):
+        if sys.getfilesystemencoding() == "ascii" and not os.environ.get("PYTHONIOENCODING"):
             os.environ["PYTHONIOENCODING"] = "utf-8"
 
         # remove our internal env
@@ -3254,8 +3314,9 @@ class Worker(ServiceCommandSection):
         command.update_envs(os.environ)
 
         print("Starting Task Execution: {}\n".format(current_task.id))
-        exit_code = self._run_command(current_task, command, script_dir, use_execv,
-                                      disable_monitoring, log_file, stop_signal)
+        exit_code = self._run_command(
+            current_task, command, script_dir, use_execv, disable_monitoring, log_file, stop_signal
+        )
 
         return self._finish_run(current_task, exit_code, disable_monitoring, stop_signal)
 
@@ -3263,7 +3324,9 @@ class Worker(ServiceCommandSection):
         """Choose the Python and package manager for a compiled (bootstrap) agent before the task runs."""
         if "__compiled__" in globals():
             self._compiled = True
-            print("INFO: COMPILED BOOTSTRAP AGENT detected - Running as a compiled binary - Verifying or creating Python environment")
+            print(
+                "INFO: COMPILED BOOTSTRAP AGENT detected - Running as a compiled binary - Verifying or creating Python environment"
+            )
 
             # Get the Task requested execution binary (e.g. "python3", "python3.9", "/usr/bin/python3.10")
             task_exec_binary = None
@@ -3277,14 +3340,16 @@ class Worker(ServiceCommandSection):
 
             # Check if task_exec_binary looks like a python version string
             # (e.g. "python", "python3", "python3.9", "python3.9.10")
-            is_python_binary = bool(
-                task_exec_binary and re.match(r'^python\d*(\.\d+)*$', task_exec_binary)
-            )
+            is_python_binary = bool(task_exec_binary and re.match(r"^python\d*(\.\d+)*$", task_exec_binary))
             if not is_python_binary:
-                print(f"INFO: Task binary '{task_exec_binary}' is not a Python version identifier, defaulting to 'python3' for bootstrapping")
+                print(
+                    f"INFO: Task binary '{task_exec_binary}' is not a Python version identifier, defaulting to 'python3' for bootstrapping"
+                )
                 task_exec_binary = "python3"
 
-            print(f"INFO: Task requested execution binary: '{current_task.script.binary}', using '{task_exec_binary}' for bootstrapping")
+            print(
+                f"INFO: Task requested execution binary: '{current_task.script.binary}', using '{task_exec_binary}' for bootstrapping"
+            )
 
             # Check what package manager the user requested
             requested_pkg_manager = self._session.config.get("agent.package_manager.type", None)
@@ -3303,13 +3368,17 @@ class Worker(ServiceCommandSection):
 
             use_uv = True  # default to UV for compiled agent
 
-            if requested_pkg_manager not in ("pip", ):
+            if requested_pkg_manager not in ("pip",):
                 # UV (explicit or default): use the requested Python if found, otherwise UV will install it
                 if not found_python:
-                    print(f"INFO: No Python executable found matching '{task_exec_binary}' - UV will provide Python and manage packages")
+                    print(
+                        f"INFO: No Python executable found matching '{task_exec_binary}' - UV will provide Python and manage packages"
+                    )
                 else:
                     sys.executable = found_python
-                    print(f"INFO: Found Python executable: '{sys.executable}' (version {found_python_version or 'unknown'}), UV will use it")
+                    print(
+                        f"INFO: Found Python executable: '{sys.executable}' (version {found_python_version or 'unknown'}), UV will use it"
+                    )
             else:
                 # User wants pip: find any available Python on the system (even if not the exact requested version)
                 # find_python_executable_for_version already falls back progressively
@@ -3321,14 +3390,19 @@ class Worker(ServiceCommandSection):
                         print("INFO: Enabling uv_unsafe_best_match for UV fallback")
                 else:
                     sys.executable = found_python
-                    print(f"INFO: Found Python executable: '{sys.executable}' (version {found_python_version or 'unknown'})")
+                    print(
+                        f"INFO: Found Python executable: '{sys.executable}' (version {found_python_version or 'unknown'})"
+                    )
                     # Check if pip is actually available with this Python
                     print(f"INFO: pip requested, checking if pip is available with '{sys.executable}'...")
                     try:
-                        pip_version = subprocess.check_output(
-                            [sys.executable, "-m", "pip", "--version"],
-                            stderr=subprocess.DEVNULL
-                        ).decode("utf-8", errors="replace").strip()
+                        pip_version = (
+                            subprocess.check_output(
+                                [sys.executable, "-m", "pip", "--version"], stderr=subprocess.DEVNULL
+                            )
+                            .decode("utf-8", errors="replace")
+                            .strip()
+                        )
                         use_uv = False
                         print(f"INFO: pip is available [{pip_version}], using pip as package manager")
                     except (subprocess.CalledProcessError, OSError, FileNotFoundError):
@@ -3344,9 +3418,11 @@ class Worker(ServiceCommandSection):
 
             self._session.config.put("agent.package_manager.uv_replace_pip", True)
 
-            print(f"INFO: COMPILED BOOTSTRAP AGENT pre-setup initialization complete - "
-                  f"python='{sys.executable or 'none - Pending UV installation'}', "
-                  f"package_manager='{self._session.config.get('agent.package_manager.type', 'not set')}'")
+            print(
+                f"INFO: COMPILED BOOTSTRAP AGENT pre-setup initialization complete - "
+                f"python='{sys.executable or 'none - Pending UV installation'}', "
+                f"package_manager='{self._session.config.get('agent.package_manager.type', 'not set')}'"
+            )
 
     def _clone_or_dequeue(self, task_id, current_task, clone, require_queue):
         """Clone the task (for a clone run), or move it out of the queue and mark it started."""
@@ -3356,8 +3432,7 @@ class Worker(ServiceCommandSection):
                 current_task = self._session.api_client.tasks.get_by_id(
                     self._session.send_api(
                         tasks_api.CloneRequest(
-                            task=current_task.id,
-                            new_task_name="Clone of {}".format(current_task.name)
+                            task=current_task.id, new_task_name="Clone of {}".format(current_task.name)
                         )
                     ).id
                 )
@@ -3369,7 +3444,9 @@ class Worker(ServiceCommandSection):
             # noinspection PyBroadException
             try:
                 res = self._session.send_request(
-                    service="tasks", action="dequeue", method=Request.def_method,
+                    service="tasks",
+                    action="dequeue",
+                    method=Request.def_method,
                     json={"task": current_task.id, "new_status": "in_progress"},
                 )
                 if require_queue and (not res.ok or res.json().get("data", {}).get("updated", 0) < 1):
@@ -3403,7 +3480,7 @@ class Worker(ServiceCommandSection):
                 prefix=".cairnml_agent.",
                 text=True,
                 name_only=True,
-                dir=(ENV_TEMP_STDOUT_FILE_DIR.get() or None)
+                dir=(ENV_TEMP_STDOUT_FILE_DIR.get() or None),
             )
             self.dump_config(filename=self.temp_config_path, config=self._session.pre_vault_config)
             self._session._config_file = self.temp_config_path
@@ -3413,11 +3490,11 @@ class Worker(ServiceCommandSection):
             config_file=self._session.config_file,
             debug=self._session.debug_mode,
             trace=self._session.trace,
-            program_invocation=sys.argv[:1] if self._compiled else None
+            program_invocation=sys.argv[:1] if self._compiled else None,
         )
         try:
             self.report_monitor(ResourceMonitor.StatusReport(task=current_task.id))
-            status = self.run_one_task(queue='', task_id=current_task.id, worker_args=worker_params, docker=docker)
+            status = self.run_one_task(queue="", task_id=current_task.id, worker_args=worker_params, docker=docker)
         finally:
             self.stop_monitor()
             self._unregister()
@@ -3433,11 +3510,11 @@ class Worker(ServiceCommandSection):
 
         extra = []
         if is_python_binary:
-            extra = ['-u', ]
+            extra = [
+                "-u",
+            ]
             if optimization:
-                extra.append(
-                    WorkerParams(optimization=optimization).get_optimization_flag()
-                )
+                extra.append(WorkerParams(optimization=optimization).get_optimization_flag())
         elif is_bash_binary:
             # if we needed some arguments for bash, that's where we will add them
             extra = []
@@ -3447,7 +3524,7 @@ class Worker(ServiceCommandSection):
         # check if this is a module load, then load it.
         # noinspection PyBroadException
         try:
-            if is_python_binary and execution.entry_point and execution.entry_point.strip().split()[0].strip() == '-m':
+            if is_python_binary and execution.entry_point and execution.entry_point.strip().split()[0].strip() == "-m":
                 # do not parse $env when running as user
                 if "$" in execution.entry_point and not ENV_TASK_EXECUTE_AS_USER.get() and is_linux_platform():
                     print("INFO: parsing environment variables: {}".format(execution.entry_point))
@@ -3463,9 +3540,9 @@ class Worker(ServiceCommandSection):
                     parsed_cmd = shlex.split(execution.entry_point)
                     script_full_path = Path(script_dir) / parsed_cmd[0]
                     extra.extend(parsed_cmd)
-            elif (is_python_binary and execution.entry_point and
-                  execution.entry_point.strip().lower().endswith('.ipynb')):
-
+            elif (
+                is_python_binary and execution.entry_point and execution.entry_point.strip().lower().endswith(".ipynb")
+            ):
                 # now we have to convert the notebook to python
                 convert_extra = copy(extra)
                 convert_extra.extend(["-m", "nbconvert", "--to", "python", execution.entry_point])
@@ -3473,14 +3550,15 @@ class Worker(ServiceCommandSection):
 
                 exit_code = convert_command.check_call(cwd=script_dir)
                 if exit_code:
-                    raise ValueError("Failed [{}] converting jupyter notebook: {}".format(
-                        exit_code, execution.entry_point))
+                    raise ValueError(
+                        "Failed [{}] converting jupyter notebook: {}".format(exit_code, execution.entry_point)
+                    )
 
                 converted_script_filename = Path(execution.entry_point).with_suffix(".py").as_posix()
                 script_full_path = Path(script_dir) / converted_script_filename
 
                 extra.append(converted_script_filename)
-            elif is_bash_binary and execution.entry_point and execution.entry_point.strip().split()[0].strip() == '-c':
+            elif is_bash_binary and execution.entry_point and execution.entry_point.strip().split()[0].strip() == "-c":
                 extra.append("-c")
                 extra.append(" ".join(execution.entry_point.strip().split()[1:]))
             else:
@@ -3488,8 +3566,11 @@ class Worker(ServiceCommandSection):
                     parsed_cmd = shlex.split(execution.entry_point)
                     script_full_path = Path(script_dir) / parsed_cmd[0]
                     extra.extend(parsed_cmd)
-                    print("INFO: script entrypoint contains args, "
-                          "parsing and passing directly to execution: {}".format(extra))
+                    print(
+                        "INFO: script entrypoint contains args, parsing and passing directly to execution: {}".format(
+                            extra
+                        )
+                    )
                 else:
                     script_full_path = Path(script_dir) / execution.entry_point
                     extra.append(execution.entry_point)
@@ -3520,11 +3601,12 @@ class Worker(ServiceCommandSection):
         """
         # if we have no repository and binary not python and no requirements.txt
         # then skip python env creation
-        no_requirements = bool(
-            not current_task.script.requirements or not current_task.script.requirements.get('pip')
-        )
-        if (not execution.repository and no_requirements and
-                (current_task.script.binary and 'python' not in str(current_task.script.binary))):
+        no_requirements = bool(not current_task.script.requirements or not current_task.script.requirements.get("pip"))
+        if (
+            not execution.repository
+            and no_requirements
+            and (current_task.script.binary and "python" not in str(current_task.script.binary))
+        ):
             ENV_AGENT_SKIP_PYTHON_ENV_INSTALL.set(1)
 
         if ENV_AGENT_FORCE_EXEC_SCRIPT.get():
@@ -3604,19 +3686,27 @@ class Worker(ServiceCommandSection):
                     OnlyExternalRequirements.cwd = package_api.cwd = cwd
                     package_api.requirements_manager = self._get_requirements_manager(
                         base_interpreter=package_api.requirements_manager.get_interpreter(),
-                        requirement_substitutions=[LocalSdkRequirement, CachedPackageRequirement, OnlyExternalRequirements]
+                        requirement_substitutions=[
+                            LocalSdkRequirement,
+                            CachedPackageRequirement,
+                            OnlyExternalRequirements,
+                        ],
                     )
                     # manually update the current state,
                     # for the external git reference chance (in the replaced callback)
                     package_api.requirements_manager.update_installed_packages_state(package_api.freeze())
                     # make sure we run the handlers
-                    cached_requirements = \
-                        {k: package_api.requirements_manager.replace(
-                            requirements=requirements[k] or '',
-                            existing_packages=package_api.requirements_manager.get_installed_packages_state())
-                         for k in requirements}
-                    if str(cached_requirements.get('pip', '')).strip() \
-                            or str(cached_requirements.get('conda', '')).strip():
+                    cached_requirements = {
+                        k: package_api.requirements_manager.replace(
+                            requirements=requirements[k] or "",
+                            existing_packages=package_api.requirements_manager.get_installed_packages_state(),
+                        )
+                        for k in requirements
+                    }
+                    if (
+                        str(cached_requirements.get("pip", "")).strip()
+                        or str(cached_requirements.get("conda", "")).strip()
+                    ):
                         package_api.load_requirements(cached_requirements)
                     # make sure we call the correct freeze
                     requirements_manager = package_api.requirements_manager
@@ -3638,12 +3728,12 @@ class Worker(ServiceCommandSection):
 
             freeze = self._take_freeze(current_task, execution, requirements_manager, venv_folder, no_requirements)
 
-            script_dir = (directory if isinstance(directory, Path) else Path(directory)
-                          ).expanduser().absolute().as_posix()
+            script_dir = (
+                (directory if isinstance(directory, Path) else Path(directory)).expanduser().absolute().as_posix()
+            )
         return freeze, repo_info, script_dir, venv_folder
 
-    def _run_command(self, current_task, command, script_dir, use_execv, disable_monitoring, log_file,
-                     stop_signal):
+    def _run_command(self, current_task, command, script_dir, use_execv, disable_monitoring, log_file, stop_signal):
         """Run the task command: exec it when monitoring is off, otherwise run it and store its output."""
         exit_code = -1
         try:
@@ -3653,7 +3743,7 @@ class Worker(ServiceCommandSection):
                     sys.stderr.flush()
                     os.chdir(script_dir)
                     if use_execv:
-                        os.execv(command.argv[0].as_posix(), tuple([command.argv[0].as_posix()])+command.argv[1:])
+                        os.execv(command.argv[0].as_posix(), tuple([command.argv[0].as_posix()]) + command.argv[1:])
                     else:
                         exit_code = command.check_call(cwd=script_dir)
                         # if we have an on_abort callback still running, wait for it
@@ -3675,7 +3765,7 @@ class Worker(ServiceCommandSection):
                     suffix=".txt",
                     prefix=".cairnml_agent_out.",
                     name_only=True,
-                    dir=(ENV_TEMP_STDOUT_FILE_DIR.get() or None)
+                    dir=(ENV_TEMP_STDOUT_FILE_DIR.get() or None),
                 )
                 print("Storing stdout and stderr log into [%s]" % temp_stdout_fname)
                 exit_code, _ = self._log_command_output(
@@ -3729,9 +3819,7 @@ class Worker(ServiceCommandSection):
             try:
                 venv_folder = Path(self._session.config["agent.venvs_dir"], python_ver or "3")
                 venv_folder = Path(os.path.expanduser(os.path.expandvars(venv_folder.as_posix())))
-                directory, vcs, repo_info = self.get_repo_info(
-                    execution, current_task, str(venv_folder)
-                )
+                directory, vcs, repo_info = self.get_repo_info(execution, current_task, str(venv_folder))
                 binary, entry_point, working_dir = self.run_custom_build_script(
                     custom_build_script,
                     current_task,
@@ -3767,21 +3855,27 @@ class Worker(ServiceCommandSection):
         """Return the requirements the task asks for, or the repository's or the original ones when the configuration says so."""
         if self._session.config.get("agent.package_manager.force_repo_requirements_txt", False):
             requirements = None
-            print("\n[package_manager.force_repo_requirements_txt=true] "
-                  "Skipping requirements, using repository \"requirements.txt\" \n")
+            print(
+                "\n[package_manager.force_repo_requirements_txt=true] "
+                'Skipping requirements, using repository "requirements.txt" \n'
+            )
         elif self._session.config.get("agent.package_manager.force_original_requirements", False):
             try:
                 requirements = current_task.script.requirements
                 if isinstance(requirements, dict):
                     # prefer "pip" we do not fill in "conda" entry in the SDK
-                    if 'org_pip' in requirements:
-                        requirements['pip'] = requirements['org_pip']
-                        print("\n[package_manager.force_original_requirements=true] "
-                              "Using original requirements: \n{}\n".format(requirements['org_pip']))
-                    elif 'org_conda' in requirements:
-                        requirements['conda'] = requirements['org_conda']
-                        print("\n[package_manager.force_original_requirements=true] "
-                              "Using original requirements: \n{}\n".format(requirements['org_conda']))
+                    if "org_pip" in requirements:
+                        requirements["pip"] = requirements["org_pip"]
+                        print(
+                            "\n[package_manager.force_original_requirements=true] "
+                            "Using original requirements: \n{}\n".format(requirements["org_pip"])
+                        )
+                    elif "org_conda" in requirements:
+                        requirements["conda"] = requirements["org_conda"]
+                        print(
+                            "\n[package_manager.force_original_requirements=true] "
+                            "Using original requirements: \n{}\n".format(requirements["org_conda"])
+                        )
             except AttributeError:
                 requirements = None
         else:
@@ -3797,7 +3891,8 @@ class Worker(ServiceCommandSection):
         # do not update the task packages if we are using conda,
         # it will most likely make the task environment unreproducible
         skip_freeze_update = self.is_conda and not self._session.config.get(
-            "agent.package_manager.conda_full_env_update", False)
+            "agent.package_manager.conda_full_env_update", False
+        )
 
         # skip update requirements on nodes that are not Rank 0 (only update requirements on RANK 0)
         if self._get_node_rank():
@@ -3825,25 +3920,22 @@ class Worker(ServiceCommandSection):
             "log_to_backend": "0",
             "config_file": self._session.config_file,  # The config file is the tmp file that cairnml_agent created
         }
-        envs = {
-            sdk_key: str(value)
-            for key, value in sdk_env.items()
-            for sdk_key in ENVIRONMENT_SDK_PARAMS[key]
-        }
+        envs = {sdk_key: str(value) for key, value in sdk_env.items() for sdk_key in ENVIRONMENT_SDK_PARAMS[key]}
         return envs
 
     def _get_task_os_env(self, config, current_task):
-        if not config.get('agent.enable_task_env', None):
+        if not config.get("agent.enable_task_env", None):
             return None
-        if not self._session.check_min_api_version('2.9'):
+        if not self._session.check_min_api_version("2.9"):
             return None
         # noinspection PyBroadException
         try:
-            hyper_params = self._session.get(
-                service="tasks", action="get_hyper_params", tasks=[current_task.id])
+            hyper_params = self._session.get(service="tasks", action="get_hyper_params", tasks=[current_task.id])
             hyper_params = {
-                str(p['name']): str(p['value'])
-                for p in hyper_params['params'][0]['hyperparams'] if p['section'] == 'Environment'}
+                str(p["name"]): str(p["value"])
+                for p in hyper_params["params"][0]["hyperparams"]
+                if p["section"] == "Environment"
+            }
 
             return hyper_params
         except Exception:
@@ -3860,15 +3952,12 @@ class Worker(ServiceCommandSection):
             execution = ExecutionInfo.from_task(current_task)
         except Exception as e:
             self.error("Could not parse task execution info: {}".format(e.args[0]))
-            current_task.failed(
-                status_reason=e.args[0], status_message=self._task_status_change_message
-            )
+            current_task.failed(status_reason=e.args[0], status_message=self._task_status_change_message)
             self.exit(e.args[0])
 
         if "\\" in execution.working_dir:
             warning(
-                'Working dir "{}" contains backslashes. '
-                "All path separators must be forward slashes.".format(
+                'Working dir "{}" contains backslashes. All path separators must be forward slashes.'.format(
                     execution.working_dir
                 )
             )
@@ -3876,8 +3965,8 @@ class Worker(ServiceCommandSection):
         print("Executing task id [%s]:" % current_task.id)
         sanitized_execution = attr.evolve(
             execution,
-            docker_cmd=" ".join(DockerArgsSanitizer.sanitize_docker_command(
-                self._session, shlex.split(execution.docker_cmd or ""))
+            docker_cmd=" ".join(
+                DockerArgsSanitizer.sanitize_docker_command(self._session, shlex.split(execution.docker_cmd or ""))
             ),
         )
         for pair in attr.asdict(sanitized_execution).items():
@@ -3907,9 +3996,7 @@ class Worker(ServiceCommandSection):
             for pair in attr.asdict(repo_info).items():
                 print("{}: {}".format(*pair))
             if not is_literal_script:
-                self.apply_diff(
-                    task=task, vcs=vcs, execution_info=execution, repo_info=repo_info
-                )
+                self.apply_diff(task=task, vcs=vcs, execution_info=execution, repo_info=repo_info)
             script_file = Path(directory) / execution.entry_point
             if not script_file.is_file():
                 # try to parse with shlex
@@ -3920,9 +4007,7 @@ class Worker(ServiceCommandSection):
 
         if is_literal_script:
             self.log.info("found literal script in `script.diff`")
-            directory, entry_point, script = literal_script.create_notebook_file(
-                task, execution, repo_info
-            )
+            directory, entry_point, script = literal_script.create_notebook_file(task, execution, repo_info)
             execution.entry_point = entry_point
             script_file = Path(script)
         else:
@@ -3956,7 +4041,7 @@ class Worker(ServiceCommandSection):
         except CommandFailedError:
             raise
         except Exception as ex:
-            print('Repository cloning failed: {}'.format(ex))
+            print("Repository cloning failed: {}".format(ex))
             task.failed(
                 status_reason="failed cloning repository",
                 status_message=self._task_status_change_message,
@@ -3967,7 +4052,8 @@ class Worker(ServiceCommandSection):
                 "Failed cloning repository. \n"
                 "1) Make sure you pushed the requested commit:\n{}\n"
                 "2) Check if remote-worker has valid credentials [see worker configuration file]".format(
-                    str(execution).replace('ExecutionInfo', '', 1).replace('version_num', 'commit_id', 1))
+                    str(execution).replace("ExecutionInfo", "", 1).replace("version_num", "commit_id", 1)
+                )
             ) from ex
         return vcs, repo_info
 
@@ -3977,9 +4063,7 @@ class Worker(ServiceCommandSection):
         try:
             if stop_reason == TaskStopReason.stopped:
                 # do not change the status to stopped if the Task status is already failed
-                task_status = get_task(
-                    session, task_id, only_fields=["status"]
-                ).status
+                task_status = get_task(session, task_id, only_fields=["status"]).status
                 if str(task_status) == "failed":
                     self.send_logs(task_id, ["Process aborted by user - Task status was Failed"], session=session)
                     self.log("Stopping - task was already marked as failed")
@@ -3991,23 +4075,21 @@ class Worker(ServiceCommandSection):
                             task=task_id,
                             status_reason="task was stopped by tasks.stop",
                             status_message=self._task_status_change_message,
-                            force=False
+                            force=False,
                         )
                     )
 
             elif stop_reason == TaskStopReason.status_changed:
                 try:
-                    task_status = get_task(
-                        session, task_id, only_fields=["status"]
-                    ).status
+                    task_status = get_task(session, task_id, only_fields=["status"]).status
                     self.log(
-                        "Task status changed unexpectedly (status: {}), "
-                        "terminating task process.".format(task_status)
+                        "Task status changed unexpectedly (status: {}), terminating task process.".format(task_status)
                     )
                 except Exception as ex:
                     self.log(
-                        "Task status changed unexpectedly. Was not able to obtain the current status: "
-                        "{}: {}".format(type(ex), ex)
+                        "Task status changed unexpectedly. Was not able to obtain the current status: {}: {}".format(
+                            type(ex), ex
+                        )
                     )
                     self.log_traceback(ex)
 
@@ -4021,19 +4103,11 @@ class Worker(ServiceCommandSection):
                 self.log("Task not found")
 
             else:
-                self.log(
-                    "INTERNAL ERROR: unidentified task stop reason: {}".format(
-                        stop_reason
-                    )
-                )
+                self.log("INTERNAL ERROR: unidentified task stop reason: {}".format(stop_reason))
 
         except Exception as e:
             # task probably set its own status
-            self.log(
-                "Warning: could not update task id '{}' status. Task exit code {}".format(
-                    task_id, exit_code
-                )
-            )
+            self.log("Warning: could not update task id '{}' status. Task exit code {}".format(task_id, exit_code))
             self.log_traceback(e)
 
     @staticmethod
@@ -4041,7 +4115,7 @@ class Worker(ServiceCommandSection):
         # type: () -> int
         # noinspection PyBroadException
         try:
-            rank = int(os.environ.get("RANK", os.environ.get('SLURM_PROCID')) or 0)
+            rank = int(os.environ.get("RANK", os.environ.get("SLURM_PROCID")) or 0)
         except Exception:
             rank = 0
         return rank
@@ -4066,7 +4140,7 @@ class Worker(ServiceCommandSection):
                         status_message=self._task_status_change_message,
                     )
                 )
-        elif exit_code in (ExitStatus.interrupted, 256+ExitStatus.interrupted):
+        elif exit_code in (ExitStatus.interrupted, 256 + ExitStatus.interrupted):
             self.log("Task interrupted: stopping" + rank_text)
             self.send_logs(task_id, ["Process terminated by user" + rank_text], session=session)
             if not rank:
@@ -4089,8 +4163,14 @@ class Worker(ServiceCommandSection):
                     )
                 )
 
-    def freeze_task_environment(self, task_id=None, requirements_manager=None,
-                                add_venv_folder_cache=None, execution_info=None, update_requirements=False):
+    def freeze_task_environment(
+        self,
+        task_id=None,
+        requirements_manager=None,
+        add_venv_folder_cache=None,
+        execution_info=None,
+        update_requirements=False,
+    ):
         try:
             freeze = self.package_api.freeze()
         except Exception as e:
@@ -4112,10 +4192,10 @@ class Worker(ServiceCommandSection):
             requirements = current_task.script.requirements
             previous_reqs = dict(**requirements)
             # replace only once.
-            if requirements.get('pip') and not requirements.get('org_pip'):
-                requirements['org_pip'] = requirements.pop('pip')
-            if requirements.get('conda') and not requirements.get('org_conda'):
-                requirements['org_conda'] = requirements.pop('conda')
+            if requirements.get("pip") and not requirements.get("org_pip"):
+                requirements["org_pip"] = requirements.pop("pip")
+            if requirements.get("conda") and not requirements.get("org_conda"):
+                requirements["org_conda"] = requirements.pop("conda")
             requirements.update(freeze)
         except Exception:
             requirements = freeze
@@ -4124,18 +4204,20 @@ class Worker(ServiceCommandSection):
         # Todo: add support for poetry caching
         if not self.poetry.enabled and not self.uv.enabled:
             # disable caching if we skipped the venv creation or the entire python setup
-            if add_venv_folder_cache and not self._standalone_mode and (
-                not ENV_AGENT_SKIP_PIP_VENV_INSTALL.get() and
-                not ENV_AGENT_SKIP_PYTHON_ENV_INSTALL.get()
+            if (
+                add_venv_folder_cache
+                and not self._standalone_mode
+                and (not ENV_AGENT_SKIP_PIP_VENV_INSTALL.get() and not ENV_AGENT_SKIP_PYTHON_ENV_INSTALL.get())
             ):
                 # add to cache
                 self.package_api.add_cached_venv(
                     requirements=[freeze, previous_reqs],
                     docker_cmd=execution_info.docker_cmd if execution_info else None,
-                    python_version=getattr(self.package_api, 'python', ''),
+                    python_version=getattr(self.package_api, "python", ""),
                     cuda_version=self._session.config.get("agent.cuda_version"),
                     source_folder=add_venv_folder_cache,
-                    exclude_sub_folders=[WORKING_REPOSITORY_DIR, WORKING_STANDALONE_DIR])
+                    exclude_sub_folders=[WORKING_REPOSITORY_DIR, WORKING_STANDALONE_DIR],
+                )
 
         # If do not update back requirements
         if not update_requirements:
@@ -4155,7 +4237,8 @@ class Worker(ServiceCommandSection):
             return None
 
         files_from_working_dir = self._session.config.get(
-            "agent.package_manager.poetry_files_from_repo_working_dir", False)
+            "agent.package_manager.poetry_files_from_repo_working_dir", False
+        )
         lockfile_path = Path(repo_info.root) / ((working_dir or "") if files_from_working_dir else "")
 
         try:
@@ -4165,15 +4248,15 @@ class Worker(ServiceCommandSection):
             self.poetry.initialize(cwd=lockfile_path)
             api = self.poetry.get_api(lockfile_path)
             if api.enabled:
-                print('Poetry Enabled: Ignoring requested python packages, using repository poetry lock file!')
+                print("Poetry Enabled: Ignoring requested python packages, using repository poetry lock file!")
                 api.install()
                 return api
-            
+
             print(f"Could not find pyproject.toml or poetry.lock file in {lockfile_path} \n")
         except Exception as ex:
             self.log.error("failed installing poetry requirements: {}".format(ex))
         return None
-    
+
     def _install_uv_requirements(self, repo_info, working_dir=None, cached_requirements=None):
         # type: (Optional[RepoInfo], Optional[str], Optional[Dict[str, list]]) -> Optional[UvAPI]
         if not repo_info:
@@ -4182,14 +4265,13 @@ class Worker(ServiceCommandSection):
         if not isinstance(self.package_api, UvAPI):
             return None
 
-        files_from_working_dir = self._session.config.get(
-            "agent.package_manager.uv_files_from_repo_working_dir", False)
+        files_from_working_dir = self._session.config.get("agent.package_manager.uv_files_from_repo_working_dir", False)
         lockfile_path = Path(repo_info.root) / ((working_dir or "") if files_from_working_dir else "")
 
         self.package_api.set_lockfile_path(lockfile_path)
 
         if self.package_api.enabled:
-            print('UV Enabled: Ignoring requested python packages, using repository uv lock file!')
+            print("UV Enabled: Ignoring requested python packages, using repository uv lock file!")
             # noinspection PyBroadException
             try:
                 self.package_api.install()
@@ -4199,8 +4281,9 @@ class Worker(ServiceCommandSection):
                 # if we have a lock file we actually fail, otherwise we revert to pip behaviour
                 if self.package_api.lock_file_exists:
                     raise
-                self.log.error("Reverting to UV as pip replacement - installing "
-                               "from Task requirements or git requirements.txt")
+                self.log.error(
+                    "Reverting to UV as pip replacement - installing from Task requirements or git requirements.txt"
+                )
                 self.package_api._enabled = False
                 return None
 
@@ -4208,14 +4291,25 @@ class Worker(ServiceCommandSection):
         return None
 
     def install_requirements(
-        self, execution, repo_info, requirements_manager, cached_requirements=None, cwd=None,
-            package_api=None, requested_python_version=None
+        self,
+        execution,
+        repo_info,
+        requirements_manager,
+        cached_requirements=None,
+        cwd=None,
+        package_api=None,
+        requested_python_version=None,
     ):
         ExternalRequirements.cwd = cwd
-        return self.install_requirements_for_package_api(execution, repo_info, requirements_manager,
-                                                         cached_requirements=cached_requirements, cwd=cwd,
-                                                         package_api=package_api if package_api else self.package_api,
-                                                         requested_python_version=requested_python_version)
+        return self.install_requirements_for_package_api(
+            execution,
+            repo_info,
+            requirements_manager,
+            cached_requirements=cached_requirements,
+            cwd=cwd,
+            package_api=package_api if package_api else self.package_api,
+            requested_python_version=requested_python_version,
+        )
 
     def _install_patched_python_requirements(self, execution, package_api, cached_requirements):
         self.log("Found task requirements section, trying to install")
@@ -4224,29 +4318,37 @@ class Worker(ServiceCommandSection):
         if ENV_AGENT_FORCE_TASK_INIT.get():
             # notice we have PackageCollectorRequirement to protect against double includes of "cairnml"
             print("Force cairnml Task.init patch adding cairnml package to requirements")
-            if not cached_requirements or cached_requirements.get('pip'):
-                cached_requirements["pip"] = ("cairnml\n" + cached_requirements.get("pip", "")) \
-                    if isinstance(cached_requirements.get("pip", ""), str) else \
-                    (["cairnml"] + cached_requirements.get("pip", []))
-            if cached_requirements.get('conda'):
-                cached_requirements["conda"] = ("cairnml\n" + cached_requirements["conda"]) \
-                    if isinstance(cached_requirements["conda"], str) else \
-                    (["cairnml"] + cached_requirements["conda"])
+            if not cached_requirements or cached_requirements.get("pip"):
+                cached_requirements["pip"] = (
+                    ("cairnml\n" + cached_requirements.get("pip", ""))
+                    if isinstance(cached_requirements.get("pip", ""), str)
+                    else (["cairnml"] + cached_requirements.get("pip", []))
+                )
+            if cached_requirements.get("conda"):
+                cached_requirements["conda"] = (
+                    ("cairnml\n" + cached_requirements["conda"])
+                    if isinstance(cached_requirements["conda"], str)
+                    else (["cairnml"] + cached_requirements["conda"])
+                )
 
         # check if we need to push jupyter nbconvert if we need to run ipynb
-        if execution.entry_point and execution.entry_point.strip().lower().endswith('.ipynb'):
+        if execution.entry_point and execution.entry_point.strip().lower().endswith(".ipynb"):
             print("Force nbconvert patch to convert .ipynb to python")
             # now we have to make sure we run it with jupyter notebook
-            if not cached_requirements or cached_requirements.get('pip'):
-                cached_requirements["pip"] = ("nbconvert\nipython\n" + cached_requirements.get("pip", "")) \
-                    if isinstance(cached_requirements.get("pip", ""), str) else \
-                    (["nbconvert", "ipython"] + cached_requirements.get("pip", []))
-            if cached_requirements.get('conda'):
-                cached_requirements["conda"] = ("nbconvert\nipython\n" + cached_requirements["conda"]) \
-                    if isinstance(cached_requirements["conda"], str) else \
-                    (["nbconvert", "ipython"] + cached_requirements["conda"])
+            if not cached_requirements or cached_requirements.get("pip"):
+                cached_requirements["pip"] = (
+                    ("nbconvert\nipython\n" + cached_requirements.get("pip", ""))
+                    if isinstance(cached_requirements.get("pip", ""), str)
+                    else (["nbconvert", "ipython"] + cached_requirements.get("pip", []))
+                )
+            if cached_requirements.get("conda"):
+                cached_requirements["conda"] = (
+                    ("nbconvert\nipython\n" + cached_requirements["conda"])
+                    if isinstance(cached_requirements["conda"], str)
+                    else (["nbconvert", "ipython"] + cached_requirements["conda"])
+                )
 
-        if cached_requirements and (cached_requirements.get('conda') or cached_requirements.get('pip')):
+        if cached_requirements and (cached_requirements.get("conda") or cached_requirements.get("pip")):
             try:
                 package_api.load_requirements(cached_requirements)
             except Exception as e:
@@ -4259,8 +4361,14 @@ class Worker(ServiceCommandSection):
         return False
 
     def install_requirements_for_package_api(
-        self, execution, repo_info, requirements_manager, cached_requirements=None, cwd=None,
-            package_api=None, requested_python_version=None,
+        self,
+        execution,
+        repo_info,
+        requirements_manager,
+        cached_requirements=None,
+        cwd=None,
+        package_api=None,
+        requested_python_version=None,
     ):
         # type: (ExecutionInfo, RepoInfo, RequirementsManager, Optional[dict], Optional[str], Optional[Any], Optional[str]) -> None
         """
@@ -4275,7 +4383,7 @@ class Worker(ServiceCommandSection):
         :param cwd: current folder
         :param package_api: package_api to be used when installing requirements
         :param requested_python_version: requested python version, string format, only uses major/minor version
-         """
+        """
         if package_api:
             package_api.cwd = cwd
 
@@ -4313,7 +4421,7 @@ class Worker(ServiceCommandSection):
             if ENV_AGENT_FORCE_TASK_INIT.get():
                 # noinspection PyBroadException
                 try:
-                    (package_api or self.package_api or self.global_package_api).load_requirements({'pip': "cairnml"})
+                    (package_api or self.package_api or self.global_package_api).load_requirements({"pip": "cairnml"})
                 except Exception:
                     print("Warning: failed to install CairnML package")
 
@@ -4326,7 +4434,7 @@ class Worker(ServiceCommandSection):
         # the PriorityPackageRequirement(SimpleSubstitution) will reinstall cython with the specific version
         if requested_python_version[1] < 9:
             if not self.is_conda and not is_uv and not is_poetry:
-                package_api.out_of_scope_install_package('Cython')
+                package_api.out_of_scope_install_package("Cython")
 
         # add support for -r <file.txt> in requirements
         if requirements_manager:
@@ -4334,9 +4442,8 @@ class Worker(ServiceCommandSection):
 
         # use task requirements when explicitly provided
         # if the section exists but is empty, we install the requirements.txt files
-        if (
-            cached_requirements
-            and (cached_requirements.get("pip") is not None or cached_requirements.get("conda") is not None)
+        if cached_requirements and (
+            cached_requirements.get("pip") is not None or cached_requirements.get("conda") is not None
         ):
             if self._install_patched_python_requirements(execution, package_api, cached_requirements):
                 return
@@ -4350,12 +4457,8 @@ class Worker(ServiceCommandSection):
 
         repo_requirements_installed = False
         patched_requirements = False
-        for parent in reversed(
-            (Path(execution.working_dir) / execution.entry_point).parents
-        ):
-            requirements_file = (
-                repo_info.root / parent / "requirements.txt"
-            )  # type: Path
+        for parent in reversed((Path(execution.working_dir) / execution.entry_point).parents):
+            requirements_file = repo_info.root / parent / "requirements.txt"  # type: Path
             if not requirements_file.is_file():
                 continue
             print("Trying pip install: {}".format(requirements_file))
@@ -4365,8 +4468,11 @@ class Worker(ServiceCommandSection):
                 print("Force cairnml Task.init patch adding cairnml package to requirements")
                 requirements_text = "cairnml\n" + requirements_text
 
-            if (execution.entry_point and execution.entry_point.strip().lower().endswith('.ipynb')
-                    and not patched_requirements):
+            if (
+                execution.entry_point
+                and execution.entry_point.strip().lower().endswith(".ipynb")
+                and not patched_requirements
+            ):
                 # notice we have PackageCollectorRequirement to protect against double includes of "cairnml"
                 print("Force nbconvert patch to convert .ipynb to python")
                 requirements_text = "nbconvert\nipython\n" + requirements_text
@@ -4383,7 +4489,7 @@ class Worker(ServiceCommandSection):
                 # close the file before reading in install_from_file for Windows compatibility
                 package_api.install_from_file(temp_file.name)
             except Exception as e:
-                print('ERROR: Failed installing requirements.txt:\n{}'.format(requirements_text))
+                print("ERROR: Failed installing requirements.txt:\n{}".format(requirements_text))
                 raise e
             finally:
                 if self._session.debug_mode and temp_file:
@@ -4395,7 +4501,9 @@ class Worker(ServiceCommandSection):
 
         # if we still have not installed anything, see if we need to install something becuase we patched
         if not repo_requirements_installed:
-            repo_requirements_installed = self._install_patched_python_requirements(execution, package_api, cached_requirements)
+            repo_requirements_installed = self._install_patched_python_requirements(
+                execution, package_api, cached_requirements
+            )
 
         # if we reached here without installing anything, and
         # we failed installing from cached requirements, them this is an error
@@ -4456,12 +4564,9 @@ class Worker(ServiceCommandSection):
             return (s[::-1].replace(old[::-1], new[::-1], count))[::-1]
 
         if is_windows_platform():
-            return rreplace(
-                rreplace(executable_path.split(os.path.sep)[-1].lower(), 'python', '', 1),
-                '.exe', '', 1
-            )
+            return rreplace(rreplace(executable_path.split(os.path.sep)[-1].lower(), "python", "", 1), ".exe", "", 1)
 
-        return rreplace(executable_path.split(os.path.sep)[-1], 'python', '', 1)
+        return rreplace(executable_path.split(os.path.sep)[-1], "python", "", 1)
 
     def find_python_executable_for_version(self, config_version, raise_on_error=True):
         # type: (Text, bool) -> Tuple[Text, Text, Text]
@@ -4489,7 +4594,7 @@ class Worker(ServiceCommandSection):
                 yield it[:i]
 
         python_executables = [
-            (version, config_version if os.path.sep in config_version else 'python{}'.format(version))
+            (version, config_version if os.path.sep in config_version else "python{}".format(version))
             for version in map(
                 ".".join, reversed(list(suffixes(self._get_python_version_suffix(config_version).split("."))))
             )
@@ -4506,9 +4611,7 @@ class Worker(ServiceCommandSection):
             self.log.debug("Found executable: {}".format(found_exec))
             if found_exec:
                 try:
-                    output = Argv(found_exec, "--version").get_output(
-                        stderr=subprocess.STDOUT
-                    )
+                    output = Argv(found_exec, "--version").get_output(stderr=subprocess.STDOUT)
                 except subprocess.CalledProcessError as ex:
                     # Windows returns 9009 code and suggests to install Python from Windows Store
                     if is_windows_platform() and ex.returncode == 9009:
@@ -4526,19 +4629,22 @@ class Worker(ServiceCommandSection):
                     match = re.search(r"Python ({}(?:\.\d+)*)".format(r"\d+"), output)
                     default_python = (
                         match.group(1),
-                        version if version and '.' in version else '.'.join(match.group(1).split('.')[:2]),
-                        executable)
+                        version if version and "." in version else ".".join(match.group(1).split(".")[:2]),
+                        executable,
+                    )
 
                 match = re.search(
                     r"Python ({}(?:\.\d+)*)".format(
-                        r"\d+" if not config_version or os.path.sep in config_version else config_version), output
+                        r"\d+" if not config_version or os.path.sep in config_version else config_version
+                    ),
+                    output,
                 )
                 if match:
                     self.log.debug("Found: {}".format(executable))
                     return (
                         match.group(1),
-                        version if version and '.' in version else '.'.join(match.group(1).split('.')[:2]),
-                        executable
+                        version if version and "." in version else ".".join(match.group(1).split(".")[:2]),
+                        executable,
                     )
 
         if default_python:
@@ -4546,7 +4652,7 @@ class Worker(ServiceCommandSection):
                 # only log waning is we rais on error, otherwise this is not an issue
                 self.log.warning(
                     "Python executable with version {!r} requested by the Task, "
-                    "not found in path, using \'{}\' (v{}) instead".format(
+                    "not found in path, using '{}' (v{}) instead".format(
                         config_version, find_executable(default_python[-1]), default_python[0]
                     )
                 )
@@ -4592,7 +4698,7 @@ class Worker(ServiceCommandSection):
 
         os.environ["CAIRNML_AGENT_CUSTOM_BUILD_SCRIPT"] = script
         os.environ["CAIRNML_CUSTOM_BUILD_TASK_CONFIG_JSON"] = json.dumps(
-            task.to_dict(), separators=(',', ':'), default=str
+            task.to_dict(), separators=(",", ":"), default=str
         )
         os.environ["CAIRNML_CUSTOM_BUILD_OUTPUT"] = script_output_file.name
 
@@ -4600,8 +4706,7 @@ class Worker(ServiceCommandSection):
             subprocess.check_call([script])
         except subprocess.CalledProcessError as ex:
             raise CustomBuildScriptFailed(
-                message="Custom build script failed with return code {}".format(ex.returncode),
-                errno=ex.returncode
+                message="Custom build script failed with return code {}".format(ex.returncode), errno=ex.returncode
             ) from ex
 
         output = Path(script_output_file.name).read_text()
@@ -4647,9 +4752,12 @@ class Worker(ServiceCommandSection):
                 skip_pip_venv_install = bool(strtobool(skip_pip_venv_install))
             except ValueError:
                 pass
-        elif ENV_VENV_CONFIGURED.get() and ENV_DOCKER_IMAGE.get() and \
-                self._session.config.get("agent.docker_use_activated_venv", True) and \
-                self._session.config.get("agent.package_manager.system_site_packages", False):
+        elif (
+            ENV_VENV_CONFIGURED.get()
+            and ENV_DOCKER_IMAGE.get()
+            and self._session.config.get("agent.docker_use_activated_venv", True)
+            and self._session.config.get("agent.package_manager.system_site_packages", False)
+        ):
             # if we are running inside a container, and virtual environment is already installed,
             # we should install directly into it, because we cannot inherit from the system packages
             skip_pip_venv_install = find_executable("python") or True
@@ -4658,7 +4766,8 @@ class Worker(ServiceCommandSection):
             print(
                 "Warning! Found python virtual environment [{}] already activated inside the container, "
                 "installing packages into venv (pip does not support inherit/nested venv)".format(
-                    skip_pip_venv_install if isinstance(skip_pip_venv_install, str) else ENV_VENV_CONFIGURED.get())
+                    skip_pip_venv_install if isinstance(skip_pip_venv_install, str) else ENV_VENV_CONFIGURED.get()
+                )
             )
         return skip_pip_venv_install
 
@@ -4681,7 +4790,7 @@ class Worker(ServiceCommandSection):
         skip_pip_venv_install = self._get_skip_pip_venv_install()
 
         if self._session.config.get("agent.ignore_requested_python_version", None):
-            requested_python_version = ''
+            requested_python_version = ""
 
         # if we have no requested version at all, and this is compiled, so no preinstalled default version
         # just assume generic python version 3 (if we found something we will use it,
@@ -4689,16 +4798,18 @@ class Worker(ServiceCommandSection):
         if self._compiled and not requested_python_version:
             requested_python_version = "3"
 
-        requested_python_version = \
-            requested_python_version or \
-            Text(self._session.config.get("agent.python_binary", None)) or \
-            Text(self._session.config.get("agent.default_python", None)) or \
-            '{}.{}'.format(sys.version_info.major, sys.version_info.minor)
+        requested_python_version = (
+            requested_python_version
+            or Text(self._session.config.get("agent.python_binary", None))
+            or Text(self._session.config.get("agent.default_python", None))
+            or "{}.{}".format(sys.version_info.major, sys.version_info.minor)
+        )
 
         if self.is_conda:
-            executable_version_suffix = \
-                requested_python_version[max(requested_python_version.find('python'), 0):].replace('python', '')
-            executable_name = 'python'
+            executable_version_suffix = requested_python_version[
+                max(requested_python_version.find("python"), 0) :
+            ].replace("python", "")
+            executable_name = "python"
         else:
             override_interpreter_path = None
             if skip_pip_venv_install and isinstance(skip_pip_venv_install, str):
@@ -4713,26 +4824,35 @@ class Worker(ServiceCommandSection):
             if override_interpreter_path:
                 print("Python interpreter {} is set from environment var".format(override_interpreter_path))
                 executable_name = override_interpreter_path
-                executable_version_suffix = (get_python_version(executable_name, self.log) or
-                                             self._get_python_version_suffix(executable_name))
+                executable_version_suffix = get_python_version(
+                    executable_name, self.log
+                ) or self._get_python_version_suffix(executable_name)
             elif not self.uv.enabled:
                 try:
-                    executable_version, executable_version_suffix, executable_name = \
+                    executable_version, executable_version_suffix, executable_name = (
                         self.find_python_executable_for_version(requested_python_version)
+                    )
                 except Exception:
-                    def_python_version = Text(self._session.config.get("agent.python_binary", None)) or \
-                                         Text(self._session.config.get("agent.default_python", None)) or \
-                                         '{}.{}'.format(sys.version_info.major, sys.version_info.minor)
-                    print('Warning: could not locate requested Python version {}, reverting to version {}'.format(
-                        requested_python_version, def_python_version))
-                    executable_version, executable_version_suffix, executable_name = \
+                    def_python_version = (
+                        Text(self._session.config.get("agent.python_binary", None))
+                        or Text(self._session.config.get("agent.default_python", None))
+                        or "{}.{}".format(sys.version_info.major, sys.version_info.minor)
+                    )
+                    print(
+                        "Warning: could not locate requested Python version {}, reverting to version {}".format(
+                            requested_python_version, def_python_version
+                        )
+                    )
+                    executable_version, executable_version_suffix, executable_name = (
                         self.find_python_executable_for_version(def_python_version)
+                    )
             else:
                 # this is UV, we find it just so we know what we have there
                 # noinspection PyBroadException
                 try:
-                    executable_version, executable_version_suffix, executable_name = \
+                    executable_version, executable_version_suffix, executable_name = (
                         self.find_python_executable_for_version(requested_python_version, raise_on_error=False)
+                    )
                 except Exception:
                     executable_version_suffix = executable_name = None
                 # make sure we have at least major.minor version in the requested version,
@@ -4745,8 +4865,11 @@ class Worker(ServiceCommandSection):
                     executable_name = None
                     executable_version_suffix = requested_python_version
 
-            self.debug("debug: requested_python_version={}, executable_name={}".format(
-                executable_version_suffix, executable_name))
+            self.debug(
+                "debug: requested_python_version={}, executable_name={}".format(
+                    executable_version_suffix, executable_name
+                )
+            )
 
             if executable_version_suffix:
                 self._session.config.put("agent.default_python", executable_version_suffix)
@@ -4756,8 +4879,9 @@ class Worker(ServiceCommandSection):
             if executable_name:
                 self._session.config.put("agent.python_binary", executable_name)
 
-        venv_dir = Path(venv_dir) if venv_dir else \
-            Path(self._session.config["agent.venvs_dir"], executable_version_suffix)
+        venv_dir = (
+            Path(venv_dir) if venv_dir else Path(self._session.config["agent.venvs_dir"], executable_version_suffix)
+        )
         venv_dir = Path(os.path.expanduser(os.path.expandvars(venv_dir.as_posix())))
 
         pip_version = get_specific_package_version(cached_requirements, package_name="pip")
@@ -4769,11 +4893,7 @@ class Worker(ServiceCommandSection):
             if uv_version:
                 self.uv.set_uv_version(uv_version)
 
-        first_time = not standalone_mode and (
-            is_windows_platform()
-            or self.is_conda
-            or not venv_dir.is_dir()
-        )
+        first_time = not standalone_mode and (is_windows_platform() or self.is_conda or not venv_dir.is_dir())
 
         if not standalone_mode:
             rm_tree(normalize_path(venv_dir, WORKING_REPOSITORY_DIR))
@@ -4791,20 +4911,26 @@ class Worker(ServiceCommandSection):
 
         # print message so users know they can enable cache
         if not self.package_api.is_cached_enabled():
-            print('::: Python virtual environment cache is DISABLED. '
-                  'To accelerate spin-up time set `agent.venvs_cache.path=~/.cairnml/venvs-cache` :::\n')
+            print(
+                "::: Python virtual environment cache is DISABLED. "
+                "To accelerate spin-up time set `agent.venvs_cache.path=~/.cairnml/venvs-cache` :::\n"
+            )
 
         # check if we have a cached folder
-        if (cached_requirements and not skip_pip_venv_install and
-            not self.poetry.enabled and not self.uv.enabled and
-            self.package_api.get_cached_venv(
+        if (
+            cached_requirements
+            and not skip_pip_venv_install
+            and not self.poetry.enabled
+            and not self.uv.enabled
+            and self.package_api.get_cached_venv(
                 requirements=cached_requirements,
                 docker_cmd=execution_info.docker_cmd if execution_info else None,
                 python_version=self.package_api.python,
                 cuda_version=self._session.config.get("agent.cuda_version"),
-                destination_folder=Path(venv_dir))
+                destination_folder=Path(venv_dir),
+            )
         ):
-            print('::: Using Cached environment {} :::'.format(self.package_api.get_last_used_entry_cache()))
+            print("::: Using Cached environment {} :::".format(self.package_api.get_last_used_entry_cache()))
             return venv_dir, requirements_manager, True, requested_python_version
 
         # create the initial venv
@@ -4818,13 +4944,17 @@ class Worker(ServiceCommandSection):
         return venv_dir, requirements_manager, False, requested_python_version
 
     def _setup_package_api(
-        self, executable_name, executable_version_suffix, venv_dir, execution_info,
-        standalone_mode, skip_pip_venv_install=False, first_time=False
+        self,
+        executable_name,
+        executable_version_suffix,
+        venv_dir,
+        execution_info,
+        standalone_mode,
+        skip_pip_venv_install=False,
+        first_time=False,
     ):
         # type: (str, str, Path, ExecutionInfo, bool, bool, bool) -> Tuple[bool, RequirementsManager]
-        requirements_manager = self._get_requirements_manager(
-            base_interpreter=executable_name
-        )
+        requirements_manager = self._get_requirements_manager(base_interpreter=executable_name)
 
         package_manager_params = dict(
             session=self._session,
@@ -4852,8 +4982,8 @@ class Worker(ServiceCommandSection):
                         print("Interpreter '{}' found at '{}'".format(executable_name, executable_name_path))
                         executable_name = executable_name_path
                     # we can change it, no one is going to use it anyhow
-                    package_manager_params['path'] = None
-                    package_manager_params['interpreter'] = executable_name
+                    package_manager_params["path"] = None
+                    package_manager_params["interpreter"] = executable_name
                     self.package_api = VirtualenvPip(**package_manager_params)
             else:
                 if self.uv.enabled:
@@ -4881,14 +5011,8 @@ class Worker(ServiceCommandSection):
 
                 if venv_dir.exists():
                     timestamp = datetime.utcnow().strftime("%Y-%m-%d-%H-%M-%S")
-                    new_venv_folder = venv_dir.with_name(
-                        "{}_{}".format(venv_dir.name, timestamp)
-                    )
-                    self.warning(
-                        'Path "{}" exists, using "{}" instead'.format(
-                            venv_dir, new_venv_folder
-                        )
-                    )
+                    new_venv_folder = venv_dir.with_name("{}_{}".format(venv_dir.name, timestamp))
+                    self.warning('Path "{}" exists, using "{}" instead'.format(venv_dir, new_venv_folder))
                     venv_dir = new_venv_folder
                     self.package_api = get_conda(path=venv_dir)
 
@@ -4916,10 +5040,12 @@ class Worker(ServiceCommandSection):
         config.pop("agent.package_manager.pip_version")  # removed due to a breaking change in v1.5.1
 
     def get_docker_config_cmd(self, docker_args, clean_api_credentials=False):
-        docker_image = str(ENV_DOCKER_IMAGE.get() or
-                           self._session.config.get("agent.default_docker.image", "nvidia/cuda")) \
-            if not docker_args else docker_args[0]
-        docker_arguments = docker_image.split(' ') if docker_image else []
+        docker_image = (
+            str(ENV_DOCKER_IMAGE.get() or self._session.config.get("agent.default_docker.image", "nvidia/cuda"))
+            if not docker_args
+            else docker_args[0]
+        )
+        docker_arguments = docker_image.split(" ") if docker_image else []
         if len(docker_arguments) > 1:
             docker_image = docker_arguments[0]
             docker_arguments = docker_arguments[1:]
@@ -4937,24 +5063,25 @@ class Worker(ServiceCommandSection):
         if docker_args:
             self._docker_default_cmd_override = True
 
-        print("Running in Docker{} mode (v19.03 and above) - using default docker image: {} {} {}\n".format(
-            ' *standalone*' if self._standalone_mode else '',
-            self._docker_image,
-            DockerArgsSanitizer.sanitize_docker_command(self._session, self._docker_arguments) or '',
-            "\n(default docker commandline override, config matching rules are ignored)"
-            if self._docker_default_cmd_override else "",
-        ))
+        print(
+            "Running in Docker{} mode (v19.03 and above) - using default docker image: {} {} {}\n".format(
+                " *standalone*" if self._standalone_mode else "",
+                self._docker_image,
+                DockerArgsSanitizer.sanitize_docker_command(self._session, self._docker_arguments) or "",
+                "\n(default docker commandline override, config matching rules are ignored)"
+                if self._docker_default_cmd_override
+                else "",
+            )
+        )
 
         temp_config = deepcopy(self._session.config)
         self.remove_non_backwards_compatible_entries(temp_config)
-        mounted_cache_dir = temp_config.get(
-            "agent.docker_internal_mounts.sdk_cache", self._docker_fixed_user_cache)
+        mounted_cache_dir = temp_config.get("agent.docker_internal_mounts.sdk_cache", self._docker_fixed_user_cache)
         mounted_pip_dl_dir = temp_config.get(
-            "agent.docker_internal_mounts.pip_download", '/root/.cairnml/pip-download-cache')
-        mounted_vcs_cache = temp_config.get(
-            "agent.docker_internal_mounts.vcs_cache", '/root/.cairnml/vcs-cache')
-        mounted_venv_dir = temp_config.get(
-            "agent.docker_internal_mounts.venv_build", '~/.cairnml/venvs-builds')
+            "agent.docker_internal_mounts.pip_download", "/root/.cairnml/pip-download-cache"
+        )
+        mounted_vcs_cache = temp_config.get("agent.docker_internal_mounts.vcs_cache", "/root/.cairnml/vcs-cache")
+        mounted_venv_dir = temp_config.get("agent.docker_internal_mounts.venv_build", "~/.cairnml/venvs-builds")
         temp_config.put("sdk.storage.cache.default_base_dir", mounted_cache_dir)
         temp_config.put("agent.pip_download_cache.path", mounted_pip_dl_dir)
         temp_config.put("agent.vcs_cache.path", mounted_vcs_cache)
@@ -4964,12 +5091,15 @@ class Worker(ServiceCommandSection):
         temp_config.put("agent.cuda_version", "")
         temp_config.put("agent.cudnn_version", "")
         temp_config.put("agent.venvs_dir", mounted_venv_dir)
-        temp_config.put("agent.git_user", (ENV_AGENT_GIT_USER.get() or
-                                           self._session.config.get("agent.git_user", None)))
-        temp_config.put("agent.git_pass", (ENV_AGENT_GIT_PASS.get() or
-                                           self._session.config.get("agent.git_pass", None)))
-        temp_config.put("agent.git_host", (ENV_AGENT_GIT_HOST.get() or
-                                           self._session.config.get("agent.git_host", None)))
+        temp_config.put(
+            "agent.git_user", (ENV_AGENT_GIT_USER.get() or self._session.config.get("agent.git_user", None))
+        )
+        temp_config.put(
+            "agent.git_pass", (ENV_AGENT_GIT_PASS.get() or self._session.config.get("agent.git_pass", None))
+        )
+        temp_config.put(
+            "agent.git_host", (ENV_AGENT_GIT_HOST.get() or self._session.config.get("agent.git_host", None))
+        )
         temp_config.put("agent.git", self._session.config.get("agent.git", None))
 
         force_system_site_packages = ENV_FORCE_SYSTEM_SITE_PACKAGES.get()
@@ -4987,18 +5117,20 @@ class Worker(ServiceCommandSection):
             # update the venvs cache path to the container scope
             temp_config.put("agent.venvs_cache.path", venvs_cache_path)
 
-        if (ENV_SSH_AUTH_SOCK.get() or '').strip():
+        if (ENV_SSH_AUTH_SOCK.get() or "").strip():
             self._host_ssh_cache = None
-            ssh_auth_sock_env = 'SSH_AUTH_SOCK={}'.format(ENV_SSH_AUTH_SOCK.get())
+            ssh_auth_sock_env = "SSH_AUTH_SOCK={}".format(ENV_SSH_AUTH_SOCK.get())
             if not self._extra_docker_arguments or ssh_auth_sock_env not in self._extra_docker_arguments:
                 self._extra_docker_arguments = (self._extra_docker_arguments or []) + [
-                    '-v', '{}:{}'.format(ENV_SSH_AUTH_SOCK.get(), ENV_SSH_AUTH_SOCK.get()),
-                    '-e', ssh_auth_sock_env,
+                    "-v",
+                    "{}:{}".format(ENV_SSH_AUTH_SOCK.get(), ENV_SSH_AUTH_SOCK.get()),
+                    "-e",
+                    ssh_auth_sock_env,
                 ]
         elif ENV_AGENT_DISABLE_SSH_MOUNT.get() or self._session.config.get("agent.disable_ssh_mount", None):
             self._host_ssh_cache = None
         else:
-            self._host_ssh_cache = mkdtemp(prefix='cairnml_agent.ssh.')
+            self._host_ssh_cache = mkdtemp(prefix="cairnml_agent.ssh.")
             self._temp_cleanup_list.append(self._host_ssh_cache)
 
         return temp_config, partial(
@@ -5038,9 +5170,17 @@ class Worker(ServiceCommandSection):
         )
         self.debug("host_poetry_cache: {}".format(host_poetry_cache))
 
-        check_job_mounts([
-            host_cache, host_pip_dl, host_vcs_cache, host_venvs_cache, host_apt_cache, host_pip_cache, host_poetry_cache,
-        ])
+        check_job_mounts(
+            [
+                host_cache,
+                host_pip_dl,
+                host_vcs_cache,
+                host_venvs_cache,
+                host_apt_cache,
+                host_pip_cache,
+                host_poetry_cache,
+            ]
+        )
 
         # make sure all folders are valid
         if host_apt_cache:
@@ -5066,24 +5206,27 @@ class Worker(ServiceCommandSection):
             try:
                 if Path(host_ssh_cache).is_dir():
                     shutil.rmtree(host_ssh_cache, ignore_errors=True)
-                shutil.copytree(Path('~/.ssh').expanduser().as_posix(), host_ssh_cache)
+                shutil.copytree(Path("~/.ssh").expanduser().as_posix(), host_ssh_cache)
             except Exception:
                 # if we failed to copy / delete, let's see if we
-                self.log.warning('Failed creating temporary copy of ~/.ssh for git credential, '
-                                 'creating a new temp folder')
+                self.log.warning(
+                    "Failed creating temporary copy of ~/.ssh for git credential, creating a new temp folder"
+                )
                 # noinspection PyBroadException
                 try:
-                    host_ssh_cache = mkdtemp(prefix='cairnml_agent.ssh.')
-                    shutil.copytree(Path('~/.ssh').expanduser().as_posix(), host_ssh_cache)
+                    host_ssh_cache = mkdtemp(prefix="cairnml_agent.ssh.")
+                    shutil.copytree(Path("~/.ssh").expanduser().as_posix(), host_ssh_cache)
                 except Exception:
-                    self.log.warning('Failed creating temporary copy of ~/.ssh for git credential, removing mount!')
+                    self.log.warning("Failed creating temporary copy of ~/.ssh for git credential, removing mount!")
                     host_ssh_cache = None
 
         # check if the .git credentials exist:
         try:
             host_git_credentials = [
-                f.as_posix() for f in [Path('~/.git-credentials').expanduser(), Path('~/.gitconfig').expanduser()]
-                if f.is_file()]
+                f.as_posix()
+                for f in [Path("~/.git-credentials").expanduser(), Path("~/.gitconfig").expanduser()]
+                if f.is_file()
+            ]
         except Exception:
             host_git_credentials = None
 
@@ -5103,7 +5246,7 @@ class Worker(ServiceCommandSection):
             prefix=".cairnml_agent.",
             text=True,
             name_only=True,
-            dir=(ENV_TEMP_STDOUT_FILE_DIR.get() or None)
+            dir=(ENV_TEMP_STDOUT_FILE_DIR.get() or None),
         )
 
         mounted_cache_dir = temp_config.get("sdk.storage.cache.default_base_dir")
@@ -5118,7 +5261,7 @@ class Worker(ServiceCommandSection):
 
         # Make sure we have created the configuration file for the executor
         if not self.dump_config(self.temp_config_path, config=temp_config, clean_api_credentials=clean_api_credentials):
-            self.log.warning('Could not update docker configuration file {}'.format(self.temp_config_path))
+            self.log.warning("Could not update docker configuration file {}".format(self.temp_config_path))
 
         docker_cmd = dict(
             worker_id=self.worker_id,
@@ -5127,16 +5270,21 @@ class Worker(ServiceCommandSection):
             # docker_arguments=docker_arguments,
             extra_docker_arguments=self._extra_docker_arguments,
             extra_shell_script=extra_shell_script_str,
-            python_version='python3',
+            python_version="python3",
             conf_file=self.temp_config_path,
             host_apt_cache=host_apt_cache,
             host_pip_cache=host_pip_cache,
             host_poetry_cache=host_poetry_cache,
-            host_ssh_cache=host_ssh_cache, host_git_credentials=host_git_credentials,
-            host_cache=host_cache, mounted_cache=mounted_cache_dir,
-            host_pip_dl=host_pip_dl, mounted_pip_dl=mounted_pip_dl_dir,
-            host_vcs_cache=host_vcs_cache, mounted_vcs_cache=mounted_vcs_cache,
-            host_venvs_cache=host_venvs_cache, mounted_venvs_cache=mounted_venvs_cache,
+            host_ssh_cache=host_ssh_cache,
+            host_git_credentials=host_git_credentials,
+            host_cache=host_cache,
+            mounted_cache=mounted_cache_dir,
+            host_pip_dl=host_pip_dl,
+            mounted_pip_dl=mounted_pip_dl_dir,
+            host_vcs_cache=host_vcs_cache,
+            mounted_vcs_cache=mounted_vcs_cache,
+            host_venvs_cache=host_venvs_cache,
+            mounted_venvs_cache=mounted_venvs_cache,
             standalone_mode=self._standalone_mode,
             force_current_version=self._force_current_version,
             bash_script=bash_script,
@@ -5156,14 +5304,12 @@ class Worker(ServiceCommandSection):
         """Get the amount of running child agents. In case of any error return 0"""
         parent_worker_label = self._parent_worker_label.format(self.worker_id)
 
-        default_cmd = 'docker ps --filter label={parent_worker_label} --format {{{{.ID}}}}'
+        default_cmd = "docker ps --filter label={parent_worker_label} --format {{{{.ID}}}}"
         child_agents_cmd = ENV_CHILD_AGENTS_COUNT_CMD.get() or default_cmd
 
         cmd = shlex.split(child_agents_cmd.format(parent_worker_label=parent_worker_label))
         try:
-            output = Argv(*cmd).get_output(
-                stderr=subprocess.STDOUT
-            )
+            output = Argv(*cmd).get_output(stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as ex:
             self.log.warning("error getting child agents: %s", ex)
             return 0
@@ -5173,29 +5319,26 @@ class Worker(ServiceCommandSection):
     @staticmethod
     def _amd_gpu_docker_args(visible=None):
         # AMD render nodes live at /dev/dri/renderD{128+N} for GPU N.
-        args = ['--device=/dev/kfd']
+        args = ["--device=/dev/kfd"]
         if visible:
-            indices = [tok.strip() for tok in str(visible).split(',') if tok.strip()]
+            indices = [tok.strip() for tok in str(visible).split(",") if tok.strip()]
             for idx in indices:
                 try:
                     n = int(idx)
                 except ValueError:
                     continue
-                args.append('--device=/dev/dri/renderD{}'.format(128 + n))
-            joined = ','.join(indices)
+                args.append("--device=/dev/dri/renderD{}".format(128 + n))
+            joined = ",".join(indices)
             if joined:
-                args += ['-e', 'HIP_VISIBLE_DEVICES={}'.format(joined),
-                         '-e', 'ROCR_VISIBLE_DEVICES={}'.format(joined)]
+                args += ["-e", "HIP_VISIBLE_DEVICES={}".format(joined), "-e", "ROCR_VISIBLE_DEVICES={}".format(joined)]
         else:
             try:
-                render_nodes = sorted(
-                    name for name in os.listdir('/dev/dri') if name.startswith('renderD')
-                )
+                render_nodes = sorted(name for name in os.listdir("/dev/dri") if name.startswith("renderD"))
             except OSError:
                 render_nodes = []
             for name in render_nodes:
-                args.append('--device=/dev/dri/{}'.format(name))
-        args += ['--group-add', 'video']
+                args.append("--device=/dev/dri/{}".format(name))
+        args += ["--group-add", "video"]
         return args
 
     def _filter_docker_args(self, docker_args):
@@ -5232,10 +5375,22 @@ class Worker(ServiceCommandSection):
         :argument docker_args: List of docker argument strings (flags and values)
         """
         non_list_args = (
-            "rm", "read-only", "sig-proxy", "tty", "privileged", "publish-all", "interactive", "init", "help", "detach"
+            "rm",
+            "read-only",
+            "sig-proxy",
+            "tty",
+            "privileged",
+            "publish-all",
+            "interactive",
+            "init",
+            "help",
+            "detach",
         )
         non_list_args_single = (
-            "t", "P", "i", "d",
+            "t",
+            "P",
+            "i",
+            "d",
         )
 
         # if no filtering, do nothing
@@ -5260,9 +5415,9 @@ class Worker(ServiceCommandSection):
                     continue
 
             # if we are here we have a command to bypass and the list after it
-            if cmd in ('-e', '--env'):
+            if cmd in ("-e", "--env"):
                 skip_arg = True
-                for j in range(i+1, len(args)):
+                for j in range(i + 1, len(args)):
                     if args[j].startswith("-"):
                         break
 
@@ -5283,11 +5438,11 @@ class Worker(ServiceCommandSection):
         Load the owner's vault (via task_session) and return its `environment` section
         formatted as docker `-e KEY=VALUE` argument pairs. Returns [] if the resolved
         configuration is empty, fails to load, or (after all vaults are merged) has
-        `apply_environment: false`. Vaults are an enterprise-only feature, so task_session 
+        `apply_environment: false`. Vaults are an enterprise-only feature, so task_session
         must have the `advanced` feature set.
         """
         try:
-            task_session.verify_feature_set('advanced')
+            task_session.verify_feature_set("advanced")
         except ValueError:
             return []
 
@@ -5318,8 +5473,8 @@ class Worker(ServiceCommandSection):
     def _get_docker_cmd(self, run):
         """Build the docker run command of a task from a DockerRun, one stage after another."""
         self.debug("Constructing docker command", context="docker")
-        docker = 'docker'
-        base_cmd = [docker, 'run', '-t']
+        docker = "docker"
+        base_cmd = [docker, "run", "-t"]
         run.use_rm = True
         self._docker_restart_args(run, base_cmd)
         self._docker_gpu_args(run, base_cmd)
@@ -5346,22 +5501,26 @@ class Worker(ServiceCommandSection):
                 base_cmd += ["--restart", run.restart]
                 run.use_rm = False
             else:
-                self.log.error("Invalid restart value \"{}\" , ignoring".format(run.restart))
+                self.log.error('Invalid restart value "{}" , ignoring'.format(run.restart))
 
     def _docker_gpu_args(self, run, base_cmd):
         """gpu part of the docker run command (see _get_docker_cmd)."""
         run.update_scheme = ""
-        run.dockers_nvidia_visible_devices = 'all'
+        run.dockers_nvidia_visible_devices = "all"
         gpu_devices = Session.get_nvidia_visible_env()
-        if gpu_devices is None or gpu_devices.lower().strip() == 'all':
+        if gpu_devices is None or gpu_devices.lower().strip() == "all":
             if ENV_DOCKER_SKIP_GPUS_FLAG.get():
-                run.dockers_nvidia_visible_devices = Session.get_nvidia_visible_env() or \
-                                                 run.dockers_nvidia_visible_devices
+                run.dockers_nvidia_visible_devices = (
+                    Session.get_nvidia_visible_env() or run.dockers_nvidia_visible_devices
+                )
             elif detect_rocm_env():
                 base_cmd += self._amd_gpu_docker_args()
             else:
-                base_cmd += ['--gpus', 'all', ]
-        elif gpu_devices.strip() and gpu_devices.strip() != 'none':
+                base_cmd += [
+                    "--gpus",
+                    "all",
+                ]
+        elif gpu_devices.strip() and gpu_devices.strip() != "none":
             if ENV_DOCKER_SKIP_GPUS_FLAG.get():
                 run.dockers_nvidia_visible_devices = gpu_devices
             elif detect_rocm_env():
@@ -5369,19 +5528,28 @@ class Worker(ServiceCommandSection):
             else:
                 # replace back "." to ":" MIG support
                 if self._use_podman:
-                    base_cmd += ['--gpus', str(gpu_devices.replace(".", ":")), ]
+                    base_cmd += [
+                        "--gpus",
+                        str(gpu_devices.replace(".", ":")),
+                    ]
                 else:
-                    base_cmd += ['--gpus', '\"device={}\"'.format(gpu_devices.replace(".", ":")), ]
+                    base_cmd += [
+                        "--gpus",
+                        '"device={}"'.format(gpu_devices.replace(".", ":")),
+                    ]
             # We are using --gpu, so we should not pass NVIDIA_VISIBLE_DEVICES, I think.
             # base_cmd += ['-e', 'NVIDIA_VISIBLE_DEVICES=' + gpu_devices, ]
-        elif gpu_devices.strip() == 'none':
+        elif gpu_devices.strip() == "none":
             run.dockers_nvidia_visible_devices = gpu_devices
 
     def _docker_user_args(self, run, base_cmd):
         """args part of the docker run command (see _get_docker_cmd)."""
         if run.docker_arguments:
-            run.docker_arguments = list(run.docker_arguments) \
-                if isinstance(run.docker_arguments, (list, tuple)) else [run.docker_arguments]
+            run.docker_arguments = (
+                list(run.docker_arguments)
+                if isinstance(run.docker_arguments, (list, tuple))
+                else [run.docker_arguments]
+            )
             run.docker_arguments = self._filter_docker_args(run.docker_arguments)
             if self._session.config.get("agent.docker_allow_host_environ", None):
                 run.docker_arguments = self._resolve_docker_env_args(run.docker_arguments)
@@ -5389,15 +5557,18 @@ class Worker(ServiceCommandSection):
         if run.extra_docker_arguments:
             # we always resolve environments in the `extra_docker_arguments` because the admin set them (not users)
             run.extra_docker_arguments = self._resolve_docker_env_args(run.extra_docker_arguments)
-            run.extra_docker_arguments = [run.extra_docker_arguments] \
-                if isinstance(run.extra_docker_arguments, str) else run.extra_docker_arguments
+            run.extra_docker_arguments = (
+                [run.extra_docker_arguments]
+                if isinstance(run.extra_docker_arguments, str)
+                else run.extra_docker_arguments
+            )
 
         # decide on order of docker args when merging overlapping arguments
         # from extra_docker_args and the Task's docker_args
         merged, stripped_switches = DockerArgsSanitizer.merge_docker_args(
             config=self._session.config,
             task_docker_arguments=run.docker_arguments,
-            extra_docker_arguments=run.extra_docker_arguments
+            extra_docker_arguments=run.extra_docker_arguments,
         )
         base_cmd += merged
 
@@ -5408,32 +5579,34 @@ class Worker(ServiceCommandSection):
             ).format(", ".join(("-" if len(s) == 1 else "--") + s for s in stripped_switches))
             self.log.warning(warn_msg)
             if run.env_task_id:
-                self.send_logs(run.env_task_id, [warn_msg + '\n'], session=self._session)
+                self.send_logs(run.env_task_id, [warn_msg + "\n"], session=self._session)
 
     def _docker_labels_and_ports(self, run, base_cmd):
         """ports part of the docker run command (see _get_docker_cmd)."""
         # check if we have mapped ports
         try:
             port_mappings_struct = DockerArgsSanitizer.resolve_port_mapping(
-                config=self._session.config, docker_arguments=base_cmd)
+                config=self._session.config, docker_arguments=base_cmd
+            )
             if port_mappings_struct:
                 new_docker_cmd, additional_task_runtime = port_mappings_struct
                 if new_docker_cmd:
                     base_cmd = new_docker_cmd
                 if additional_task_runtime:
                     from cairnml_agent.helper.task_runtime import TaskRuntime
+
                     task_runtime = TaskRuntime(self._session)
                     task_runtime.update_task_runtime(run.env_task_id, additional_task_runtime)
         except Exception as e:
             self.log.warning("WARNING: Failed parsing port mapping requested for docker execution: {}".format(e))
 
         # set docker labels
-        base_cmd += ['-l', self._worker_label.format(run.worker_id)]
-        base_cmd += ['-l', self._parent_worker_label.format(run.parent_worker_id)]
+        base_cmd += ["-l", self._worker_label.format(run.worker_id)]
+        base_cmd += ["-l", self._parent_worker_label.format(run.parent_worker_id)]
 
         extra_labels = ENV_EXTRA_DOCKER_LABELS.get()
-        for label in (extra_labels or []):
-            base_cmd += ['-l', label]
+        for label in extra_labels or []:
+            base_cmd += ["-l", label]
 
         self.debug("Command: {}".format(base_cmd), context="docker")
 
@@ -5441,25 +5614,27 @@ class Worker(ServiceCommandSection):
         """loop part of the docker run command (see _get_docker_cmd)."""
         # A server on this machine's loopback address is reachable only from the host's network, so the job container
         # shares it. The rule follows from the address; there is no setting for it.
-        if self._server_is_loopback() and not any(a.strip().startswith('--network') for a in base_cmd):
-            base_cmd += ['--network', 'host']
+        if self._server_is_loopback() and not any(a.strip().startswith("--network") for a in base_cmd):
+            base_cmd += ["--network", "host"]
 
     def _docker_kubernetes_args(self, run, base_cmd):
         """k8s part of the docker run command (see _get_docker_cmd)."""
         # check if running inside a kubernetes
-        if ENV_DOCKER_HOST_MOUNT.get() or (os.environ.get('KUBERNETES_SERVICE_HOST') and
-                                           os.environ.get('KUBERNETES_PORT')):
+        if ENV_DOCKER_HOST_MOUNT.get() or (
+            os.environ.get("KUBERNETES_SERVICE_HOST") and os.environ.get("KUBERNETES_PORT")
+        ):
             # map network to sibling docker, unless we have other network argument
-            if not any(a.strip().startswith('--network') for a in base_cmd):
+            if not any(a.strip().startswith("--network") for a in base_cmd):
                 # noinspection PyBroadException
                 try:
                     network_mode = get_bash_output(
-                        'docker inspect --format=\'{{.HostConfig.NetworkMode}}\' $(basename $(cat /proc/1/cpuset))')
+                        "docker inspect --format='{{.HostConfig.NetworkMode}}' $(basename $(cat /proc/1/cpuset))"
+                    )
                     if network_mode:
-                        base_cmd += ['--network', network_mode]
+                        base_cmd += ["--network", network_mode]
                 except Exception:
                     pass
-            base_cmd += ['-e', 'NVIDIA_VISIBLE_DEVICES={}'.format(run.dockers_nvidia_visible_devices)]
+            base_cmd += ["-e", "NVIDIA_VISIBLE_DEVICES={}".format(run.dockers_nvidia_visible_devices)]
 
             self.debug("Running in k8s: {}".format(base_cmd), context="docker")
 
@@ -5468,75 +5643,101 @@ class Worker(ServiceCommandSection):
         # check if we need to map host folders
         if ENV_DOCKER_HOST_MOUNT.get():
             # expect CAIRNML_AGENT_K8S_HOST_MOUNT = '/mnt/host/data:/root/.cairnml'
-            k8s_node_mnt, _, k8s_pod_mnt = ENV_DOCKER_HOST_MOUNT.get().partition(':')
+            k8s_node_mnt, _, k8s_pod_mnt = ENV_DOCKER_HOST_MOUNT.get().partition(":")
             # search and replace all the host folders with the k8s
-            host_mounts = [run.host_apt_cache, run.host_pip_cache, run.host_poetry_cache, run.host_pip_dl,
-                           run.host_cache, run.host_vcs_cache, run.host_venvs_cache]
+            host_mounts = [
+                run.host_apt_cache,
+                run.host_pip_cache,
+                run.host_poetry_cache,
+                run.host_pip_dl,
+                run.host_cache,
+                run.host_vcs_cache,
+                run.host_venvs_cache,
+            ]
             self.debug("Mapping host mounts: {}".format(host_mounts), context="docker")
             for i, m in enumerate(host_mounts):
                 if not m:
                     continue
                 if k8s_pod_mnt not in m:
-                    print('Warning: K8S mount missing, ignoring cached folder {}'.format(m))
+                    print("Warning: K8S mount missing, ignoring cached folder {}".format(m))
                     host_mounts[i] = None
                 else:
                     host_mounts[i] = m.replace(k8s_pod_mnt, k8s_node_mnt, 1)
             self.debug("Mapped host mounts: {}".format(host_mounts), context="docker")
-            run.host_apt_cache, run.host_pip_cache, run.host_poetry_cache, run.host_pip_dl, \
-                run.host_cache, run.host_vcs_cache, run.host_venvs_cache = host_mounts
+            (
+                run.host_apt_cache,
+                run.host_pip_cache,
+                run.host_poetry_cache,
+                run.host_pip_dl,
+                run.host_cache,
+                run.host_vcs_cache,
+                run.host_venvs_cache,
+            ) = host_mounts
 
             # copy the configuration file into the mounted folder
-            new_conf_file = os.path.join(k8s_pod_mnt, '.cairnml_agent.{}.cfg'.format(quote(run.worker_id, safe="")))
+            new_conf_file = os.path.join(k8s_pod_mnt, ".cairnml_agent.{}.cfg".format(quote(run.worker_id, safe="")))
             try:
                 rm_tree(new_conf_file)
                 rm_file(new_conf_file)
                 shutil.copy(run.conf_file, new_conf_file)
                 run.conf_file = new_conf_file.replace(k8s_pod_mnt, k8s_node_mnt)
             except Exception as ex:
-                raise ValueError('Error: could not copy configuration file into: {}'.format(new_conf_file)) from ex
+                raise ValueError("Error: could not copy configuration file into: {}".format(new_conf_file)) from ex
 
             self.debug("Config file target: {}, host: {}".format(new_conf_file, run.conf_file), context="docker")
 
             if run.host_ssh_cache:
-                new_ssh_cache = os.path.join(k8s_pod_mnt, '.cairnml_agent.{}.ssh'.format(quote(run.worker_id, safe="")))
+                new_ssh_cache = os.path.join(k8s_pod_mnt, ".cairnml_agent.{}.ssh".format(quote(run.worker_id, safe="")))
                 try:
                     rm_tree(new_ssh_cache)
                     shutil.copytree(run.host_ssh_cache, new_ssh_cache)
                     run.host_ssh_cache = new_ssh_cache.replace(k8s_pod_mnt, k8s_node_mnt)
                 except Exception as ex:
-                    raise ValueError('Error: could not copy .ssh directory into: {}'.format(new_ssh_cache)) from ex
+                    raise ValueError("Error: could not copy .ssh directory into: {}".format(new_ssh_cache)) from ex
                 self.debug(
-                    "Copied host SSH cache to: {}, host {}".format(new_ssh_cache, run.host_ssh_cache),
-                    context="docker"
+                    "Copied host SSH cache to: {}, host {}".format(new_ssh_cache, run.host_ssh_cache), context="docker"
                 )
 
     def _docker_env_args(self, run, base_cmd):
         """env part of the docker run command (see _get_docker_cmd)."""
-        base_cmd += ['-e', 'CAIRNML_WORKER_ID='+run.worker_id, ]
+        base_cmd += [
+            "-e",
+            "CAIRNML_WORKER_ID=" + run.worker_id,
+        ]
         # update the docker image, so the system knows where it runs
-        base_cmd += ['-e', 'CAIRNML_DOCKER_IMAGE={}'.format(run.docker_image)]
+        base_cmd += ["-e", "CAIRNML_DOCKER_IMAGE={}".format(run.docker_image)]
 
         if run.env_task_id:
-            base_cmd += ['-e', 'CAIRNML_TASK_ID={}'.format(run.env_task_id), ]
+            base_cmd += [
+                "-e",
+                "CAIRNML_TASK_ID={}".format(run.env_task_id),
+            ]
 
         if run.auth_token:
             # if auth token is passed then put it in the env var
-            base_cmd += ['-e', '{}={}'.format(ENV_AGENT_AUTH_TOKEN.vars[0], run.auth_token)]
+            base_cmd += ["-e", "{}={}".format(ENV_AGENT_AUTH_TOKEN.vars[0], run.auth_token)]
 
         if run.job_token_dir:
             # the job's token file, renewed by the agent while the job runs; the container reads it from its folder
-            base_cmd += ['-v', '{}:{}'.format(run.job_token_dir, CONTAINER_DIR),
-                         '-e', 'CAIRNML_JOB_TOKEN_FILE={}/{}'.format(CONTAINER_DIR, TOKEN_FILE_NAME)]
+            base_cmd += [
+                "-v",
+                "{}:{}".format(run.job_token_dir, CONTAINER_DIR),
+                "-e",
+                "CAIRNML_JOB_TOKEN_FILE={}/{}".format(CONTAINER_DIR, TOKEN_FILE_NAME),
+            ]
 
         if run.worker_tags:
-            base_cmd += ['-e', '{}={}'.format(ENV_WORKER_TAGS.vars[0], " ".join(shlex.quote(t) for t in run.worker_tags))]
+            base_cmd += [
+                "-e",
+                "{}={}".format(ENV_WORKER_TAGS.vars[0], " ".join(shlex.quote(t) for t in run.worker_tags)),
+            ]
 
         skip_pip_venv_install = ENV_AGENT_SKIP_PIP_VENV_INSTALL.get()
         if skip_pip_venv_install:
-            base_cmd += ['-e', '{}={}'.format(ENV_AGENT_SKIP_PIP_VENV_INSTALL.vars[0], skip_pip_venv_install)]
+            base_cmd += ["-e", "{}={}".format(ENV_AGENT_SKIP_PIP_VENV_INSTALL.vars[0], skip_pip_venv_install)]
 
         if self._services_mode:
-            base_cmd += ['-e', 'CAIRNML_AGENT_SERVICE_TASK=1']
+            base_cmd += ["-e", "CAIRNML_AGENT_SERVICE_TASK=1"]
 
     def _docker_wheel_args(self, run, base_cmd):
         """wheel part of the docker run command (see _get_docker_cmd)."""
@@ -5545,20 +5746,25 @@ class Worker(ServiceCommandSection):
         # The job container installs this agent from a wheel of its own source tree, and never from PyPI.
         # There is no setting for it: the container runs the same agent as the one that starts it.
         local_wheel = local_agent_wheel()
-        docker_wheel = '/tmp/{}'.format(basename(local_wheel))
-        base_cmd += ['-v', local_wheel + ':' + docker_wheel]
-        run.cairnml_agent_wheel = docker_wheel if self._bootstrap else '\"{}\"'.format(docker_wheel)
+        docker_wheel = "/tmp/{}".format(basename(local_wheel))
+        base_cmd += ["-v", local_wheel + ":" + docker_wheel]
+        run.cairnml_agent_wheel = docker_wheel if self._bootstrap else '"{}"'.format(docker_wheel)
         sdk_wheel = local_sdk_wheel()
-        docker_sdk_wheel = '/tmp/{}'.format(basename(sdk_wheel))
-        base_cmd += ['-v', sdk_wheel + ':' + docker_sdk_wheel, '-e', '{}={}'.format(LOCAL_SDK_WHEEL_ENV, docker_sdk_wheel)]
+        docker_sdk_wheel = "/tmp/{}".format(basename(sdk_wheel))
+        base_cmd += [
+            "-v",
+            sdk_wheel + ":" + docker_sdk_wheel,
+            "-e",
+            "{}={}".format(LOCAL_SDK_WHEEL_ENV, docker_sdk_wheel),
+        ]
 
     def _docker_mount_defaults(self, run, base_cmd):
         """mdef part of the docker run command (see _get_docker_cmd)."""
-        run.mount_ssh = run.mount_ssh or '/root/.ssh'
+        run.mount_ssh = run.mount_ssh or "/root/.ssh"
         run.mount_ssh_ro = run.mount_ssh_ro or "{}_ro".format(run.mount_ssh.rstrip("/"))
-        run.mount_apt_cache = run.mount_apt_cache or '/var/cache/apt/archives'
-        run.mount_pip_cache = run.mount_pip_cache or '/root/.cache/pip'
-        run.mount_poetry_cache = run.mount_poetry_cache or '/root/.cache/pypoetry'
+        run.mount_apt_cache = run.mount_apt_cache or "/var/cache/apt/archives"
+        run.mount_pip_cache = run.mount_pip_cache or "/root/.cache/pip"
+        run.mount_poetry_cache = run.mount_poetry_cache or "/root/.cache/pypoetry"
         run.mount_git_ro = "{}.git".format(run.mount_ssh_ro.rstrip("/"))
 
     def _docker_standalone_script(self, run, base_cmd):
@@ -5571,17 +5777,18 @@ class Worker(ServiceCommandSection):
                     "echo 'Binary::apt::APT::Keep-Downloaded-Packages \"true\";' > /etc/apt/apt.conf.d/docker-clean",
                     "chown -R $(whoami) $HOME/.cache/pip",
                     "export DEBIAN_FRONTEND=noninteractive",
-                    "export CAIRNML_APT_INSTALL=\"$CAIRNML_APT_INSTALL{}\"".format(
-                        ' libsm6 libxext6 libxrender-dev libglib2.0-0' if run.install_opencv_libs else ""),
+                    'export CAIRNML_APT_INSTALL="$CAIRNML_APT_INSTALL{}"'.format(
+                        " libsm6 libxext6 libxrender-dev libglib2.0-0" if run.install_opencv_libs else ""
+                    ),
                     "cp -Rf {mount_ssh_ro} -T {mount_ssh}" if run.host_ssh_cache else "",
                     "cp -Rf {mount_git_ro} -T ~/" if run.host_git_credentials else "",
-                    "[ ! -z $(which git 2> /dev/null || command -v git) ] || export CAIRNML_APT_INSTALL=\"$CAIRNML_APT_INSTALL git\"",
+                    '[ ! -z $(which git 2> /dev/null || command -v git) ] || export CAIRNML_APT_INSTALL="$CAIRNML_APT_INSTALL git"',
                     "declare LOCAL_PYTHON",
-                    "[ ! -z $LOCAL_PYTHON ] || for i in {{20..5}}; do (which {python_single_digit}.$i 2> /dev/null || command -v {python_single_digit}.$i) && " +
-                    "{python_single_digit}.$i -m pip --version && " +
-                    "export LOCAL_PYTHON=$(which {python_single_digit}.$i 2> /dev/null || command -v {python_single_digit}.$i) && break ; done",
-                    "[ ! -z $LOCAL_PYTHON ] || export CAIRNML_APT_INSTALL=\"$CAIRNML_APT_INSTALL {python_single_digit}-pip\"",  # noqa
-                    "[ -z \"$CAIRNML_APT_INSTALL\" ] || "
+                    "[ ! -z $LOCAL_PYTHON ] || for i in {{20..5}}; do (which {python_single_digit}.$i 2> /dev/null || command -v {python_single_digit}.$i) && "
+                    + "{python_single_digit}.$i -m pip --version && "
+                    + "export LOCAL_PYTHON=$(which {python_single_digit}.$i 2> /dev/null || command -v {python_single_digit}.$i) && break ; done",
+                    '[ ! -z $LOCAL_PYTHON ] || export CAIRNML_APT_INSTALL="$CAIRNML_APT_INSTALL {python_single_digit}-pip"',  # noqa
+                    '[ -z "$CAIRNML_APT_INSTALL" ] || '
                     "(apt-get update -y ; apt-get install -y $CAIRNML_APT_INSTALL) || "
                     "(dnf install -y $CAIRNML_APT_INSTALL)",
                     "rm -f /usr/lib/python3.*/EXTERNALLY-MANAGED",  # remove PEP 668
@@ -5590,60 +5797,84 @@ class Worker(ServiceCommandSection):
             if run.preprocess_bash_script:
                 run.bash_script = run.preprocess_bash_script + run.bash_script
 
-            docker_bash_script = " ; ".join([line for line in run.bash_script if line]) \
-                if not isinstance(run.bash_script, str) else run.bash_script
+            docker_bash_script = (
+                " ; ".join([line for line in run.bash_script if line])
+                if not isinstance(run.bash_script, str)
+                else run.bash_script
+            )
 
             # make sure that if we do not have $LOCAL_PYTHON defined, we set it to python3
             # notice that if $LOCAL_PYTHON -m pip fails, that means we might have a broken python in the path
             # so we set to default path and try to set global python
             run.update_scheme += (
-                    docker_bash_script + " ; " +
-                    "[ ! -z $LOCAL_PYTHON ] || export LOCAL_PYTHON={python} ; " +
-                    "$LOCAL_PYTHON -m pip --version > /dev/null || export LOCAL_PYTHON=$(PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin command -v python3) ; " +
-                    "$LOCAL_PYTHON -m pip install -U {pip_version} ; " +
-                    "$LOCAL_PYTHON -m pip install -U {cairnml_agent_wheel} ; ").format(
-                python_single_digit=run.python_version.split('.')[0],
-                python=run.python_version, pip_version=" ".join(PackageManager.get_pip_versions(wrap='\"')),
+                docker_bash_script
+                + " ; "
+                + "[ ! -z $LOCAL_PYTHON ] || export LOCAL_PYTHON={python} ; "
+                + "$LOCAL_PYTHON -m pip --version > /dev/null || export LOCAL_PYTHON=$(PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin command -v python3) ; "
+                + "$LOCAL_PYTHON -m pip install -U {pip_version} ; "
+                + "$LOCAL_PYTHON -m pip install -U {cairnml_agent_wheel} ; "
+            ).format(
+                python_single_digit=run.python_version.split(".")[0],
+                python=run.python_version,
+                pip_version=" ".join(PackageManager.get_pip_versions(wrap='"')),
                 cairnml_agent_wheel=run.cairnml_agent_wheel,
-                mount_ssh_ro=run.mount_ssh_ro, mount_ssh=run.mount_ssh, mount_git_ro=run.mount_git_ro,
+                mount_ssh_ro=run.mount_ssh_ro,
+                mount_ssh=run.mount_ssh,
+                mount_git_ro=run.mount_git_ro,
             )
 
     def _docker_setup_script(self, run, base_cmd):
         """git part of the docker run command (see _get_docker_cmd)."""
         if run.host_git_credentials:
             for git_credentials in run.host_git_credentials:
-                base_cmd += ['-v', '{}:{}/{}'.format(git_credentials, run.mount_git_ro, Path(git_credentials).name)]
+                base_cmd += ["-v", "{}:{}/{}".format(git_credentials, run.mount_git_ro, Path(git_credentials).name)]
 
-        if run.docker_bash_setup_script and run.docker_bash_setup_script.strip('\n '):
-            run.extra_shell_script = (run.extra_shell_script or '') + \
-                ' ; '.join(line.strip()
-                           for line in run.docker_bash_setup_script.split('\n')
-                           if line.strip() and not line.lstrip().startswith("#")) + \
-                ' ; '
+        if run.docker_bash_setup_script and run.docker_bash_setup_script.strip("\n "):
+            run.extra_shell_script = (
+                (run.extra_shell_script or "")
+                + " ; ".join(
+                    line.strip()
+                    for line in run.docker_bash_setup_script.split("\n")
+                    if line.strip() and not line.lstrip().startswith("#")
+                )
+                + " ; "
+            )
 
     def _docker_log_mounts(self, run, base_cmd):
         """dbg part of the docker run command (see _get_docker_cmd)."""
         self.debug(
             "Adding mounts: host_ssh_cache={}, host_apt_cache={}, host_pip_cache={}, host_poetry_cache={}, "
             "host_pip_dl={}, host_cache={}, host_vcs_cache={}, host_venvs_cache={}".format(
-                run.host_ssh_cache, run.host_apt_cache, run.host_pip_cache, run.host_poetry_cache, run.host_pip_dl, run.host_cache,
-                run.host_vcs_cache, run.host_venvs_cache,
+                run.host_ssh_cache,
+                run.host_apt_cache,
+                run.host_pip_cache,
+                run.host_poetry_cache,
+                run.host_pip_dl,
+                run.host_cache,
+                run.host_vcs_cache,
+                run.host_venvs_cache,
             ),
-            context="docker"
+            context="docker",
         )
 
     def _docker_bootstrap_args(self, run, base_cmd):
         """boot part of the docker run command (see _get_docker_cmd)."""
         if self._bootstrap:
-            base_cmd += bootstrap.get_bootstrap_docker_configuration(
-                config=self._session.config)
+            base_cmd += bootstrap.get_bootstrap_docker_configuration(config=self._session.config)
 
             if run.preprocess_bash_script:
-                preprocess_bash_script_str = "\n".join([line for line in run.preprocess_bash_script if line]) \
-                    if not isinstance(run.preprocess_bash_script, str) else run.preprocess_bash_script
+                preprocess_bash_script_str = (
+                    "\n".join([line for line in run.preprocess_bash_script if line])
+                    if not isinstance(run.preprocess_bash_script, str)
+                    else run.preprocess_bash_script
+                )
 
-                base_cmd += ["-e", "CAIRNML_BOOTSTRAP_CUSTOM_CMD_BASE64={}".format(
-                    base64.b64encode(preprocess_bash_script_str.encode('ascii')).decode('ascii'))]
+                base_cmd += [
+                    "-e",
+                    "CAIRNML_BOOTSTRAP_CUSTOM_CMD_BASE64={}".format(
+                        base64.b64encode(preprocess_bash_script_str.encode("ascii")).decode("ascii")
+                    ),
+                ]
 
             if run.extra_shell_script:
                 base_cmd += ["-e", "CAIRNML_PRE_CUSTOM_CMD={}".format(run.extra_shell_script)]
@@ -5654,35 +5885,36 @@ class Worker(ServiceCommandSection):
     def _docker_mount_args(self, run, base_cmd):
         """mounts part of the docker run command (see _get_docker_cmd)."""
         base_cmd += (
-            (['--name', run.name] if run.name else []) +
-            ['-v', run.conf_file + ':' + DOCKER_ROOT_CONF_FILE] +
-            ['-e', "CAIRNML_CONFIG_FILE={}".format(DOCKER_ROOT_CONF_FILE)] +
-            (['-v', run.host_ssh_cache + ':' + run.mount_ssh_ro] if run.host_ssh_cache else []) +
-            (['-v', run.host_apt_cache + ':' + run.mount_apt_cache] if run.host_apt_cache else []) +
-            (['-v', run.host_pip_cache + ':' + run.mount_pip_cache] if run.host_pip_cache else []) +
-            (['-v', run.host_poetry_cache + ':' + run.mount_poetry_cache] if run.host_poetry_cache else []) +
-            (['-v', run.host_pip_dl + ':' + run.mounted_pip_dl] if run.host_pip_dl else []) +
-            (['-v', run.host_cache + ':' + run.mounted_cache] if run.host_cache else []) +
-            (['-v', run.host_vcs_cache + ':' + run.mounted_vcs_cache] if run.host_vcs_cache else []) +
-            (['-v', run.host_venvs_cache + ':' + run.mounted_venvs_cache] if run.host_venvs_cache else []) +
-            (['--rm'] if run.use_rm else [])
+            (["--name", run.name] if run.name else [])
+            + ["-v", run.conf_file + ":" + DOCKER_ROOT_CONF_FILE]
+            + ["-e", "CAIRNML_CONFIG_FILE={}".format(DOCKER_ROOT_CONF_FILE)]
+            + (["-v", run.host_ssh_cache + ":" + run.mount_ssh_ro] if run.host_ssh_cache else [])
+            + (["-v", run.host_apt_cache + ":" + run.mount_apt_cache] if run.host_apt_cache else [])
+            + (["-v", run.host_pip_cache + ":" + run.mount_pip_cache] if run.host_pip_cache else [])
+            + (["-v", run.host_poetry_cache + ":" + run.mount_poetry_cache] if run.host_poetry_cache else [])
+            + (["-v", run.host_pip_dl + ":" + run.mounted_pip_dl] if run.host_pip_dl else [])
+            + (["-v", run.host_cache + ":" + run.mounted_cache] if run.host_cache else [])
+            + (["-v", run.host_vcs_cache + ":" + run.mounted_vcs_cache] if run.host_vcs_cache else [])
+            + (["-v", run.host_venvs_cache + ":" + run.mounted_venvs_cache] if run.host_venvs_cache else [])
+            + (["--rm"] if run.use_rm else [])
         )
 
     def _docker_command_tail(self, run, base_cmd):
         """tail part of the docker run command (see _get_docker_cmd)."""
         if self._bootstrap:
-            base_cmd += [
-                run.docker_image, 'bash', '-c', "$CAIRNML_BOOTSTRAP_DIR/bootstrap.sh "
-            ]
+            base_cmd += [run.docker_image, "bash", "-c", "$CAIRNML_BOOTSTRAP_DIR/bootstrap.sh "]
         else:
             base_cmd += [
-                run.docker_image, 'bash', '-c',
-                run.update_scheme +
-                run.extra_shell_script +
-                "cp {} {} ; ".format(DOCKER_ROOT_CONF_FILE, DOCKER_DEFAULT_CONF_FILE) +
-                "NVIDIA_VISIBLE_DEVICES={nv_visible} $LOCAL_PYTHON -u -m cairnml_agent ".format(
-                    nv_visible=run.dockers_nvidia_visible_devices)
-             ]
+                run.docker_image,
+                "bash",
+                "-c",
+                run.update_scheme
+                + run.extra_shell_script
+                + "cp {} {} ; ".format(DOCKER_ROOT_CONF_FILE, DOCKER_DEFAULT_CONF_FILE)
+                + "NVIDIA_VISIBLE_DEVICES={nv_visible} $LOCAL_PYTHON -u -m cairnml_agent ".format(
+                    nv_visible=run.dockers_nvidia_visible_devices
+                ),
+            ]
 
     def _run_as_user_patch(self, command, trains_conf, script_dir, venv_folder, sdk_cache_folder, user_uid):
         class RunasArgv(Argv):
@@ -5698,6 +5930,7 @@ class Worker(ServiceCommandSection):
 
             def set_uid(self, user_uid, user_gid):
                 from pwd import getpwnam
+
                 try:
                     self.uid = getpwnam(user_uid).pw_uid
                     self.gid = getpwnam(user_gid).pw_gid
@@ -5714,7 +5947,7 @@ class Worker(ServiceCommandSection):
             rm_tree(home_folder)
             Path(home_folder).mkdir(parents=True, exist_ok=True)
         except Exception:
-            home_folder = os.path.join('/home', self._run_as_user_home)
+            home_folder = os.path.join("/home", self._run_as_user_home)
             rm_tree(home_folder)
             Path(home_folder).mkdir(parents=True, exist_ok=True)
 
@@ -5722,10 +5955,10 @@ class Worker(ServiceCommandSection):
         venv_folder = venv_folder.as_posix()
         if not venv_folder.endswith(os.path.sep):
             venv_folder += os.path.sep
-        new_venv_folder = os.path.join(home_folder, 'venv/')
+        new_venv_folder = os.path.join(home_folder, "venv/")
         shutil.move(venv_folder, new_venv_folder)
         # allow everyone to access it
-        for f in Path(new_venv_folder).rglob('*'):
+        for f in Path(new_venv_folder).rglob("*"):
             try:
                 f.chmod(0o0777)
             except Exception:
@@ -5737,7 +5970,7 @@ class Worker(ServiceCommandSection):
                 sdk_cache_folder.chmod(0o0777)
             except Exception:
                 pass
-            for f in sdk_cache_folder.rglob('*'):
+            for f in sdk_cache_folder.rglob("*"):
                 try:
                     f.chmod(0o0777)
                 except Exception:
@@ -5745,7 +5978,7 @@ class Worker(ServiceCommandSection):
 
         # make sure we could access the trains_conf file
         try:
-            user_trains_conf = os.path.join(home_folder, 'cairnml.conf')
+            user_trains_conf = os.path.join(home_folder, "cairnml.conf")
             shutil.copy(trains_conf, user_trains_conf)
             Path(user_trains_conf).chmod(0o0777)
         except Exception:
@@ -5755,15 +5988,15 @@ class Worker(ServiceCommandSection):
         script_dir = script_dir.replace(venv_folder, new_venv_folder)
         # New command line execution
         command = RunasArgv(
-            'bash', '-c',
-            'HOME=\"{}\" PATH=\"{}\" PYTHONPATH=\"{}\" '
-            'CAIRNML_CONFIG_FILE={} {}'.format(
+            "bash",
+            "-c",
+            'HOME="{}" PATH="{}" PYTHONPATH="{}" CAIRNML_CONFIG_FILE={} {}'.format(
                 home_folder,
-                os.environ.get('PATH', '').replace(venv_folder, new_venv_folder),
-                os.environ.get('PYTHONPATH', '').replace(venv_folder, new_venv_folder),
+                os.environ.get("PATH", "").replace(venv_folder, new_venv_folder),
+                os.environ.get("PYTHONPATH", "").replace(venv_folder, new_venv_folder),
                 user_trains_conf,
-                command.serialize().replace(venv_folder, new_venv_folder)
-            )
+                command.serialize().replace(venv_folder, new_venv_folder),
+            ),
         )
         command.set_uid(user_uid=user_uid, user_gid=user_uid)
 
@@ -5776,28 +6009,31 @@ class Worker(ServiceCommandSection):
             worker_name = worker_id
 
         # Iterate over all running process
-        for pid, uid, slot, file in sorted(Singleton.get_running_pids(), key=lambda x: x[1] or ''):
+        for pid, uid, slot, file in sorted(Singleton.get_running_pids(), key=lambda x: x[1] or ""):
             if pid < 0 or uid is None:
                 continue
 
             # if dynamic gpus kill all children
             if dynamic_gpus and uid == worker_id:
-                print('Terminating cairnml-agent worker_id={} pid={}'.format(uid, pid))
+                print("Terminating cairnml-agent worker_id={} pid={}".format(uid, pid))
                 if not terminate_process(pid, timeout=120):
-                    warning('Could not terminate process pid={}'.format(pid))
+                    warning("Could not terminate process pid={}".format(pid))
                 return True
 
             # either we have a match for the worker_id or we just pick the first one, and kill it.
-            if (worker_id and uid == worker_id) or (not worker_id and uid.startswith('{}:'.format(worker_name))):
+            if (worker_id and uid == worker_id) or (not worker_id and uid.startswith("{}:".format(worker_name))):
                 # this is us kill it
-                print('Terminating cairnml-agent worker_id={} pid={}'.format(uid, pid))
-                timeout = 120 if uid.startswith('{}:dgpu'.format(worker_name)) else 10
+                print("Terminating cairnml-agent worker_id={} pid={}".format(uid, pid))
+                timeout = 120 if uid.startswith("{}:dgpu".format(worker_name)) else 10
                 if not terminate_process(pid, timeout=timeout):
-                    error('Could not terminate process pid={}'.format(pid))
+                    error("Could not terminate process pid={}".format(pid))
                 return True
 
-        print('Could not find a running cairnml-agent instance with worker_name={} worker_id={}'.format(
-            worker_name, worker_id))
+        print(
+            "Could not find a running cairnml-agent instance with worker_name={} worker_id={}".format(
+                worker_name, worker_id
+            )
+        )
         return False
 
     def _singleton(self, dynamic_gpus=False):
@@ -5807,15 +6043,17 @@ class Worker(ServiceCommandSection):
         # if we are running in services mode, we allow double register since
         # docker-compose will kill instances before they cleanup
         self.worker_id, worker_slot = Singleton.register_instance(
-            unique_worker_id=worker_id, worker_name=worker_name, api_client=self._session.api_client,
-            allow_double=bool(ENV_DOCKER_HOST_MOUNT.get())  # and bool(self._services_mode),
+            unique_worker_id=worker_id,
+            worker_name=worker_name,
+            api_client=self._session.api_client,
+            allow_double=bool(ENV_DOCKER_HOST_MOUNT.get()),  # and bool(self._services_mode),
         )
         #  set the parent ID the first time we have a worker ID (it might change for services-mode / dgpus)
         if not self.parent_worker_id:
             self.parent_worker_id = self.worker_id
 
         if self.worker_id is None:
-            error('Instance with the same WORKER_ID [{}] is already running'.format(worker_id))
+            error("Instance with the same WORKER_ID [{}] is already running".format(worker_id))
             sys.exit(1)
         # update folders based on free slot
         self._session.create_cache_folders(slot_index=worker_slot)
@@ -5825,13 +6063,12 @@ class Worker(ServiceCommandSection):
         worker_name = self._session.config["agent.worker_name"]
         if not worker_id and Session.get_nvidia_visible_env() is not None:
             nvidia_visible_devices = Session.get_nvidia_visible_env()
-            if nvidia_visible_devices and nvidia_visible_devices.lower() != 'none':
-                worker_id = '{}:{}gpu{}'.format(
-                    worker_name, 'd' if dynamic_gpus else '', nvidia_visible_devices)
-            elif nvidia_visible_devices == '':
+            if nvidia_visible_devices and nvidia_visible_devices.lower() != "none":
+                worker_id = "{}:{}gpu{}".format(worker_name, "d" if dynamic_gpus else "", nvidia_visible_devices)
+            elif nvidia_visible_devices == "":
                 pass
             else:
-                worker_name = '{}:cpu'.format(worker_name)
+                worker_name = "{}:cpu".format(worker_name)
         return worker_id, worker_name
 
     def _resolve_queue_names(self, queues):
@@ -5881,9 +6118,7 @@ class Worker(ServiceCommandSection):
     @staticmethod
     def _get_path(d, *path, default=None):
         try:
-            return functools.reduce(
-                lambda a, b: a[b], path, d
-            )
+            return functools.reduce(lambda a, b: a[b], path, d)
         except (IndexError, KeyError):
             return default
 
