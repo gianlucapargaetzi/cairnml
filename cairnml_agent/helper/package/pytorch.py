@@ -17,7 +17,7 @@ from .requirements import (
     SimpleSubstitution, FatalSpecsResolutionError, SimpleVersion, MarkerRequirement,
     compare_version_rules, )
 from ...definitions import ENV_PACKAGE_PYTORCH_RESOLVE
-from ...external.requirements_parser.requirement import Requirement
+from .requirement_lines import Requirement
 from ..gpu.util import detect_rocm_env
 
 OS_TO_WHEEL_NAME = {"linux": "linux_x86_64", "windows": "win_amd64"}

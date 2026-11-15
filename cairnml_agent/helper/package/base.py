@@ -402,7 +402,7 @@ class PackageManager(object, metaclass=abc.ABCMeta):
 def get_specific_package_version(cached_requirements, package_name):
     pkg_version = None
     try:
-        from cairnml_agent.external.requirements_parser import parse
+        from cairnml_agent.helper.package.requirement_lines import parse
         requirements = []
         if cached_requirements.get("pip", ""):
             requirements += cached_requirements.get("pip", "").split("\n") \

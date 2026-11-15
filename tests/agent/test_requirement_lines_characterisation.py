@@ -210,7 +210,6 @@ RAISING_LINES = [
     "--pre",
     "numpy==",
     "",
-    "-e",
 ]
 
 
@@ -239,11 +238,20 @@ def test_a_line_that_is_not_a_requirement_raises(line):
         Requirement.parse(line)
 
 
-# a trailing comment or hash option is refused by today's parser
-@pytest.mark.parametrize("line", ["a == 1 # c", "numpy==1.2 --hash=sha256:abc", "numpy==1.2 \\"])
-def test_a_requirement_followed_by_a_comment_or_hash_option_raises(line):
-    with pytest.raises(Exception):
-        Requirement.parse(line)
+# changed with the package: it strips a trailing comment, a hash option and a line continuation (the copy raised)
+@pytest.mark.parametrize(
+    "line,expected_line",
+    [("a == 1 # c", "a == 1 # c"), ("numpy==1.2 --hash=sha256:abc", "numpy==1.2"), ("numpy==1.2 \\", "numpy==1.2")],
+)
+def test_a_requirement_followed_by_a_comment_or_hash_option_is_parsed(line, expected_line):
+    req = Requirement.parse(line)
+    assert req.line == expected_line
+    assert req.name in ("a", "numpy")
+
+
+# changed with the package: an editable line without a path gives an empty editable requirement (the copy asserted)
+def test_a_bare_editable_flag_gives_an_empty_editable_requirement():
+    assert Requirement.parse("-e").editable is True
 
 
 def test_a_marker_requirement_is_hashable_and_copies_by_value():
@@ -319,10 +327,10 @@ def test_an_unknown_option_line_raises_when_it_is_reached():
         list(parse("numpy\n--no-binary :all:"))
 
 
-def test_a_list_with_an_r_line_fails_today():
-    # known defect of the copy: the list branch never sets the file name (fixed with the replacement)
-    with pytest.raises(UnboundLocalError):
-        list(parse(["numpy", "-r inc.txt"]))
+def test_a_list_with_an_r_line_resolves_it_against_cwd(tmp_path):
+    # fixed bug: the copy raised UnboundLocalError here
+    (tmp_path / "inc.txt").write_text("scipy==1.1\n")
+    assert [r.name for r in parse(["numpy", "-r inc.txt"], cwd=str(tmp_path))] == ["numpy", "scipy"]
 
 
 def test_the_manager_parses_a_string_a_list_and_keeps_unparsable_lines_verbatim():
@@ -435,8 +443,9 @@ WHEEL = "https://download.pytorch.org/whl/cu118/torch-2.0.0%2Bcu118-cp310-cp310-
 def test_pytorch_replace_back_for_a_wheel_url_line():
     sub = _pytorch_substitution("torch", WHEEL)
     result = sub.replace_back({"pip": ["torch @ " + WHEEL]})
-    # the comment-bearing "torch == 2.0.0 # <url>" line is refused today, so the fallback line is written
-    assert result == {"pip": ["torch # " + WHEEL]}
+    # changed with the package: the pinned form is written again, the comment-bearing line used to be refused
+    # and the fallback "torch # <url>" was written instead
+    assert result == {"pip": ["torch == 2.0.0 # " + WHEEL]}
 
 
 def test_pytorch_replace_back_for_a_plain_version_line():

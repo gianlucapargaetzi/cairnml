@@ -40,7 +40,7 @@ def resolve_default_container(session, task_id, container_config, ignore_match_r
     except (ValueError, TypeError):
         return container_config, None
 
-    from cairnml_agent.external.requirements_parser.requirement import Requirement
+    from cairnml_agent.helper.package.requirement_lines import Requirement
 
     # store tasks repository
     repository = task_info.get('script', {}).get('repository') or ''

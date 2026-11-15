@@ -189,3 +189,11 @@ def test_an_unsupported_option_warns_and_is_not_yielded(line, message):
 def test_an_unknown_option_line_raises_so_callers_can_pass_it_through():
     with pytest.raises(Exception):
         list(parse("numpy\n--no-binary :all:"))
+
+
+def test_the_manager_parses_a_line_with_a_trailing_comment_instead_of_passing_it_raw():
+    from cairnml_agent.helper.package.requirements import RequirementsManager
+
+    reqs = RequirementsManager.parse_requirements_section_to_marker_requirements(["a==1 # c"])
+    assert reqs[0].name == "a"
+    assert reqs[0].specs == [("==", "1")]

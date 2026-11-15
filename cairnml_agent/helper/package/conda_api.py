@@ -12,8 +12,7 @@ import yaml
 from time import time
 from attr import attrs, attrib, Factory
 from pathlib import Path
-from cairnml_agent.external.requirements_parser import parse
-from cairnml_agent.external.requirements_parser.requirement import Requirement
+from cairnml_agent.helper.package.requirement_lines import Requirement, parse
 
 from cairnml_agent.errors import CommandFailedError
 from cairnml_agent.helper.base import (
