@@ -27,10 +27,6 @@ spec:
           value: "k8s-glue"
         - name: K8S_GLUE_EXTRA_ARGS
           value: "--template-yaml /root/template/pod_template.yml"
-        - name: CAIRNML_API_ACCESS_KEY
-          value: ""
-        - name: CAIRNML_API_SECRET_KEY
-          value: ""
         - name: CAIRNML_WORKER_ID
           value: "k8s-glue-agent"
         - name: CAIRNML_AGENT_UPDATE_REPO

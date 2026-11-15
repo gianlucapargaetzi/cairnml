@@ -140,5 +140,3 @@ The five settings that were also named `CAIRNML_AGENT_*` are read under their SD
 | `CAIRNML_K8S_GLUE_KIND` | `pod` | Kind of Kubernetes object the glue starts for a task: `pod` or another kind it supports. |
 | `CAIRNML_K8S_GLUE_START_AGENT_SCRIPT_PATH` | `~/__start_agent__.sh` | Script the glue writes to start the agent in a pod. |
 | `CAIRNML_AGENT_NO_UPDATE` | unset | Do not update `cairnml-agent` when a container starts. Set in the glue's pods. |
-| `CAIRNML_API_ACCESS_KEY` | unset | Access key passed to the glue's pods. |
-| `CAIRNML_API_SECRET_KEY` | unset | Secret key passed to the glue's pods. |
