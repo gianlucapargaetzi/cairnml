@@ -18,7 +18,7 @@ from cairnml.cli.config.__main__ import parse_known_host, write_config
 from cairnml.idp.device import DEVICE_KEY_PATH
 from cairnml.idp.device_login import browser_or_device_login, device_login
 from cairnml.idp.enrol import EnrolmentFailed, enrol, revoke_device, whoami
-from cairnml.utilities.pyhocon import ConfigFactory
+from pyhocon import ConfigFactory
 from cairnml.version import __version__
 
 # The server compares the client version in this header with its minimum and answers an old client with the

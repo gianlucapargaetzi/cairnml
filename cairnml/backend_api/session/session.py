@@ -43,7 +43,7 @@ from ...idp.device import device_assertion
 from ...backend_config import ConfigurationError
 from ...debugging import get_logger
 from ...debugging.log import resolve_logging_level
-from ...utilities.pyhocon import ConfigTree, ConfigFactory
+from pyhocon import ConfigTree, ConfigFactory
 from ...version import __version__
 from ...backend_config.utils import apply_files, apply_environment
 
@@ -618,8 +618,8 @@ class Session(TokenManager):
             # make sure we're using a compatible version for this request
             # validate the request (checks required fields and specific field version restrictions)
             validate = req_obj.validate
-        except AttributeError:
-            raise TypeError('"req_obj" parameter must be an backend_api.session.Request object')
+        except AttributeError as ex:
+            raise TypeError('"req_obj" parameter must be an backend_api.session.Request object') from ex
 
         validate()
 

@@ -6,7 +6,7 @@ from typing import Union, Any
 import pyparsing
 
 from .dicts import hocon_quote_key, hocon_unquote_key
-from .pyhocon import ConfigFactory, HOCONConverter
+from pyhocon import ConfigFactory, HOCONConverter
 from ..storage.size import parse_size
 
 
@@ -40,7 +40,7 @@ def get_percentage(config: dict, key: str, required: bool = True, default: float
         return value / 100.0
 
     except ValueError as e:
-        raise ValueError("Config: failed parsing %s: %s" % (key, e))
+        raise ValueError("Config: failed parsing %s: %s" % (key, e)) from e
 
 
 def get_human_size_default(config: dict, key: str, default: Any = None) -> Any:
@@ -88,8 +88,8 @@ def config_dict_to_text(config: Union[str, dict, list]) -> str:
             text = json.dumps(config)
             text = HOCONConverter.to_hocon(ConfigFactory.parse_string(text))
 
-    except Exception:
-        raise ValueError("Could not serialize configuration dictionary:\n", config)
+    except Exception as ex:
+        raise ValueError("Could not serialize configuration dictionary:\n", config) from ex
     return text
 
 
