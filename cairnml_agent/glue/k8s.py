@@ -27,12 +27,12 @@ from cairnml_agent.definitions import (
 )
 from cairnml_agent.errors import APIError, UsageError
 from cairnml_agent.glue.errors import GetPodCountError, ReenqueueTaskException
-from cairnml_agent.glue.utilities import get_path
+from cairnml_agent.glue.utilities import get_bash_output, get_path
 from cairnml_agent.glue.pending_pods_daemon import PendingPodsDaemon
 from cairnml_agent.helper.base import safe_remove_file
 from cairnml_agent.helper.dicts import merge_dicts
 from cairnml_agent.helper.hash import md5
-from cairnml_agent.helper.process import get_bash_output, stringify_bash_output
+from cairnml_agent.helper.process import stringify_bash_output
 from cairnml_agent.helper.resource_monitor import ResourceMonitor
 from cairnml_agent.interface.base import ObjectID
 from cairnml_agent.backend_api.session.request import Request
