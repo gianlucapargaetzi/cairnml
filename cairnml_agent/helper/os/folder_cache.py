@@ -12,9 +12,9 @@ from typing import List, Optional, Sequence  # noqa: F401  # used in type commen
 
 
 class FolderCache(object):
-    _lock_filename = '.cairnml.lock'
+    _lock_filename = ".cairnml.lock"
     _def_lock_timeout_seconds = 30
-    _temp_entry_prefix = '_temp.'
+    _temp_entry_prefix = "_temp."
 
     def __init__(self, cache_folder, max_cache_entries=5, min_free_space_gb=None, lock_timeout_seconds=None):
         self._cache_folder = Path(os.path.expandvars(cache_folder)).expanduser().absolute()
@@ -47,13 +47,17 @@ class FolderCache(object):
         # lock so we make sure no one deletes it before we copy it
         # noinspection PyBroadException
         try:
-            print("INFO: acquiring lock [timeout={}s] for cache folder: {}".format(
-                self._lock_timeout_seconds, self._cache_folder))
+            print(
+                "INFO: acquiring lock [timeout={}s] for cache folder: {}".format(
+                    self._lock_timeout_seconds, self._cache_folder
+                )
+            )
             self._lock.acquire(timeout=self._lock_timeout_seconds, readonly=True)
         except BaseException as ex:
-            warning('Could not lock cache folder {}: {}'.format(self._cache_folder, ex))
+            warning("Could not lock cache folder {}: {}".format(self._cache_folder, ex))
             import traceback
-            warning('DEBUG: Exception {}: {}'.format(ex, traceback.format_exc()))
+
+            warning("DEBUG: Exception {}: {}".format(ex, traceback.format_exc()))
             return None
 
         src = None
@@ -65,7 +69,7 @@ class FolderCache(object):
                 shutil.rmtree(destination.as_posix())
                 shutil.copytree(src.as_posix(), dst=destination.as_posix(), symlinks=True)
         except BaseException as ex:
-            warning('Could not copy cache folder {} to {}: {}'.format(src, destination, ex))
+            warning("Could not copy cache folder {} to {}: {}".format(src, destination, ex))
             self._lock.release()
             return None
 
@@ -86,9 +90,9 @@ class FolderCache(object):
             return None
         # conform keys
         keys = [keys] if isinstance(keys, str) else keys
-        keys = sorted([k.replace('.', '_') for k in keys])
-        for cache_folder in self._cache_folder.glob('*'):
-            if cache_folder.is_dir() and any(True for k in cache_folder.name.split('.') if k in keys):
+        keys = sorted([k.replace(".", "_") for k in keys])
+        for cache_folder in self._cache_folder.glob("*"):
+            if cache_folder.is_dir() and any(True for k in cache_folder.name.split(".") if k in keys):
                 cache_folder.touch()
                 return cache_folder
         return None
@@ -107,33 +111,38 @@ class FolderCache(object):
             return False
 
         keys = [keys] if isinstance(keys, str) else keys
-        keys = sorted([k.replace('.', '_') for k in keys])
+        keys = sorted([k.replace(".", "_") for k in keys])
 
         # If entry already exists skip it
         cached_entry = self.get_entry(keys)
         if cached_entry:
             # make sure the entry contains all keys
-            cached_keys = cached_entry.name.split('.')
+            cached_keys = cached_entry.name.split(".")
             if set(keys) - set(cached_keys):
                 # noinspection PyBroadException
                 try:
-                    print("INFO: acquiring lock [timeout={}s] for cache folder: {}".format(
-                        self._lock_timeout_seconds, self._cache_folder))
+                    print(
+                        "INFO: acquiring lock [timeout={}s] for cache folder: {}".format(
+                            self._lock_timeout_seconds, self._cache_folder
+                        )
+                    )
                     self._lock.acquire(timeout=self._lock_timeout_seconds)
                 except BaseException as ex:
-                    warning('Could not lock cache folder {}: {}'.format(self._cache_folder, ex))
+                    warning("Could not lock cache folder {}: {}".format(self._cache_folder, ex))
                     import traceback
-                    warning('DEBUG: Exception {}: {}'.format(ex, traceback.format_exc()))
+
+                    warning("DEBUG: Exception {}: {}".format(ex, traceback.format_exc()))
                     # failed locking do nothing
                     return True
                 keys = sorted(list(set(keys) | set(cached_keys)))
-                dst = cached_entry.parent / '.'.join(keys)
+                dst = cached_entry.parent / ".".join(keys)
                 # rename
                 try:
                     shutil.move(src=cached_entry.as_posix(), dst=dst.as_posix())
                 except BaseException as ex:
-                    warning('Could not rename cache entry {} to {}: {}'.format(
-                        cached_entry.as_posix(), dst.as_posix(), ex))
+                    warning(
+                        "Could not rename cache entry {} to {}: {}".format(cached_entry.as_posix(), dst.as_posix(), ex)
+                    )
                 # release lock
                 self._lock.release()
             return True
@@ -143,8 +152,10 @@ class FolderCache(object):
 
         # if we do not have enough free space, do nothing.
         if not self._check_min_free_space():
-            warning('Could not add cache entry, not enough free space on drive, '
-                    'free space threshold {} GB. Clearing all cache entries!'.format(self._min_free_space_gb))
+            warning(
+                "Could not add cache entry, not enough free space on drive, "
+                "free space threshold {} GB. Clearing all cache entries!".format(self._min_free_space_gb)
+            )
             self._remove_old_entries(max_cache_entries=0)
             return False
 
@@ -152,26 +163,27 @@ class FolderCache(object):
         exclude_sub_folders = exclude_sub_folders or []
         source_folder = Path(source_folder).absolute()
         # create temp folder
-        temp_folder = \
-            self._temp_entry_prefix + \
-            '{}.{}'.format(str(time()).replace('.', '_'), str(random()).replace('.', '_'))
+        temp_folder = self._temp_entry_prefix + "{}.{}".format(
+            str(time()).replace(".", "_"), str(random()).replace(".", "_")
+        )
         temp_folder = self._cache_folder / temp_folder
         temp_folder.mkdir(parents=True, exist_ok=False)
 
-        for f in source_folder.glob('*'):
+        for f in source_folder.glob("*"):
             if f.name in exclude_sub_folders:
                 continue
             if f.is_dir():
                 shutil.copytree(
-                    src=f.as_posix(), dst=(temp_folder / f.name).as_posix(),
-                    symlinks=True, ignore_dangling_symlinks=True)
+                    src=f.as_posix(),
+                    dst=(temp_folder / f.name).as_posix(),
+                    symlinks=True,
+                    ignore_dangling_symlinks=True,
+                )
             else:
-                shutil.copy(
-                    src=f.as_posix(), dst=(temp_folder / f.name).as_posix(),
-                    follow_symlinks=False)
+                shutil.copy(src=f.as_posix(), dst=(temp_folder / f.name).as_posix(), follow_symlinks=False)
 
         # rename the target folder
-        target_cache_folder = self._cache_folder / '.'.join(keys)
+        target_cache_folder = self._cache_folder / ".".join(keys)
         # if we failed moving it means someone else created the cached entry before us, we can just leave
         # noinspection PyBroadException
         try:
@@ -198,13 +210,16 @@ class FolderCache(object):
         Notice we only keep self._max_cache_entries-1, assuming we will be adding a new entry soon
         :param int max_cache_entries: if not None use instead of self._max_cache_entries
         """
-        folder_entries = [(cache_folder, cache_folder.stat().st_mtime)
-                          for cache_folder in self._cache_folder.glob('*')
-                          if cache_folder.is_dir() and not cache_folder.name.startswith(self._temp_entry_prefix)]
+        folder_entries = [
+            (cache_folder, cache_folder.stat().st_mtime)
+            for cache_folder in self._cache_folder.glob("*")
+            if cache_folder.is_dir() and not cache_folder.name.startswith(self._temp_entry_prefix)
+        ]
         folder_entries = sorted(folder_entries, key=lambda x: x[1], reverse=True)
 
-        number_of_entries_to_keep = self._max_cache_entries - 1 \
-            if max_cache_entries is None else max(0, int(max_cache_entries))
+        number_of_entries_to_keep = (
+            self._max_cache_entries - 1 if max_cache_entries is None else max(0, int(max_cache_entries))
+        )
 
         # if nothing to do, leave
         if not folder_entries[number_of_entries_to_keep:]:
@@ -213,20 +228,24 @@ class FolderCache(object):
         # lock so we make sure no one deletes it before we copy it
         # noinspection PyBroadException
         try:
-            print("INFO: acquiring lock [timeout={}s] for cache folder: {}".format(
-                self._lock_timeout_seconds, self._cache_folder))
+            print(
+                "INFO: acquiring lock [timeout={}s] for cache folder: {}".format(
+                    self._lock_timeout_seconds, self._cache_folder
+                )
+            )
             self._lock.acquire(timeout=self._lock_timeout_seconds)
         except BaseException as ex:
-            warning('Could not lock cache folder {}: {}'.format(self._cache_folder, ex))
+            warning("Could not lock cache folder {}: {}".format(self._cache_folder, ex))
             import traceback
-            warning('DEBUG: Exception {}: {}'.format(ex, traceback.format_exc()))
+
+            warning("DEBUG: Exception {}: {}".format(ex, traceback.format_exc()))
             return
 
         for folder, ts in folder_entries[number_of_entries_to_keep:]:
             try:
                 shutil.rmtree(folder.as_posix(), ignore_errors=True)
             except BaseException as ex:
-                warning('Could not delete cache entry {}: {}'.format(folder.as_posix(), ex))
+                warning("Could not delete cache entry {}: {}".format(folder.as_posix(), ex))
 
         self._lock.release()
 

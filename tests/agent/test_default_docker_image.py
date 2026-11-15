@@ -12,7 +12,7 @@ def test_the_default_job_image_has_a_python_the_agent_supports():
     (python >= 3.9) refuses: "requires a different Python: 3.8.10 not in '>=3.9'".
     """
     text = DEFAULT_CONF.read_text()
-    block = text[text.index("default_docker:"):]
+    block = text[text.index("default_docker:") :]
     image = re.search(r'image:\s*"([^"]+)"', block).group(1)
     ubuntu = re.search(r"ubuntu(\d+)\.(\d+)$", image)
     assert ubuntu, image

@@ -42,18 +42,18 @@ def get_bash_output(cmd, strip=False, stderr=subprocess.STDOUT, stdin=False, rai
 
 
 def stringify_bash_output(value):
-    return '' if not value else (value if isinstance(value, str) else value.decode('utf-8'))
+    return "" if not value else (value if isinstance(value, str) else value.decode("utf-8"))
 
 
-def terminate_process(pid, timeout=10., ignore_zombie=True, include_children=False):
+def terminate_process(pid, timeout=10.0, ignore_zombie=True, include_children=False):
     # noinspection PyBroadException
     try:
         proc = psutil.Process(pid)
         children = proc.children(recursive=True) if include_children else []
         proc.terminate()
         cnt = 0
-        while proc.is_running() and (ignore_zombie or proc.status() != 'zombie') and cnt < timeout:
-            sleep(1.)
+        while proc.is_running() and (ignore_zombie or proc.status() != "zombie") and cnt < timeout:
+            sleep(1.0)
             cnt += 1
         proc.terminate()
 
@@ -62,8 +62,8 @@ def terminate_process(pid, timeout=10., ignore_zombie=True, include_children=Fal
             c.terminate()
 
         cnt = 0
-        while proc.is_running() and (ignore_zombie or proc.status() != 'zombie') and cnt < timeout:
-            sleep(1.)
+        while proc.is_running() and (ignore_zombie or proc.status() != "zombie") and cnt < timeout:
+            sleep(1.0)
             cnt += 1
 
         # kill children
@@ -105,7 +105,7 @@ def kill_all_child_processes(pid=None, include_parent=True, debug=False):
             print("ERROR: could not kill parent process id {}".format(parent))
 
 
-def terminate_all_child_processes(pid=None, timeout=10., include_parent=True):
+def terminate_all_child_processes(pid=None, timeout=10.0, include_parent=True):
     # get current process if pid not provided
     if not pid:
         pid = os.getpid()
@@ -116,7 +116,7 @@ def terminate_all_child_processes(pid=None, timeout=10., include_parent=True):
         # could not find process id
         return
     for child in parent.children(recursive=False):
-        print('Terminating child process {}'.format(child.pid))
+        print("Terminating child process {}".format(child.pid))
         terminate_process(child.pid, timeout=timeout, ignore_zombie=False, include_children=True)
     if include_parent:
         terminate_process(parent.pid, timeout=timeout, ignore_zombie=False)
@@ -125,9 +125,9 @@ def terminate_all_child_processes(pid=None, timeout=10., include_parent=True):
 def get_docker_id(docker_cmd_contains):
     # noinspection PyBroadException
     try:
-        containers_running = get_bash_output(cmd='docker ps --no-trunc --format \"{{.ID}}: {{.Command}}\"')
-        for docker_line in containers_running.split('\n'):
-            parts = docker_line.split(':', 1)
+        containers_running = get_bash_output(cmd='docker ps --no-trunc --format "{{.ID}}: {{.Command}}"')
+        for docker_line in containers_running.split("\n"):
+            parts = docker_line.split(":", 1)
             if docker_cmd_contains in parts[-1]:
                 # we found our docker, return it
                 return parts[0]
@@ -142,7 +142,7 @@ def shutdown_docker_process(docker_cmd_contains=None, docker_id=None):
             docker_id = get_docker_id(docker_cmd_contains=docker_cmd_contains)
         if docker_id:
             # we found our docker, stop it
-            return get_bash_output(cmd='docker stop -t 1 {}'.format(docker_id))
+            return get_bash_output(cmd="docker stop -t 1 {}".format(docker_id))
     except Exception:
         pass
     return None
@@ -166,8 +166,8 @@ def commit_docker(container_name, docker_cmd_contains=None, docker_id=None, appl
 
         if docker_id:
             # we found our docker, stop it
-            apply_change = '--change=\'{}\''.format(apply_change) if apply_change else ''
-            output = get_bash_output(cmd='docker commit {} {} {}'.format(apply_change, docker_id, container_name))
+            apply_change = "--change='{}'".format(apply_change) if apply_change else ""
+            output = get_bash_output(cmd="docker commit {} {} {}".format(apply_change, docker_id, container_name))
             return output
     except Exception:
         pass
@@ -181,7 +181,7 @@ def check_if_command_exists(cmd):
 
 
 def get_program_invocation():
-    return [sys.executable, "-u", "-m", PROGRAM_NAME.replace('-', '_')]
+    return [sys.executable, "-u", "-m", PROGRAM_NAME.replace("-", "_")]
 
 
 Retval = TypeVar("Retval")
@@ -194,11 +194,7 @@ class Executable(object, metaclass=abc.ABCMeta):
         pass
 
     def get_output(self, *args, **kwargs):
-        return (
-            self.call_subprocess(subprocess.check_output, *args, **kwargs)
-            .decode("utf8")
-            .rstrip()
-        )
+        return self.call_subprocess(subprocess.check_output, *args, **kwargs).decode("utf8").rstrip()
 
     def check_call(self, *args, **kwargs):
         return self.call_subprocess(subprocess.check_call, *args, **kwargs)
@@ -222,7 +218,6 @@ class Executable(object, metaclass=abc.ABCMeta):
 
 
 class Argv(Executable):
-
     ARGV_SEPARATOR = " "
 
     def __init__(self, *argv, **kwargs):
@@ -281,8 +276,7 @@ class Argv(Executable):
 
     def __iter__(self):
         if is_windows_platform():
-            return (word.as_posix().replace('/', '\\') if isinstance(word, Path) else str(word)
-                    for word in self.argv)
+            return (word.as_posix().replace("/", "\\") if isinstance(word, Path) else str(word) for word in self.argv)
         return (str(word) for word in self.argv)
 
     def __getitem__(self, item):
@@ -317,7 +311,6 @@ class Argv(Executable):
 
 
 class CommandSequence(Executable):
-
     JOIN_COMMAND_OPERATOR = "&&"
 
     def __init__(self, *commands, **kwargs):
@@ -366,7 +359,7 @@ class CommandSequence(Executable):
             # return list(command) if is_windows_platform() else command.serialize()
             return command.serialize()
 
-        return ' '.join(list(intersperse(self.JOIN_COMMAND_OPERATOR, map(normalize, self.commands))))
+        return " ".join(list(intersperse(self.JOIN_COMMAND_OPERATOR, map(normalize, self.commands))))
 
     def call_subprocess(self, func, censor_password=False, *args, **kwargs):
         with self.normalize_exception(censor_password):
@@ -379,14 +372,12 @@ class CommandSequence(Executable):
                         shell=True,
                     ),
                     kwargs,
-                )
+                ),
             )
 
     def __repr__(self):
         tab = " " * 4
-        return "<{}(\n{}{},\n)>".format(
-            type(self).__name__, tab, (",\n" + tab).join(map(repr, self.commands))
-        )
+        return "<{}(\n{}{},\n)>".format(type(self).__name__, tab, (",\n" + tab).join(map(repr, self.commands)))
 
     def __iter__(self):
         return iter(self.commands)
@@ -449,12 +440,7 @@ class WorkerParams(object):
         """
         global_args, worker_args = self.get_worker_flags()
         program_invocation = self.program_invocation or get_program_invocation()
-        command_line = (
-            tuple(program_invocation)
-            + global_args
-            + (command, )
-            + worker_args
-        )
+        command_line = tuple(program_invocation) + global_args + (command,) + worker_args
         return Argv(*command_line)
 
 
@@ -516,7 +502,7 @@ def double_quote(s):
 
     # use single quotes, and put single quotes into double quotes
     # the string $"b is then quoted as "$"""b"
-    return '"' + s.replace('"', '"\'\"\'"') + '"'
+    return '"' + s.replace('"', '"\'"\'"') + '"'
 
 
 def find_executable(executable, path=None):
@@ -529,14 +515,14 @@ def find_executable(executable, path=None):
         return None
 
     _, ext = os.path.splitext(executable)
-    if (sys.platform == 'win32') and (ext != '.exe'):
-        executable = executable + '.exe'
+    if (sys.platform == "win32") and (ext != ".exe"):
+        executable = executable + ".exe"
 
     if os.path.isfile(executable):
         return executable
 
     if path is None:
-        path = os.environ.get('PATH', None)
+        path = os.environ.get("PATH", None)
         if path is None:
             try:
                 path = os.confstr("CS_PATH")

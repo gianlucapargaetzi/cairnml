@@ -31,7 +31,6 @@ CONFIG_FILE = normalize_path(find_config_path())
 
 
 class EnvironmentConfig(object):
-
     conversions = {
         bool: lambda value: bool(strtobool(value)),
         str: lambda s: str(s).strip(),

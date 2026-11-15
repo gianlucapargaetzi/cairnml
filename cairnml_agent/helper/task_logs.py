@@ -24,13 +24,11 @@ def send_logs_to_task(worker_id: str, task_id: str, lines: List[str], session, l
 
     # remove backspaces from the text log, they look bad.
     for i, l in enumerate(lines):
-        lines[i] = l.replace('\x08', '')
+        lines[i] = l.replace("\x08", "")
 
     events_service = Events(session.config)
     try:
-        events_service.send_log_events(
-            worker_id, task_id=task_id, lines=lines, level=level, session=session
-        )
+        events_service.send_log_events(worker_id, task_id=task_id, lines=lines, level=level, session=session)
         return len(lines)
     except Exception as e:
         print("\n### Error sending log: %s ###\n" % e)

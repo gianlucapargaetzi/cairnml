@@ -45,7 +45,5 @@ def test_task_requirements_take_precedence_over_repo_requirements(tmp_path):
         package_api=package_api,
     )
 
-    worker._install_patched_python_requirements.assert_called_once_with(
-        execution, package_api, cached_requirements
-    )
+    worker._install_patched_python_requirements.assert_called_once_with(execution, package_api, cached_requirements)
     package_api.install_from_file.assert_not_called()

@@ -39,10 +39,13 @@ class FakeIdp:
 
     def get(self, url, timeout=None):
         assert url == ISSUER + "/.well-known/openid-configuration"
-        return Response(200, {
-            "authorization_endpoint": ISSUER + "/auth",
-            "token_endpoint": ISSUER + "/token",
-        })
+        return Response(
+            200,
+            {
+                "authorization_endpoint": ISSUER + "/auth",
+                "token_endpoint": ISSUER + "/token",
+            },
+        )
 
     def post(self, url, data=None, timeout=None):
         self.token_posts.append(dict(data))
@@ -129,8 +132,14 @@ def test_a_busy_port_is_reported_before_the_browser_opens():
     try:
         port = busy.getsockname()[1]
         with pytest.raises(LoginPortBusy, match="in use"):
-            browser_login(ISSUER, "cairnml-sdk", session=FakeIdp(), open_browser=lambda url: opened.append(url),
-                          timeout=5, port=port)
+            browser_login(
+                ISSUER,
+                "cairnml-sdk",
+                session=FakeIdp(),
+                open_browser=lambda url: opened.append(url),
+                timeout=5,
+                port=port,
+            )
     finally:
         busy.close()
     assert opened == []

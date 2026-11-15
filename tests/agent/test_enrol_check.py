@@ -27,8 +27,12 @@ class Response:
 
 
 class FakeServer:
-    def __init__(self, enrol_reply=(200, {"data": {"id": "dev_1", "kind": "client"}}), revoke_reply=(200, {"data": {}}),
-                 exchange_reply=(200, {"data": {"access_token": "device-token"}})):
+    def __init__(
+        self,
+        enrol_reply=(200, {"data": {"id": "dev_1", "kind": "client"}}),
+        revoke_reply=(200, {"data": {}}),
+        exchange_reply=(200, {"data": {"access_token": "device-token"}}),
+    ):
         self.enrol_reply = enrol_reply
         self.revoke_reply = revoke_reply
         self.exchange_reply = exchange_reply
@@ -37,9 +41,17 @@ class FakeServer:
     def post(self, url, json=None, headers=None, timeout=None):
         self.calls.append((url, json, headers))
         if url.endswith("devices.idp_settings"):
-            return Response(200, {"data": {"issuer": "https://idp.example/realms/mlops",
-                                           "sdk_client_id": "cairnml-sdk",
-                                           "public_url": PUBLIC, "web_url": "http://cairnml:8080"}})
+            return Response(
+                200,
+                {
+                    "data": {
+                        "issuer": "https://idp.example/realms/mlops",
+                        "sdk_client_id": "cairnml-sdk",
+                        "public_url": PUBLIC,
+                        "web_url": "http://cairnml:8080",
+                    }
+                },
+            )
         if url.endswith("devices.exchange"):
             return Response(*self.exchange_reply)
         if url.endswith("devices.revoke"):

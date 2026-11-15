@@ -36,9 +36,20 @@ def test_vulture_at_80_percent_finds_nothing_the_whitelist_does_not_name():
     assert (ROOT / "vulture_whitelist.py").is_file()
 
     result = subprocess.run(
-        [sys.executable, "-m", "vulture", "cairnml_agent", "vulture_whitelist.py", "--min-confidence", "80",
-         "--exclude", EXCLUDE],
-        cwd=ROOT, capture_output=True, text=True,
+        [
+            sys.executable,
+            "-m",
+            "vulture",
+            "cairnml_agent",
+            "vulture_whitelist.py",
+            "--min-confidence",
+            "80",
+            "--exclude",
+            EXCLUDE,
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
     )
 
     assert result.stdout == "", result.stdout

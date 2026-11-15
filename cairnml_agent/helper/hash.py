@@ -3,6 +3,7 @@
 `usedforsecurity=False` was added in Python 3.9; cairnml-agent declares
 support for 3.6+, so we feature-detect once and dispatch.
 """
+
 import hashlib
 import sys
 

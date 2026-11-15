@@ -13,6 +13,7 @@ The checks run in this order; each failure names the next step:
 A warning prints as "warn" and does not change the exit status. The checks change nothing. The exit status is 0 when
 no check fails, 1 otherwise.
 """
+
 import os
 import shutil
 import subprocess
@@ -71,19 +72,28 @@ def check_server(server: Optional[str], http=None) -> Tuple[Check, dict]:
     try:
         settings = idp_enrol._settings(http or requests.Session(), server)
     except idp_enrol.EnrolmentFailed as exc:
-        return _fail("server", f"{server} refused the check ({exc})",
-                     "give the server address that cairnml-agent init used, e.g. http://cairnml"), {}
+        return _fail(
+            "server",
+            f"{server} refused the check ({exc})",
+            "give the server address that cairnml-agent init used, e.g. http://cairnml",
+        ), {}
     except requests.RequestException as exc:
-        return _fail("server", f"cannot reach {server} ({exc.__class__.__name__})",
-                     "check the address, that the server is running, and the port"), {}
+        return _fail(
+            "server",
+            f"cannot reach {server} ({exc.__class__.__name__})",
+            "check the address, that the server is running, and the port",
+        ), {}
     return Check("server", True, f"reachable at {server}"), settings
 
 
 def check_docker(which=None) -> Check:
     path = (which or shutil.which)("docker")
     if not path:
-        return _fail("docker", "the docker command is not installed or not on the PATH",
-                     f"install Docker Engine ({DOCKER_DOCS}) and run this check again")
+        return _fail(
+            "docker",
+            "the docker command is not installed or not on the PATH",
+            f"install Docker Engine ({DOCKER_DOCS}) and run this check again",
+        )
     return Check("docker", True, f"docker found at {path}")
 
 
@@ -92,8 +102,7 @@ def check_daemon(docker_check: Check, run=None) -> Check:
     if docker_check.ok is not True:
         return Check("daemon", None, "skipped: docker is not installed")
     try:
-        result = (run or subprocess.run)(["docker", "info"], capture_output=True, text=True,
-                                         timeout=DOCKER_TIMEOUT_SEC)
+        result = (run or subprocess.run)(["docker", "info"], capture_output=True, text=True, timeout=DOCKER_TIMEOUT_SEC)
     except (OSError, subprocess.TimeoutExpired) as exc:
         return _fail("daemon", f"docker info did not answer ({exc.__class__.__name__})", _daemon_step())
     if result.returncode != 0:
@@ -104,8 +113,10 @@ def check_daemon(docker_check: Check, run=None) -> Check:
 
 
 def _daemon_step() -> str:
-    return ("start the daemon with 'sudo systemctl start docker', add this user to the docker group with "
-            "'sudo usermod -aG docker $USER' and log in again")
+    return (
+        "start the daemon with 'sudo systemctl start docker', add this user to the docker group with "
+        "'sudo usermod -aG docker $USER' and log in again"
+    )
 
 
 def check_github(settings: dict, server_check: Check) -> Check:
@@ -113,10 +124,16 @@ def check_github(settings: dict, server_check: Check) -> Check:
     if server_check.ok is not True:
         return Check("github", None, "skipped: the server did not answer")
     if settings.get("github_app") is True:
-        return Check("github", True, "the server has a GitHub App; it must be installed on each repository the jobs use")
-    return Check("github", True, "no GitHub App on the server: jobs from github.com repositories are refused "
-                                 "- next: set up the GitHub App (see the server README, section GitHub App)",
-                 warning=True)
+        return Check(
+            "github", True, "the server has a GitHub App; it must be installed on each repository the jobs use"
+        )
+    return Check(
+        "github",
+        True,
+        "no GitHub App on the server: jobs from github.com repositories are refused "
+        "- next: set up the GitHub App (see the server README, section GitHub App)",
+        warning=True,
+    )
 
 
 def run_checks(conf: Path, http=None, which=None, run=None) -> List[Check]:

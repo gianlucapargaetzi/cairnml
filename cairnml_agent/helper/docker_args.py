@@ -19,6 +19,7 @@ from cairnml_agent.helper.custom_template import CustomTemplate, TemplateResolve
 if TYPE_CHECKING:
     from cairnml_agent.session import Session  # noqa: F401  # used in type comments
 
+
 def sanitize_urls(s: str) -> Tuple[str, bool]:
     """
     Replaces passwords in URLs with asterisks.
@@ -32,14 +33,9 @@ def sanitize_urls(s: str) -> Tuple[str, bool]:
             res = urlparse(tokens[k])
             if regex.match(res.netloc):
                 changed = True
-                tokens[k] = urlunparse((
-                    res.scheme,
-                    regex.sub("\\1********\\2", res.netloc),
-                    res.path,
-                    res.params,
-                    res.query,
-                    res.fragment
-                ))
+                tokens[k] = urlunparse(
+                    (res.scheme, regex.sub("\\1********\\2", res.netloc), res.path, res.params, res.query, res.fragment)
+                )
     return " ".join(tokens) if changed else s, changed
 
 
@@ -53,12 +49,12 @@ class DockerArgsSanitizer:
             return docker_command
 
         enabled = (
-            session.config.get('agent.hide_docker_command_env_vars.enabled', False) or ENV_DOCKER_ARGS_HIDE_ENV.get()
+            session.config.get("agent.hide_docker_command_env_vars.enabled", False) or ENV_DOCKER_ARGS_HIDE_ENV.get()
         )
         if not enabled:
             return docker_command
 
-        keys = set(session.config.get('agent.hide_docker_command_env_vars.extra_keys', []))
+        keys = set(session.config.get("agent.hide_docker_command_env_vars.extra_keys", []))
         if ENV_DOCKER_ARGS_HIDE_ENV.get():
             keys.update(shlex.split(ENV_DOCKER_ARGS_HIDE_ENV.get().strip()))
         keys.update(
@@ -68,9 +64,7 @@ class DockerArgsSanitizer:
             ENV_AGENT_AUTH_TOKEN.vars,
         )
 
-        parse_embedded_urls = bool(session.config.get(
-            'agent.hide_docker_command_env_vars.parse_embedded_urls', True
-        ))
+        parse_embedded_urls = bool(session.config.get("agent.hide_docker_command_env_vars.parse_embedded_urls", True))
 
         skip_next = False
         result = docker_command[:]
@@ -129,9 +123,7 @@ class DockerArgsSanitizer:
 
     @staticmethod
     def filter_switches(
-            docker_args: List[str],
-            exclude_switches: List[str] = None,
-            include_switches: List[str] = None
+        docker_args: List[str], exclude_switches: List[str] = None, include_switches: List[str] = None
     ) -> List[str]:
 
         assert not (include_switches and exclude_switches), "Either include_switches or exclude_switches but not both"
@@ -168,7 +160,7 @@ class DockerArgsSanitizer:
 
     @staticmethod
     def merge_docker_args(
-            config, task_docker_arguments: List[str], extra_docker_arguments: List[str]
+        config, task_docker_arguments: List[str], extra_docker_arguments: List[str]
     ) -> Tuple[List[str], List[str]]:
         forbidden_switches = config.get("agent.forbidden_docker_args", [])
         present = set()
@@ -179,16 +171,17 @@ class DockerArgsSanitizer:
         if stripped_switches:
             if task_docker_arguments:
                 task_docker_arguments = DockerArgsSanitizer.filter_switches(
-                    task_docker_arguments, exclude_switches=stripped_switches)
+                    task_docker_arguments, exclude_switches=stripped_switches
+                )
             if extra_docker_arguments:
                 extra_docker_arguments = DockerArgsSanitizer.filter_switches(
-                    extra_docker_arguments, exclude_switches=stripped_switches)
+                    extra_docker_arguments, exclude_switches=stripped_switches
+                )
 
         base_cmd = []
         # currently only resolving --network, --ipc, --privileged
         override_switches = config.get(
-            "agent.protected_docker_extra_args",
-            ["privileged", "security-opt", "network", "ipc"]
+            "agent.protected_docker_extra_args", ["privileged", "security-opt", "network", "ipc"]
         )
 
         if config.get("agent.docker_args_extra_precedes_task", True):
@@ -227,7 +220,8 @@ class DockerArgsSanitizer:
         # make a copy we are going to change it
         docker_arguments = docker_arguments[:]
         port_mapping_filtered = [
-            p for p in DockerArgsSanitizer.filter_switches(docker_arguments, include_switches=["p", "publish"])
+            p
+            for p in DockerArgsSanitizer.filter_switches(docker_arguments, include_switches=["p", "publish"])
             if p and p.strip()
         ]
 
@@ -235,15 +229,14 @@ class DockerArgsSanitizer:
             return None
 
         # test if network=host was requested, docker will ignore published ports anyhow, so no use in parsing them
-        network_filtered = DockerArgsSanitizer.filter_switches(
-            docker_arguments, include_switches=["network", "net"])
+        network_filtered = DockerArgsSanitizer.filter_switches(docker_arguments, include_switches=["network", "net"])
         network_filtered = [t for t in network_filtered if t.strip == "host" or "host" in t.split("=")]
         # if any network is configured, we ignore it, there is nothing we can do
         if network_filtered:
             return None
 
         # verifying available ports, remapping if necessary
-        port_checks = TcpPorts(allowed_ports_range=config.get('agent.docker_args_allowed_port_range', []))
+        port_checks = TcpPorts(allowed_ports_range=config.get("agent.docker_args_allowed_port_range", []))
         for i_p in range(len(port_mapping_filtered)):
             port_map = port_mapping_filtered[i_p]
             if not port_map.strip():
@@ -260,10 +253,10 @@ class DockerArgsSanitizer:
             # either no type specified or tcp
             ports_host, ports_in = port_map.strip().split("/")[0].split(":")[-2:]
             # verify ports available
-            port_range = int(ports_host.split("-")[0]), int(ports_host.split("-")[-1])+1
+            port_range = int(ports_host.split("-")[0]), int(ports_host.split("-")[-1]) + 1
             if not all(port_checks.check_tcp_port_available(p) for p in range(port_range[0], port_range[1])):
                 # we need to find a new range (this is a consecutive range)
-                new_port_range = port_checks.find_port_range(port_range[1]-port_range[0])
+                new_port_range = port_checks.find_port_range(port_range[1] - port_range[0])
 
                 if not new_port_range:
                     # we could not find any, leave it as it?!
@@ -275,8 +268,11 @@ class DockerArgsSanitizer:
                         continue
                     slash_parts = port_map.strip().split("/")
                     colon_parts = slash_parts[0].split(":")
-                    colon_parts[-2] = "{}-{}".format(new_port_range[0], new_port_range[-1]) \
-                        if len(new_port_range) > 1 else str(new_port_range[0])
+                    colon_parts[-2] = (
+                        "{}-{}".format(new_port_range[0], new_port_range[-1])
+                        if len(new_port_range) > 1
+                        else str(new_port_range[0])
+                    )
 
                     docker_arguments[i] = "/".join(slash_parts[1:] + [":".join(colon_parts)])
                     port_mapping_filtered[i_p] = docker_arguments[i]
@@ -290,13 +286,18 @@ class DockerArgsSanitizer:
             additional_cmd += ["-e", "CAIRNML_AGENT_HOST_IP={}".format(DockerArgsSanitizer._machine_ip)]
 
         # sanitize, remove ip/type
-        ports = ",".join([":".join(t.strip().split("/")[0].split(":")[-2:])
-                          for t in port_mapping_filtered if t.strip() and not t.strip().startswith("-")])
+        ports = ",".join(
+            [
+                ":".join(t.strip().split("/")[0].split(":")[-2:])
+                for t in port_mapping_filtered
+                if t.strip() and not t.strip().startswith("-")
+            ]
+        )
 
         # update Tasks runtime
         additional_task_runtime = {"_external_host_tcp_port_mapping": ports}
 
-        return docker_arguments+additional_cmd, additional_task_runtime
+        return docker_arguments + additional_cmd, additional_task_runtime
 
 
 class DockerArgsTemplateResolver(TemplateResolver):

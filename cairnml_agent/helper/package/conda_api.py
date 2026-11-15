@@ -40,6 +40,8 @@ def package_set(packages):
 
 from typing import Text, Iterable, Union, Dict, Set, Sequence, Any  # noqa: F401  # named by type comments
 from cairnml_agent.session import Session  # noqa: F401  # named by type comments
+
+
 def _package_diff(path, packages):
     # type: (Union[Path, Text], Iterable[Text]) -> Set[Text]
     return package_set(Path(path).read_text().splitlines()) - package_set(packages)
@@ -47,21 +49,23 @@ def _package_diff(path, packages):
 
 class CondaPip(VirtualenvPip):
     def __init__(self, source=None, *args, **kwargs):
-        super(CondaPip, self).__init__(*args, interpreter=Path(kwargs.get('path'), "python.exe")
-                                       if is_windows_platform() and kwargs.get('path') else None, **kwargs)
+        super(CondaPip, self).__init__(
+            *args,
+            interpreter=Path(kwargs.get("path"), "python.exe")
+            if is_windows_platform() and kwargs.get("path")
+            else None,
+            **kwargs,
+        )
         self.source = source
 
     def run_with_env(self, command, output=False, **kwargs):
         if not self.source:
             return super(CondaPip, self).run_with_env(command, output=output, **kwargs)
         command = CommandSequence(self.source, Argv("pip", *command))
-        return (command.get_output if output else command.check_call)(
-            stdin=DEVNULL, **kwargs
-        )
+        return (command.get_output if output else command.check_call)(stdin=DEVNULL, **kwargs)
 
 
 class CondaAPI(PackageManager):
-
     """
     A programmatic interface for controlling conda
     """
@@ -81,15 +85,15 @@ class CondaAPI(PackageManager):
         self.requirements_manager = requirements_manager
         self.path = path
         self.env_read_only = False
-        self.extra_channels = self.session.config.get('agent.package_manager.conda_channels', [])
+        self.extra_channels = self.session.config.get("agent.package_manager.conda_channels", [])
         # install into base conda environment (should only be used if running in docker mode)
         self.use_conda_base_env = ENV_USE_CONDA_BASE_ENV.get(
-            default=self.session.config.get('agent.package_manager.use_conda_base_env', None)
+            default=self.session.config.get("agent.package_manager.use_conda_base_env", None)
         )
         # notice this will not install any additional packages into the selected environment
-        self.conda_env_as_base_docker = \
-            self.session.config.get('agent.package_manager.conda_env_as_base_docker', None) or \
-            bool(ENV_CONDA_ENV_PACKAGE.get())
+        self.conda_env_as_base_docker = self.session.config.get(
+            "agent.package_manager.conda_env_as_base_docker", None
+        ) or bool(ENV_CONDA_ENV_PACKAGE.get())
         if ENV_CONDA_ENV_PACKAGE.get():
             self.conda_pre_build_env_path = ENV_CONDA_ENV_PACKAGE.get()
         else:
@@ -103,23 +107,23 @@ class CondaAPI(PackageManager):
         )
         try:
             self.conda = (
-                find_executable("conda") or
-                Argv(select_for_platform(windows="where", linux="which"), "conda").get_output(
-                    shell=select_for_platform(windows=True, linux=False)).strip()
+                find_executable("conda")
+                or Argv(select_for_platform(windows="where", linux="which"), "conda")
+                .get_output(shell=select_for_platform(windows=True, linux=False))
+                .strip()
             )
         except Exception:
-            raise ValueError("ERROR: package manager \"conda\" selected, "
-                             "but \'conda\' executable could not be located") from None
+            raise ValueError(
+                "ERROR: package manager \"conda\" selected, but 'conda' executable could not be located"
+            ) from None
         try:
             output = Argv(self.conda, "--version").get_output(stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as ex:
             raise CommandFailedError(
-                "Unable to determine conda version: {ex}, output={ex.output}".format(
-                    ex=ex
-                )
+                "Unable to determine conda version: {ex}, output={ex.output}".format(ex=ex)
             ) from None
         self.conda_version = self.get_conda_version(output)
-        if SimpleVersion.compare_versions(self.conda_version, '<', self.MINIMUM_VERSION):
+        if SimpleVersion.compare_versions(self.conda_version, "<", self.MINIMUM_VERSION):
             raise CommandFailedError(
                 "conda version '{}' is smaller than minimum supported conda version '{}'".format(
                     self.conda_version, self.MINIMUM_VERSION
@@ -142,7 +146,7 @@ class CondaAPI(PackageManager):
             marker_req = MarkerRequirement(Requirement.parse(line))
 
         try:
-            mock_req = MarkerRequirement(Requirement.parse(marker_req.marker.replace("'", "").replace("\"", "")))
+            mock_req = MarkerRequirement(Requirement.parse(marker_req.marker.replace("'", "").replace('"', "")))
         except Exception as ex:
             print("WARNING: failed parsing, assuming package is okay {}".format(ex))
             return marker_req
@@ -156,8 +160,8 @@ class CondaAPI(PackageManager):
     def upgrade_pip(self):
         # do not change pip version if pre built environement is used
         if self.env_read_only:
-            print('Conda environment in read-only mode, skipping pip upgrade.')
-            return ''
+            print("Conda environment in read-only mode, skipping pip upgrade.")
+            return ""
 
         pip_versions = []
         for req_pip_line in self.pip.get_pip_versions():
@@ -165,12 +169,7 @@ class CondaAPI(PackageManager):
             if req:
                 pip_versions.append(req.tostr(markers=False))
 
-        return self._install(
-            *select_for_platform(
-                windows=pip_versions,
-                linux=pip_versions
-            )
-        )
+        return self._install(*select_for_platform(windows=pip_versions, linux=pip_versions))
 
     def create(self):
         """
@@ -194,15 +193,17 @@ class CondaAPI(PackageManager):
 
                 self.source = self.pip.source = ("conda", "activate", self.path.as_posix())
                 conda_env = self._get_conda_sh()
-                self.source = self.pip.source = CommandSequence(('source', conda_env.as_posix()), self.source)
+                self.source = self.pip.source = CommandSequence(("source", conda_env.as_posix()), self.source)
                 # unpack cleanup
                 print("Fixing prefix in Conda environment {}".format(self.path))
-                CommandSequence(('source', conda_env.as_posix()),
-                                ((self.path / 'bin' / 'conda-unpack').as_posix(), )).get_output()
+                CommandSequence(
+                    ("source", conda_env.as_posix()), ((self.path / "bin" / "conda-unpack").as_posix(),)
+                ).get_output()
                 return self
             else:
-                raise ValueError("Could not restore Conda environment, cannot find {}".format(
-                    self.conda_pre_build_env_path))
+                raise ValueError(
+                    "Could not restore Conda environment, cannot find {}".format(self.conda_pre_build_env_path)
+                )
         elif self.use_conda_base_env:
             try:
                 base_path = Path(self.conda).parent.parent.as_posix()
@@ -220,20 +221,16 @@ class CondaAPI(PackageManager):
             self.path,
             "python={}".format(self.python),
         )
-        print('Executing Conda: {}'.format(command.serialize()))
+        print("Executing Conda: {}".format(command.serialize()))
         output = command.get_output(stderr=DEVNULL)
-        match = re.search(
-            r"\W*(.*activate) ({})".format(re.escape(str(self.path))), output
-        )
+        match = re.search(r"\W*(.*activate) ({})".format(re.escape(str(self.path))), output)
         self.source = self.pip.source = (
-            tuple(match.group(1).split()) + (match.group(2),)
-            if match
-            else ("conda", "activate", self.path.as_posix())
+            tuple(match.group(1).split()) + (match.group(2),) if match else ("conda", "activate", self.path.as_posix())
         )
 
         conda_env = self._get_conda_sh()
         if conda_env.is_file() and not is_windows_platform():
-            self.source = self.pip.source = CommandSequence(('source', conda_env.as_posix()), self.source)
+            self.source = self.pip.source = CommandSequence(("source", conda_env.as_posix()), self.source)
 
         return self
 
@@ -242,10 +239,9 @@ class CondaAPI(PackageManager):
         self.path = Path(conda_pre_build_env_path)
         self.source = ("conda", "activate", self.path.as_posix())
         conda_env = self._get_conda_sh()
-        self.source = CommandSequence(('source', conda_env.as_posix()), self.source)
+        self.source = CommandSequence(("source", conda_env.as_posix()), self.source)
 
-        conda_packages_json = json.loads(
-            self._run_command((self.conda, "list", "--json", "-p", self.path), raw=True))
+        conda_packages_json = json.loads(self._run_command((self.conda, "list", "--json", "-p", self.path), raw=True))
 
         try:
             for package in conda_packages_json:
@@ -288,7 +284,7 @@ class CondaAPI(PackageManager):
         # if we failed removing the path, change it's name
         if is_windows_platform() and Path(self.path).exists():
             try:
-                Path(self.path).rename(Path(self.path).as_posix() + '_' + str(time()))
+                Path(self.path).rename(Path(self.path).as_posix() + "_" + str(time()))
             except Exception:
                 pass
 
@@ -302,11 +298,9 @@ class CondaAPI(PackageManager):
         # type: (*PathLike) -> ()
         # if we are in read only mode, do not install anything
         if self.env_read_only:
-            print('Conda environment in read-only mode, skipping package installing: {}'.format(args))
+            print("Conda environment in read-only mode, skipping package installing: {}".format(args))
             return
-        channels_args = tuple(
-            chain.from_iterable(("-c", channel) for channel in self.extra_channels)
-        )
+        channels_args = tuple(chain.from_iterable(("-c", channel) for channel in self.extra_channels))
         self._run_command(("install", "-p", self.path) + channels_args + args)
 
     def _get_pip_packages(self, packages):
@@ -333,8 +327,8 @@ class CondaAPI(PackageManager):
     def uninstall_packages(self, *packages):
         # if we are in read only mode, do not uninstall anything
         if self.env_read_only:
-            print('Conda environment in read-only mode, skipping package uninstalling: {}'.format(packages))
-            return ''
+            print("Conda environment in read-only mode, skipping package uninstalling: {}".format(packages))
+            return ""
         return self._run_command(("uninstall", "-p", self.path))
 
     def install_from_file(self, path):
@@ -343,8 +337,8 @@ class CondaAPI(PackageManager):
         """
         requirements = {}
         # assume requirements.txt
-        with open(path, 'rt') as f:
-            requirements['pip'] = f.read()
+        with open(path, "rt") as f:
+            requirements["pip"] = f.read()
         self.load_requirements(requirements)
 
     def freeze(self, freeze_full_environment=False):
@@ -354,40 +348,45 @@ class CondaAPI(PackageManager):
 
         # noinspection PyBroadException
         try:
-            pip_lines = requirements['pip']
+            pip_lines = requirements["pip"]
             conda_packages_json = json.loads(
-                self._run_command((self.conda, "list", "--json", "-p", self.path), raw=True))
+                self._run_command((self.conda, "list", "--json", "-p", self.path), raw=True)
+            )
             for r in conda_packages_json:
                 # check if this is a pypi package, if it is, leave it outside
-                if not r.get('channel') or r.get('channel') == 'pypi':
-                    name = (r['name'].replace('-', '_'), r['name'])
-                    pip_req_line = [l for l in pip_lines
-                                    if l.split('==', 1)[0].strip() in name or l.split('@', 1)[0].strip() in name]
-                    if pip_req_line and \
-                            ('@' not in pip_req_line[0] or
-                             not pip_req_line[0].split('@', 1)[1].strip().startswith('file://')):
+                if not r.get("channel") or r.get("channel") == "pypi":
+                    name = (r["name"].replace("-", "_"), r["name"])
+                    pip_req_line = [
+                        l
+                        for l in pip_lines
+                        if l.split("==", 1)[0].strip() in name or l.split("@", 1)[0].strip() in name
+                    ]
+                    if pip_req_line and (
+                        "@" not in pip_req_line[0] or not pip_req_line[0].split("@", 1)[1].strip().startswith("file://")
+                    ):
                         req_lines.append(pip_req_line[0])
                         continue
 
                     req_lines.append(
-                        '{}=={}'.format(name[1], r['version']) if r.get('version') else '{}'.format(name[1]))
+                        "{}=={}".format(name[1], r["version"]) if r.get("version") else "{}".format(name[1])
+                    )
                     continue
 
                 # check if we have it in our required packages
-                name = r['name']
+                name = r["name"]
                 # hack support pytorch/torch different naming convention
-                if name == 'pytorch':
-                    name = 'torch'
+                if name == "pytorch":
+                    name = "torch"
                 # skip over packages with _
-                if name.startswith('_'):
+                if name.startswith("_"):
                     continue
-                conda_lines.append('{}=={}'.format(name, r['version']) if r.get('version') else '{}'.format(name))
+                conda_lines.append("{}=={}".format(name, r["version"]) if r.get("version") else "{}".format(name))
             # make sure we see the conda packages, put them into the pip as well
             if conda_lines:
-                req_lines = ['# Conda Packages', ''] + conda_lines + ['', '# pip Packages', ''] + req_lines
+                req_lines = ["# Conda Packages", ""] + conda_lines + ["", "# pip Packages", ""] + req_lines
 
-            requirements['pip'] = req_lines
-            requirements['conda'] = conda_lines
+            requirements["pip"] = req_lines
+            requirements["conda"] = conda_lines
         except Exception:
             pass
 
@@ -395,11 +394,12 @@ class CondaAPI(PackageManager):
             # noinspection PyBroadException
             try:
                 conda_env_json = json.loads(
-                    self._run_command((self.conda, "env", "export", "--json", "-p", self.path), raw=True))
-                conda_env_json.pop('name', None)
-                conda_env_json.pop('prefix', None)
-                conda_env_json.pop('channels', None)
-                requirements['conda_env_json'] = json.dumps(conda_env_json)
+                    self._run_command((self.conda, "env", "export", "--json", "-p", self.path), raw=True)
+                )
+                conda_env_json.pop("name", None)
+                conda_env_json.pop("prefix", None)
+                conda_env_json.pop("channels", None)
+                requirements["conda_env_json"] = json.dumps(conda_env_json)
             except Exception:
                 pass
 
@@ -408,56 +408,55 @@ class CondaAPI(PackageManager):
     def _load_conda_full_env(self, conda_env_dict, requirements):
         # noinspection PyBroadException
         try:
-            cuda_version = int(self.session.config.get('agent.cuda_version', 0))
+            cuda_version = int(self.session.config.get("agent.cuda_version", 0))
         except Exception:
             cuda_version = 0
 
-        conda_env_dict['channels'] = self.extra_channels
-        if 'dependencies' not in conda_env_dict:
-            conda_env_dict['dependencies'] = []
+        conda_env_dict["channels"] = self.extra_channels
+        if "dependencies" not in conda_env_dict:
+            conda_env_dict["dependencies"] = []
         new_dependencies = OrderedDict()
         pip_requirements = None
-        for line in conda_env_dict['dependencies']:
+        for line in conda_env_dict["dependencies"]:
             if isinstance(line, dict):
-                pip_requirements = line.pop('pip', None)
+                pip_requirements = line.pop("pip", None)
                 continue
-            name = line.strip().split('=', 1)[0].lower()
-            if name == 'pip':
+            name = line.strip().split("=", 1)[0].lower()
+            if name == "pip":
                 continue
-            elif name == 'python':
-                line = 'python={}'.format('.'.join(line.split('=')[1].split('.')[:2]))
-            elif name == 'tensorflow-gpu' and cuda_version == 0:
-                line = 'tensorflow={}'.format(line.split('=')[1])
-            elif name == 'tensorflow' and cuda_version > 0:
-                line = 'tensorflow-gpu={}'.format(line.split('=')[1])
-            elif name in ('cupti', 'cudnn'):
+            elif name == "python":
+                line = "python={}".format(".".join(line.split("=")[1].split(".")[:2]))
+            elif name == "tensorflow-gpu" and cuda_version == 0:
+                line = "tensorflow={}".format(line.split("=")[1])
+            elif name == "tensorflow" and cuda_version > 0:
+                line = "tensorflow-gpu={}".format(line.split("=")[1])
+            elif name in ("cupti", "cudnn"):
                 # cudatoolkit should pull them based on the cudatoolkit version
                 continue
-            elif name.startswith('_'):
+            elif name.startswith("_"):
                 continue
-            new_dependencies[line.split('=', 1)[0].strip()] = line
+            new_dependencies[line.split("=", 1)[0].strip()] = line
 
         # fix packages:
-        conda_env_dict['dependencies'] = list(new_dependencies.values())
+        conda_env_dict["dependencies"] = list(new_dependencies.values())
 
         with self.temp_file("conda_env", yaml.dump(conda_env_dict), suffix=".yml") as name:
-            print('Conda: Trying to install requirements:\n{}'.format(conda_env_dict['dependencies']))
-            result = self._run_command(
-                ("env", "update", "-p", self.path, "--file", name)
-            )
+            print("Conda: Trying to install requirements:\n{}".format(conda_env_dict["dependencies"]))
+            result = self._run_command(("env", "update", "-p", self.path, "--file", name))
 
         # check if we need to remove specific packages
         bad_req = self._parse_conda_result_bad_packges(result)
         if bad_req:
-            print('failed installing the following conda packages: {}'.format(bad_req))
+            print("failed installing the following conda packages: {}".format(bad_req))
             return False
 
         if pip_requirements:
             # create a list of vcs packages that we need to replace in the pip section
             vcs_reqs = {}
-            if 'pip' in requirements:
-                pip_lines = requirements['pip'].splitlines() \
-                    if isinstance(requirements['pip'], str) else requirements['pip']
+            if "pip" in requirements:
+                pip_lines = (
+                    requirements["pip"].splitlines() if isinstance(requirements["pip"], str) else requirements["pip"]
+                )
                 for line in pip_lines:
                     try:
                         marker = list(parse(line))
@@ -470,11 +469,14 @@ class CondaAPI(PackageManager):
                     if m.vcs:
                         vcs_reqs[m.name] = m
             try:
-                pip_req_str = [str(vcs_reqs.get(r.split('=', 1)[0], r)) for r in pip_requirements
-                               if not r.startswith('pip=') and not r.startswith('virtualenv=')]
-                print('Conda: Installing requirements: step 2 - using pip:\n{}'.format(pip_req_str))
+                pip_req_str = [
+                    str(vcs_reqs.get(r.split("=", 1)[0], r))
+                    for r in pip_requirements
+                    if not r.startswith("pip=") and not r.startswith("virtualenv=")
+                ]
+                print("Conda: Installing requirements: step 2 - using pip:\n{}".format(pip_req_str))
                 PackageManager._selected_manager = self.pip
-                self.pip.load_requirements({'pip': '\n'.join(pip_req_str)})
+                self.pip.load_requirements({"pip": "\n".join(pip_req_str)})
             except Exception as e:
                 print(e)
                 raise e
@@ -486,27 +488,27 @@ class CondaAPI(PackageManager):
     def load_requirements(self, requirements):
         # if we are in read only mode, do not uninstall anything
         if self.env_read_only:
-            print('Conda environment in read-only mode, skipping requirements installation.')
+            print("Conda environment in read-only mode, skipping requirements installation.")
             return None
 
         # if we have a full conda environment, use it and pass the pip to pip
-        if requirements.get('conda_env_json'):
+        if requirements.get("conda_env_json"):
             # noinspection PyBroadException
             try:
-                conda_env_json = json.loads(requirements.get('conda_env_json'))
-                print('Conda restoring full yaml environment')
+                conda_env_json = json.loads(requirements.get("conda_env_json"))
+                print("Conda restoring full yaml environment")
                 return self._load_conda_full_env(conda_env_json, requirements)
             except Exception:
-                print('Could not load fully stored conda environment, falling back to requirements')
+                print("Could not load fully stored conda environment, falling back to requirements")
 
         # create new environment file
         conda_env = dict()
-        conda_env['channels'] = self.extra_channels
+        conda_env["channels"] = self.extra_channels
         reqs = []
-        if isinstance(requirements['pip'], str):
-            requirements['pip'] = requirements['pip'].split('\n')
-        if isinstance(requirements.get('conda'), str):
-            requirements['conda'] = requirements['conda'].split('\n')
+        if isinstance(requirements["pip"], str):
+            requirements["pip"] = requirements["pip"].split("\n")
+        if isinstance(requirements.get("conda"), str):
+            requirements["conda"] = requirements["conda"].split("\n")
         has_torch = False
         has_matplotlib = False
         has_cudatoolkit = False
@@ -514,7 +516,7 @@ class CondaAPI(PackageManager):
         # noinspection PyBroadException
         try:
             # notice this is an integer version: 112 (means 11.2)
-            cuda_version = str(self.session.config.get('agent.cuda_version', "")).strip()
+            cuda_version = str(self.session.config.get("agent.cuda_version", "")).strip()
             if not cuda_version:
                 cuda_version = 0
             else:
@@ -525,7 +527,7 @@ class CondaAPI(PackageManager):
 
         # notice 'conda' entry with empty string is a valid conda requirements list, it means pip only
         # this should happen if experiment was executed on non-conda machine or old trains client
-        conda_supported_req = requirements['pip'] if requirements.get('conda', None) is None else requirements['conda']
+        conda_supported_req = requirements["pip"] if requirements.get("conda", None) is None else requirements["conda"]
         conda_supported_req_names = []
         pip_requirements = []
         for r in conda_supported_req:
@@ -543,40 +545,47 @@ class CondaAPI(PackageManager):
                 pip_requirements.append(m)
                 continue
             # Skip over pip
-            if m.name in ('pip', 'virtualenv', ):
+            if m.name in (
+                "pip",
+                "virtualenv",
+            ):
                 continue
             # python version, only major.minor
-            if m.name == 'python' and m.specs:
-                m.specs = [(m.specs[0][0], '.'.join(m.specs[0][1].split('.')[:2])), ]
-                if '.' not in m.specs[0][1]:
+            if m.name == "python" and m.specs:
+                m.specs = [
+                    (m.specs[0][0], ".".join(m.specs[0][1].split(".")[:2])),
+                ]
+                if "." not in m.specs[0][1]:
                     continue
 
-            if m.name.lower() in ('cudatoolkit', 'cuda-toolkit'):
+            if m.name.lower() in ("cudatoolkit", "cuda-toolkit"):
                 # skip cuda if we are running on CPU
                 if not cuda_version:
                     continue
 
                 has_cudatoolkit = True
                 # cuda version, only major.minor
-                requested_cuda_version = '.'.join(m.specs[0][1].split('.')[:2])
+                requested_cuda_version = ".".join(m.specs[0][1].split(".")[:2])
                 # make sure that the cuda_version we support can install the requested cuda (major version)
-                if int(float(requested_cuda_version)) > int(float(cuda_version)/10.0):
+                if int(float(requested_cuda_version)) > int(float(cuda_version) / 10.0):
                     continue
-                m.specs = [(m.specs[0][0], str(requested_cuda_version)), ]
+                m.specs = [
+                    (m.specs[0][0], str(requested_cuda_version)),
+                ]
 
             conda_supported_req_names.append(m.name.lower())
-            if m.req.name.lower() == 'matplotlib':
+            if m.req.name.lower() == "matplotlib":
                 has_matplotlib = True
-            elif m.req.name.lower().startswith('torch'):
+            elif m.req.name.lower().startswith("torch"):
                 has_torch = True
 
-            if m.req.name.lower() in ('torch', 'pytorch'):
+            if m.req.name.lower() in ("torch", "pytorch"):
                 has_torch = True
-                m.req.name = 'pytorch'
+                m.req.name = "pytorch"
 
-            if m.req.name.lower() in ('tensorflow_gpu', 'tensorflow-gpu', 'tensorflow'):
+            if m.req.name.lower() in ("tensorflow_gpu", "tensorflow-gpu", "tensorflow"):
                 has_torch = True
-                m.req.name = 'tensorflow-gpu' if cuda_version > 0 else 'tensorflow'
+                m.req.name = "tensorflow-gpu" if cuda_version > 0 else "tensorflow"
 
             # push the cairnml packages into the pip_requirements
             if "cairnml" in m.req.name and "cairnml" not in self.extra_channels:
@@ -600,8 +609,8 @@ class CondaAPI(PackageManager):
         # if we have a conda list, the rest should be installed with pip,
         # this means  any experiment that was executed with pip environment,
         # will be installed using pip
-        if requirements.get('conda', None) is not None:
-            for r in requirements['pip']:
+        if requirements.get("conda", None) is not None:
+            for r in requirements["pip"]:
                 try:
                     marker = list(parse(r))
                 except Exception:
@@ -613,13 +622,13 @@ class CondaAPI(PackageManager):
                 # remove local files reference if it does not exist (leave the package name)
                 m.validate_local_file_ref()
 
-                m_name = (m.name or '').lower()
+                m_name = (m.name or "").lower()
                 if m_name in conda_supported_req_names:
                     # this package is in the conda list,
                     # make sure that if we changed version and we match it in conda
                     ## conda_supported_req_names.remove(m_name)
                     for cr in reqs:
-                        if m_name.lower().replace('_', '-') == cr.name.lower().replace('_', '-'):
+                        if m_name.lower().replace("_", "-") == cr.name.lower().replace("_", "-"):
                             # match versions
                             cr.specs = m.specs
                             # # conda always likes "-" not "_" but only on pypi packages
@@ -628,21 +637,21 @@ class CondaAPI(PackageManager):
                 else:
                     # not in conda, it is a pip package
                     pip_requirements.append(m)
-                    if m_name == 'matplotlib':
+                    if m_name == "matplotlib":
                         has_matplotlib = True
 
         # Conda requirements Hacks:
         if has_matplotlib:
-            reqs.append(MarkerRequirement(Requirement.parse('graphviz')))
-            reqs.append(MarkerRequirement(Requirement.parse('python-graphviz')))
-            reqs.append(MarkerRequirement(Requirement.parse('kiwisolver')))
+            reqs.append(MarkerRequirement(Requirement.parse("graphviz")))
+            reqs.append(MarkerRequirement(Requirement.parse("python-graphviz")))
+            reqs.append(MarkerRequirement(Requirement.parse("kiwisolver")))
 
         # remove specific cudatoolkit, it should have being preinstalled.
         # allow to override default cudatoolkit, but not the derivative packages, cudatoolkit should pull them
-        reqs = [r for r in reqs if r.name not in ('cudnn', 'cupti')]
+        reqs = [r for r in reqs if r.name not in ("cudnn", "cupti")]
 
         if has_torch and cuda_version == 0:
-            reqs.append(MarkerRequirement(Requirement.parse('cpuonly')))
+            reqs.append(MarkerRequirement(Requirement.parse("cpuonly")))
 
         # make sure we have no double entries
         reqs = list(OrderedDict((r.name, r) for r in reqs).values())
@@ -650,15 +659,15 @@ class CondaAPI(PackageManager):
         # conform conda packages (version/name)
         for r in reqs:
             # change _ to - in name but not the prefix _ (as this is conda prefix)
-            if r.name and not r.name.startswith('_') and not requirements.get('conda', None):
-                r.name = r.name.replace('_', '-')
+            if r.name and not r.name.startswith("_") and not requirements.get("conda", None):
+                r.name = r.name.replace("_", "-")
 
-            if has_cudatoolkit and r.specs and len(r.specs[0]) > 1 and r.name in ('cudatoolkit', 'cuda-toolkit'):
+            if has_cudatoolkit and r.specs and len(r.specs[0]) > 1 and r.name in ("cudatoolkit", "cuda-toolkit"):
                 # select specific cuda version if it came from the requirements
-                r.specs = [(r.specs[0][0].replace('==', '='), r.specs[0][1].split('.post')[0])]
+                r.specs = [(r.specs[0][0].replace("==", "="), r.specs[0][1].split(".post")[0])]
             elif r.specs and r.specs[0] and len(r.specs[0]) > 1:
                 # remove .post from version numbers it fails with ~= version, and change == to ~=
-                r.specs = [(s[0].replace('==', '~='), s[1].split('.post')[0]) for s in r.specs]
+                r.specs = [(s[0].replace("==", "~="), s[1].split(".post")[0]) for s in r.specs]
 
         while reqs:
             # notice, we give conda more freedom in version selection, to help it choose best combination
@@ -674,16 +683,15 @@ class CondaAPI(PackageManager):
                     print("WARNING: ignoring marker in `{}`".format(ar.tostr()))
                     markers = False
                 if ar.specs:
-                    ar.specs = [(s[0], s[1] + '.0' if '.' not in s[1] else s[1]) for s in ar.specs]
+                    ar.specs = [(s[0], s[1] + ".0" if "." not in s[1] else s[1]) for s in ar.specs]
                 return ar.tostr(markers=markers)
-            conda_env['dependencies'] = [clean_ver(r) for r in reqs if clean_ver(r)]
+
+            conda_env["dependencies"] = [clean_ver(r) for r in reqs if clean_ver(r)]
             with self.temp_file("conda_env", yaml.dump(conda_env), suffix=".yml") as name:
-                print('Conda: Trying to install requirements:\n{}'.format(conda_env['dependencies']))
+                print("Conda: Trying to install requirements:\n{}".format(conda_env["dependencies"]))
                 if self.session.debug_mode:
-                    print('{}:\n{}'.format(name, yaml.dump(conda_env)))
-                result = self._run_command(
-                    ("env", "update", "-p", self.path, "--file", name)
-                )
+                    print("{}:\n{}".format(name, yaml.dump(conda_env)))
+                result = self._run_command(("env", "update", "-p", self.path, "--file", name))
             # check if we need to remove specific packages
             bad_req = self._parse_conda_result_bad_packges(result)
             if not bad_req:
@@ -691,7 +699,7 @@ class CondaAPI(PackageManager):
 
             solved = False
             for bad_r in bad_req:
-                name = bad_r.split('[')[0].split('=')[0].split('~')[0].split('<')[0].split('>')[0]
+                name = bad_r.split("[")[0].split("=")[0].split("~")[0].split("<")[0].split(">")[0]
                 # look for name in requirements
                 for r in reqs:
                     if r.name.lower() == name.lower():
@@ -708,12 +716,20 @@ class CondaAPI(PackageManager):
 
         if pip_requirements:
             try:
-                pip_req_str = [r.tostr() for r in pip_requirements if r.name not in ('pip', 'virtualenv', )]
-                print('Conda: Installing requirements: step 2 - using pip:\n{}'.format(pip_req_str))
+                pip_req_str = [
+                    r.tostr()
+                    for r in pip_requirements
+                    if r.name
+                    not in (
+                        "pip",
+                        "virtualenv",
+                    )
+                ]
+                print("Conda: Installing requirements: step 2 - using pip:\n{}".format(pip_req_str))
                 PackageManager._selected_manager = self.pip
                 if self.session.debug_mode:
-                    print('pip requirements.txt:\n{}'.format('\n'.join(pip_req_str)))
-                self.pip.load_requirements({'pip': '\n'.join(pip_req_str)})
+                    print("pip requirements.txt:\n{}".format("\n".join(pip_req_str)))
+                self.pip.load_requirements({"pip": "\n".join(pip_req_str)})
             except Exception as e:
                 print(e)
                 raise e
@@ -727,17 +743,17 @@ class CondaAPI(PackageManager):
         if not result_dict:
             return None
 
-        if 'bad_deps' in result_dict and result_dict['bad_deps']:
-            return result_dict['bad_deps']
+        if "bad_deps" in result_dict and result_dict["bad_deps"]:
+            return result_dict["bad_deps"]
 
-        if result_dict.get('error'):
-            error_lines = result_dict['error'].split('\n')
+        if result_dict.get("error"):
+            error_lines = result_dict["error"].split("\n")
             if error_lines[0].strip().lower().startswith("unsatisfiableerror:"):
                 empty_lines = [i for i, l in enumerate(error_lines) if not l.strip()]
                 if len(empty_lines) >= 2:
-                    deps = error_lines[empty_lines[0]+1:empty_lines[1]]
+                    deps = error_lines[empty_lines[0] + 1 : empty_lines[1]]
                     try:
-                        return yaml.load('\n'.join(deps), Loader=yaml.SafeLoader)
+                        return yaml.load("\n".join(deps), Loader=yaml.SafeLoader)
                     except Exception:
                         return None
         return None
@@ -752,24 +768,25 @@ class CondaAPI(PackageManager):
         :param kwargs: kwargs for Argv.get_output()
         :return: JSON output or text output
         """
+
         def escape_ansi(line):
-            ansi_escape = re.compile(r'(?:\x1B[@-_]|[\x80-\x9F])[0-?]*[ -/]*[@-~]')
-            return ansi_escape.sub('', line)
+            ansi_escape = re.compile(r"(?:\x1B[@-_]|[\x80-\x9F])[0-?]*[ -/]*[@-~]")
+            return ansi_escape.sub("", line)
 
         # make sure we are not running it with our own PYTHONPATH
         env = dict(**os.environ)
-        env.pop('PYTHONPATH', None)
+        env.pop("PYTHONPATH", None)
 
         command = Argv(*command)  # type: Executable
         if not raw:
             command = (self.conda,) + command + ("--quiet", "--json")
         try:
-            print('Executing Conda: {}'.format(command.serialize()))
+            print("Executing Conda: {}".format(command.serialize()))
             result = command.get_output(stdin=DEVNULL, env=env, **kwargs)
             if self.session.debug_mode:
                 print(result)
         except Exception as e:
-            result = e.output if hasattr(e, 'output') else ''
+            result = e.output if hasattr(e, "output") else ""
             if self.session.debug_mode:
                 print(result)
             if raw:
@@ -778,10 +795,10 @@ class CondaAPI(PackageManager):
             return result
 
         result = json.loads(escape_ansi(result)) if result else {}
-        if result.get('success', False):
-            print('Pass')
-        elif result.get('error'):
-            print('Conda error: {}'.format(result.get('error')))
+        if result.get("success", False):
+            print("Pass")
+        elif result.get("error"):
+            print("Conda error: {}".format(result.get("error")))
         return result
 
     def get_python_command(self, extra=()):
@@ -791,14 +808,14 @@ class CondaAPI(PackageManager):
 
     def _get_conda_sh(self):
         # type () -> Path
-        base_conda_env = Path(self.conda).parent.parent / 'etc' / 'profile.d' / 'conda.sh'
+        base_conda_env = Path(self.conda).parent.parent / "etc" / "profile.d" / "conda.sh"
         if base_conda_env.is_file():
             return base_conda_env
-        for path in os.environ.get('PATH', '').split(select_for_platform(windows=';', linux=':')):
+        for path in os.environ.get("PATH", "").split(select_for_platform(windows=";", linux=":")):
             conda = find_executable("conda", path=path)
             if not conda:
                 continue
-            conda_env = Path(conda).parent.parent / 'etc' / 'profile.d' / 'conda.sh'
+            conda_env = Path(conda).parent.parent / "etc" / "profile.d" / "conda.sh"
             if conda_env.is_file():
                 return conda_env
         return base_conda_env

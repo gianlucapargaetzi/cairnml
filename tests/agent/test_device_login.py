@@ -18,13 +18,26 @@ class FakeSession:
 
     def __init__(self, token_replies, device=None, discovery=None):
         self.token_replies = list(token_replies)
-        self.device = device if device is not None else {
-            "device_code": "dc", "user_code": "ABCD-EFGH", "verification_uri": "https://idp/device",
-            "verification_uri_complete": "https://idp/device?user_code=ABCD-EFGH", "interval": 5, "expires_in": 600,
-        }
-        self.discovery = discovery if discovery is not None else {
-            "device_authorization_endpoint": "https://idp/device-auth", "token_endpoint": "https://idp/token",
-        }
+        self.device = (
+            device
+            if device is not None
+            else {
+                "device_code": "dc",
+                "user_code": "ABCD-EFGH",
+                "verification_uri": "https://idp/device",
+                "verification_uri_complete": "https://idp/device?user_code=ABCD-EFGH",
+                "interval": 5,
+                "expires_in": 600,
+            }
+        )
+        self.discovery = (
+            discovery
+            if discovery is not None
+            else {
+                "device_authorization_endpoint": "https://idp/device-auth",
+                "token_endpoint": "https://idp/token",
+            }
+        )
         self.calls = []
 
     def get(self, url, timeout):
@@ -40,8 +53,12 @@ class FakeSession:
 def run(session, sleeps=None):
     lines = []
     token = device_login(
-        "https://idp", "cairnml-sdk", session=session, out=lines.append,
-        sleep=(sleeps.append if sleeps is not None else (lambda s: None)), clock=iter([0.0, 1.0, 2.0, 3.0]).__next__,
+        "https://idp",
+        "cairnml-sdk",
+        session=session,
+        out=lines.append,
+        sleep=(sleeps.append if sleeps is not None else (lambda s: None)),
+        clock=iter([0.0, 1.0, 2.0, 3.0]).__next__,
     )
     return token, lines
 
@@ -52,7 +69,8 @@ def test_the_code_and_address_are_shown_and_the_token_is_returned_after_pending_
     assert token == "tok"
     assert any("ABCD-EFGH" in line and "device?user_code=ABCD-EFGH" in line for line in lines)
     assert [data["grant_type"] for _, data in session.calls if "device_code" in data] == [
-        "urn:ietf:params:oauth:grant-type:device_code"] * 2
+        "urn:ietf:params:oauth:grant-type:device_code"
+    ] * 2
 
 
 def test_slow_down_lengthens_the_wait():
@@ -78,6 +96,7 @@ def test_the_cli_uses_the_device_code_when_asked_or_when_no_browser_is_there(mon
     from cairnml_agent.idp.device_login import browser_or_device_login
 
     import cairnml_agent.idp.device_login as mod
+
     monkeypatch.setattr(mod.sys, "platform", "linux")
     monkeypatch.delenv("DISPLAY", raising=False)
     monkeypatch.delenv("WAYLAND_DISPLAY", raising=False)

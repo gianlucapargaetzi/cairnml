@@ -19,44 +19,47 @@ def run_command(parser, args, command_name):
     session.Session.set_debug_mode(debug)
 
     # install-bootstrap does not require a server session
-    if command_name and command_name.lower() in ('install-bootstrap',):
+    if command_name and command_name.lower() in ("install-bootstrap",):
         args_dict = dict(vars(args))
         parser.remove_top_level_results(args_dict)
         return commands.install_bootstrap(**args_dict)
 
     # doctor only reads the configuration and checks the machine; it needs no session of its own
-    if command_name and command_name.lower() in ('doctor',):
+    if command_name and command_name.lower() in ("doctor",):
         from cairnml_agent.commands import doctor
-        return doctor.doctor_main(file=getattr(args, 'file', None))
 
-    if command_name and command_name.lower() in ('config', 'init'):
+        return doctor.doctor_main(file=getattr(args, "file", None))
+
+    if command_name and command_name.lower() in ("config", "init"):
         command_class = commands.Config
-    elif len(command_name.split('.')) < 2:
+    elif len(command_name.split(".")) < 2:
         command_class = commands.Worker
-    elif hasattr(args, 'func') and getattr(args, 'func'):
+    elif hasattr(args, "func") and getattr(args, "func"):
         command_class = getattr(commands, command_name.capitalize())
         command_name = args.func
     else:
-        command_class, command_name = command_name.split('.')
+        command_class, command_name = command_name.split(".")
         command_class = getattr(commands, command_class.capitalize())
 
     args_dict = dict(vars(args))
     parser.remove_top_level_results(args_dict)
 
-    warnings.simplefilter('ignore', UnusedKwargsWarning)
+    warnings.simplefilter("ignore", UnusedKwargsWarning)
 
     try:
         command = command_class(**vars(args))
-        get_config()['command'] = command
+        get_config()["command"] = command
         debug = command._session.debug_mode
         func = getattr(command, command_name)
         return func(**args_dict)
     except CustomBuildScriptFailed as e:
         command_class.exit(e.message, e.errno)
     except ConfigFileNotFound:
-        message = 'Cannot find configuration file in "{}".\n' \
-                  'To create a configuration file, run:\n' \
-                  '$ cairnml_agent init'.format(definitions.AGENT_CONFIG_FILE)
+        message = (
+            'Cannot find configuration file in "{}".\n'
+            "To create a configuration file, run:\n"
+            "$ cairnml_agent init".format(definitions.AGENT_CONFIG_FILE)
+        )
         command_class.exit(message)
     except APIError as api_error:
         if not debug:
@@ -65,7 +68,7 @@ def run_command(parser, args, command_name):
         traceback = api_error.format_traceback()
         if traceback:
             print(traceback)
-            print('Own traceback:')
+            print("Own traceback:")
         raise
     except Exception as e:
         if debug:
@@ -85,7 +88,7 @@ def main():
         if not command_name:
             return parser.print_help()
     except AttributeError:
-        parser.error(argparse._('too few arguments'))
+        parser.error(argparse._("too few arguments"))
 
     return run_command(parser, args, command_name)
 

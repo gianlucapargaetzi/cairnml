@@ -12,33 +12,33 @@ from collections.abc import Iterable  # noqa: F401  # named by type comments
 
 def print_text(text, newline=True):
     if newline:
-        text += '\n'
-    data = text.encode(sys.stdout.encoding or 'utf8', errors='replace')
+        text += "\n"
+    data = text.encode(sys.stdout.encoding or "utf8", errors="replace")
     try:
         sys.stdout.buffer.write(data)
     except AttributeError:
         sys.stdout.write(data)
 
 
-def decode_binary_lines(binary_lines, encoding='utf-8', replace_cr=False, overwrite_cr=False):
+def decode_binary_lines(binary_lines, encoding="utf-8", replace_cr=False, overwrite_cr=False):
     # decode per line, if we failed decoding skip the line
     lines = []
     for b in binary_lines:
         # noinspection PyBroadException
         try:
-            line = b.decode(encoding=encoding, errors='replace')
+            line = b.decode(encoding=encoding, errors="replace")
             if replace_cr:
-                line = line.replace('\r', '\n')
+                line = line.replace("\r", "\n")
             elif overwrite_cr:
-                cr_lines = line.split('\r')
+                cr_lines = line.split("\r")
                 line = cr_lines[-1] if cr_lines[-1] or len(cr_lines) < 2 else cr_lines[-2]
         except Exception:
-            line = ''
-        lines.append(line + '\n' if not line or line[-1] != '\n' else line)
+            line = ""
+        lines.append(line + "\n" if not line or line[-1] != "\n" else line)
     return lines
 
 
-def ensure_text(s, encoding='utf-8', errors='strict'):
+def ensure_text(s, encoding="utf-8", errors="strict"):
     """Coerce *s* to str.
     For Python 2:
       - `unicode` -> `unicode`
@@ -55,7 +55,7 @@ def ensure_text(s, encoding='utf-8', errors='strict'):
         raise TypeError("not expecting type '%s'" % type(s))
 
 
-def ensure_binary(s, encoding='utf-8', errors='strict'):
+def ensure_binary(s, encoding="utf-8", errors="strict"):
     """Coerce **s** to bytes.
     For Python 2:
       - `unicode` -> encoded to `str`
@@ -73,7 +73,6 @@ def ensure_binary(s, encoding='utf-8', errors='strict'):
 
 
 class ListFormatter(object):
-
     @attrs(init=False)
     class Table(object):
         entries = attrib(type=List[Dict])
@@ -82,26 +81,23 @@ class ListFormatter(object):
         def __init__(self, entries, columns):
             self.entries = entries
             if isinstance(columns, str):
-                columns = columns.split('#')
+                columns = columns.split("#")
             self.columns = columns
 
         def as_rows(self):  # type: () -> Iterable[Iterable[Any]]
-            return (
-                map(entry.get, self.columns)
-                for entry in self.entries
-            )
+            return (map(entry.get, self.columns) for entry in self.entries)
 
     def __init__(self, service_name):
         self.service_name = service_name
 
     def get_total(self, entries):
-        return '\nTotal {} {}'.format(self.service_name, len(entries))
+        return "\nTotal {} {}".format(self.service_name, len(entries))
 
     @classmethod
     def write_csv(cls, entries, columns, dest, headers=True):
         table = cls.Table(entries, columns)
-        with open(dest, 'w') as output:
-            writer = csv.DictWriter(output, fieldnames=table.columns, extrasaction='ignore')
+        with open(dest, "w") as output:
+            writer = csv.DictWriter(output, fieldnames=table.columns, extrasaction="ignore")
             if headers:
                 writer.writeheader()
             writer.writerows(table.entries)
@@ -109,7 +105,7 @@ class ListFormatter(object):
     @staticmethod
     def sort_in_place(entries, key, reverse=None):
         if isinstance(key, str):
-            nonstrict_in_place_sort(entries, reverse, *key.split('#'))
+            nonstrict_in_place_sort(entries, reverse, *key.split("#"))
         elif callable(key):
             entries.sort(key=key, reverse=reverse)
         else:

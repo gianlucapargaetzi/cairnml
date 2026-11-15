@@ -16,9 +16,7 @@ def prop_guard(prop, log_prop=None):
     assert not log_prop or isinstance(log_prop, property)
 
     def decorator(func):
-        message = "%s:%s calling {}, {} = %s".format(
-            func.__name__, prop.fget.__name__
-        )
+        message = "%s:%s calling {}, {} = %s".format(func.__name__, prop.fget.__name__)
 
         @wraps(func)
         def new_func(self, *args, **kwargs):
@@ -39,7 +37,6 @@ def prop_guard(prop, log_prop=None):
 
 
 class PoetryConfig:
-
     def __init__(self, session):
         # type: (Session, str) -> None
         self.session = session
@@ -60,15 +57,15 @@ class PoetryConfig:
     def run(self, *args, **kwargs):
         func = kwargs.pop("func", Argv.get_output)
         kwargs.setdefault("stdin", DEVNULL)
-        kwargs['env'] = deepcopy(os.environ)
-        if 'VIRTUAL_ENV' in kwargs['env'] or 'CONDA_PREFIX' in kwargs['env']:
-            kwargs['env'].pop('VIRTUAL_ENV', None)
-            kwargs['env'].pop('CONDA_PREFIX', None)
-            kwargs['env'].pop('PYTHONPATH', None)
+        kwargs["env"] = deepcopy(os.environ)
+        if "VIRTUAL_ENV" in kwargs["env"] or "CONDA_PREFIX" in kwargs["env"]:
+            kwargs["env"].pop("VIRTUAL_ENV", None)
+            kwargs["env"].pop("CONDA_PREFIX", None)
+            kwargs["env"].pop("PYTHONPATH", None)
             if hasattr(sys, "real_prefix") and hasattr(sys, "base_prefix"):
-                path = ':'+kwargs['env']['PATH']
-                path = path.replace(':'+sys.base_prefix, ':'+sys.real_prefix, 1)
-                kwargs['env']['PATH'] = path
+                path = ":" + kwargs["env"]["PATH"]
+                path = path.replace(":" + sys.base_prefix, ":" + sys.real_prefix, 1)
+                kwargs["env"]["PATH"] = path
 
         if self.session and self.session.config and args and args[0] == "install":
             extra_args = self.session.config.get("agent.package_manager.poetry_install_extra_args", None)
@@ -97,14 +94,21 @@ class PoetryConfig:
                 version = str(self.session.config.get("agent.package_manager.poetry_version"))
 
                 # get poetry version
-                version = version.replace(' ', '')
-                if ('=' in version) or ('~' in version) or ('<' in version) or ('>' in version):
+                version = version.replace(" ", "")
+                if ("=" in version) or ("~" in version) or ("<" in version) or (">" in version):
                     version = version
                 elif version:
                     version = "==" + version
                 # (we are not running it yet)
-                argv = Argv(self._python, "-m", "pip", "install", "poetry{}".format(version),
-                            "--upgrade", "--disable-pip-version-check")
+                argv = Argv(
+                    self._python,
+                    "-m",
+                    "pip",
+                    "install",
+                    "poetry{}".format(version),
+                    "--upgrade",
+                    "--disable-pip-version-check",
+                )
                 # this is just for beauty and checks, we already set the verion in the Argv
                 if not version:
                     version = "latest"
@@ -116,9 +120,14 @@ class PoetryConfig:
             # first upgrade pip if we need to
             try:
                 from cairnml_agent.helper.package.pip_api.venv import VirtualenvPip
+
                 pip = VirtualenvPip(
-                    session=self.session, python=self._python,
-                    requirements_manager=None, path=None, interpreter=self._python)
+                    session=self.session,
+                    python=self._python,
+                    requirements_manager=None,
+                    path=None,
+                    interpreter=self._python,
+                )
                 pip.upgrade_pip()
             except Exception as ex:
                 self.log.warning("failed upgrading pip: {}".format(ex))
@@ -127,7 +136,7 @@ class PoetryConfig:
             if not version and check_if_command_exists("poetry"):
                 print("Notice: Poetry was found, no specific version required, skipping poetry installation")
             else:
-                print('Installing / Upgrading Poetry package to {}'.format(version))
+                print("Installing / Upgrading Poetry package to {}".format(version))
                 # now install poetry
                 try:
                     print(argv.get_output())
@@ -137,7 +146,7 @@ class PoetryConfig:
             # now setup poetry
             self._initialized = True
             try:
-                self._config("--local", "virtualenvs.in-project",  "true", cwd=cwd)
+                self._config("--local", "virtualenvs.in-project", "true", cwd=cwd)
                 # self._config("repositories.{}".format(self.REPO_NAME), PYTHON_INDEX)
                 # self._config("http-basic.{}".format(self.REPO_NAME), *PYTHON_INDEX_CREDENTIALS)
             except Exception as ex:
@@ -165,14 +174,12 @@ class PoetryAPI(object):
 
     @property
     def enabled(self):
-        return self.config.enabled and (
-            any((self.path / indicator).exists() for indicator in self.INDICATOR_FILES)
-        )
+        return self.config.enabled and (any((self.path / indicator).exists() for indicator in self.INDICATOR_FILES))
 
     def freeze(self, freeze_full_environment=False):
         lines = self.config.run("show", cwd=str(self.path)).splitlines()
-        lines = [[p for p in line.split(' ') if p] for line in lines]
-        return {"pip": [parts[0]+'=='+parts[1]+' # '+' '.join(parts[2:]) for parts in lines]}
+        lines = [[p for p in line.split(" ") if p] for line in lines]
+        return {"pip": [parts[0] + "==" + parts[1] + " # " + " ".join(parts[2:]) for parts in lines]}
 
     def get_python_command(self, extra):
         if check_if_command_exists("poetry"):

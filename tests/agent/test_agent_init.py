@@ -15,11 +15,14 @@ def enrolment(server_url, device_id="dev_agent", web_url=None, queue=""):
 def run_init(conf, server, *, enrol_side_effect=None, force=False):
     """cairnml-agent init <server>, with the server answering as enrol_side_effect says (default: enrolled).
     The command must not ask anything: input() is replaced by a failure."""
+
     def default_enrol(api_server, **kwargs):
         return enrolment(api_server)
 
-    with mock.patch.object(init, "enrol", side_effect=enrol_side_effect or default_enrol) as enrol_mock, \
-            mock.patch("builtins.input", side_effect=AssertionError("init must not ask questions")):
+    with (
+        mock.patch.object(init, "enrol", side_effect=enrol_side_effect or default_enrol) as enrol_mock,
+        mock.patch("builtins.input", side_effect=AssertionError("init must not ask questions")),
+    ):
         code = init.main(server=server, force=force, file=str(conf))
     return code, enrol_mock
 
@@ -37,13 +40,16 @@ def test_the_agent_is_enrolled_as_an_agent_and_the_file_holds_no_credentials(tmp
     assert "credentials {" not in text
 
 
-@pytest.mark.parametrize("given, api", [
-    ("http://localhost", "http://localhost/cairnml/api"),
-    ("http://192.168.1.237", "http://192.168.1.237/cairnml/api"),
-    ("https://cairnml.example/", "https://cairnml.example/cairnml/api"),
-    ("http://localhost/cairnml", "http://localhost/cairnml/api"),
-    ("http://localhost/cairnml/api", "http://localhost/cairnml/api"),
-])
+@pytest.mark.parametrize(
+    "given, api",
+    [
+        ("http://localhost", "http://localhost/cairnml/api"),
+        ("http://192.168.1.237", "http://192.168.1.237/cairnml/api"),
+        ("https://cairnml.example/", "https://cairnml.example/cairnml/api"),
+        ("http://localhost/cairnml", "http://localhost/cairnml/api"),
+        ("http://localhost/cairnml/api", "http://localhost/cairnml/api"),
+    ],
+)
 def test_the_api_is_under_cairnml_api_at_the_address_given(tmp_path, given, api):
     code, enrol_mock = run_init(tmp_path / "cairnml-agent.conf", given)
 
@@ -60,7 +66,7 @@ def test_the_web_address_is_written_from_the_server(tmp_path):
     code, _ = run_init(conf, "https://cairnml.example", enrol_side_effect=server_names_its_web_address)
 
     assert code == 0
-    assert 'web_server: https://cairnml.example' in conf.read_text()
+    assert "web_server: https://cairnml.example" in conf.read_text()
 
 
 def test_a_refused_agent_writes_no_configuration(tmp_path, capsys):

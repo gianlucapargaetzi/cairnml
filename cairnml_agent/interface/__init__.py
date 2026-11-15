@@ -5,7 +5,7 @@ from cairnml_agent.definitions import PROGRAM_NAME
 from .base import Parser, base_arguments, OnlyPluralChoicesHelpFormatter
 
 SERVICES = [
-    'worker',
+    "worker",
 ]
 
 
@@ -21,7 +21,8 @@ def get_parser():
     )
     base_arguments(top_parser)
     from .worker import COMMANDS
-    subparsers = top_parser.add_subparsers(dest='command')
+
+    subparsers = top_parser.add_subparsers(dest="command")
     for c in COMMANDS:
         parser = subparsers.add_parser(name=c, help=COMMANDS[c]["help"])
         # Arguments without a group go to "Other options" when the command has groups, so that the groups come first.

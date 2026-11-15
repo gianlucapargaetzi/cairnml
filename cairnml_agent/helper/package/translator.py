@@ -9,7 +9,6 @@ from typing import Text  # noqa: F401  # named by type comments
 
 
 class RequirementsTranslator(object):
-
     """
     Translate explicit URLs to local URLs after downloading them to cache
     """
@@ -25,9 +24,12 @@ class RequirementsTranslator(object):
         try:
             Path(self.cache_dir).mkdir(parents=True, exist_ok=True)
         except Exception:
-            temp_cache_folder = mkdtemp(prefix='pip_download_cache.')
-            print("Failed creating pip download cache folder at `{}` reverting to `{}`".format(
-                self.cache_dir, temp_cache_folder))
+            temp_cache_folder = mkdtemp(prefix="pip_download_cache.")
+            print(
+                "Failed creating pip download cache folder at `{}` reverting to `{}`".format(
+                    self.cache_dir, temp_cache_folder
+                )
+            )
             self.cache_dir = temp_cache_folder
             Path(self.cache_dir).mkdir(parents=True, exist_ok=True)
 
@@ -82,7 +84,7 @@ class RequirementsTranslator(object):
 
         for k in requirements:
             # k is either pip/conda
-            if k not in ('pip', 'conda'):
+            if k not in ("pip", "conda"):
                 continue
 
             original_requirements = requirements[k]

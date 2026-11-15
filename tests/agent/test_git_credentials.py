@@ -8,7 +8,12 @@ from types import SimpleNamespace
 import pytest
 
 from cairnml_agent.helper.repo import (
-    Git, basic_auth_header, fetch_git_credential, github_header, resolve_git_clone, scrub_token,
+    Git,
+    basic_auth_header,
+    fetch_git_credential,
+    github_header,
+    resolve_git_clone,
+    scrub_token,
     select_git_credential,
     wants_stored_credential,
 )
@@ -70,18 +75,21 @@ def test_a_header_token_with_a_username_is_only_in_the_environment_of_git():
     assert TOKEN not in Git.COMMAND_ENV.values()
 
 
-@pytest.mark.parametrize("url, wanted", [
-    ("https://github.com/acme/repo.git", True),
-    ("https://gitlab.example.com/team/repo.git", True),
-    ("https://bitbucket.org/team/repo", True),
-    ("https://gitlab.example.com:8443/team/repo.git", True),
-    ("http://gitlab.example.com/team/repo.git", False),
-    ("ssh://git@gitlab.example.com/team/repo.git", False),
-    ("git@gitlab.example.com:team/repo.git", False),
-    ("gitlab.example.com/team/repo.git", False),
-    ("", False),
-    (None, False),
-])
+@pytest.mark.parametrize(
+    "url, wanted",
+    [
+        ("https://github.com/acme/repo.git", True),
+        ("https://gitlab.example.com/team/repo.git", True),
+        ("https://bitbucket.org/team/repo", True),
+        ("https://gitlab.example.com:8443/team/repo.git", True),
+        ("http://gitlab.example.com/team/repo.git", False),
+        ("ssh://git@gitlab.example.com/team/repo.git", False),
+        ("git@gitlab.example.com:team/repo.git", False),
+        ("gitlab.example.com/team/repo.git", False),
+        ("", False),
+        (None, False),
+    ],
+)
 def test_only_https_repositories_and_github_ask_the_server_for_a_credential(url, wanted):
     assert wants_stored_credential(url) is wanted
 
@@ -90,8 +98,9 @@ def test_a_non_github_https_repository_gets_the_stored_credential_of_the_task():
     session, calls = session_answering(Reply(data={"token": TOKEN, "username": "oauth2"}))
     credential = select_git_credential(session, "https://gitlab.example.com/team/repo.git", "task-1")
     assert credential == ("oauth2", TOKEN)
-    assert calls == [dict(service="devices", action="git_token", version="2.8",
-                          method=calls[0]["method"], json={"task": "task-1"})]
+    assert calls == [
+        dict(service="devices", action="git_token", version="2.8", method=calls[0]["method"], json={"task": "task-1"})
+    ]
 
 
 def test_the_credential_is_never_asked_for_a_plain_http_or_ssh_repository():
@@ -183,8 +192,9 @@ OTHER_HOST_ADDRESSES = [
 
 @pytest.mark.parametrize("url", GITHUB_ADDRESSES)
 def test_every_form_of_a_github_address_asks_the_server_for_a_token(url):
-    session, calls = session_answering(Reply(data={"token": TOKEN, "username": "x-access-token",
-                                                   "url": "https://github.com/owner/name.git"}))
+    session, calls = session_answering(
+        Reply(data={"token": TOKEN, "username": "x-access-token", "url": "https://github.com/owner/name.git"})
+    )
     assert wants_stored_credential(url) is True
     assert select_git_credential(session, url, "task-1") == ("x-access-token", TOKEN)
     assert len(calls) == 1
@@ -192,8 +202,9 @@ def test_every_form_of_a_github_address_asks_the_server_for_a_token(url):
 
 @pytest.mark.parametrize("url", OTHER_HOST_ADDRESSES)
 def test_other_hosts_are_not_asked_for_a_token(url):
-    session, calls = session_answering(Reply(data={"token": TOKEN, "username": "oauth2",
-                                                   "url": "https://gitlab.example.com/team/repo.git"}))
+    session, calls = session_answering(
+        Reply(data={"token": TOKEN, "username": "oauth2", "url": "https://gitlab.example.com/team/repo.git"})
+    )
     assert wants_stored_credential(url) is False
     assert resolve_git_clone(session, url, "task-1") == (None, None)
     assert calls == []
@@ -215,7 +226,9 @@ def test_a_public_answer_clones_the_server_address_without_a_credential(capsys):
 def test_an_answer_without_a_url_keeps_the_task_address_and_its_credential():
     session, _ = session_answering(Reply(data={"token": TOKEN, "username": None}))
     assert resolve_git_clone(session, "https://github.com/owner/name.git", "task-1") == (
-        None, ("x-access-token", TOKEN))
+        None,
+        ("x-access-token", TOKEN),
+    )
 
 
 def test_an_answer_without_a_url_gives_an_ssh_github_address_no_credential():
@@ -224,8 +237,7 @@ def test_an_answer_without_a_url_gives_an_ssh_github_address_no_credential():
     assert len(calls) == 1
 
 
-def test_the_clone_uses_the_server_address_with_the_token_in_the_header_and_not_the_url(
-        tmp_path, monkeypatch, capsys):
+def test_the_clone_uses_the_server_address_with_the_token_in_the_header_and_not_the_url(tmp_path, monkeypatch, capsys):
     url = "https://github.com/owner/name.git"
     session, _ = session_answering(Reply(data={"token": TOKEN, "username": "x-access-token", "url": url}))
     seen = _clone_with(monkeypatch, tmp_path, session, "git@github.com:owner/name.git")
@@ -282,14 +294,20 @@ def _clone_with(monkeypatch, tmp_path, session, repository):
     monkeypatch.setattr(Git, "clone", fake_clone)
     monkeypatch.setattr(Git, "pull", lambda self: None)
     monkeypatch.setattr(Git, "checkout", lambda self: None)
-    monkeypatch.setattr(Git, "get_repository_copy_info",
-                        lambda self, path: RepoInfo(type="git", url="", branch="", commit="", root=""))
+    monkeypatch.setattr(
+        Git, "get_repository_copy_info", lambda self, path: RepoInfo(type="git", url="", branch="", commit="", root="")
+    )
     monkeypatch.setattr(repo_module, "find_executable", lambda name: "/usr/bin/" + name)
 
     cache = tmp_path / "cache"
     cache.mkdir()
-    session.config = ConfigTree(agent=ConfigTree(standalone_mode=False, translate_ssh=False, vcs_cache=ConfigTree(
-        path=str(cache), enabled=False, clone_on_pull_fail=False)))
+    session.config = ConfigTree(
+        agent=ConfigTree(
+            standalone_mode=False,
+            translate_ssh=False,
+            vcs_cache=ConfigTree(path=str(cache), enabled=False, clone_on_pull_fail=False),
+        )
+    )
     session.get_logger = lambda name: __import__("logging").getLogger(name)
     session.debug_mode = False
     execution = SimpleNamespace(repository=repository)

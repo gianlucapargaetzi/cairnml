@@ -50,9 +50,7 @@ def test_a_failed_request_is_none_so_the_job_does_not_start():
 
 
 def test_the_job_configuration_names_no_device(tmp_path):
-    config = ConfigFactory.parse_string(
-        'api { api_server: "https://api.example", idp { device_id: "dev_agent" } }\n'
-    )
+    config = ConfigFactory.parse_string('api { api_server: "https://api.example", idp { device_id: "dev_agent" } }\n')
     target = tmp_path / "job.conf"
     Worker.dump_config(agent_worker(None), str(target), config=config)
     text = target.read_text()

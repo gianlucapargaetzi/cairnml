@@ -33,14 +33,13 @@ def get_module_path(module):
     if isinstance(module, str):
         module = sys.modules[module]
     path = Path(module.__file__)
-    return path.parent if path.stem == '__init__' else path
+    return path.parent if path.stem == "__init__" else path
 
 
 Module = Union[ModuleType, Text]
 
 
 class PackageTraceIgnore(object):
-
     """
     Object that includes package modules in trace and excludes sub modules and all other code.
     """
@@ -86,7 +85,6 @@ class PackageTraceIgnore(object):
 
 
 class PackageTrace(trace.Trace, object):
-
     """
     Trace object for tracing only lines from a specific package.
     Some functions are copied and modified for lack of modularity of ``trace.Trace``.
@@ -107,9 +105,9 @@ class PackageTrace(trace.Trace, object):
         If the code block being entered is to be ignored, returns `None',
         else returns self.localtrace.
         """
-        if why == 'call':
+        if why == "call":
             code = frame.f_code
-            filename = frame.f_globals.get('__file__', None)
+            filename = frame.f_globals.get("__file__", None)
             if filename:
                 # XXX modname() doesn't work right for packages, so
                 # the ignore support won't work right for packages
@@ -117,10 +115,10 @@ class PackageTrace(trace.Trace, object):
                 if not ignore_it:
                     if self.trace:
                         filename = Path(filename)
-                        modulename = '.'.join(
+                        modulename = ".".join(
                             filename.relative_to(self.ignore.package_path).parts[:-1] + (filename.stem,)
                         )
-                        self.__out(' --- modulename: %s, funcname: %s' % (modulename, code.co_name))
+                        self.__out(" --- modulename: %s, funcname: %s" % (modulename, code.co_name))
                     return self.localtrace
             else:
                 return None
@@ -135,9 +133,9 @@ class PackageTrace(trace.Trace, object):
             lineno = frame.f_lineno
 
             if self.start_time:
-                self.__out('%.2f' % (time.time() - self.start_time), end='')
+                self.__out("%.2f" % (time.time() - self.start_time), end="")
             bname = os.path.basename(filename)
-            self.__out('%s(%d): %s' % (bname, lineno, linecache.getline(filename, lineno)), end='')
+            self.__out("%s(%d): %s" % (bname, lineno, linecache.getline(filename, lineno)), end="")
         return self.localtrace
 
     localtrace_trace_and_count = localtrace_trace

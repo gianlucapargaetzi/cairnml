@@ -1,6 +1,7 @@
 """
 Test docker args processing
 """
+
 import logging
 
 from cairnml_agent.helper.docker_args import DockerArgsSanitizer
@@ -22,7 +23,7 @@ def test_extra_docker_args_processing():
     print("extra_args switches", switches)
     print("task_args", task_args)
     print("filtered:", filtered_task_docker_args)
-    assert filtered_task_docker_args == ['-it', '-v=/a/b:/c/d', '-v', '/c/e:/f/g', '--rm']
+    assert filtered_task_docker_args == ["-it", "-v=/a/b:/c/d", "-v", "/c/e:/f/g", "--rm"]
 
 
 def test_task_docker_args_processing():
@@ -33,11 +34,12 @@ def test_task_docker_args_processing():
     print("extra_args switches", switches)
     print("task_args", extra_args)
     print("filtered:", filtered_task_docker_args)
-    assert filtered_task_docker_args == ['--ipc', 'host', '-v', '/host/b:/docker/b']
+    assert filtered_task_docker_args == ["--ipc", "host", "-v", "/host/b:/docker/b"]
 
 
 class _DummyConfig:
     """Minimal stand-in for session.config, supports .get(key, default)."""
+
     def __init__(self, overrides=None):
         self._overrides = overrides or {}
 
@@ -147,9 +149,11 @@ def test_merge_docker_args_forbidden_list_multiple_switches_each_with_value():
         config=_DummyConfig({"agent.forbidden_docker_args": ["entrypoint", "user"]}),
         task_docker_arguments=[],
         extra_docker_arguments=[
-            "--entrypoint", "/bin/echo",
+            "--entrypoint",
+            "/bin/echo",
             "--user=root",
-            "-v", "/x:/y",
+            "-v",
+            "/x:/y",
             "--ipc=host",
         ],
     )

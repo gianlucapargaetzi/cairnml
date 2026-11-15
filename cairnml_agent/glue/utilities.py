@@ -7,9 +7,7 @@ from cairnml_agent.helper.process import get_bash_output as _get_bash_output
 
 def get_path(d, *path, default=None):
     try:
-        return functools.reduce(
-            lambda a, b: a[b], path, d
-        )
+        return functools.reduce(lambda a, b: a[b], path, d)
     except (IndexError, KeyError):
         return default
 

@@ -26,11 +26,11 @@ class PackageManager(object, metaclass=abc.ABCMeta):
     _selected_manager = None
     _cwd = None
     _pip_version = None
-    _config_cache_folder = 'agent.venvs_cache.path'
-    _config_cache_max_entries = 'agent.venvs_cache.max_entries'
-    _config_cache_free_space_threshold = 'agent.venvs_cache.free_space_threshold_gb'
-    _config_cache_lock_timeout = 'agent.venvs_cache.lock_timeout'
-    _config_pip_legacy_resolver = 'agent.package_manager.pip_legacy_resolver'
+    _config_cache_folder = "agent.venvs_cache.path"
+    _config_cache_max_entries = "agent.venvs_cache.max_entries"
+    _config_cache_free_space_threshold = "agent.venvs_cache.free_space_threshold_gb"
+    _config_cache_lock_timeout = "agent.venvs_cache.lock_timeout"
+    _config_pip_legacy_resolver = "agent.package_manager.pip_legacy_resolver"
 
     def __init__(self):
         self._cache_manager = None
@@ -85,16 +85,12 @@ class PackageManager(object, metaclass=abc.ABCMeta):
 
     def add_extra_install_flags(self, extra_flags):  # type: (List[str]) -> None
         if extra_flags:
-            extra_flags = [
-                e for e in extra_flags if e not in list(self._base_install_flags)
-            ]
+            extra_flags = [e for e in extra_flags if e not in list(self._base_install_flags)]
             self._base_install_flags = list(self._base_install_flags) + list(extra_flags)
 
     def remove_extra_install_flags(self, extra_flags):  # type: (List[str]) -> bool
         if extra_flags:
-            _base_install_flags = [
-                e for e in self._base_install_flags if e not in list(extra_flags)
-            ]
+            _base_install_flags = [e for e in self._base_install_flags if e not in list(extra_flags)]
             if self._base_install_flags != _base_install_flags:
                 self._base_install_flags = _base_install_flags
                 return True
@@ -102,11 +98,7 @@ class PackageManager(object, metaclass=abc.ABCMeta):
 
     def upgrade_pip(self):
         result = self._install(
-            *select_for_platform(
-                windows=self.get_pip_versions(),
-                linux=self.get_pip_versions()
-            ),
-            "--upgrade"
+            *select_for_platform(windows=self.get_pip_versions(), linux=self.get_pip_versions()), "--upgrade"
         )
 
         packages = (self.freeze(freeze_full_environment=True) or dict()).get("pip")
@@ -117,7 +109,8 @@ class PackageManager(object, metaclass=abc.ABCMeta):
             # store existing packages so that we can check if we can skip preinstalled packages
             # we will only check "@ file" "@ vcs" for exact match
             self._existing_packages = RequirementsManager.parse_requirements_section_to_marker_requirements(
-                packages, skip_local_file_validation=True)
+                packages, skip_local_file_validation=True
+            )
 
             try:
                 pip_pkg = next(p for p in self._existing_packages if p.name == "pip")
@@ -186,11 +179,7 @@ class PackageManager(object, metaclass=abc.ABCMeta):
         """
         f, temp_path = mkstemp(suffix=suffix, prefix=prefix)
         with f:
-            f.write(
-                contents
-                if isinstance(contents, str)
-                else join_lines(contents)
-            )
+            f.write(contents if isinstance(contents, str) else join_lines(contents))
         try:
             yield temp_path
         finally:
@@ -223,6 +212,7 @@ class PackageManager(object, metaclass=abc.ABCMeta):
 
             try:
                 from .requirements import Requirement, MarkerRequirement
+
                 req = MarkerRequirement(Requirement.parse(package_name))
 
                 # if pip was part of the requirements, make sure we update the flags
@@ -257,17 +247,14 @@ class PackageManager(object, metaclass=abc.ABCMeta):
         cls._pip_version = []
         for version in versions:
             version = version.strip()
-            if ('=' in version) or ('~' in version) or ('<' in version) or ('>' in version):
+            if ("=" in version) or ("~" in version) or ("<" in version) or (">" in version):
                 cls._pip_version.append(version)
             else:
                 cls._pip_version.append("==" + version)
 
     @classmethod
-    def get_pip_versions(cls, pip="pip", wrap=''):
-        return [
-            (wrap + pip + version + wrap)
-            for version in cls._pip_version or [""]
-        ]
+    def get_pip_versions(cls, pip="pip", wrap=""):
+        return [(wrap + pip + version + wrap) for version in cls._pip_version or [""]]
 
     def get_cached_venv(self, requirements, docker_cmd, python_version, cuda_version, destination_folder):
         # type: (Dict, Optional[Union[dict, str]], Optional[str], Optional[str], Path) -> Optional[Path]
@@ -287,13 +274,13 @@ class PackageManager(object, metaclass=abc.ABCMeta):
             return None
 
     def add_cached_venv(
-            self,
-            requirements,  # type: Union[Dict, List[Dict]]
-            docker_cmd,   # type: Optional[Union[dict, str]]
-            python_version,  # type: Optional[str]
-            cuda_version,  # type: Optional[str]
-            source_folder,  # type:  Path
-            exclude_sub_folders=None  # type: Optional[List[str]]
+        self,
+        requirements,  # type: Union[Dict, List[Dict]]
+        docker_cmd,  # type: Optional[Union[dict, str]]
+        python_version,  # type: Optional[str]
+        cuda_version,  # type: Optional[str]
+        source_folder,  # type:  Path
+        exclude_sub_folders=None,  # type: Optional[List[str]]
     ):
         # type: (...) -> ()
         """
@@ -302,12 +289,13 @@ class PackageManager(object, metaclass=abc.ABCMeta):
         if not self._get_cache_manager():
             return
 
-        print('Adding venv into cache: {}'.format(source_folder))
+        print("Adding venv into cache: {}".format(source_folder))
 
         try:
             keys = self._generate_reqs_hash_keys(requirements, docker_cmd, python_version, cuda_version)
             return self._get_cache_manager().add_entry(
-                keys=keys, source_folder=source_folder, exclude_sub_folders=exclude_sub_folders)
+                keys=keys, source_folder=source_folder, exclude_sub_folders=exclude_sub_folders
+            )
         except Exception as ex:
             print("WARNING: Failed accessing venvs cache at {}: {}".format(source_folder, ex))
             print("WARNING: Skipping venv cache - folder not accessible!")
@@ -343,36 +331,46 @@ class PackageManager(object, metaclass=abc.ABCMeta):
             requirements_list = [requirements_list]
         docker_cmd = dict(docker_cmd=docker_cmd) if isinstance(docker_cmd, str) else docker_cmd or dict()
         docker_cmd = OrderedDict(sorted(docker_cmd.items(), key=lambda t: t[0]))
-        if 'docker_cmd' in docker_cmd:
+        if "docker_cmd" in docker_cmd:
             # we only take the first part of the docker_cmd which is the docker image name
-            docker_cmd['docker_cmd'] = docker_cmd['docker_cmd'].strip('\r\n\t ').split(' ')[0]
+            docker_cmd["docker_cmd"] = docker_cmd["docker_cmd"].strip("\r\n\t ").split(" ")[0]
 
         keys = []
-        strip_chars = '\n\r\t '
+        strip_chars = "\n\r\t "
         for requirements in requirements_list:
-            pip, conda = ('pip', 'conda')
-            pip_reqs = requirements.get(pip, '')
-            conda_reqs = requirements.get(conda, '')
+            pip, conda = ("pip", "conda")
+            pip_reqs = requirements.get(pip, "")
+            conda_reqs = requirements.get(conda, "")
             if isinstance(pip_reqs, str):
-                pip_reqs = pip_reqs.split('\n')
+                pip_reqs = pip_reqs.split("\n")
             if isinstance(conda_reqs, str):
-                conda_reqs = conda_reqs.split('\n')
-            pip_reqs = sorted([p.strip(strip_chars) for p in pip_reqs
-                               if p.strip(strip_chars) and not p.strip(strip_chars).startswith('#')])
-            conda_reqs = sorted([p.strip(strip_chars) for p in conda_reqs
-                                 if p.strip(strip_chars) and not p.strip(strip_chars).startswith('#')])
+                conda_reqs = conda_reqs.split("\n")
+            pip_reqs = sorted(
+                [
+                    p.strip(strip_chars)
+                    for p in pip_reqs
+                    if p.strip(strip_chars) and not p.strip(strip_chars).startswith("#")
+                ]
+            )
+            conda_reqs = sorted(
+                [
+                    p.strip(strip_chars)
+                    for p in conda_reqs
+                    if p.strip(strip_chars) and not p.strip(strip_chars).startswith("#")
+                ]
+            )
             if not pip_reqs and not conda_reqs:
                 continue
             # do not process "-r" or "--requirement" because we cannot know what we have in the git repo.
-            if any(r.strip().startswith('-r ') or r.strip().startswith('--requirement ') for r in pip_reqs):
+            if any(r.strip().startswith("-r ") or r.strip().startswith("--requirement ") for r in pip_reqs):
                 continue
-            hash_text = '{class_type}\n{docker_cmd}\n{cuda_ver}\n{python_version}\n{pip_reqs}\n{conda_reqs}'.format(
+            hash_text = "{class_type}\n{docker_cmd}\n{cuda_ver}\n{python_version}\n{pip_reqs}\n{conda_reqs}".format(
                 class_type=str(cls),
-                docker_cmd=str(docker_cmd or ''),
-                cuda_ver=str(cuda_version or ''),
-                python_version=str(python_version or ''),
-                pip_reqs=str(pip_reqs or ''),
-                conda_reqs=str(conda_reqs or ''),
+                docker_cmd=str(docker_cmd or ""),
+                cuda_ver=str(cuda_version or ""),
+                python_version=str(python_version or ""),
+                pip_reqs=str(pip_reqs or ""),
+                conda_reqs=str(conda_reqs or ""),
             )
             keys.append(md5(ensure_binary(hash_text)).hexdigest())
         return sorted(list(set(keys)))
@@ -388,9 +386,11 @@ class PackageManager(object, metaclass=abc.ABCMeta):
                 max_entries = int(self.session.config.get(self._config_cache_max_entries, 10))
                 free_space_threshold = float(self.session.config.get(self._config_cache_free_space_threshold, 0))
                 self._cache_manager = FolderCache(
-                    cache_folder, max_cache_entries=max_entries,
+                    cache_folder,
+                    max_cache_entries=max_entries,
                     min_free_space_gb=free_space_threshold,
-                    lock_timeout_seconds=self.session.config.get(self._config_cache_lock_timeout, None))
+                    lock_timeout_seconds=self.session.config.get(self._config_cache_lock_timeout, None),
+                )
             except Exception as ex:
                 print("WARNING: Failed accessing venvs cache at {}: {}".format(cache_folder, ex))
                 print("WARNING: Skipping venv cache - folder not accessible!")
@@ -403,15 +403,21 @@ def get_specific_package_version(cached_requirements, package_name):
     pkg_version = None
     try:
         from cairnml_agent.helper.package.requirement_lines import parse
+
         requirements = []
         if cached_requirements.get("pip", ""):
-            requirements += cached_requirements.get("pip", "").split("\n") \
-                if isinstance(cached_requirements.get("pip", ""), str) else cached_requirements.get("pip", [])
+            requirements += (
+                cached_requirements.get("pip", "").split("\n")
+                if isinstance(cached_requirements.get("pip", ""), str)
+                else cached_requirements.get("pip", [])
+            )
 
         if cached_requirements.get("org_pip", ""):
-            requirements += cached_requirements.get("org_pip", "").split("\n") \
-                if isinstance(cached_requirements.get("org_pip", ""), str) else (
-                cached_requirements.get("org_pip", []))
+            requirements += (
+                cached_requirements.get("org_pip", "").split("\n")
+                if isinstance(cached_requirements.get("org_pip", ""), str)
+                else (cached_requirements.get("org_pip", []))
+            )
 
         pkg_version = [p for p in parse(requirements) if p.name == package_name]
         if pkg_version:

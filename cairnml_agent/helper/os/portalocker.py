@@ -8,7 +8,7 @@ class exceptions:
         LOCK_FAILED = 1
 
         def __init__(self, *args, **kwargs):
-            self.fh = kwargs.pop('fh', None)
+            self.fh = kwargs.pop("fh", None)
             Exception.__init__(self, *args, **kwargs)
 
     class LockException(BaseLockException):
@@ -27,7 +27,7 @@ class exceptions:
 class constants:
     # The actual tests will execute the code anyhow so the following code can
     # safely be ignored from the coverage tests
-    if os.name == 'nt':  # pragma: no cover
+    if os.name == "nt":  # pragma: no cover
         import msvcrt
 
         LOCK_EX = 0x1  #: exclusive lock
@@ -38,7 +38,7 @@ class constants:
         LOCKFILE_FAIL_IMMEDIATELY = 1
         LOCKFILE_EXCLUSIVE_LOCK = 2
 
-    elif os.name == 'posix':  # pragma: no cover
+    elif os.name == "posix":  # pragma: no cover
         import fcntl
 
         LOCK_EX = fcntl.LOCK_EX  #: exclusive lock
@@ -47,10 +47,10 @@ class constants:
         LOCK_UN = fcntl.LOCK_UN  #: unlock
 
     else:  # pragma: no cover
-        raise RuntimeError('PortaLocker only defined for nt and posix platforms')
+        raise RuntimeError("PortaLocker only defined for nt and posix platforms")
 
 
-if os.name == 'nt':  # pragma: no cover
+if os.name == "nt":  # pragma: no cover
     import msvcrt
 
     if sys.version_info.major == 2:
@@ -63,6 +63,7 @@ if os.name == 'nt':  # pragma: no cover
             import win32file
             import pywintypes
             import winerror
+
             __overlapped = pywintypes.OVERLAPPED()
             if sys.version_info.major == 2:
                 if flags & constants.LOCK_NB:
@@ -85,9 +86,8 @@ if os.name == 'nt':  # pragma: no cover
                 # because another process has locked a portion of the file.')
                 if exc_value.winerror == winerror.ERROR_LOCK_VIOLATION:
                     raise exceptions.LockException(
-                        exceptions.LockException.LOCK_FAILED,
-                        exc_value.strerror,
-                        fh=file_) from exc_value
+                        exceptions.LockException.LOCK_FAILED, exc_value.strerror, fh=file_
+                    ) from exc_value
                 else:
                     # Q:  Are there exceptions/codes we should be dealing with
                     # here?
@@ -119,16 +119,15 @@ if os.name == 'nt':  # pragma: no cover
                 except IOError as exc_value:
                     # [ ] be more specific here
                     raise exceptions.LockException(
-                        exceptions.LockException.LOCK_FAILED,
-                        exc_value.strerror,
-                        fh=file_) from exc_value
+                        exceptions.LockException.LOCK_FAILED, exc_value.strerror, fh=file_
+                    ) from exc_value
                 finally:
                     if savepos:
                         file_.seek(savepos)
             except IOError as exc_value:
                 raise exceptions.LockException(
-                    exceptions.LockException.LOCK_FAILED, exc_value.strerror,
-                    fh=file_) from exc_value
+                    exceptions.LockException.LOCK_FAILED, exc_value.strerror, fh=file_
+                ) from exc_value
 
     def unlock(file_):
         try:
@@ -139,15 +138,15 @@ if os.name == 'nt':  # pragma: no cover
             try:
                 msvcrt.locking(file_.fileno(), constants.LOCK_UN, lock_length)
             except IOError as exc_value:
-                if exc_value.strerror == 'Permission denied':
+                if exc_value.strerror == "Permission denied":
                     import pywintypes
                     import win32file
                     import winerror
+
                     __overlapped = pywintypes.OVERLAPPED()
                     hfile = win32file._get_osfhandle(file_.fileno())
                     try:
-                        win32file.UnlockFileEx(
-                            hfile, 0, -0x10000, __overlapped)
+                        win32file.UnlockFileEx(hfile, 0, -0x10000, __overlapped)
                     except pywintypes.error as exc_value:
                         if exc_value.winerror == winerror.ERROR_NOT_LOCKED:
                             # error: (158, 'UnlockFileEx',
@@ -161,24 +160,23 @@ if os.name == 'nt':  # pragma: no cover
                             raise
                 else:
                     raise exceptions.LockException(
-                        exceptions.LockException.LOCK_FAILED,
-                        exc_value.strerror,
-                        fh=file_) from exc_value
+                        exceptions.LockException.LOCK_FAILED, exc_value.strerror, fh=file_
+                    ) from exc_value
             finally:
                 if savepos:
                     file_.seek(savepos)
         except IOError as exc_value:
             raise exceptions.LockException(
-                exceptions.LockException.LOCK_FAILED, exc_value.strerror,
-                fh=file_) from exc_value
+                exceptions.LockException.LOCK_FAILED, exc_value.strerror, fh=file_
+            ) from exc_value
 
-elif os.name == 'posix':  # pragma: no cover
+elif os.name == "posix":  # pragma: no cover
     import fcntl
 
     def lock(file_, flags):
-        locking_exceptions = IOError,
+        locking_exceptions = (IOError,)
         try:  # pragma: no cover
-            locking_exceptions += BlockingIOError,
+            locking_exceptions += (BlockingIOError,)
         except NameError:  # pragma: no cover
             pass
 
@@ -197,4 +195,4 @@ elif os.name == 'posix':  # pragma: no cover
         fcntl.flock(file_.fileno(), constants.LOCK_UN)
 
 else:  # pragma: no cover
-    raise RuntimeError('PortaLocker only defined for nt and posix platforms')
+    raise RuntimeError("PortaLocker only defined for nt and posix platforms")

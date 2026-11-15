@@ -1,4 +1,5 @@
-""" CAIRNML-AGENT Stdout Helper Functions  """
+"""CAIRNML-AGENT Stdout Helper Functions"""
+
 from __future__ import print_function, unicode_literals
 
 import io
@@ -37,6 +38,7 @@ use_powershell = os.getenv("CAIRNML_AGENT_USE_POWERSHELL", None)
 
 def which(cmd, path=None):
     from cairnml_agent.helper.process import find_executable
+
     result = find_executable(cmd, path)
     if not result:
         raise ValueError('command "{}" not found'.format(cmd))
@@ -59,9 +61,8 @@ def check_is_binary_python_or_bash(script_binary) -> (bool, bool):
     :param script_binary: e.g. task.script.binary
     :return: tuple boolean (is_python_binary, is_bash_binary)
     """
-    is_python_binary = (script_binary or "").split("/")[-1].startswith('python')
-    is_bash_binary = (not is_python_binary and
-                      (script_binary or "").split("/")[-1] in ('bash', 'zsh', 'sh'))
+    is_python_binary = (script_binary or "").split("/")[-1].startswith("python")
+    is_bash_binary = not is_python_binary and (script_binary or "").split("/")[-1] in ("bash", "zsh", "sh")
 
     if not is_bash_binary and not is_python_binary:
         if (script_binary or "").strip():
@@ -72,7 +73,7 @@ def check_is_binary_python_or_bash(script_binary) -> (bool, bool):
 
 
 def bash_c():
-    return 'bash -c' if not is_windows_platform() else ('powershell -Command' if use_powershell else 'cmd /c')
+    return "bash -c" if not is_windows_platform() else ("powershell -Command" if use_powershell else "cmd /c")
 
 
 def return_list(arg):
@@ -85,7 +86,7 @@ def return_list(arg):
 def print_table(entries, columns=(), titles=(), csv=None, headers=True):
     table = create_table(entries, columns=columns, titles=titles, csv=csv, headers=headers)
     if csv:
-        with open(csv, 'w') as output:
+        with open(csv, "w") as output:
             print(table, file=output)
     else:
         print(table)
@@ -93,47 +94,40 @@ def print_table(entries, columns=(), titles=(), csv=None, headers=True):
 
 def create_table(entries, columns=(), titles=(), csv=None, headers=True):
     table = [
-        [
-            reduce(
-                lambda obj, key: obj.get(key, {}),
-                column.split('.'),
-                entry
-            ) or ''
-            for column in columns
-        ]
+        [reduce(lambda obj, key: obj.get(key, {}), column.split("."), entry) or "" for column in columns]
         for entry in entries
     ]
     if headers:
         headers = [titles[i] if i < len(titles) and titles[i] else c for i, c in enumerate(columns)]
     else:
         headers = []
-    output = ''
+    output = ""
     if csv:
         if headers:
-            output += ','.join(headers) + '\n'
+            output += ",".join(headers) + "\n"
         for entry in table:
-            output += ','.join(map(str, entry)) + '\n'
+            output += ",".join(map(str, entry)) + "\n"
     else:
         min_col_width = 3
-        col_widths = [max(min_col_width, len(h)+1) for h in (headers or table[0])]
+        col_widths = [max(min_col_width, len(h) + 1) for h in (headers or table[0])]
         for e in table:
-            col_widths = list(map(max, zip(col_widths, [len(h)+1 for h in e])))
+            col_widths = list(map(max, zip(col_widths, [len(h) + 1 for h in e])))
 
-        output += '+-' + '+-'.join(['-' * c for c in col_widths]) + '-+' + '\n'
+        output += "+-" + "+-".join(["-" * c for c in col_widths]) + "-+" + "\n"
         if headers:
-            output += '| ' + '| '.join(['{: <%d}' % c for c in col_widths]).format(*headers) + ' |' + '\n'
+            output += "| " + "| ".join(["{: <%d}" % c for c in col_widths]).format(*headers) + " |" + "\n"
 
-        output += '+-' + '+-'.join(['-' * c for c in col_widths]) + '-+' + '\n'
+        output += "+-" + "+-".join(["-" * c for c in col_widths]) + "-+" + "\n"
 
         for entry in table:
             line = map(str, entry)
-            output += '| ' + '| '.join(['{: <%d}' % c for c in col_widths]).format(*line) + ' |' + '\n'
+            output += "| " + "| ".join(["{: <%d}" % c for c in col_widths]).format(*line) + " |" + "\n"
 
-        output += '+-' + '+-'.join(['-' * c for c in col_widths]) + '-+' + '\n'
+        output += "+-" + "+-".join(["-" * c for c in col_widths]) + "-+" + "\n"
     return output
 
 
-def create_tree(entries, id='id', parent='parent', node_title='%(id)'):
+def create_tree(entries, id="id", parent="parent", node_title="%(id)"):
     tree = OrderedDict()
     all_nodes = dict()
     for t in entries:
@@ -156,7 +150,7 @@ def create_tree(entries, id='id', parent='parent', node_title='%(id)'):
             all_nodes[i] = myd
         else:
             pass
-    return {'': tree}
+    return {"": tree}
 
 
 def print_parameters(param_struct, indent=1):
@@ -164,11 +158,14 @@ def print_parameters(param_struct, indent=1):
     print(text)
 
 
-def get_list_files(basefolder, filext=('.jpg')):
+def get_list_files(basefolder, filext=(".jpg")):
     filext = [e.lower() for e in filext]
-    fileiter = (os.path.join(root, f)
-                for root, _, files in os.walk(basefolder)
-                for f in files if os.path.splitext(f)[1].lower() in filext)
+    fileiter = (
+        os.path.join(root, f)
+        for root, _, files in os.walk(basefolder)
+        for f in files
+        if os.path.splitext(f)[1].lower() in filext
+    )
     return fileiter
 
 
@@ -177,7 +174,7 @@ def is_windows_platform():
 
 
 def is_linux_platform():
-    return 'linux' in platform.system().lower()
+    return "linux" in platform.system().lower()
 
 
 def normalize_path(*paths):
@@ -219,20 +216,22 @@ def safe_remove_tree(filename):
 def get_python_path(script_dir, entry_point, package_api, is_conda_env=False):
     # noinspection PyBroadException
     try:
-        python_path_sep = ';' if is_windows_platform() else ':'
+        python_path_sep = ";" if is_windows_platform() else ":"
         python_path_cmd = package_api.get_python_command(
-            ["-c", "import sys; print('{}'.join(sys.path))".format(python_path_sep)])
+            ["-c", "import sys; print('{}'.join(sys.path))".format(python_path_sep)]
+        )
         org_python_path = python_path_cmd.get_output(cwd=script_dir)
         # Add path of the script directory and executable directory
-        python_path = '{}{python_path_sep}'.format(
-            Path(script_dir).absolute().as_posix(), python_path_sep=python_path_sep)
+        python_path = "{}{python_path_sep}".format(
+            Path(script_dir).absolute().as_posix(), python_path_sep=python_path_sep
+        )
         if entry_point:
-            python_path += '{}{python_path_sep}'.format(
-                (Path(script_dir) / Path(entry_point)).parent.absolute().as_posix(),
-                python_path_sep=python_path_sep)
+            python_path += "{}{python_path_sep}".format(
+                (Path(script_dir) / Path(entry_point)).parent.absolute().as_posix(), python_path_sep=python_path_sep
+            )
 
         if is_windows_platform():
-            python_path = python_path.replace('/', '\\')
+            python_path = python_path.replace("/", "\\")
 
         return python_path if is_conda_env else (python_path + org_python_path)
     except Exception:
@@ -243,11 +242,11 @@ def add_python_path(base_path, extra_path):
     try:
         if not extra_path:
             return base_path
-        python_path_sep = ';' if is_windows_platform() else ':'
-        base_path = base_path or ''
+        python_path_sep = ";" if is_windows_platform() else ":"
+        base_path = base_path or ""
         if not base_path.endswith(python_path_sep):
             base_path += python_path_sep
-        base_path += extra_path.replace(':', python_path_sep)
+        base_path += extra_path.replace(":", python_path_sep)
     except Exception:
         pass
     return base_path
@@ -310,27 +309,27 @@ def load_yaml(path):
         with open(path) as data_file:
             return yaml.safe_load(data_file) or {}
     except yaml.YAMLError as e:
-        raise ValueError('Failed parsing yaml file [{}]: {}'.format(path, e)) from e
+        raise ValueError("Failed parsing yaml file [{}]: {}".format(path, e)) from e
 
 
 def dump_yaml(obj, path=None, dump_all=False, **kwargs):
     base_kwargs = dict(indent=4, allow_unicode=True, default_flow_style=False)
     base_kwargs.update(kwargs)
     if dump_all:
-        base_kwargs['Dumper'] = AllDumper
-        base_kwargs.setdefault('sort_keys', False)
+        base_kwargs["Dumper"] = AllDumper
+        base_kwargs.setdefault("sort_keys", False)
         dump_func = yaml.dump
     else:
         dump_func = yaml.safe_dump
     if not path:
         return dump_func(obj, **base_kwargs)
     path = str(path)
-    with open(path, 'w') as output:
+    with open(path, "w") as output:
         dump_func(obj, output, **base_kwargs)
 
 
 def _dump_flat_dict(flat_dict):
-    if not isinstance(flat_dict, (dict, )):
+    if not isinstance(flat_dict, (dict,)):
         flat_dict = {"": flat_dict}
 
     out = ""
@@ -366,27 +365,21 @@ class RepoInfo(object):
 
 
 def get_repo_info(repo_type, path):
-    assert repo_type in ['git', 'hg']
-    if repo_type == 'git':
+    assert repo_type in ["git", "hg"]
+    if repo_type == "git":
         commands = dict(
-            url='git remote get-url origin',
-            branch='git rev-parse --abbrev-ref HEAD',
-            commit='git rev-parse HEAD',
-            root='git rev-parse --show-toplevel'
+            url="git remote get-url origin",
+            branch="git rev-parse --abbrev-ref HEAD",
+            commit="git rev-parse HEAD",
+            root="git rev-parse --show-toplevel",
         )
-    elif repo_type == 'hg':
-        commands = dict(
-            url='hg paths --verbose',
-            branch='hg --debug id -b',
-            commit='hg --debug id -i',
-            root='hg root'
-        )
+    elif repo_type == "hg":
+        commands = dict(url="hg paths --verbose", branch="hg --debug id -b", commit="hg --debug id -i", root="hg root")
     else:
         raise RuntimeError("Unknown repository type '{}'".format(repo_type))
 
     commands_result = {
-        name: subprocess.check_output(command.split(), cwd=path).decode().strip()
-        for name, command in commands.items()
+        name: subprocess.check_output(command.split(), cwd=path).decode().strip() for name, command in commands.items()
     }
     return RepoInfo(type=repo_type, **commands_result)
 
@@ -395,7 +388,7 @@ def reverse_home_folder_expansion(path):
     path = str(path)
     if is_windows_platform():
         return path
-    return re.sub('^{}/'.format(re.escape(str(Path.home()))), '~/', path)
+    return re.sub("^{}/".format(re.escape(str(Path.home()))), "~/", path)
 
 
 def represent_ordered_dict(dumper, data):
@@ -429,15 +422,14 @@ AllDumper.add_representer(OrderedDict, represent_ordered_dict)
 
 
 def error(message):
-    print('\ncairnml_agent: ERROR: {}\n'.format(message))
+    print("\ncairnml_agent: ERROR: {}\n".format(message))
 
 
 def warning(message):
-    print('cairnml_agent: Warning: {}'.format(message))
+    print("cairnml_agent: Warning: {}".format(message))
 
 
 class TqdmStream(object):
-
     def __init__(self, file_object):
         self.buffer = file_object
 
@@ -445,14 +437,14 @@ class TqdmStream(object):
         self.buffer.write(data.strip())
 
     def flush(self):
-        self.buffer.write('\n')
+        self.buffer.write("\n")
 
 
 def url_join(first, *rest):
     """
     Join url parts similarly to Path.join
     """
-    return str(furl.furl(first).path.add(rest)).lstrip('/')
+    return str(furl.furl(first).path.add(rest)).lstrip("/")
 
 
 class LowercaseFormatter(logging.Formatter):
@@ -462,12 +454,13 @@ class LowercaseFormatter(logging.Formatter):
 
 
 def mkstemp(
-        open_kwargs=None,  # type: Optional[Dict[Text, Any]]
-        text=True,         # type: bool
-        name_only=False,   # type: bool
-        mode=None,         # type: str
-        *args,
-        **kwargs):
+    open_kwargs=None,  # type: Optional[Dict[Text, Any]]
+    text=True,  # type: bool
+    name_only=False,  # type: bool
+    mode=None,  # type: str
+    *args,
+    **kwargs,
+):
     # type: (...) -> Union[(IO[AnyStr], Text), Text]
     """
     WARNING: the returned file object is strict about its input type,
@@ -481,9 +474,9 @@ def mkstemp(
     """
     fd, name = tempfile.mkstemp(text=text, *args, **kwargs)
     if not mode:
-        mode = 'w+'
-    if not text and 'b' not in mode:
-        mode += 'b'
+        mode = "w+"
+    if not text and "b" not in mode:
+        mode += "b"
     if name_only:
         os.close(fd)
         return name
@@ -505,11 +498,11 @@ def chain_map(*args):
 def check_directory_path(path, check_whitespace_in_path=True):
     message = 'Could not create directory "{}": {}'
     if not is_windows_platform() and check_whitespace_in_path:
-        match = re.search(r'\s', path)
+        match = re.search(r"\s", path)
         if match:
             raise CommandFailedError(
-                'directories may not contain whitespace (char: {!r}, position: {})'.format(match.group(0),
-                                                                                           match.endpos))
+                "directories may not contain whitespace (char: {!r}, position: {})".format(match.group(0), match.endpos)
+            )
     try:
         Path(os.path.expandvars(path)).expanduser().mkdir(parents=True, exist_ok=True)
     except OSError as e:
@@ -527,6 +520,7 @@ def rm_tree(root):  # type: (Union[Path, Text]) -> None
     """
     A version of shutil.rmtree that handles access errors, specifically hidden files on Windows
     """
+
     def on_error(func, path, _):
         try:
             if os.path.exists(path) and not os.access(path, os.W_OK):
@@ -534,6 +528,7 @@ def rm_tree(root):  # type: (Union[Path, Text]) -> None
                 func(path)
         except Exception:
             pass
+
     return shutil.rmtree(os.path.expanduser(os.path.expandvars(Text(root))), onerror=on_error)
 
 
@@ -549,7 +544,7 @@ def rm_file(filename):  # type: (Union[Path, Text]) -> None
 
 
 def is_conda(config):
-    return config['agent.package_manager.type'].lower() == 'conda'
+    return config["agent.package_manager.type"].lower() == "conda"
 
 
 def convert_cuda_version_to_float_single_digit_str(cuda_version):
@@ -560,16 +555,16 @@ def convert_cuda_version_to_float_single_digit_str(cuda_version):
     """
     cuda_version = str(cuda_version or 0)
     # if we have patch version we parse it here
-    cuda_version_parts = [int(v) for v in cuda_version.split('.')]
+    cuda_version_parts = [int(v) for v in cuda_version.split(".")]
     if len(cuda_version_parts) > 1 or cuda_version_parts[0] < 60:
         cuda_version = 10 * cuda_version_parts[0]
         if len(cuda_version_parts) > 1:
-            cuda_version += float(".{:d}".format(cuda_version_parts[1]))*10
+            cuda_version += float(".{:d}".format(cuda_version_parts[1])) * 10
 
-        cuda_version_full = "{:.1f}".format(float(cuda_version) / 10.)
+        cuda_version_full = "{:.1f}".format(float(cuda_version) / 10.0)
     else:
         cuda_version = cuda_version_parts[0]
-        cuda_version_full = "{:.1f}".format(float(cuda_version) / 10.)
+        cuda_version_full = "{:.1f}".format(float(cuda_version) / 10.0)
 
     return cuda_version_full
 
@@ -581,15 +576,14 @@ def convert_cuda_version_to_int_10_base_str(cuda_version):
     :return str:
     """
     cuda_version = convert_cuda_version_to_float_single_digit_str(cuda_version)
-    return str(int(float(cuda_version)*10))
+    return str(int(float(cuda_version) * 10))
 
 
 def get_python_version(python_executable, log=None):
     from cairnml_agent.helper.process import Argv
+
     try:
-        output = Argv(python_executable, "--version").get_output(
-            stderr=subprocess.STDOUT
-        )
+        output = Argv(python_executable, "--version").get_output(stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError as ex:
         # Windows returns 9009 code and suggests to install Python from Windows Store
         if is_windows_platform() and ex.returncode == 9009:
@@ -615,7 +609,6 @@ def get_python_version(python_executable, log=None):
 
 
 class NonStrictAttrs(object):
-
     @classmethod
     def from_dict(cls, kwargs):
         fields = fields_dict(cls)
@@ -623,10 +616,10 @@ class NonStrictAttrs(object):
 
 
 def python_version_string():
-    return '{v.major}.{v.minor}'.format(v=sys.version_info)
+    return "{v.major}.{v.minor}".format(v=sys.version_info)
 
 
-join_lines = '\n'.join
+join_lines = "\n".join
 
 
 class HOCONEncoder(json.JSONEncoder):
@@ -687,7 +680,6 @@ class ExecutionInfo(NonStrictAttrs):
 
 
 class safe_furl(furl.furl):
-
     @property
     def port(self):
         return self._port

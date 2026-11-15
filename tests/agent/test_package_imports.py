@@ -38,14 +38,26 @@ def test_the_packages_export_only_the_names_that_are_used_through_them():
 
     # the generated services import these eight names from the session package
     assert set(session.__all__) == {
-        "DataModel", "NonStrictDataModel", "schema_property", "StringEnum",
-        "Request", "BatchRequest", "CompoundRequest", "Response",
+        "DataModel",
+        "NonStrictDataModel",
+        "schema_property",
+        "StringEnum",
+        "Request",
+        "BatchRequest",
+        "CompoundRequest",
+        "Response",
     }
     # __main__ looks these up by name on the commands package
     assert set(commands.__all__) == {"Worker", "Config", "install_bootstrap"}
-    for module, name in [(session, "Session"), (session, "CallResult"), (session, "TokenManager"),
-                         (client, "APIClient"), (backend_api, "CallResult"),
-                         (backend_config, "Config"), (cairnml_agent, "APIClient")]:
+    for module, name in [
+        (session, "Session"),
+        (session, "CallResult"),
+        (session, "TokenManager"),
+        (client, "APIClient"),
+        (backend_api, "CallResult"),
+        (backend_config, "Config"),
+        (cairnml_agent, "APIClient"),
+    ]:
         assert not hasattr(module, name), "{}.{} is still re-exported".format(module.__name__, name)
 
 

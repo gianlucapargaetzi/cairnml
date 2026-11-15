@@ -3,6 +3,7 @@ This example assumes you have preconfigured services with selectors in the form 
  "ai.cairnml.agent.serial=pod-<number>" and a targetPort of 10022.
 The K8sIntegration component will label each pod accordingly.
 """
+
 from argparse import ArgumentParser
 
 from cairnml_agent.glue.k8s import K8sIntegration
@@ -13,19 +14,22 @@ def parse_args():
     group = parser.add_mutually_exclusive_group()
 
     parser.add_argument(
-        "--k8s-pending-queue-name", type=str,
-        help="Queue name to use when task is pending in the k8s scheduler (default: %(default)s)", default="k8s_scheduler"
+        "--k8s-pending-queue-name",
+        type=str,
+        help="Queue name to use when task is pending in the k8s scheduler (default: %(default)s)",
+        default="k8s_scheduler",
     )
     parser.add_argument(
-        "--container-bash-script", type=str,
-        help="Path to the file with container bash script to be executed in k8s", default=None
+        "--container-bash-script",
+        type=str,
+        help="Path to the file with container bash script to be executed in k8s",
+        default=None,
     )
+    parser.add_argument("--debug", action="store_true", default=False, help="Switch logging on (default: %(default)s)")
     parser.add_argument(
-        "--debug", action="store_true", default=False,
-        help="Switch logging on (default: %(default)s)"
-    )
-    parser.add_argument(
-        "--queue", type=str, help="Queues to pull tasks from. If multiple queues, use comma separated list, e.g. 'queue1,queue2'",
+        "--queue",
+        type=str,
+        help="Queues to pull tasks from. If multiple queues, use comma separated list, e.g. 'queue1,queue2'",
     )
     group.add_argument(
         "--ports-mode",
@@ -93,16 +97,22 @@ def parse_args():
         "Should not be used with ports-mode",
     )
     parser.add_argument(
-        "--pod-name-prefix", type=str,
-        help="Define pod name prefix for k8s (default: %(default)s)", default="cairnml-id-"
+        "--pod-name-prefix",
+        type=str,
+        help="Define pod name prefix for k8s (default: %(default)s)",
+        default="cairnml-id-",
     )
     parser.add_argument(
-        "--limit-pod-label", type=str,
-        help="Define limit pod label for k8s (default: %(default)s)", default="ai.allegro.agent.serial=pod-{pod_number}"
+        "--limit-pod-label",
+        type=str,
+        help="Define limit pod label for k8s (default: %(default)s)",
+        default="ai.allegro.agent.serial=pod-{pod_number}",
     )
     parser.add_argument(
-        "--no-system-packages", action="store_true", default=False,
-        help="False when running tasks in containers (default: %(default)s)"
+        "--no-system-packages",
+        action="store_true",
+        default=False,
+        help="False when running tasks in containers (default: %(default)s)",
     )
     parser.add_argument(
         "--use-owner-token",
