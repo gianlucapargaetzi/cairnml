@@ -1,0 +1,3 @@
+THIRD-PARTY NOTICES
+
+No third-party code is embedded in this SDK as of 2026-11-15, commit 80602867f50a80b3badfb2eb28c27b7bec9af668. The packages that were once embedded are now installed from PyPI as their own dependencies (see docs/adr/0001-replace-embedded-third-party-code.md). The code derived from the ClearML SDK (Apache License 2.0) is covered by the NOTICE file.
