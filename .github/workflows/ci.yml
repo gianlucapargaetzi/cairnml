@@ -54,8 +54,9 @@ jobs:
       - run: python -m pip install -r lint-requirements.txt
       - name: Check every SDK file
         run: |
-          # The exclusions are the vendored and generated code: the generated API client is checked by the api-contract job.
-          EXCLUDE='_vendor|/external/|backend_api/services'
+          # The exclusions are the vendored and generated code (the generated API client is checked by the api-contract job),
+          # and the identity code, which must stay byte-identical to the copies in the server and the agent (identity-drift job).
+          EXCLUDE='_vendor|/external/|backend_api/services|/idp/'
           git ls-files -- 'cairnml/*.py' | grep -Ev "$EXCLUDE" > all.txt
           xargs -a all.txt -r ruff check --isolated --select F,B904,E722,B006,B023,PLE --line-length 120
           xargs -a all.txt -r ruff format --check --isolated --line-length 120
