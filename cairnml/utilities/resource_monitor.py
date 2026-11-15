@@ -15,7 +15,7 @@ from ..binding.frameworks.tensorflow_bind import IsTensorboardInit
 from ..config import config, ENV_MULTI_NODE_SINGLE_TASK
 
 try:
-    from .gpu import gpustat
+    from . import gpu_query as gpustat
 except ImportError as _gpu_import_error:
     gpustat = None
     _GPU_IMPORT_ERROR = _gpu_import_error
@@ -195,7 +195,7 @@ class ResourceMonitor(BackgroundMonitor):
         if self._active_gpus:
             # noinspection PyBroadException
             try:
-                gpu_stat = self._gpustat.new_query()
+                gpu_stat = self._gpustat.query()
                 if max(self._active_gpus) > len(gpu_stat.gpus) - 1:
                     self._active_gpus = None
             except Exception:
@@ -352,7 +352,7 @@ class ResourceMonitor(BackgroundMonitor):
             return
         active_gpus = os.environ.get("NVIDIA_VISIBLE_DEVICES", "") or os.environ.get("CUDA_VISIBLE_DEVICES", "")
         try:
-            gpu_stat = self._gpustat.new_query(per_process_stats=False)
+            gpu_stat = self._gpustat.query()
             skips_all = True
             for gpu in gpu_stat:
                 if not self._skip_nonactive_gpu(gpu):
@@ -535,11 +535,7 @@ class ResourceMonitor(BackgroundMonitor):
             )
         ):
             gpu_mem = {}
-            # noinspection PyBroadException
-            try:
-                gpu_stat = self._gpustat.new_query(per_process_stats=True)
-            except Exception:
-                gpu_stat = self._gpustat.new_query(per_process_stats=False)
+            gpu_stat = self._gpustat.query()
 
             for i, g in enumerate(gpu_stat.gpus):
                 # if processes is None, that means we can't query GPU memory usage per proces, so we can stop
@@ -553,13 +549,13 @@ class ResourceMonitor(BackgroundMonitor):
                 gpu_mem[i] = 0
                 for p in g.processes:
                     if p is not None and p["pid"] in self._last_process_id_list:
-                        gpu_mem[i] += p.get("gpu_memory_usage", 0)
+                        gpu_mem[i] += p.get("gpu_memory_usage") or 0
 
             self._last_process_pool["gpu"] = time(), gpu_mem
         else:
             # if we do no need to update the memory usage, run global query
             # if we have no parent process (backward compatibility), return global stats
-            gpu_stat = self._gpustat.new_query(per_process_stats=False)
+            gpu_stat = self._gpustat.query()
             gpu_mem = self._last_process_pool["gpu"][1] if self._last_process_pool.get("gpu") else None
 
         # generate the statistics dict for actual report
@@ -569,14 +565,14 @@ class ResourceMonitor(BackgroundMonitor):
             # only monitor the active gpu's, if none were selected, monitor everything
             if self._skip_nonactive_gpu(g):
                 continue
-            if g.get("temperature.gpu") is not None:
-                stats["gpu_%d_temperature" % i] = self._safe_cast(g["temperature.gpu"], float)
-            if g.get("utilization.gpu") is not None:
-                stats["gpu_%d_utilization" % i] = self._safe_cast(g["utilization.gpu"], float)
+            if g.entry.get("temperature.gpu") is not None:
+                stats["gpu_%d_temperature" % i] = self._safe_cast(g.entry["temperature.gpu"], float)
+            if g.entry.get("utilization.gpu") is not None:
+                stats["gpu_%d_utilization" % i] = self._safe_cast(g.entry["utilization.gpu"], float)
             else:
                 stats["gpu_%d_utilization" % i] = self._default_gpu_utilization
                 if not self._gpu_utilization_warning_sent:
-                    if g.mig_index is not None:
+                    if getattr(g, "mig_index", None) is not None:
                         self._task.get_logger().report_text(
                             "Running inside MIG, Nvidia driver cannot export utilization, "  # noqa
                             f"pushing fixed value {self._default_gpu_utilization}"
@@ -588,17 +584,17 @@ class ResourceMonitor(BackgroundMonitor):
                         )
                     self._gpu_utilization_warning_sent = True
 
-            if g.get("memory.used") is not None:
+            if g.entry.get("memory.used") is not None:
                 # use previously sampled process gpu memory, or global if it does not exist
-                stats["gpu_%d_mem_used_gb" % i] = self._safe_cast(gpu_mem[i] if gpu_mem and i in gpu_mem else g["memory.used"], float) / 1024
-                if g.get("memory.total") is not None:
-                    if self._safe_cast(g["memory.total"], float) != 0.0:
-                        stats["gpu_%d_mem_usage" % i] = 100.0 * self._safe_cast(g["memory.used"], float) / self._safe_cast(g["memory.total"], float, default=1.0)
+                stats["gpu_%d_mem_used_gb" % i] = self._safe_cast(gpu_mem[i] if gpu_mem and i in gpu_mem else g.entry["memory.used"], float) / 1024
+                if g.entry.get("memory.total") is not None:
+                    if self._safe_cast(g.entry["memory.total"], float) != 0.0:
+                        stats["gpu_%d_mem_usage" % i] = 100.0 * self._safe_cast(g.entry["memory.used"], float) / self._safe_cast(g.entry["memory.total"], float, default=1.0)
                     # already in MBs
-                    stats["gpu_%d_mem_free_gb" % i] = (self._safe_cast(g["memory.total"], float) - self._safe_cast(g["memory.used"], float)) / 1024
-            if g.get("power.draw") is not None:
+                    stats["gpu_%d_mem_free_gb" % i] = (self._safe_cast(g.entry["memory.total"], float) - self._safe_cast(g.entry["memory.used"], float)) / 1024
+            if g.entry.get("power.draw") is not None:
                 # power draw in Watts
-                stats["gpu_%d_power_draw" % i] = self._safe_cast(g["power.draw"], int, default=0)
+                stats["gpu_%d_power_draw" % i] = self._safe_cast(g.entry["power.draw"], int, default=0)
 
         return stats
 
@@ -618,15 +614,15 @@ class ResourceMonitor(BackgroundMonitor):
                 "gpu_count": 0,
             }
             if self._gpustat:
-                gpu_stat = self._gpustat.new_query(shutdown=True, get_driver_info=True)
+                gpu_stat = self._gpustat.query()
                 if gpu_stat.gpus:
                     gpus = [g for i, g in enumerate(gpu_stat.gpus) if not self._skip_nonactive_gpu(g)]
                     specs.update(
                         gpu_count=int(len(gpus)),
-                        gpu_type=", ".join(g.name for g in gpus),
-                        gpu_memory=", ".join(f"{round(g.memory_total / 1024.0)}GB" for g in gpus),
+                        gpu_type=", ".join(g.name or "N/A" for g in gpus),
+                        gpu_memory=", ".join(f"{round((g.memory_total or 0) / 1024.0)}GB" for g in gpus),
                         gpu_driver_version=gpu_stat.driver_version or "",
-                        gpu_driver_cuda_version=gpu_stat.driver_cuda_version or "",
+                        gpu_driver_cuda_version=self._gpustat.driver_cuda_version() or "",
                     )
 
         except Exception:

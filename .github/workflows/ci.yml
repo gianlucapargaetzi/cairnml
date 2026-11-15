@@ -55,7 +55,7 @@ jobs:
       - name: Check the changed files
         run: |
           # The same exclusions the vendored and generated code had under flake8 (.flake8 before this change).
-          EXCLUDE='_vendor|/external/|backend_api/services|pyrsmi|plotlympl'
+          EXCLUDE='_vendor|/external/|backend_api/services|plotlympl'
           BASE="origin/${{ github.base_ref }}"
           git diff --name-only --diff-filter=ACMR "$BASE...HEAD" -- '*.py' | grep -Ev "$EXCLUDE" > touched.txt || true
           git diff --name-only --diff-filter=A "$BASE...HEAD" -- '*.py' | grep -Ev "$EXCLUDE" > added.txt || true
