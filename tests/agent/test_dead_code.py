@@ -16,6 +16,7 @@ def test_the_update_check_module_is_gone():
 
 
 def test_the_managed_mode_scheduler_package_is_gone():
+    # the name is built so that a search for the package name finds no leftover reference
     assert importlib.util.find_spec("cairnml_agent." + "scheduler") is None
     assert not (ROOT / "tests" / "scheduler").exists()
 

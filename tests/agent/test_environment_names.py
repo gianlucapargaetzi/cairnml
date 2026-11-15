@@ -134,7 +134,7 @@ def test_no_removed_access_key_name_is_left():
     assert offenders == []
 
 
-def test_the_ssh_setup_command_installs_sshd_and_sets_no_accepted_environment():
+def test_the_ssh_setup_command_has_no_accept_env_and_no_empty_step():
     from cairnml_agent.glue.k8s import K8sIntegration
 
     command = K8sIntegration.get_ssh_server_bash(10022)
@@ -144,4 +144,3 @@ def test_the_ssh_setup_command_installs_sshd_and_sets_no_accepted_environment():
     assert "PermitRootLogin yes" in command
     assert "AcceptEnv" not in command
     assert all(segment.strip() for segment in segments)
-    assert ";  ;" not in command and ";;" not in command
