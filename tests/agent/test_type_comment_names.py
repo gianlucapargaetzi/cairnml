@@ -15,7 +15,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 PACKAGE = ROOT / "cairnml_agent"
-EXCLUDED = ("_vendor", "/external/", "helper/gpu/pynvml.py", "helper/gpu/pyrsmi.py", "backend_api/services")
+EXCLUDED = ("_vendor", "/external/", "helper/gpu/pyrsmi.py", "backend_api/services")
 # Files (or directories) that agent#47 and the cairnml[gpu] work replace by SDK or package imports: a fix here would
 # be thrown away. The change that replaces one must remove its entry (test_the_allowlist_has_no_stale_entry).
 PENDING_REPLACEMENT = ("backend_api/session/", "helper/gpu/gpustat.py")

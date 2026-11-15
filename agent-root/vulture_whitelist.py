@@ -1,6 +1,6 @@
 """Names vulture reports that are deliberate. Each line says why it is kept; anything not listed here fails the dead-code check.
 
-Run: vulture cairnml_agent vulture_whitelist.py --min-confidence 80 --exclude '*_vendor*,*/external/*,*backend_api/services*,*/tests/*,*pyhocon*,*pynvml*'
+Run: vulture cairnml_agent vulture_whitelist.py --min-confidence 80 --exclude '*_vendor*,*/external/*,*backend_api/services*,*/tests/*'
 """
 
 # Parameters fixed by an interface or an override: the signature must stay, the body does not need them.

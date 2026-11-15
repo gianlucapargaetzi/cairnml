@@ -22,7 +22,7 @@ from ctypes import c_uint32, byref, c_int64
 from datetime import datetime
 
 import psutil
-from ..gpu import pynvml as N
+import pynvml as N
 from ..gpu import pyrsmi as R
 
 NOT_SUPPORTED = 'Not Supported'
