@@ -46,3 +46,9 @@ class DockerRun:
     mount_poetry_cache: Any = None
     env_task_id: Any = None
     restart: Any = None
+    # working values, set while the command is built (see Worker._get_docker_cmd)
+    use_rm: Any = None
+    dockers_nvidia_visible_devices: Any = None
+    update_scheme: Any = None
+    cairnml_agent_wheel: Any = None
+    mount_git_ro: Any = None
