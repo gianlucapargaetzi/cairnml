@@ -1,4 +1,4 @@
-attrs>=18.0
+attrs>=19.2
 furl>=2.0.0
 jsonschema>=2.6.0
 numpy>=1.19.5,<1.20 ; python_version < '3.7'
