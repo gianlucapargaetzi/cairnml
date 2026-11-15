@@ -6,8 +6,6 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 
-import pytest
-
 ROOT = Path(__file__).resolve().parent.parent
 FINDING = re.compile(r"^(?P<path>[^:]+):(?P<line>\d+):\d+: (?P<message>.*)$")
 FORMAT_CALL = re.compile(r"\.format\(|^'.*' % ")

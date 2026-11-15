@@ -8,7 +8,7 @@ import psutil
 from pathlib import Path
 
 from .locks import FileLock
-from typing import List, Optional, Sequence
+from typing import List, Optional, Sequence  # noqa: F401  # used in type comments
 
 
 class FolderCache(object):
