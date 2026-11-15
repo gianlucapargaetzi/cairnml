@@ -89,7 +89,6 @@ def test_an_invalid_hours_interval_prints_the_error(capsys):
 
 
 def test_the_docker_command_string_is_unchanged(monkeypatch):
-    import inspect
     from unittest import mock
 
     from cairnml_agent.commands import worker as worker_module
@@ -98,8 +97,9 @@ def test_the_docker_command_string_is_unchanged(monkeypatch):
     monkeypatch.setattr(worker_module, "detect_rocm_env", lambda: False)
     monkeypatch.setattr(worker_module, "local_agent_wheel", lambda: "/x/agent.whl")
     monkeypatch.setattr(worker_module, "local_sdk_wheel", lambda: "/x/sdk.whl")
-    arguments = {name: None for name in inspect.signature(worker_module.Worker._get_docker_cmd).parameters}
-    del arguments["self"]
+    import dataclasses
+
+    arguments = {field.name: None for field in dataclasses.fields(worker_module.DockerRun)}
     arguments.update(
         worker_id="w1",
         parent_worker_id="p1",
@@ -124,7 +124,7 @@ def test_the_docker_command_string_is_unchanged(monkeypatch):
         _session=SimpleNamespace(config=SimpleNamespace(get=lambda key, default=None: default)),
         _use_podman=False,
     )
-    command = worker_module.Worker._get_docker_cmd(worker, **arguments)
+    command = worker_module.Worker._get_docker_cmd(worker, worker_module.DockerRun(**arguments))
     assert command == [
         "docker",
         "run",

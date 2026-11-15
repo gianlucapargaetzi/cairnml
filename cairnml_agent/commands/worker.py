@@ -52,6 +52,7 @@ from cairnml_agent.backend_config.utils import apply_environment, apply_files
 from cairnml_agent.helper.environment.converters import text_to_int
 from cairnml_agent.commands.base import resolve_names, ServiceCommandSection
 from cairnml_agent.commands.resolver import resolve_default_container
+from cairnml_agent.commands.docker_run import DockerRun
 from cairnml_agent.definitions import (
     ENVIRONMENT_SDK_PARAMS,
     PROGRAM_NAME,
@@ -5124,7 +5125,7 @@ class Worker(ServiceCommandSection):
         )
 
         docker_cmd.update(kwargs)
-        return self._get_docker_cmd(**docker_cmd)
+        return self._get_docker_cmd(DockerRun(**docker_cmd))
 
     def _get_child_agents_count_for_worker(self):
         """Get the amount of running child agents. In case of any error return 0"""
@@ -5289,34 +5290,47 @@ class Worker(ServiceCommandSection):
             args += ["-e", "{}={}".format(key, "" if value is None else value)]
         return args
 
-    def _get_docker_cmd(
-            self,
-            worker_id, parent_worker_id,
-            docker_image, docker_arguments,
-            python_version,
-            conf_file,
-            host_apt_cache,
-            host_pip_cache,
-            host_poetry_cache,
-            host_ssh_cache,
-            host_cache, mounted_cache,
-            host_pip_dl, mounted_pip_dl,
-            host_vcs_cache, mounted_vcs_cache,
-            host_venvs_cache, mounted_venvs_cache,
-            standalone_mode=False, extra_docker_arguments=None, extra_shell_script=None,
-            force_current_version=None, host_git_credentials=None,
-            bash_script=None,
-            preprocess_bash_script=None,
-            install_opencv_libs=None,
-            docker_bash_setup_script=None,
-            auth_token=None,
-            job_token_dir=None,
-            worker_tags=None,
-            name=None,
-            mount_ssh=None, mount_ssh_ro=None, mount_apt_cache=None, mount_pip_cache=None, mount_poetry_cache=None,
-            env_task_id=None,
-            restart=None,
-    ):
+    def _get_docker_cmd(self, run):
+        """Build the docker run command of a task from a DockerRun."""
+        (worker_id, parent_worker_id, docker_image, docker_arguments, python_version, conf_file, host_apt_cache, host_pip_cache, host_poetry_cache, host_ssh_cache, host_cache, mounted_cache, host_pip_dl, mounted_pip_dl, host_vcs_cache, mounted_vcs_cache, host_venvs_cache, mounted_venvs_cache, standalone_mode, extra_docker_arguments, extra_shell_script, host_git_credentials, bash_script, preprocess_bash_script, install_opencv_libs, docker_bash_setup_script, auth_token, job_token_dir, worker_tags, name, mount_ssh, mount_ssh_ro, mount_apt_cache, mount_pip_cache, mount_poetry_cache, env_task_id, restart,) = (
+            run.worker_id,
+            run.parent_worker_id,
+            run.docker_image,
+            run.docker_arguments,
+            run.python_version,
+            run.conf_file,
+            run.host_apt_cache,
+            run.host_pip_cache,
+            run.host_poetry_cache,
+            run.host_ssh_cache,
+            run.host_cache,
+            run.mounted_cache,
+            run.host_pip_dl,
+            run.mounted_pip_dl,
+            run.host_vcs_cache,
+            run.mounted_vcs_cache,
+            run.host_venvs_cache,
+            run.mounted_venvs_cache,
+            run.standalone_mode,
+            run.extra_docker_arguments,
+            run.extra_shell_script,
+            run.host_git_credentials,
+            run.bash_script,
+            run.preprocess_bash_script,
+            run.install_opencv_libs,
+            run.docker_bash_setup_script,
+            run.auth_token,
+            run.job_token_dir,
+            run.worker_tags,
+            run.name,
+            run.mount_ssh,
+            run.mount_ssh_ro,
+            run.mount_apt_cache,
+            run.mount_pip_cache,
+            run.mount_poetry_cache,
+            run.env_task_id,
+            run.restart,
+        )
         self.debug("Constructing docker command", context="docker")
         docker = 'docker'
 
