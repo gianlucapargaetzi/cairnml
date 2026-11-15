@@ -16,7 +16,10 @@ PINNED_TEXT = (
     '  use_gpu = true\n'
     '  ratio = 0.5\n'
     '}\n'
-    'names = ["a", "b"]\n'
+    'names = [\n'
+    '  "a"\n'
+    '  "b"\n'
+    ']\n'
     'empty = null\n'
     'text = "quoted \\"value\\""'
 )

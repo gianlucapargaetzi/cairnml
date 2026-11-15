@@ -57,7 +57,7 @@ def test_the_task_has_no_dataview_helpers():
 
 
 def test_the_default_configuration_has_no_dataview_setting():
-    from cairnml.utilities.pyhocon import ConfigFactory
+    from pyhocon import ConfigFactory
 
     default = Path(cairnml.__file__).parent / "config" / "default" / "sdk.conf"
     parsed = ConfigFactory.parse_file(str(default))
