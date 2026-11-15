@@ -10,17 +10,17 @@ SAMPLE = {
 }
 
 PINNED_TEXT = (
-    'general {\n'
+    "general {\n"
     '  base_task_id = "abc"\n'
-    '  random_seed = 42\n'
-    '  use_gpu = true\n'
-    '  ratio = 0.5\n'
-    '}\n'
-    'names = [\n'
+    "  random_seed = 42\n"
+    "  use_gpu = true\n"
+    "  ratio = 0.5\n"
+    "}\n"
+    "names = [\n"
     '  "a"\n'
     '  "b"\n'
-    ']\n'
-    'empty = null\n'
+    "]\n"
+    "empty = null\n"
     'text = "quoted \\"value\\""'
 )
 
