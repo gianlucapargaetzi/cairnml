@@ -110,7 +110,7 @@ def fetch_person_git_token(repository: str, level: str, session=None) -> Optiona
     """A token for one repository, for a person's machine, at ``level`` (``read`` or ``read_write``), from the server
     (repositories.git_token). The server gives read to anyone who sees the repository and write to its owner. None for a
     repository the host clones without a credential. ``repository`` is the repository URL."""
-    response = _person_request(session, "git_token", {"repository": repository, "level": level}, service="repositories")
+    response = _person_request(session, "git_token", {"ref": repository, "level": level}, service="repositories")
     if not response.ok:
         raise DatasetError(f"the server refused a token for {repository}: {_reason(response)}")
     return (response.json().get("data") or {}).get("token")
@@ -145,7 +145,7 @@ def assign_credential(repository: str, credential: Optional[str] = None, none_ne
     """Sets your own assignment on a repository (repositories.assign): one of your credentials, or the company's, or
     ``none_needed`` (the host clones it without one). With neither it is cleared. The credential must read the repository.
     On a shared repository only a company credential is accepted. An address nobody has listed is listed first, with ``role``."""
-    body = {"repository": repository, "role": role}
+    body = {"ref": repository, "role": role}
     if credential:
         body["credential"] = credential
     if none_needed:
@@ -155,18 +155,18 @@ def assign_credential(repository: str, credential: Optional[str] = None, none_ne
 
 def unassign_credential(repository: str, session=None) -> dict:
     """Clears your own assignment on a repository (repositories.unassign)."""
-    return _row(_person_request(session, "unassign", {"repository": repository}, service="repositories"),
+    return _row(_person_request(session, "unassign", {"ref": repository}, service="repositories"),
                 f"to clear the credential of {repository}")
 
 
 def check_repository(repository: str, session=None) -> dict:
     """Looks at a repository again (repositories.check) and returns it with what was found."""
-    return _row(_person_request(session, "check", {"repository": repository}, service="repositories"), f"to check {repository}")
+    return _row(_person_request(session, "check", {"ref": repository}, service="repositories"), f"to check {repository}")
 
 
 def delete_repository(repository: str, session=None) -> None:
     """Removes a repository you own, with its assignments and links (repositories.delete)."""
-    response = _person_request(session, "delete", {"repository": repository}, service="repositories")
+    response = _person_request(session, "delete", {"ref": repository}, service="repositories")
     if not response.ok:
         raise DatasetError(f"the server refused to delete {repository}: {_reason(response)}")
 
@@ -175,7 +175,7 @@ def set_repository_shared(repository: str, shared: bool, credential: Optional[st
                           session=None) -> dict:
     """Makes a repository shared (the owner or the admin; ownership moves to the admin) or non-shared (the admin). To share, the
     company credential that reads it, or ``none_needed`` for a public repository, is required; the server verifies it first."""
-    body = {"repository": repository, "shared": shared}
+    body = {"ref": repository, "shared": shared}
     if credential:
         body["credential"] = credential
     if none_needed:
@@ -186,13 +186,13 @@ def set_repository_shared(repository: str, shared: bool, credential: Optional[st
 
 def link_repository(repository: str, project: str, session=None) -> dict:
     """Lists a repository in a project you are a member of (repositories.link)."""
-    return _row(_person_request(session, "link", {"repository": repository, "project": project}, service="repositories"),
+    return _row(_person_request(session, "link", {"ref": repository, "project": project}, service="repositories"),
                 f"to list {repository} in the project")
 
 
 def unlink_repository(repository: str, project: str, session=None) -> dict:
     """Takes a repository out of a project's list (repositories.unlink); the repository and its assignments stay."""
-    return _row(_person_request(session, "unlink", {"repository": repository, "project": project}, service="repositories"),
+    return _row(_person_request(session, "unlink", {"ref": repository, "project": project}, service="repositories"),
                 f"to take {repository} out of the project")
 
 
