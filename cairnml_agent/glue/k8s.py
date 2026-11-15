@@ -14,7 +14,7 @@ from pathlib import Path
 from pprint import pformat
 from time import sleep, time
 from datetime import datetime, timedelta, timezone
-from typing import Text, List, Optional, Dict, Tuple, Callable, Any, Collection, Union, Iterable, Set
+from typing import Text, List, Optional, Dict, Tuple, Callable, Any, Collection, Union, Iterable, Set  # noqa: F401  # used in type comments
 
 from cairnml_agent.commands.events import Events
 from cairnml_agent.commands.worker import Worker, get_task_container, set_task_container, get_next_task
@@ -363,9 +363,9 @@ class K8sIntegration(Worker):
                     for parts in (line.split(" ") for line in output.splitlines())
                 ]
             except Exception as ex:
-                raise Exception("Failed parsing used pods command response for cleanup: {}".format(ex))
+                raise Exception("Failed parsing used pods command response for cleanup: {}".format(ex)) from ex
         except Exception as ex:
-            raise Exception('Failed obtaining used pods information: {}'.format(ex))
+            raise Exception('Failed obtaining used pods information: {}'.format(ex)) from ex
 
     def _get_used_pods(self):
         # type: () -> Tuple[int, Set[str]]
@@ -379,7 +379,7 @@ class K8sIntegration(Worker):
             self.log.debug(" - found {} pods in namespaces {}".format(current_pod_count, ", ".join(namespaces)))
             return current_pod_count, namespaces
         except Exception as ex:
-            self.log.debug("Failed getting used pods: {}", ex)
+            self.log.debug("Failed getting used pods: %s", ex)
             return -1, set([])
 
     def _is_same_tenant(self, task_session):
@@ -458,7 +458,7 @@ class K8sIntegration(Worker):
                 self.log.warning(
                     "K8S Glue pods monitor: Failed parsing kubectl output:\n{}\nEx: {}".format(output, ex)
                 )
-                raise GetPodCountError()
+                raise GetPodCountError() from ex
 
     def resource_applied(self, resource_name: str, namespace: str, task_id: str, session):
         """ Called when a resource (pod/job) was applied """
@@ -602,7 +602,7 @@ class K8sIntegration(Worker):
                 # noinspection PyBroadException
                 try:
                     self._session.api_client.tasks.enqueue(task_id, queue=queue, status_reason='kubectl parsing error')
-                except:
+                except Exception:
                     self.log.warning("Failed enqueuing task to queue '{}'".format(queue))
                 return
 
@@ -631,7 +631,7 @@ class K8sIntegration(Worker):
                     self._session.api_client.tasks.enqueue(
                         task_id, queue=queue, status_reason='k8s max pod limit (no free k8s service)'
                     )
-                except:
+                except Exception:
                     self.log.warning("Failed enqueuing task to queue '{}'".format(queue))
                 return
             elif self.max_pods_limit:

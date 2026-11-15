@@ -26,7 +26,7 @@ from os.path import basename
 from tempfile import mkdtemp, NamedTemporaryFile
 from threading import Thread
 from time import sleep, time
-from typing import Text, Optional, Any, Tuple, List, Dict
+from typing import Text, Optional, Any, Tuple, List, Dict  # noqa: F401  # used in type comments
 
 import attr
 from pathlib import Path
@@ -152,7 +152,7 @@ from cairnml_agent.helper.process import (
     check_if_command_exists,
     terminate_all_child_processes,
     find_executable,
-    Executable,
+    Executable,  # noqa: F401  # used in type comments
 )
 from cairnml_agent.helper.job_token import (
     CONTAINER_DIR, TOKEN_FILE_NAME, TokenRenewer, request_job_token, write_job_token,
@@ -161,8 +161,8 @@ from cairnml_agent.helper.repo import (
     clone_repository_cached,
     fix_package_import_diff_patch,
     patch_add_task_init_call,
-    RepoInfo,
-    VCS,
+    RepoInfo,  # noqa: F401  # used in type comments
+    VCS,  # noqa: F401  # used in type comments
 )
 from cairnml_agent.helper.resource_monitor import ResourceMonitor
 from cairnml_agent.helper.runtime_verification import check_runtime, print_uptime_properties
@@ -532,7 +532,7 @@ def get_task_fields(session, task_id, fields: list, log=None) -> dict:
         return results
     except Exception as ex:
         if log:
-            log.error("Failed obtaining values for task fields {}: {}", fields, ex)
+            log.error("Failed obtaining values for task fields %s: %s", fields, ex)
         pass
     return {}
 
@@ -1603,7 +1603,7 @@ class Worker(ServiceCommandSection):
             if not (result.ok() and result.response):
                 try:
                     main_session.log.debug("Failed creating task session: %s", result.response)
-                except:
+                except Exception:
                     pass
                 return
             new_session = copy(session)
@@ -1765,7 +1765,7 @@ class Worker(ServiceCommandSection):
                             try:
                                 os.lseek(self._redirected_stdout_file_no, 0, 0)
                                 os.ftruncate(self._redirected_stdout_file_no, 0)
-                            except:
+                            except Exception:
                                 pass
 
                         # set task status to in_progress so we know it was popped from the queue
@@ -1848,7 +1848,7 @@ class Worker(ServiceCommandSection):
                                 try:
                                     from cairnml_agent_fractional_gpu import patch_docker_cmd_gpu_fraction  # noqa
                                     # new docker image func
-                                    self._patch_docker_cmd_func = lambda docker_cmd: (
+                                    self._patch_docker_cmd_func = lambda docker_cmd, fractions=fractions: (
                                         patch_docker_cmd_gpu_fraction(docker_cmd, gpu_fraction=fractions[0]))
                                 except Exception:
                                     print("Error! could not load cairnml_agent_fractional_gpu module! "
@@ -2143,7 +2143,7 @@ class Worker(ServiceCommandSection):
             check_directory_path(str(Path(".").resolve()), check_whitespace_in_path=False)
         except OSError as e:
             if e.errno == errno.ENOENT:
-                raise CommandFailedError("current working directory does not exist")
+                raise CommandFailedError("current working directory does not exist") from e
             raise
 
         for key in "agent.venvs_dir", "sdk.storage.cache.default_base_dir":
@@ -2154,7 +2154,7 @@ class Worker(ServiceCommandSection):
             except CommandFailedError as e:
                 raise CommandFailedError(
                     'Invalid config key "{}": {.message}'.format(key, e)
-                )
+                ) from e
 
         self._session.print_configuration()
 
@@ -2427,11 +2427,11 @@ class Worker(ServiceCommandSection):
                 gpu_indexes = [str(g).replace(":", ".").strip() for g in gpu_indexes.split(',')]
             # verify (basically numbers with single "." dot)
             gpu_indexes = [str(g) for g in gpu_indexes if float(g) >= 0]
-        except Exception:
+        except Exception as ex:
             raise ValueError(
                 'Failed parsing --gpus "{}". '
                 '--dynamic_gpus must be use with '
-                'specific gpus for example "0-7" or "0,1,2,3" or "0:0,0:1,1:0,1:1"'.format(kwargs.get('gpus')))
+                'specific gpus for example "0-7" or "0,1,2,3" or "0:0,0:1,1:0,1:1"'.format(kwargs.get('gpus'))) from ex
 
         dynamic_gpus = []
         for s in queue_names:
@@ -3119,18 +3119,18 @@ class Worker(ServiceCommandSection):
             current_task = self._session.api_client.tasks.get_by_id(task_id)
             if not current_task.id:
                 pass
-        except AttributeError:
+        except AttributeError as ex:
             raise ValueError(
                 "Could not find task id={} (for host: {})".format(
                     task_id, self._session.config.get("api.host", "")
                 )
-            )
+            ) from ex
         except Exception as ex:
             raise ValueError(
                 "Could not find task id={} (for host: {})\nException: {}".format(
                     task_id, self._session.config.get("api.host", ""), ex
                 )
-            )
+            ) from ex
 
         # check if we have bootstrap only if we are in docker mode
         if docker not in (False, None):
@@ -3194,7 +3194,7 @@ class Worker(ServiceCommandSection):
                 # find_python_executable_for_version already falls back progressively
                 # (e.g. python3.10 -> python3 -> python), so found_python may differ from task_exec_binary
                 if not found_python:
-                    print(f"INFO: pip requested but no Python executable found on system, falling back to UV")
+                    print("INFO: pip requested but no Python executable found on system, falling back to UV")
                     if self._session.config.get("agent.package_manager.uv_unsafe_best_match", None) is None:
                         self._session.config.put("agent.package_manager.uv_unsafe_best_match", True)
                         print("INFO: Enabling uv_unsafe_best_match for UV fallback")
@@ -3240,8 +3240,8 @@ class Worker(ServiceCommandSection):
                     ).id
                 )
                 print("Task cloned, new task id={}".format(current_task.id))
-            except Exception:
-                raise CommandFailedError("Cloning failed")
+            except Exception as ex:
+                raise CommandFailedError("Cloning failed") from ex
         else:
             # make sure this task is not stuck in an execution queue, it shouldn't have been, but just in case.
             # noinspection PyBroadException
@@ -3685,7 +3685,7 @@ class Worker(ServiceCommandSection):
         # if we are using a Command i.e. not execs update command env vars
         command.update_envs(os.environ)
 
-        print("Starting Task Execution:\n".format(current_task.id))
+        print("Starting Task Execution: {}\n".format(current_task.id))
         exit_code = -1
         try:
             if disable_monitoring:
@@ -3905,7 +3905,7 @@ class Worker(ServiceCommandSection):
                 "1) Make sure you pushed the requested commit:\n{}\n"
                 "2) Check if remote-worker has valid credentials [see worker configuration file]".format(
                     str(execution).replace('ExecutionInfo', '', 1).replace('version_num', 'commit_id', 1))
-            )
+            ) from ex
         return vcs, repo_info
 
     def handle_task_termination(self, task_id, exit_code, stop_reason, session=None):
@@ -4188,7 +4188,7 @@ class Worker(ServiceCommandSection):
                 package_api.load_requirements(cached_requirements)
             except Exception as e:
                 self.log_traceback(e)
-                raise ValueError("Could not install task requirements!\n{}".format(e))
+                raise ValueError("Could not install task requirements!\n{}".format(e)) from e
             else:
                 self.log("task requirements installation passed")
                 return True
@@ -4521,7 +4521,7 @@ class Worker(ServiceCommandSection):
             if not os.path.isfile(script):
                 raise SkippedCustomBuildScript("Build script {} is not found".format(script))
         except OSError as ex:
-            raise SkippedCustomBuildScript(str(ex))
+            raise SkippedCustomBuildScript(str(ex)) from ex
 
         print("Running custom build script {}".format(script))
 
@@ -4539,7 +4539,7 @@ class Worker(ServiceCommandSection):
             raise CustomBuildScriptFailed(
                 message="Custom build script failed with return code {}".format(ex.returncode),
                 errno=ex.returncode
-            )
+            ) from ex
 
         output = Path(script_output_file.name).read_text()
         if not output:
@@ -4553,9 +4553,9 @@ class Worker(ServiceCommandSection):
         except ValueError as ex:
             raise SkippedCustomBuildScript(
                 "Failed parsing build script output JSON ({}): {}".format(script_output_file.name, ex)
-            )
+            ) from ex
         except KeyError as ex:
-            raise SkippedCustomBuildScript("Build script output missing {} field".format(ex.args[0]))
+            raise SkippedCustomBuildScript("Build script output missing {} field".format(ex.args[0])) from ex
 
         try:
             if not binary.is_file():
@@ -4571,7 +4571,7 @@ class Worker(ServiceCommandSection):
                     "Invalid working dir returned from custom build script: {}".format(working_dir)
                 )
         except OSError as ex:
-            raise SkippedCustomBuildScript(str(ex))
+            raise SkippedCustomBuildScript(str(ex)) from ex
 
         return binary, entry_point, working_dir
 
@@ -5424,8 +5424,8 @@ class Worker(ServiceCommandSection):
                 rm_file(new_conf_file)
                 shutil.copy(conf_file, new_conf_file)
                 conf_file = new_conf_file.replace(k8s_pod_mnt, k8s_node_mnt)
-            except Exception:
-                raise ValueError('Error: could not copy configuration file into: {}'.format(new_conf_file))
+            except Exception as ex:
+                raise ValueError('Error: could not copy configuration file into: {}'.format(new_conf_file)) from ex
 
             self.debug("Config file target: {}, host: {}".format(new_conf_file, conf_file), context="docker")
 
@@ -5435,8 +5435,8 @@ class Worker(ServiceCommandSection):
                     rm_tree(new_ssh_cache)
                     shutil.copytree(host_ssh_cache, new_ssh_cache)
                     host_ssh_cache = new_ssh_cache.replace(k8s_pod_mnt, k8s_node_mnt)
-                except Exception:
-                    raise ValueError('Error: could not copy .ssh directory into: {}'.format(new_ssh_cache))
+                except Exception as ex:
+                    raise ValueError('Error: could not copy .ssh directory into: {}'.format(new_ssh_cache)) from ex
                 self.debug(
                     "Copied host SSH cache to: {}, host {}".format(new_ssh_cache, host_ssh_cache),
                     context="docker"
@@ -5595,7 +5595,7 @@ class Worker(ServiceCommandSection):
                 extra_shell_script +
                 "cp {} {} ; ".format(DOCKER_ROOT_CONF_FILE, DOCKER_DEFAULT_CONF_FILE) +
                 "NVIDIA_VISIBLE_DEVICES={nv_visible} $LOCAL_PYTHON -u -m cairnml_agent ".format(
-                    nv_visible=dockers_nvidia_visible_devices, python=python_version)
+                    nv_visible=dockers_nvidia_visible_devices)
              ]
 
         return base_cmd
@@ -5617,8 +5617,8 @@ class Worker(ServiceCommandSection):
                 try:
                     self.uid = getpwnam(user_uid).pw_uid
                     self.gid = getpwnam(user_gid).pw_gid
-                except Exception:
-                    raise ValueError("Could not find requested user uid={} gid={}".format(user_uid, user_gid))
+                except Exception as ex:
+                    raise ValueError("Could not find requested user uid={} gid={}".format(user_uid, user_gid)) from ex
 
             def _change_uid(self):
                 os.setgid(self.gid)
@@ -5629,7 +5629,7 @@ class Worker(ServiceCommandSection):
             home_folder = self._run_as_user_home
             rm_tree(home_folder)
             Path(home_folder).mkdir(parents=True, exist_ok=True)
-        except:
+        except Exception:
             home_folder = os.path.join('/home', self._run_as_user_home)
             rm_tree(home_folder)
             Path(home_folder).mkdir(parents=True, exist_ok=True)
@@ -5644,19 +5644,19 @@ class Worker(ServiceCommandSection):
         for f in Path(new_venv_folder).rglob('*'):
             try:
                 f.chmod(0o0777)
-            except:
+            except Exception:
                 pass
         # make sure we will be able to access the cache folder (we assume we have the ability change mod)
         if sdk_cache_folder:
             sdk_cache_folder = Path(os.path.expandvars(sdk_cache_folder)).expanduser().absolute()
             try:
                 sdk_cache_folder.chmod(0o0777)
-            except:
+            except Exception:
                 pass
             for f in sdk_cache_folder.rglob('*'):
                 try:
                     f.chmod(0o0777)
-                except:
+                except Exception:
                     pass
 
         # make sure we could access the trains_conf file
@@ -5664,7 +5664,7 @@ class Worker(ServiceCommandSection):
             user_trains_conf = os.path.join(home_folder, 'cairnml.conf')
             shutil.copy(trains_conf, user_trains_conf)
             Path(user_trains_conf).chmod(0o0777)
-        except:
+        except Exception:
             user_trains_conf = trains_conf
 
         # patch venv folder to new location
