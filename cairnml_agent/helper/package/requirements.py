@@ -8,7 +8,7 @@ from copy import deepcopy, copy
 from itertools import chain, starmap
 from operator import itemgetter
 from os import path
-from typing import Text, List, Type, Optional, Tuple, Dict
+from typing import Text, List, Type, Optional, Tuple, Dict, Union, SupportsInt  # noqa: F401  # named by type comments
 
 from pathlib import Path
 
@@ -18,14 +18,14 @@ from cairnml_agent.definitions import PIP_EXTRA_INDICES
 from cairnml_agent.helper.base import (
     warning, is_conda, which, join_lines, is_windows_platform,
     convert_cuda_version_to_int_10_base_str, dump_yaml, )
-from cairnml_agent.helper.process import Argv, PathLike
+from cairnml_agent.helper.process import Argv, PathLike  # noqa: F401  # named by type comments
 from cairnml_agent.helper.gpu.gpustat import get_driver_cuda_version
-from cairnml_agent.session import normalize_cuda_version, Session
+from cairnml_agent.session import normalize_cuda_version, Session  # noqa: F401  # Session is named by type comments
 from cairnml_agent.external.requirements_parser import parse
 from cairnml_agent.external.requirements_parser.requirement import Requirement
 
 from .translator import RequirementsTranslator
-from cairnml_agent.external.pyhocon import ConfigTree
+from cairnml_agent.external.pyhocon import ConfigTree  # noqa: F401  # named by type comments
 
 
 class SpecsResolutionError(Exception):
@@ -304,7 +304,7 @@ class SimpleVersion:
         try:
             version_a_key = cls._get_match_key(cls._regex.search(version_a), num_parts, ignore_sub_versions)
             version_b_key = cls._get_match_key(cls._regex.search(version_b), num_parts, ignore_sub_versions)
-        except:
+        except Exception:
             # revert to string based
             for v in cls._sub_versions_pep440:
                 version_a = version_a.replace(v, '.')
@@ -399,7 +399,7 @@ class SimpleVersion:
 
     @staticmethod
     def _parse_local_version(local):
-        # type: (str) -> Optional[LocalType]
+        # type: (str) -> Optional[Tuple[Union[int, str], ...]]
         """
         Takes a string like abc.1.twelve and turns it into ("abc", 1, "twelve").
         """
@@ -828,7 +828,7 @@ class RequirementsManager(object):
                 cuda_vers = max(cuda_vers)
                 if cuda_vers > 40:
                     cuda_version = cuda_vers
-            except:
+            except Exception:
                 pass
 
         if not cuda_version:
@@ -840,10 +840,10 @@ class RequirementsManager(object):
 
                     output = Argv(nvcc, '--version').get_output()
                 except OSError:
-                    raise CudaNotFound('nvcc not found')
+                    raise CudaNotFound('nvcc not found') from None
                 match = re.search(r'release (.{3})', output).group(1)
                 cuda_version = Text(int(float(match) * 10))
-            except:
+            except Exception:
                 pass
 
         if not cuda_version:
@@ -851,11 +851,11 @@ class RequirementsManager(object):
                 try:
                     output = Argv('nvidia-smi',).get_output()
                 except OSError:
-                    raise CudaNotFound('nvcc not found')
+                    raise CudaNotFound('nvcc not found') from None
                 match = re.search(r'CUDA Version: ([0-9]+).([0-9]+)', output)
                 match = match.group(1)+'.'+match.group(2)
                 cuda_version = Text(int(float(match) * 10))
-            except:
+            except Exception:
                 pass
 
         if not cudnn_version:
@@ -870,7 +870,7 @@ class RequirementsManager(object):
                 try:
                     include_file = open(cudnn_h)
                 except OSError:
-                    raise CudaNotFound('Could not read cudnn.h')
+                    raise CudaNotFound('Could not read cudnn.h') from None
                 with include_file:
                     for line in include_file:
                         if 'CUDNN_MAJOR' in line:
@@ -880,7 +880,7 @@ class RequirementsManager(object):
                         if cudnn_major and cudnn_minor:
                             break
                 cudnn_version = cudnn_major + (cudnn_minor or '0')
-            except:
+            except Exception:
                 pass
 
         return (normalize_cuda_version(cuda_version or 0),
