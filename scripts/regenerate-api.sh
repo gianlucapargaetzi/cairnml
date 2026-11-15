@@ -9,14 +9,16 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 REF_FILE=scripts/api-schema-ref
-[ $# -ge 1 ] && echo "$1" > "$REF_FILE"
-REF="$(tr -d '[:space:]' < "$REF_FILE")"
+REF="${1:-$(tr -d '[:space:]' < "$REF_FILE")}"
+python3 -c "import pyhocon, jinja2" 2>/dev/null || { echo "needs: pip install pyhocon jinja2" >&2; exit 2; }
 
 SERVER="$(mktemp -d)"
 trap 'rm -rf "$SERVER"' EXIT
 git -C "$SERVER" init -q
 git -C "$SERVER" fetch -q --depth 1 https://github.com/gianlucapargaetzi/cairnml-server.git "$REF"
 git -C "$SERVER" checkout -q FETCH_HEAD
+REF="$(git -C "$SERVER" rev-parse HEAD)"  # always the full commit, never a branch name or a short sha
 
 PYTHONPATH="$SERVER" python3 -m apiserver.client_generator generate --target sdk --out cairnml/backend_api/services
+echo "$REF" > "$REF_FILE"
 echo "generated from cairnml-server $REF"
