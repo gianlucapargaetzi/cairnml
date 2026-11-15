@@ -22,6 +22,7 @@ EXCLUDED = ("_vendor", "/external/", "helper/gpu/pynvml.py", "helper/gpu/pyrsmi.
 def test_no_format_call_drops_or_misses_a_value():
     run = subprocess.run([sys.executable, "-m", "pyflakes", "cairnml_agent"], cwd=ROOT, capture_output=True, text=True)
     assert run.returncode in (0, 1), run.stderr
+    assert run.stderr == "", run.stderr
     offenders = []
     for line in run.stdout.split("\n"):
         match = FINDING.match(line)
