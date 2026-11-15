@@ -5,7 +5,7 @@ from pathlib import Path
 
 from cairnml_agent.config import Config
 from .pip_api.system import SystemPip
-from typing import Text
+from typing import Text  # noqa: F401  # named by type comments
 
 
 class RequirementsTranslator(object):

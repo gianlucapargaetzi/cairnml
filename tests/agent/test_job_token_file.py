@@ -1,7 +1,5 @@
 import os
 import stat
-import threading
-from pathlib import Path
 from unittest import mock
 
 from cairnml_agent.backend_api.session.job_token_file import read_job_token_file

@@ -7,7 +7,7 @@ from tempfile import gettempdir, NamedTemporaryFile
 
 from cairnml_agent.definitions import ENV_DOCKER_HOST_MOUNT
 from cairnml_agent.helper.base import warning, is_windows_platform, safe_remove_file
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional  # noqa: F401  # named by type comments
 
 
 class Singleton(object):
@@ -43,7 +43,7 @@ class Singleton(object):
         # we need to rename to match new pid
         try:
             os.rename(old_name, new_pid_file)
-        except:
+        except Exception:
             pass
 
     @classmethod
@@ -81,7 +81,7 @@ class Singleton(object):
                 ret = cls._register_instance(
                     unique_worker_id=unique_worker_id, worker_name=worker_name,
                     api_client=api_client, allow_double=allow_double)
-            except:
+            except Exception:
                 ret = None, None
 
         try:

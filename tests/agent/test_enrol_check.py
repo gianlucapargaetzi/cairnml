@@ -1,11 +1,9 @@
 from pathlib import Path
-from unittest import mock
 
 import jwt
 import pytest
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
-from cairnml_agent.idp import enrol as enrol_module
 from cairnml_agent.idp.enrol import EnrolmentFailed, enrol, enrol_device, revoke_device
 from cairnml_agent.idp.device import save_device_key
 from cairnml_agent.idp.keys import load_public_key

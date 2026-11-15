@@ -86,7 +86,6 @@ def old_replace(session, line):
                     replace('!', ' ').split()
                 if package_name != tokens[0]:
                     # how did we get here, probably a mistake
-                    found_cuda_based_package = False
                     continue
 
                 version_number = None

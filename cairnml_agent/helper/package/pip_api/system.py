@@ -6,8 +6,8 @@ from pathlib import Path
 from cairnml_agent.definitions import PIP_EXTRA_INDICES, PROGRAM_NAME, ENV_PIP_EXTRA_INSTALL_FLAGS
 from cairnml_agent.helper.package.base import PackageManager
 from cairnml_agent.helper.process import Argv, DEVNULL
-from typing import Text, Optional
-from cairnml_agent.session import Session
+from typing import Text, Optional  # noqa: F401  # named by type comments
+from cairnml_agent.session import Session  # noqa: F401  # named by type comments
 
 
 class SystemPip(PackageManager):

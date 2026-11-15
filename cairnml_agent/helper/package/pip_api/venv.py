@@ -2,13 +2,13 @@ import sys
 
 from pathlib import Path
 
-from cairnml_agent.helper.base import select_for_platform, rm_tree, ExecutionInfo
+from cairnml_agent.helper.base import select_for_platform, rm_tree, ExecutionInfo  # noqa: F401  # named by type comments
 from cairnml_agent.helper.package.base import PackageManager
-from cairnml_agent.helper.process import Argv, PathLike
+from cairnml_agent.helper.process import Argv, PathLike  # noqa: F401  # named by type comments
 from ..pip_api.system import SystemPip
-from typing import Any
-from cairnml_agent.session import Session
-from ..requirements import RequirementsManager
+from typing import Any  # noqa: F401  # named by type comments
+from cairnml_agent.session import Session  # noqa: F401  # named by type comments
+from ..requirements import RequirementsManager  # noqa: F401  # named by type comments
 
 
 class VirtualenvPip(SystemPip, PackageManager):

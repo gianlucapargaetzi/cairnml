@@ -12,11 +12,11 @@ from operator import itemgetter
 from ... import services as api_services
 from ....backend_api.session.session import Session
 from ....backend_api.session.request import Request as APIRequest
-from ....backend_api.session.callresult import CallResult
+from ....backend_api.session.callresult import CallResult  # noqa: F401  # named by type comments
 from ....backend_config.defs import LOCAL_CONFIG_FILE_OVERRIDE_VAR
-from types import ModuleType
-from typing import Dict, Text, Tuple, Type, Any, Sequence
-from ....backend_api.session.response import ResponseMeta
+from types import ModuleType  # noqa: F401  # named by type comments
+from typing import Dict, Text, Tuple, Type, Any, Sequence  # noqa: F401  # named by type comments
+from ....backend_api.session.response import ResponseMeta  # noqa: F401  # named by type comments
 
 SERVICE_TO_ENTITY_CLASS_NAMES = {"storage": "StorageItem"}
 
