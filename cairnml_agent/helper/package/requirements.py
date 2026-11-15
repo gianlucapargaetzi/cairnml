@@ -21,8 +21,7 @@ from cairnml_agent.helper.base import (
 from cairnml_agent.helper.process import Argv, PathLike  # noqa: F401  # named by type comments
 from cairnml_agent.helper.gpu.gpustat import get_driver_cuda_version
 from cairnml_agent.session import normalize_cuda_version, Session  # noqa: F401  # Session is named by type comments
-from cairnml_agent.external.requirements_parser import parse
-from cairnml_agent.external.requirements_parser.requirement import Requirement
+from cairnml_agent.helper.package.requirement_lines import Requirement, parse
 
 from .translator import RequirementsTranslator
 from cairnml_agent.external.pyhocon import ConfigTree  # noqa: F401  # named by type comments

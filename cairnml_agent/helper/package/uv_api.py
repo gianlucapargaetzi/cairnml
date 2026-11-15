@@ -310,7 +310,7 @@ class UvAPI(VirtualenvPip):
             cwd=str(self.lockfile_path or self._cwd or self.path)
         ).splitlines()
         # fix local filesystem reference in freeze
-        from cairnml_agent.external.requirements_parser.requirement import Requirement
+        from cairnml_agent.helper.package.requirement_lines import Requirement
         packages = [Requirement.parse(p) for p in lines]
         for p in packages:
             if p.local_file and p.editable:
