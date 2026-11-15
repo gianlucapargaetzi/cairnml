@@ -52,7 +52,7 @@ class DeferredExecution:
     def __init__(self, pool_cls: type = DeferredExecutionPool) -> None:
         self._pools = ParameterizedDefaultDict(pool_cls)
 
-    def __get__(self, instance: Any, owner: Type[Any]) -> Union["DeferredExecution", "DeferredExecutionPool"]:
+    def __get__(self, instance: Any, _owner: Type[Any]) -> Union["DeferredExecution", "DeferredExecutionPool"]:
         if not instance:
             return self
 
