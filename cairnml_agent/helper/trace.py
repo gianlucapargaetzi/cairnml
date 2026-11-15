@@ -7,7 +7,7 @@ import time
 import trace
 from itertools import chain
 from types import ModuleType
-from typing import Text, Union, Sequence
+from typing import Text, Union, Sequence  # noqa: F401  # named by type comments
 
 from pathlib import Path
 

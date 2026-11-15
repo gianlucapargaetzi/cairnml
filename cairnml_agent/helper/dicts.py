@@ -1,4 +1,4 @@
-from typing import Callable, Dict, Any, Optional
+from typing import Callable, Dict, Any, Optional  # noqa: F401  # named by type comments
 
 _not_set = object()
 

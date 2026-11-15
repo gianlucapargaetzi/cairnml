@@ -24,7 +24,7 @@ def daemonize_process(redirect_fd=None):
         # to insure that the next call to os.setsid is successful.
         pid = os.fork()
     except OSError as e:
-        raise Exception("%s [%d]" % (e.strerror, e.errno))
+        raise Exception("%s [%d]" % (e.strerror, e.errno)) from e
 
     if pid == 0:  # The first child.
         # To become the session leader of this new session and the process group
@@ -42,7 +42,7 @@ def daemonize_process(redirect_fd=None):
             # process responsible for its cleanup.
             pid = os.fork()  # Fork a second child.
         except OSError as e:
-            raise Exception("%s [%d]" % (e.strerror, e.errno))
+            raise Exception("%s [%d]" % (e.strerror, e.errno)) from e
 
         if pid == 0:  # The second child.
             # Since the current working directory may be a mounted filesystem, we

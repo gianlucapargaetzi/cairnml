@@ -17,7 +17,7 @@ from cairnml_agent.errors import APIError, CommandFailedError
 from cairnml_agent.helper.base import Singleton, return_list, print_parameters, dump_yaml, load_yaml, error, warning
 from cairnml_agent.interface.base import ObjectID
 from cairnml_agent.session import Session
-from typing import Text
+from typing import Text  # noqa: F401  # named by type comments
 
 
 class NameResolutionError(CommandFailedError):
@@ -348,7 +348,7 @@ class ServiceCommandSection(BaseCommandSection, metaclass=Singleton):
         try:
             request_cls = getattr(services, service).GetAllRequest
         except AttributeError:
-            raise NameResolutionError('Name resolution unavailable for {}'.format(service))
+            raise NameResolutionError('Name resolution unavailable for {}'.format(service)) from None
 
         req_dict = {"name": re.escape(name), "only_fields": ['name', 'id']}
         if search_hidden:
@@ -416,7 +416,7 @@ class ServiceCommandSection(BaseCommandSection, metaclass=Singleton):
         try:
             request_cls = getattr(services, service).GetAllRequest
         except AttributeError:
-            raise NameResolutionError('Name resolution unavailable for {}'.format(service))
+            raise NameResolutionError('Name resolution unavailable for {}'.format(service)) from None
 
         req_dict = {"id": [re.escape(id)], "only_fields": ['name', 'id']}
         if search_hidden:

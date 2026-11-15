@@ -1,7 +1,6 @@
 import subprocess
 from types import SimpleNamespace
 
-import pytest
 import requests
 
 from cairnml_agent.commands import doctor

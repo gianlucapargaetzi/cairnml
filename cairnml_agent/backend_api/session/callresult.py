@@ -47,7 +47,7 @@ class CallResult(object):
             try:
                 self.__response_data = response.to_dict()
             except AttributeError:
-                raise TypeError('response should be an instance of {}'.format(Response.__name__))
+                raise TypeError('response should be an instance of {}'.format(Response.__name__)) from None
         else:
             self.__response_data = None
 
@@ -69,7 +69,7 @@ class CallResult(object):
             # TODO: validate meta?
             # meta.validate()
         except Exception as ex:
-            raise ValueError('Failed parsing meta section in response payload (data=%s, error=%s)' % (data, ex))
+            raise ValueError('Failed parsing meta section in response payload (data=%s, error=%s)' % (data, ex)) from ex
 
         response = None
         response_data = None

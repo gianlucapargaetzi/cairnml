@@ -106,7 +106,7 @@ def _find_whl(version: str | None = None, timeout: float = 30) -> tuple[str, int
             release = _fetch_json(url, timeout=timeout)
         except urllib.error.HTTPError as exc:
             if exc.code == 404:
-                raise RuntimeError("No releases found in {}.".format(BOOTSTRAP_REPO))
+                raise RuntimeError("No releases found in {}.".format(BOOTSTRAP_REPO)) from exc
             raise
 
     tag: str = release.get("tag_name", "?")

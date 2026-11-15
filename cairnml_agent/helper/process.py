@@ -11,7 +11,7 @@ from copy import copy
 from itertools import chain, repeat, islice
 from os.path import devnull
 from time import sleep
-from typing import Union, Text, TypeVar, Sequence, Any, Callable
+from typing import Union, Text, TypeVar, Sequence, Any, Callable  # noqa: F401  # named by type comments
 
 import psutil
 from furl import furl
@@ -96,12 +96,12 @@ def kill_all_child_processes(pid=None, include_parent=True, debug=False):
     for child in parent.children(recursive=True):
         try:
             child.kill()
-        except:
+        except Exception:
             print("ERROR: could not kill child process id {}".format(child))
     if include_parent:
         try:
             parent.kill()
-        except:
+        except Exception:
             print("ERROR: could not kill parent process id {}".format(parent))
 
 

@@ -10,7 +10,7 @@ from base64 import b64encode
 from os import environ
 from random import random
 from threading import Lock
-from typing import Text, TypeVar, Tuple, Optional, Sequence, Mapping, Iterable, Callable
+from typing import Text, TypeVar, Tuple, Optional, Sequence, Mapping, Iterable, Callable  # noqa: F401  # named by type comments
 
 import attr
 from furl import furl
@@ -35,12 +35,12 @@ from cairnml_agent.helper.base import (
     normalize_path,
     create_file_if_not_exists,
     safe_remove_file,
-    ExecutionInfo,
+    ExecutionInfo,  # noqa: F401  # named by type comments
 )
 from cairnml_agent.helper.hash import md5
 from cairnml_agent.helper.os.locks import FileLock
-from cairnml_agent.helper.process import DEVNULL, Argv, COMMAND_SUCCESS, find_executable, PathLike
-from cairnml_agent.session import Session
+from cairnml_agent.helper.process import DEVNULL, Argv, COMMAND_SUCCESS, find_executable, PathLike  # noqa: F401  # named by type comments
+from cairnml_agent.session import Session  # noqa: F401  # named by type comments
 
 
 class VcsFactory(object):
@@ -770,7 +770,7 @@ class Git(VCS):
                 self.COMMAND_ENV["AZURE_PAT_HEADER_VALUE"] = f"Authorization: Basic {b64_pat}"
                 # call git command
                 try:
-                    ret = func(f'--config-env=http.extraheader=AZURE_PAT_HEADER_VALUE', *args, **kwargs)
+                    ret = func('--config-env=http.extraheader=AZURE_PAT_HEADER_VALUE', *args, **kwargs)
                 finally:
                     # delete temp password file
                     self.COMMAND_ENV.pop("AZURE_PAT_HEADER_VALUE", None)

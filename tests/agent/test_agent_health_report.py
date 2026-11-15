@@ -1,7 +1,5 @@
 from collections import deque
-from types import SimpleNamespace
 
-import pytest
 
 from cairnml_agent.helper import resource_monitor
 from cairnml_agent.helper.resource_monitor import ResourceMonitor

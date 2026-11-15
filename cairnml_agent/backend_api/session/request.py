@@ -70,7 +70,7 @@ class BatchRequest(Request, metaclass=abc.ABCMeta):
                 req.validate()
             except (jsonschema.SchemaError, jsonschema.ValidationError,
                     jsonschema.FormatError, jsonschema.RefResolutionError) as e:
-                raise Exception('Validation error in batch item #%d: %s' % (i, str(e)))
+                raise Exception('Validation error in batch item #%d: %s' % (i, str(e))) from None
 
     def get_json(self):
         return [r if isinstance(r, dict) else r.to_dict() for r in self.requests]

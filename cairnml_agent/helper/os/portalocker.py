@@ -87,7 +87,7 @@ if os.name == 'nt':  # pragma: no cover
                     raise exceptions.LockException(
                         exceptions.LockException.LOCK_FAILED,
                         exc_value.strerror,
-                        fh=file_)
+                        fh=file_) from exc_value
                 else:
                     # Q:  Are there exceptions/codes we should be dealing with
                     # here?
@@ -121,14 +121,14 @@ if os.name == 'nt':  # pragma: no cover
                     raise exceptions.LockException(
                         exceptions.LockException.LOCK_FAILED,
                         exc_value.strerror,
-                        fh=file_)
+                        fh=file_) from exc_value
                 finally:
                     if savepos:
                         file_.seek(savepos)
             except IOError as exc_value:
                 raise exceptions.LockException(
                     exceptions.LockException.LOCK_FAILED, exc_value.strerror,
-                    fh=file_)
+                    fh=file_) from exc_value
 
     def unlock(file_):
         try:
@@ -163,14 +163,14 @@ if os.name == 'nt':  # pragma: no cover
                     raise exceptions.LockException(
                         exceptions.LockException.LOCK_FAILED,
                         exc_value.strerror,
-                        fh=file_)
+                        fh=file_) from exc_value
             finally:
                 if savepos:
                     file_.seek(savepos)
         except IOError as exc_value:
             raise exceptions.LockException(
                 exceptions.LockException.LOCK_FAILED, exc_value.strerror,
-                fh=file_)
+                fh=file_) from exc_value
 
 elif os.name == 'posix':  # pragma: no cover
     import fcntl
@@ -187,7 +187,7 @@ elif os.name == 'posix':  # pragma: no cover
         except locking_exceptions as exc_value:
             # The exception code varies on different systems so we'll catch
             # every IO error
-            raise exceptions.LockException(exc_value, fh=file_)
+            raise exceptions.LockException(exc_value, fh=file_) from exc_value
         except BaseException as ex:
             # DEBUG
             print("Uncaught [{}] Exception [{}] in portalock: {}".format(locking_exceptions, type(ex), ex))

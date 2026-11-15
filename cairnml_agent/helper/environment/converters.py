@@ -1,5 +1,5 @@
 import base64
-from typing import Any, TypeVar, Callable, Union, Optional, Tuple
+from typing import Any, TypeVar, Callable, Union, Optional, Tuple  # noqa: F401  # named by type comments
 
 
 try:

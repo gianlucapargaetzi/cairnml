@@ -1,5 +1,5 @@
 import abc
-from typing import Any, Callable, Optional, Tuple, Dict
+from typing import Any, Callable, Optional, Tuple, Dict  # noqa: F401  # named by type comments
 
 
 from .converters import any_to_bool
