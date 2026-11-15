@@ -37,7 +37,7 @@ def test_building_the_parser_twice_keeps_the_daemon_groups():
 
 
 def test_importing_the_requirement_parser_prints_no_pkg_resources_warning():
-    code = "import cairnml_agent.external.requirements_parser.requirement"
+    code = "import cairnml_agent.helper.package.requirement_lines"
     result = subprocess.run([sys.executable, '-c', code], capture_output=True, text=True, timeout=120)
     assert result.returncode == 0, result.stderr
     assert 'pkg_resources' not in result.stderr

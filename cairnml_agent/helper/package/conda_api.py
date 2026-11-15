@@ -12,8 +12,7 @@ import yaml
 from time import time
 from attr import attrs, attrib, Factory
 from pathlib import Path
-from cairnml_agent.external.requirements_parser import parse
-from cairnml_agent.external.requirements_parser.requirement import Requirement
+from cairnml_agent.helper.package.requirement_lines import Requirement, parse
 
 from cairnml_agent.errors import CommandFailedError
 from cairnml_agent.helper.base import (
@@ -23,13 +22,13 @@ from cairnml_agent.helper.base import (
     is_windows_platform,
     convert_cuda_version_to_float_single_digit_str,
     convert_cuda_version_to_int_10_base_str,
-    ExecutionInfo,
+    ExecutionInfo,  # noqa: F401  # named by type comments
 )
-from cairnml_agent.helper.process import Argv, DEVNULL, CommandSequence, find_executable, Executable, PathLike
+from cairnml_agent.helper.process import Argv, DEVNULL, CommandSequence, find_executable, Executable, PathLike  # noqa: F401  # named by type comments
 from cairnml_agent.helper.package.requirements import SimpleVersion
 from .base import PackageManager
 from .pip_api.venv import VirtualenvPip
-from .requirements import MarkerRequirement, RequirementsManager
+from .requirements import MarkerRequirement, RequirementsManager  # noqa: F401  # named by type comments
 from ...backend_api.session.defs import ENV_CONDA_ENV_PACKAGE, ENV_USE_CONDA_BASE_ENV
 
 package_normalize = partial(re.compile(r"""\[version=['"](.*)['"]\]""").sub, r"\1")
@@ -39,8 +38,8 @@ def package_set(packages):
     return set(map(package_normalize, packages))
 
 
-from typing import Text, Iterable, Union, Dict, Set, Sequence, Any
-from cairnml_agent.session import Session
+from typing import Text, Iterable, Union, Dict, Set, Sequence, Any  # noqa: F401  # named by type comments
+from cairnml_agent.session import Session  # noqa: F401  # named by type comments
 def _package_diff(path, packages):
     # type: (Union[Path, Text], Iterable[Text]) -> Set[Text]
     return package_set(Path(path).read_text().splitlines()) - package_set(packages)
@@ -110,7 +109,7 @@ class CondaAPI(PackageManager):
             )
         except Exception:
             raise ValueError("ERROR: package manager \"conda\" selected, "
-                             "but \'conda\' executable could not be located")
+                             "but \'conda\' executable could not be located") from None
         try:
             output = Argv(self.conda, "--version").get_output(stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as ex:
@@ -118,7 +117,7 @@ class CondaAPI(PackageManager):
                 "Unable to determine conda version: {ex}, output={ex.output}".format(
                     ex=ex
                 )
-            )
+            ) from None
         self.conda_version = self.get_conda_version(output)
         if SimpleVersion.compare_versions(self.conda_version, '<', self.MINIMUM_VERSION):
             raise CommandFailedError(
@@ -532,7 +531,7 @@ class CondaAPI(PackageManager):
         for r in conda_supported_req:
             try:
                 marker = list(parse(r))
-            except:
+            except Exception:
                 marker = None
             if not marker:
                 continue
@@ -605,7 +604,7 @@ class CondaAPI(PackageManager):
             for r in requirements['pip']:
                 try:
                     marker = list(parse(r))
-                except:
+                except Exception:
                     marker = None
                 if not marker:
                     continue
@@ -739,7 +738,7 @@ class CondaAPI(PackageManager):
                     deps = error_lines[empty_lines[0]+1:empty_lines[1]]
                     try:
                         return yaml.load('\n'.join(deps), Loader=yaml.SafeLoader)
-                    except:
+                    except Exception:
                         return None
         return None
 
