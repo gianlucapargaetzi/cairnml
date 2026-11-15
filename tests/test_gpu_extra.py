@@ -2,11 +2,14 @@
 
 import pathlib
 
+import pytest
+
 import cairnml
 from cairnml.utilities.resource_monitor import gpu_unavailable_message
 
 
 def test_the_gpu_reader_uses_the_installed_nvidia_bindings_not_a_copy():
+    pytest.importorskip("pynvml", reason="needs the cairnml[gpu] extra")
     from cairnml.utilities.gpu import gpustat
 
     module_file = pathlib.Path(gpustat.N.__file__).resolve()
