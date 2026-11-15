@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 
 
 from cairnml_agent.backend_config.defs import UptimeConf
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional  # noqa: F401  # used in type comments
 
 DAYS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"]
 PATTERN = re.compile(r"^(?P<hours>[^\s]+)\s(?P<days>[^\s]+)")
@@ -72,7 +72,7 @@ def get_start_end_hours(hours):
         )
     except Exception as ex:
         print(
-            "Warning: hours interval '{}' is invalid, use intervals of the format <start>-<end>".format(
+            "Warning: hours interval '{}' is invalid ({}), use intervals of the format <start>-<end>".format(
                 hours, ex
             )
         )
