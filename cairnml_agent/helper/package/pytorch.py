@@ -8,7 +8,7 @@ from furl import furl
 import urllib.parse
 from operator import itemgetter
 from html.parser import HTMLParser
-from typing import Text, Optional, Dict
+from typing import Text, Optional, Dict, Sequence  # noqa: F401  # Optional, Dict, Sequence are named by type comments
 
 import attr
 import requests
@@ -107,7 +107,7 @@ class SimplePytorchRequirement(SimpleSubstitution):
         # Get rid of +cpu +cu?? etc.
         try:
             req.specs[0] = (req.specs[0][0], req.specs[0][1].split('+')[0])
-        except:
+        except Exception:
             pass
         self._matched = True
         return Text(req)
@@ -461,7 +461,7 @@ class PytorchRequirement(SimpleSubstitution):
             raise PytorchResolutionError(
                 'Could not find wheel for "{}", '
                 "Available versions: {}".format(req, list(options))
-            )
+            ) from None
 
     def replace_conda(self, req):
         spec = "".join(req.specs[0]) if req.specs else ""
@@ -571,7 +571,7 @@ class PytorchRequirement(SimpleSubstitution):
         except Exception as e:
             message = "Exception when trying to resolve python wheel"
             self.log.debug(message, exc_info=True)
-            raise PytorchResolutionError("{}: {}".format(message, e))
+            raise PytorchResolutionError("{}: {}".format(message, e)) from e
 
     def _replace(self, req):
         self.validate_python_version()
@@ -579,7 +579,7 @@ class PytorchRequirement(SimpleSubstitution):
             result, ok = self.get_url_for_platform(req)
             self.log.debug('Replacing requirement "%s" with %r', req, result)
             return result
-        except:
+        except Exception:
             pass
 
         # try:
@@ -665,7 +665,7 @@ class PytorchRequirement(SimpleSubstitution):
                                 else:
                                     lines[i] = '{} # {}'.format(line, str(new_req))
                             break
-        except:
+        except Exception:
             pass
 
         return list_of_requirements

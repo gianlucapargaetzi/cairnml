@@ -1,7 +1,10 @@
 import requests
 import socket
 import subprocess
-from typing import Optional
+from typing import TYPE_CHECKING, Optional  # noqa: F401  # Optional is named by a type comment
+
+if TYPE_CHECKING:
+    from cairnml_agent.backend_config.config import Config  # noqa: F401  # named by the type comments
 
 
 def get_private_ip(config_obj):
