@@ -3254,7 +3254,7 @@ class Worker(ServiceCommandSection):
         command.update_envs(os.environ)
 
         print("Starting Task Execution: {}\n".format(current_task.id))
-        exit_code = self._run_command(current_task, task_id, command, script_dir, use_execv,
+        exit_code = self._run_command(current_task, command, script_dir, use_execv,
                                       disable_monitoring, log_file, stop_signal)
 
         return self._finish_run(current_task, exit_code, disable_monitoring, stop_signal)
@@ -3642,7 +3642,7 @@ class Worker(ServiceCommandSection):
                           ).expanduser().absolute().as_posix()
         return freeze, repo_info, script_dir, venv_folder
 
-    def _run_command(self, current_task, task_id, command, script_dir, use_execv, disable_monitoring, log_file,
+    def _run_command(self, current_task, command, script_dir, use_execv, disable_monitoring, log_file,
                      stop_signal):
         """Run the task command: exec it when monitoring is off, otherwise run it and store its output."""
         exit_code = -1
