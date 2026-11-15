@@ -124,33 +124,23 @@ class ScheduleJob(BaseScheduleJob):
                 return False
 
         super(ScheduleJob, self).verify()
-        if (
-            self.weekdays
-            and self.day not in (None, 0, 1)
-        ):
+        if self.weekdays and self.day not in (None, 0, 1):
             raise ValueError("`weekdays` and `day` combination is not valid (day must be None,0 or 1)")
-        if (
-            self.weekdays
-            and any(
-                w not in self._weekdays_ind
-                for w in self.weekdays
+        if self.weekdays and any(w not in self._weekdays_ind for w in self.weekdays):
+            raise ValueError(f"`weekdays` must be a list of strings, valid values are: {self._weekdays_ind}")
+        if not any(
+            (
+                self.minute,
+                self.hour,
+                self.day,
+                self.month,
+                self.year,
             )
         ):
-            raise ValueError(f"`weekdays` must be a list of strings, valid values are: {self._weekdays_ind}")
-        if not any((
-            self.minute,
-            self.hour,
-            self.day,
-            self.month,
-            self.year,
-        )):
             raise ValueError("Schedule time/date was not provided")
         for timescale in ["minute", "hour", "day", "month", "year"]:
             timescale_value = getattr(self, timescale, None)  # e.g. self.minute (or None if absent)
-            if (
-                timescale_value
-                and not check_integer(timescale_value)
-            ):
+            if timescale_value and not check_integer(timescale_value):
                 raise ValueError(f"Schedule `{timescale}` must be an integer")
 
     def next_run(self) -> Optional[datetime]:
@@ -546,8 +536,7 @@ class BaseScheduler:
 
             if a_thread and a_thread.is_alive():
                 self._log(
-                    f"Skipping Task '{job.name}' scheduling, "
-                    f"previous Thread instance '{a_thread.ident}' still running"
+                    f"Skipping Task '{job.name}' scheduling, previous Thread instance '{a_thread.ident}' still running"
                 )
                 job.run(None)
                 return None
@@ -742,7 +731,9 @@ class TaskScheduler(BaseScheduler):
             task_parameters=task_parameters,
             task_overrides=task_overrides,
             clone_task=not bool(reuse_task),
-            starting_time=datetime.fromtimestamp(0, timezone.utc) if execute_immediately else datetime.now(timezone.utc),
+            starting_time=datetime.fromtimestamp(0, timezone.utc)
+            if execute_immediately
+            else datetime.now(timezone.utc),
             minute=minute,
             hour=hour,
             day=day,
@@ -771,6 +762,7 @@ class TaskScheduler(BaseScheduler):
         :param task_id: Task or Task ID to be removed
         :return: return True of the Task ID was found in the scheduled jobs list and was removed.
         """
+
         def get_schedule_job_task_id(schedule_job: ScheduleJob) -> Any:
             """
             Compares the provided task_id with the scheduled job's task ID by means of equality.
@@ -778,16 +770,10 @@ class TaskScheduler(BaseScheduler):
             - isinstance(task_id, str) -> `schedule_job.base_task_id == str(task_id)
             - isinstance(task_id, Callable) (fallback case) -> `schedule_job.base_function == task_id`
             """
-            return (
-                getattr(
-                    schedule_job,
-                    (
-                        "base_task_id"
-                        if isinstance(task_id, (Task, str))
-                        else "base_function"
-                    ),
-                    None,
-                )
+            return getattr(
+                schedule_job,
+                ("base_task_id" if isinstance(task_id, (Task, str)) else "base_function"),
+                None,
             )
 
         task_to_remove_id = (
@@ -828,7 +814,9 @@ class TaskScheduler(BaseScheduler):
             for timeout_dt in self._timeout_jobs
         ):
             self._timeout_jobs = {
-                _as_utc_datetime(timeout_dt): task_id for timeout_dt, task_id in self._timeout_jobs.items() if timeout_dt
+                _as_utc_datetime(timeout_dt): task_id
+                for timeout_dt, task_id in self._timeout_jobs.items()
+                if timeout_dt
             }
 
         # get idle timeout (aka sleeping)
@@ -922,8 +910,7 @@ class TaskScheduler(BaseScheduler):
                     current_jobs=self._schedule_jobs,
                 )
                 self._timeout_jobs = {
-                    _datetime_from_isoformat_as_utc(k): v
-                    for k, v in (state_dict.get("timeout_jobs") or {}).items()
+                    _datetime_from_isoformat_as_utc(k): v for k, v in (state_dict.get("timeout_jobs") or {}).items()
                 }
                 self._executed_jobs = [ExecutedJob(**j) for j in state_dict.get("executed_jobs", [])]
 
@@ -1018,11 +1005,7 @@ class TaskScheduler(BaseScheduler):
                 for c in columns
             ]
             if row[1]:
-                row[1] = (
-                    f'<a href="{task_link_template.format(project="*", task=row[1])}">'
-                    f"{row[1]}"
-                    '</a>'
-                )
+                row[1] = f'<a href="{task_link_template.format(project="*", task=row[1])}">{row[1]}</a>'
             scheduler_table += [row]
 
         # plot the already executed Tasks
@@ -1048,7 +1031,7 @@ class TaskScheduler(BaseScheduler):
                     (
                         f'<a href="{task_link_template.format(project="*", task=executed_job.task_id)}">'
                         f"{executed_job.task_id}"
-                        '</a>'
+                        "</a>"
                     )
                     if executed_job.task_id
                     else "function",

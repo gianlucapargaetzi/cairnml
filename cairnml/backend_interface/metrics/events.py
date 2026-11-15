@@ -257,7 +257,7 @@ class UploadEvent(MetricsEventAdapter):
         upload_uri: Optional[str] = None,
         file_history_size: Optional[int] = None,
         delete_after_upload: bool = False,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> None:
         # param override_filename: override uploaded file name (notice extension will be added from local path
         # param override_filename_ext: override uploaded file extension
@@ -462,7 +462,7 @@ class ImageEvent(UploadEvent):
         upload_uri: Optional[str] = None,
         file_history_size: Optional[int] = None,
         delete_after_upload: bool = False,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> None:
         super(ImageEvent, self).__init__(
             metric,
@@ -473,7 +473,7 @@ class ImageEvent(UploadEvent):
             upload_uri=upload_uri,
             file_history_size=file_history_size,
             delete_after_upload=delete_after_upload,
-            **kwargs
+            **kwargs,
         )
 
     def get_api_event(self) -> "events.MetricsImageEvent":
@@ -491,7 +491,7 @@ class MediaEvent(UploadEvent):
         upload_uri: Optional[str] = None,
         file_history_size: Optional[int] = None,
         delete_after_upload: bool = False,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> None:
         super(MediaEvent, self).__init__(
             metric,
@@ -502,7 +502,7 @@ class MediaEvent(UploadEvent):
             upload_uri=upload_uri,
             file_history_size=file_history_size,
             delete_after_upload=delete_after_upload,
-            **kwargs
+            **kwargs,
         )
 
     def get_api_event(self) -> "events.MetricsImageEvent":

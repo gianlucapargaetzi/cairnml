@@ -1,4 +1,5 @@
-""" Configuration module. Uses backend_config to load system configuration. """
+"""Configuration module. Uses backend_config to load system configuration."""
+
 import logging
 import os
 import sys
@@ -80,24 +81,26 @@ def deferred_config(
 ) -> LazyEvalWrapper:
     return LazyEvalWrapper(
         callback=lambda: (
-            ConfigSDKWrapper.get(key, default)
-            if not multi
-            else next(
-                (ConfigSDKWrapper.get(*a) for a in multi if ConfigSDKWrapper.get(*a)),
-                None,
-            )
-        )
-        if transform is None
-        else (
-            transform()
-            if key is None
-            else transform(
+            (
                 ConfigSDKWrapper.get(key, default)
                 if not multi
                 else next(
                     (ConfigSDKWrapper.get(*a) for a in multi if ConfigSDKWrapper.get(*a)),
                     None,
-                )  # noqa
+                )
+            )
+            if transform is None
+            else (
+                transform()
+                if key is None
+                else transform(
+                    ConfigSDKWrapper.get(key, default)
+                    if not multi
+                    else next(
+                        (ConfigSDKWrapper.get(*a) for a in multi if ConfigSDKWrapper.get(*a)),
+                        None,
+                    )  # noqa
+                )
             )
         )
     )

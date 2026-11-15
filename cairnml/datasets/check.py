@@ -22,7 +22,15 @@ from .external import (
     load_local_adapter,
     registry_tree,
 )
-from .schema import MANIFEST_FILE, SAMPLES_FILE, SchemaError, from_arrow_value, label_column, read_manifest, validate_rows
+from .schema import (
+    MANIFEST_FILE,
+    SAMPLES_FILE,
+    SchemaError,
+    from_arrow_value,
+    label_column,
+    read_manifest,
+    validate_rows,
+)
 
 
 def run_check(data_dir: Path, config: Mapping[str, str], cache: Optional[DatasetCache] = None) -> Dict[str, Any]:
@@ -100,8 +108,11 @@ def _check_adapter(data_dir: Path, wanted: Mapping[str, str], config: Mapping[st
         except DatasetError:
             raise
         except Exception as exc:
-            fix = "Fix the data or the adapter." if wanted["kind"] == "local" else (
-                "Fix the data or choose another adapter in dataset.yaml.")
+            fix = (
+                "Fix the data or the adapter."
+                if wanted["kind"] == "local"
+                else ("Fix the data or choose another adapter in dataset.yaml.")
+            )
             raise DatasetError(f"{label} could not read data/: {type(exc).__name__}: {exc}. {fix}") from exc
         result = _validate_table(out_dir, data_dir, label)
     return {"format": fmt, **result}

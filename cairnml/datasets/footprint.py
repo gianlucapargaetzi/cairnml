@@ -27,7 +27,9 @@ from typing import Any, Dict, List, Mapping, Optional, Tuple
 
 FOOTPRINT_VERSION = 1
 LOCK_FILE = "dataset.lock.json"
-MANIFEST_FILE = "manifest.json"  # what the Datasets page shows: modalities, labels, samples and splits, written at check
+MANIFEST_FILE = (
+    "manifest.json"  # what the Datasets page shows: modalities, labels, samples and splits, written at check
+)
 CONFIG_FILE = "dataset.yaml"
 DVC_FILE = "data.dvc"
 ATTRIBUTES_FILE = ".gitattributes"
@@ -42,8 +44,23 @@ LOCAL_ADAPTER = "local"  # the name ``adapter:`` takes for an adapter in the rep
 
 # What may be tracked by git at the top of a dataset repository. The data itself is in DVC or in LFS.
 ALLOWED_TOP_LEVEL = {
-    DVC_FILE, CONFIG_FILE, LOCK_FILE, ".gitignore", ".dvcignore", ".dvc", ".github", ".cairnml", ATTRIBUTES_FILE,
-    "README.md", "README", "DATASET.md", "LICENSE", "LICENSE.md", "NOTICE", "docs", MANIFEST_FILE,
+    DVC_FILE,
+    CONFIG_FILE,
+    LOCK_FILE,
+    ".gitignore",
+    ".dvcignore",
+    ".dvc",
+    ".github",
+    ".cairnml",
+    ATTRIBUTES_FILE,
+    "README.md",
+    "README",
+    "DATASET.md",
+    "LICENSE",
+    "LICENSE.md",
+    "NOTICE",
+    "docs",
+    MANIFEST_FILE,
 }
 
 _SHA = re.compile(r"[0-9a-f]{7,40}")
@@ -95,8 +112,10 @@ def config_format(config: Mapping[str, str]) -> Dict[str, str]:
         raise ValueError("dataset.yaml sets both 'format: native' and an adapter; use one of them")
     if adapter == LOCAL_ADAPTER:
         if config.get("registry"):
-            raise ValueError(f"dataset.yaml says adapter: {LOCAL_ADAPTER} and names a registry: the adapter is {ADAPTER_FILE} "
-                             f"in this repository, so remove the registry line")
+            raise ValueError(
+                f"dataset.yaml says adapter: {LOCAL_ADAPTER} and names a registry: the adapter is {ADAPTER_FILE} "
+                f"in this repository, so remove the registry line"
+            )
         return {"kind": "local", "name": LOCAL_ADAPTER}
     if adapter:
         result = {"kind": "adapter", "name": adapter}
@@ -243,7 +262,9 @@ def verify_files(
     if lock.get("version") != FOOTPRINT_VERSION:
         problems.append(f"{LOCK_FILE} has version {lock.get('version')!r}; this tool reads {FOOTPRINT_VERSION}")
     if lock.get("footprint") != checksum(lock):
-        problems.append(f"the checksum in {LOCK_FILE} does not match its content: it was edited; run 'cairnml dataset check'")
+        problems.append(
+            f"the checksum in {LOCK_FILE} does not match its content: it was edited; run 'cairnml dataset check'"
+        )
     if storage == "s3" and lock.get("dvc") != dvc:
         problems.append(
             f"{LOCK_FILE} was written for other data than {DVC_FILE} holds "
@@ -259,7 +280,9 @@ def verify_files(
             )
     fmt = lock.get("format") or {}
     if fmt.get("kind") != wanted.get("kind") or fmt.get("name") != wanted.get("name"):
-        problems.append(f"{LOCK_FILE} was made for format {fmt} but {CONFIG_FILE} asks for {wanted}; run 'cairnml dataset check'")
+        problems.append(
+            f"{LOCK_FILE} was made for format {fmt} but {CONFIG_FILE} asks for {wanted}; run 'cairnml dataset check'"
+        )
     if fmt.get("kind") == "adapter" and not _SHA.fullmatch(str(fmt.get("registry_commit", ""))):
         problems.append(f"{LOCK_FILE} does not say which commit of the adapter registry was used")
     if fmt.get("kind") == "local" and not _SHA256.fullmatch(str(fmt.get("adapter_sha256", ""))):
@@ -269,8 +292,10 @@ def verify_files(
         # footprint files only, so it checks the shape of the field above and not the content here.
         content = files[ADAPTER_FILE]
         if content is None:
-            problems.append(f"{ADAPTER_FILE} is missing: dataset.yaml says adapter: {LOCAL_ADAPTER}, so the adapter must be "
-                            f"at the top of the repository")
+            problems.append(
+                f"{ADAPTER_FILE} is missing: dataset.yaml says adapter: {LOCAL_ADAPTER}, so the adapter must be "
+                f"at the top of the repository"
+            )
         elif fmt.get("adapter_sha256") != sha256_bytes(content):
             problems.append(
                 f"{LOCK_FILE} was checked with another {ADAPTER_FILE} (lock: {fmt.get('adapter_sha256')}, "
@@ -285,7 +310,9 @@ def verify_files(
         if top == "data" and storage == "lfs":
             continue  # the files of data/ are LFS pointers, checked through the record above
         if top not in allowed:
-            problems.append(f"{path} is tracked by git; only the dataset files may be (put data in data/, which DVC tracks)")
+            problems.append(
+                f"{path} is tracked by git; only the dataset files may be (put data in data/, which DVC tracks)"
+            )
         elif top == "data":
             problems.append(f"{path} is tracked by git; data/ belongs to DVC")
         elif size > MAX_TRACKED_BYTES:
@@ -299,8 +326,9 @@ def tracked_sizes(root: str) -> Dict[str, int]:
     skip = {".git", ".venv", "__pycache__", "data"}
     for folder, dirs, names in os.walk(root):
         rel = os.path.relpath(folder, root)
-        dirs[:] = [d for d in dirs if not (rel == "." and d in skip)
-                   and not (rel.startswith(".dvc") and d in ("cache", "tmp"))]
+        dirs[:] = [
+            d for d in dirs if not (rel == "." and d in skip) and not (rel.startswith(".dvc") and d in ("cache", "tmp"))
+        ]
         if rel.startswith(".dvc"):
             continue
         for name in names:

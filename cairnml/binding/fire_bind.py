@@ -24,10 +24,7 @@ class SimpleNamespace:
 
     def __repr__(self) -> str:
         keys = sorted(self.__dict__)
-        items = (
-            f"{k}={self.__dict__[k]!r}"
-            for k in keys
-        )
+        items = (f"{k}={self.__dict__[k]!r}" for k in keys)
         return f"{type(self).__name__}({', '.join(items)})"
 
     def __eq__(self, other: "SimpleNamespace") -> bool:
@@ -136,11 +133,8 @@ class PatchFire:
                 for k in (cls.__command_args.get(command) or [])
             }
             unused_paramenters_types = {
-                cls._section_name
-                + cls._args_sep
-                + command
-                + cls._args_sep
-                + k: cls._command_arg_type_template % command
+                cls._section_name + cls._args_sep + command + cls._args_sep + k: cls._command_arg_type_template
+                % command
                 for k in (cls.__command_args.get(command) or [])
             }
             args.update(unused_command_args)
@@ -162,7 +156,7 @@ class PatchFire:
         context: Dict[str, Any],
         name: str,
         *args: Any,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> Any:  # noqa
         if not running_remotely():
             return original_fn(component, args_, parsed_flag_args, context, name, *args, **kwargs)
@@ -193,7 +187,7 @@ class PatchFire:
         treatment: str,
         target: Optional[Any] = None,
         *args: Any,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> Any:
         if running_remotely():
             return original_fn(component, args_, component_trace, treatment, target, *args, **kwargs)

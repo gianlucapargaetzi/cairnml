@@ -940,9 +940,7 @@ class TriggerScheduler(BaseScheduler):
             base_function_module = getattr(trigger.base_function, "__module__", "")
             base_function_name = getattr(trigger.base_function, "__name__", "")
             trigger_dict["base_function"] = (
-                f"{base_function_module}.{base_function_name}"
-                if trigger.base_function
-                else ""
+                f"{base_function_module}.{base_function_name}" if trigger.base_function else ""
             )
 
             if not trigger_dict.get("base_task_id"):

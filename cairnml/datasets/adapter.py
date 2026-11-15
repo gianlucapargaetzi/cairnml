@@ -35,7 +35,9 @@ from .schema import (
 
 
 class SampleWriter:
-    def __init__(self, out: Path, modalities: Dict[str, str], labels: Dict[str, str], source_root: Optional[Path] = None):
+    def __init__(
+        self, out: Path, modalities: Dict[str, str], labels: Dict[str, str], source_root: Optional[Path] = None
+    ):
         check_spec(modalities, labels)
         self.out = out
         self.modalities = modalities

@@ -88,12 +88,14 @@ from ..backend_config.environment import EnvEntry
 
 try:
     from azure.storage.blob import BlobServiceClient  # noqa: F811
+
     is_blob_service_client_installed = True
 except ImportError:
     is_blob_service_client_installed = False
 
 try:
     from azure.identity import DefaultAzureCredential  # noqa: F811
+
     is_default_azure_credential_installed = True
 except ImportError:
     is_default_azure_credential_installed = False
@@ -574,7 +576,7 @@ class _Boto3Driver(_Driver):
                 import boto3
             except ImportError as err:
                 raise UsageError(
-                    "AWS S3 storage driver (boto3) not found. " 'Please install driver using: pip install "cairnml[s3]"'
+                    'AWS S3 storage driver (boto3) not found. Please install driver using: pip install "cairnml[s3]"'
                 ) from err
             # skip 's3://'
             self.name = name[5:]
@@ -612,7 +614,7 @@ class _Boto3Driver(_Driver):
             import botocore.client
         except ImportError as err:
             raise UsageError(
-                "AWS S3 storage driver (boto3) not found. " 'Please install driver using: pip install "cairnml[s3]"'
+                'AWS S3 storage driver (boto3) not found. Please install driver using: pip install "cairnml[s3]"'
             ) from err
         endpoint = (("https://" if cfg.secure else "http://") + cfg.host) if cfg.host else None
         verify = cfg.verify
@@ -725,6 +727,7 @@ class _Boto3Driver(_Driver):
         **kwargs: Any,
     ) -> bool:
         import boto3.s3.transfer
+
         logger = self.get_logger()
 
         extra_args = {}
@@ -1287,10 +1290,7 @@ class _AzureBlobServiceStorageDriver(_Driver):
                     "pip install '\"azure.storage.blob>=12.0.0\"'"
                 )
 
-            if (
-                config.use_default_credential
-                and not is_default_azure_credential_installed
-            ):
+            if config.use_default_credential and not is_default_azure_credential_installed:
                 raise UsageError(
                     "azure-identity package is required to use DefaultAzureCredential. "
                     "Please install it using: 'pip install azure-identity'"
@@ -1593,11 +1593,13 @@ class _AzureBlobServiceStorageDriver(_Driver):
         read_hash: Optional[bool] = False,
         **_: Any,
     ) -> List[Any]:
-        return list(container.list_blobs(
-            container_name=container.name,
-            prefix=ex_prefix,
-            include=["metadata"] if read_hash else None,
-        ))
+        return list(
+            container.list_blobs(
+                container_name=container.name,
+                prefix=ex_prefix,
+                include=["metadata"] if read_hash else None,
+            )
+        )
 
     def delete_object(self, object: Any, **kwargs: Any) -> bool:
         container = object.container
@@ -1791,7 +1793,12 @@ class _DatachunkDriver(_Driver):
         def __init__(self, name: str) -> None:
             parsed = urlparse(name)
             task_id = parsed.path.strip("/")
-            if parsed.scheme != _DatachunkDriver.scheme or parsed.netloc not in _DatachunkDriver.KINDS or not task_id or "/" in task_id:
+            if (
+                parsed.scheme != _DatachunkDriver.scheme
+                or parsed.netloc not in _DatachunkDriver.KINDS
+                or not task_id
+                or "/" in task_id
+            ):
                 raise StorageError(f"invalid datachunk location: {name}")
             self.name = f"{_DatachunkDriver.scheme}://{parsed.netloc}/{task_id}"
             self.kind = parsed.netloc
@@ -2004,7 +2011,6 @@ class _DatachunkDriver(_Driver):
     def delete_object(self, obj: Any, **kwargs: Any) -> bool:
         self._api("delete", {"task": obj.container.task_id, "kind": obj.container.kind, "name": obj.name})
         return True
-
 
 
 class _FileStorageDriver(_Driver):
@@ -3148,9 +3154,7 @@ class _StorageHelper:
                         size = obj.size
                     except Exception as e:
                         if not silence_errors:
-                            self.log.warning(
-                                f"Failed obtaining object size on reload: {e.__class__.__name__}('{e}')"
-                            )
+                            self.log.warning(f"Failed obtaining object size on reload: {e.__class__.__name__}('{e}')")
             elif hasattr(obj, "content_length"):
                 # noinspection PyBroadException
                 try:
@@ -3314,11 +3318,7 @@ class _StorageHelper:
 
             # quote link
             def callback(result: bool) -> str:
-                return a_cb(
-                    quote_url(result_path, _StorageHelper._quotable_uri_schemes)
-                    if result
-                    else result
-                )
+                return a_cb(quote_url(result_path, _StorageHelper._quotable_uri_schemes) if result else result)
 
             # replace callback with wrapper
             cb = callback
@@ -3398,8 +3398,7 @@ class _StorageHelper:
                 read_hash=read_hash,
             )
             result = [
-                obj.name if not with_metadata else self.get_object_metadata(obj, read_hash=read_hash)
-                for obj in res
+                obj.name if not with_metadata else self.get_object_metadata(obj, read_hash=read_hash) for obj in res
             ]
 
             if self._base_url == "file://":
@@ -3835,9 +3834,7 @@ class _StorageHelper:
                 )
         if verbose:
             upload_destination = (
-                f"{self._container.name.rstrip('/')}/"
-                if self._container and self._container.name
-                else ""
+                f"{self._container.name.rstrip('/')}/" if self._container and self._container.name else ""
             )
             msg = f"Starting upload: {src_path} => {upload_destination}{object_name}"
             if object_name.startswith("file://") or object_name.startswith("/"):
@@ -3936,7 +3933,7 @@ class _StorageHelper:
     @classmethod
     def sanitize_url(cls, remote_url):
         base_url = cls._resolve_base_url(remote_url)
-        if base_url != 'file://' or remote_url.startswith("file://"):
+        if base_url != "file://" or remote_url.startswith("file://"):
             return remote_url
         absoulte_path = os.path.abspath(remote_url)
         return base_url + absoulte_path
@@ -3974,29 +3971,30 @@ def _resolve_disk_strategy_enabled():
 # Simplified urlsplit tailored for CairnML usage
 def fast_urlsplit(remote_path, *_, **__):
     """Return (scheme, netloc, path, query, fragment) without pulling in urllib."""
-    scheme, sep, rest = remote_path.partition('://')
+    scheme, sep, rest = remote_path.partition("://")
     if not sep:
-        scheme, rest = '', remote_path
+        scheme, rest = "", remote_path
 
-    netloc, sep, rest = rest.partition('/')
+    netloc, sep, rest = rest.partition("/")
     if not sep:
-        netloc, rest = '', netloc
+        netloc, rest = "", netloc
 
-    path_section, sep, fragment = rest.partition('#')
+    path_section, sep, fragment = rest.partition("#")
     if not sep:
-        fragment = ''
+        fragment = ""
 
-    path, sep, query = path_section.partition('?')
+    path, sep, query = path_section.partition("?")
     if not sep:
-        query = ''
+        query = ""
 
     return scheme, netloc, path, query, fragment
 
 
 class StorageHelper(_StorageHelper):
-    """ Cached File Storage helper.
-        Overloads the standard StorageHelper and provides local caching support for calls to download_to_file().
+    """Cached File Storage helper.
+    Overloads the standard StorageHelper and provides local caching support for calls to download_to_file().
     """
+
     use_disk_space_file_size_strategy = deferred_config(transform=_resolve_disk_strategy_enabled)
 
     class CacheConfigs:
@@ -4173,9 +4171,7 @@ class StorageHelper(_StorageHelper):
         try:
             self.cache_base_dir.mkdir(parents=True, exist_ok=True)
         except OSError as ex:
-            raise StorageError(
-                f"Failed creating cache folder {self.cache_base_dir}: {ex}"
-            ) from ex
+            raise StorageError(f"Failed creating cache folder {self.cache_base_dir}: {ex}") from ex
 
     @classmethod
     def register_pre_delete_hook(cls, client_name, hook, override=False):
@@ -4234,7 +4230,7 @@ class StorageHelper(_StorageHelper):
             )
 
             try:
-                result = Path(local_file).open('rb').read()
+                result = Path(local_file).open("rb").read()
             except OSError:
                 # if the file was just downloaded and we could not read it,
                 # we probably deleted it in cache cleanup
@@ -4249,7 +4245,7 @@ class StorageHelper(_StorageHelper):
                     force_cache=force_cache,
                 )
 
-                result = Path(local_file).open('rb').read()
+                result = Path(local_file).open("rb").read()
 
             return result
         except self._NotDirectOrCached:
@@ -4266,7 +4262,7 @@ class StorageHelper(_StorageHelper):
         force_cache=False,
         skip_zero_size_check=False,
         silence_errors=False,
-        direct_access=False
+        direct_access=False,
     ):
         """
         Download remote_path to a local, cached file. Cache is used if caching is enabled for the remote_path, based on
@@ -4389,22 +4385,22 @@ class StorageHelper(_StorageHelper):
         # we do not cache locally stored files (local drive or network mapped)
         scheme, netloc, filename, query, fragment = fast_urlsplit(remote_path, allow_fragments=False)
         # on windows without "file://" prefix, netloc is "C:" make sure we add / at the end to get "C:/"
-        return os.path.join('/', (netloc+'/') if netloc else '', filename.lstrip('/')), remote_path, absolute_url
+        return os.path.join("/", (netloc + "/") if netloc else "", filename.lstrip("/")), remote_path, absolute_url
 
     def _get_cache_path(self, canonized_url, force_content_type=None, base_local_path=None, force_cache=False):
         # canonized_url = self._canonize_url(remote_path)
 
         scheme, netloc, filename, query, fragment = fast_urlsplit(canonized_url, allow_fragments=False)
         if query:
-            filename = filename.split('/')
-            filename[-1] = f'{md5_safe_hash(data=query.encode()).hexdigest()}.{filename[-1]}'
-            filename = '/'.join(filename if filename[0] else filename[1:])
+            filename = filename.split("/")
+            filename[-1] = f"{md5_safe_hash(data=query.encode()).hexdigest()}.{filename[-1]}"
+            filename = "/".join(filename if filename[0] else filename[1:])
         else:
             filename = str(Path(filename.lstrip("/")))
 
-        if scheme == 'http':
-            scheme = 'https'
-        netloc = netloc.replace(":", ".") if netloc else ''
+        if scheme == "http":
+            scheme = "https"
+        netloc = netloc.replace(":", ".") if netloc else ""
         # notice that os.path will handle '/' in windows as if it was backslash '\\'
         return os.path.join(
             str(self.cache_dir),
@@ -4420,7 +4416,7 @@ class StorageHelper(_StorageHelper):
         delete_on_failure=True,
         force_cache=False,
         skip_size_check=False,
-        silence_errors=False
+        silence_errors=False,
     ):
         # NOTE: In this function, we mention "downloading" a file. Downloading means:
         # checking if the file exists or if is should be overwritten, then fetching the
@@ -4437,13 +4433,11 @@ class StorageHelper(_StorageHelper):
                 delete_on_failure=delete_on_failure,
                 force_cache=force_cache,
                 skip_size_check=skip_size_check,
-                silence_errors=silence_errors
+                silence_errors=silence_errors,
             )
 
         # We have a secondary cache. Create it
-        secondary_cache = self.__class__.get(
-            remote_path, configs=self.__class__.CacheConfigs.get("secondary")
-        )
+        secondary_cache = self.__class__.get(remote_path, configs=self.__class__.CacheConfigs.get("secondary"))
         # Check if the file exists in the secondary cache and download it from there
         _, canonized_url, _ = secondary_cache._get_direct_access_path(remote_path)
         secondary_cache_path = secondary_cache._get_cache_path(
@@ -4470,7 +4464,7 @@ class StorageHelper(_StorageHelper):
                 force_cache=force_cache,
                 skip_size_check=skip_size_check,
                 allow_direct_access=False,
-                cache_path=local_path
+                cache_path=local_path,
             )
 
         # We got here, which means don't have the file in the secondary cache
@@ -4485,15 +4479,13 @@ class StorageHelper(_StorageHelper):
             force_cache=force_cache,
             skip_size_check=skip_size_check,
             allow_direct_access=False,
-            silence_errors=silence_errors
+            silence_errors=silence_errors,
         )
 
         # Then download from the local cache to the secondary cache
         # Note that the cache path needs to be calculated manually,
         # to have the same relative paths in both caches
-        secondary_cache = self.__class__.get(
-            local_path, configs=self.__class__.CacheConfigs.get("secondary")
-        )
+        secondary_cache = self.__class__.get(local_path, configs=self.__class__.CacheConfigs.get("secondary"))
         secondary_cache_path = os.path.join(
             str(secondary_cache.cache_dir), os.path.relpath(local_path, str(self.cache_dir))
         )
@@ -4507,7 +4499,7 @@ class StorageHelper(_StorageHelper):
             skip_size_check=skip_size_check,
             allow_direct_access=False,
             cache_path=secondary_cache_path,
-            silence_errors=silence_errors
+            silence_errors=silence_errors,
         )
 
         # We return the path to the file in the local cache
@@ -4524,15 +4516,15 @@ class StorageHelper(_StorageHelper):
         skip_size_check=False,
         allow_direct_access=True,
         cache_path=None,
-        silence_errors=False
+        silence_errors=False,
     ):
         direct_path, canonized_url, absolute_url = self._get_direct_access_path(remote_path)
         if direct_path and allow_direct_access:
             if not os.path.isfile(direct_path) and not silence_errors:
                 error_msg = (
                     f"Direct access path does not exist {remote_path}"
-                    if remote_path == direct_path else
-                    f"Direct access path does not exist ({remote_path} => {direct_path})"
+                    if remote_path == direct_path
+                    else f"Direct access path does not exist ({remote_path} => {direct_path})"
                 )
                 self._log.error(error_msg, exc_info=self._log.isEnabledFor(logging.DEBUG))
                 return None
@@ -4553,15 +4545,18 @@ class StorageHelper(_StorageHelper):
                     self._cache_file_entry_lookup_table.clear()
                 self._cache_file_entry_lookup_table[canonized_url] = cache_path
             # return the cached file is it's valid
-            if not overwrite_existing and os.path.isfile(cache_path) and (
-                    not self.cache_zero_file_size_check or os.path.getsize(cache_path) > 0):
+            if (
+                not overwrite_existing
+                and os.path.isfile(cache_path)
+                and (not self.cache_zero_file_size_check or os.path.getsize(cache_path) > 0)
+            ):
                 self._update_cache_file(cache_path, log=self.log)
                 return str(cache_path)
 
             if not force_cache:
                 # check if we can actually download the file (i.e. a matcher might say we cannot
                 absolute_url = self._absolute_object_name(remote_path)
-                content_type = (force_content_type or mimetypes.guess_type(remote_path)[0])
+                content_type = force_content_type or mimetypes.guess_type(remote_path)[0]
                 do_cache = force_cache or any(
                     True
                     for matcher in (self.cache_matchers + self.__class__.common_cache_matchers)
@@ -4639,8 +4634,9 @@ class StorageHelper(_StorageHelper):
         # if this is the first time we need to clean the cache (first download) we should scan the current cached files
         if self._synced_cache_time is not None:
             # Check if we need to clean the cache
-            if ((self.cache_size_max_used_bytes <= 0 or self._cache_size < self.cache_size_max_used_bytes) and
-                    (self.cache_size_min_free_bytes <= 0 or self.get_free_bytes() > self.cache_size_min_free_bytes)):
+            if (self.cache_size_max_used_bytes <= 0 or self._cache_size < self.cache_size_max_used_bytes) and (
+                self.cache_size_min_free_bytes <= 0 or self.get_free_bytes() > self.cache_size_min_free_bytes
+            ):
                 return
 
         # check if someone is already cleaning the cache
@@ -4652,7 +4648,7 @@ class StorageHelper(_StorageHelper):
                 log_ignored(get_logger("storage"), "_clean_cache")
 
     def _update_cache_file(self, file_path, downloaded=False, log=None):
-        """ Update cache size with integer value or file size (if a filename is provided) """
+        """Update cache size with integer value or file size (if a filename is provided)"""
         # Update file access
 
         # it's actually slower to push into the ThreadPool than to touch the file ourselves.
@@ -4667,29 +4663,29 @@ class StorageHelper(_StorageHelper):
         # Notice! we need to have the total size and cached files in sync, so we lock both
         if downloaded:
             if log:
-                log.debug('Updating cache size for %s' % file_path)
+                log.debug("Updating cache size for %s" % file_path)
             try:
                 file_size = os.path.getsize(file_path)
             except OSError as e:
                 file_size = 0
                 if log:
-                    log.warning('Failed updating file size for %s: %s' % (file_path, e))
+                    log.warning("Failed updating file size for %s: %s" % (file_path, e))
             # update the total cache size
             self._update_cache_size(file_size)
 
     def _do_clean_cache(self, log=None):
-        """ Clean cache until size constraints are satisfied. Not error is raised in case constraints are not satisfied,
-            we'll just do our very best.
+        """Clean cache until size constraints are satisfied. Not error is raised in case constraints are not satisfied,
+        we'll just do our very best.
         """
         try:
             used_bytes_limit_enabled = self.cache_size_max_used_bytes > 0
             free_bytes_limit_enabled = self.cache_size_min_free_bytes > 0
 
             if log:
-                log.debug('Checking cache size: size=%s, limit=%s' % (
-                    self._cache_size if self._cache_size is not None else "N/A",
-                    self.cache_size_max_used_bytes
-                ))
+                log.debug(
+                    "Checking cache size: size=%s, limit=%s"
+                    % (self._cache_size if self._cache_size is not None else "N/A", self.cache_size_max_used_bytes)
+                )
 
             # last cache sync/cleanup
             first_cleanup_scan = self._synced_cache_time is None
@@ -4699,8 +4695,9 @@ class StorageHelper(_StorageHelper):
                 # if this is the first time we need to clean the cache (first download)
                 # we should need to scan the files if we have a max cache size limit
                 pass
-            elif ((not used_bytes_limit_enabled or self._cache_size < self.cache_size_max_used_bytes)
-                    and (not free_bytes_limit_enabled or self.get_free_bytes() > self.cache_size_min_free_bytes)):
+            elif (not used_bytes_limit_enabled or self._cache_size < self.cache_size_max_used_bytes) and (
+                not free_bytes_limit_enabled or self.get_free_bytes() > self.cache_size_min_free_bytes
+            ):
                 # cache limit not exceeded, leave
                 return
 
@@ -4735,10 +4732,10 @@ class StorageHelper(_StorageHelper):
                 self._cache_size = cache_size
 
             # Delete files until targets are reached
-            while (sorted_cached_files and
-                   ((used_bytes_limit_enabled and self._cache_size >= max_used_bytes_target)
-                    or (free_bytes_limit_enabled and self.get_free_bytes() <= min_free_bytes_target))):
-
+            while sorted_cached_files and (
+                (used_bytes_limit_enabled and self._cache_size >= max_used_bytes_target)
+                or (free_bytes_limit_enabled and self.get_free_bytes() <= min_free_bytes_target)
+            ):
                 # Delete a single file (allow for several failures)
                 time_stamp, candidate, size = heappop(sorted_cached_files)
 
@@ -4746,9 +4743,11 @@ class StorageHelper(_StorageHelper):
                 # we should quite before we start deleting our own downloads
                 if cleanup_session_timestamp - time_stamp < self._cleanup_seconds_threshold:
                     if log:
-                        log.warning('Leaving cache cleanup [%d remaining] before starting '
-                                    'to clean current downloads, file candidate accessed %.3f sec ago' %
-                                    (len(sorted_cached_files), cleanup_session_timestamp - time_stamp))
+                        log.warning(
+                            "Leaving cache cleanup [%d remaining] before starting "
+                            "to clean current downloads, file candidate accessed %.3f sec ago"
+                            % (len(sorted_cached_files), cleanup_session_timestamp - time_stamp)
+                        )
                     break
 
                 # check if we are currently downloading this file
@@ -4818,7 +4817,7 @@ class StorageHelper(_StorageHelper):
         return cached_files, total_size
 
     def _update_cache_size(self, value):
-        """ Update cache size with integer value or file size (if a filename is provided) """
+        """Update cache size with integer value or file size (if a filename is provided)"""
         if not value:
             return
         try:
@@ -4848,14 +4847,10 @@ class StorageHelper(_StorageHelper):
         if not folder_path or len(folder_path) <= 255:
             return folder_path
 
-        sep = '/'
+        sep = "/"
         return sep.join(
             [
-                (
-                    f
-                    if len(f) <= 255
-                    else f"{md5_safe_hash(data=f.encode()).hexdigest()}.{f[-200:]}"
-                )
+                (f if len(f) <= 255 else f"{md5_safe_hash(data=f.encode()).hexdigest()}.{f[-200:]}")
                 for f in folder_path.split(sep)
             ]
         )
@@ -4961,10 +4956,7 @@ def _get_cache_dir(cache_name=None):
     else:
         nested_default = None
     cache_base_dir = (
-        env_var
-        or nested_default
-        or config.get(f"{config_key}.default_base_dir", None)
-        or default_cache_dir
+        env_var or nested_default or config.get(f"{config_key}.default_base_dir", None) or default_cache_dir
     )
     if cache_base_dir is None:
         return None

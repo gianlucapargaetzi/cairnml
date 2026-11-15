@@ -88,10 +88,7 @@ class _TrainsBandsterWorker(Worker):
         # optimization appears to never stop). Once the cap is reached we report the trial as
         # infinitely bad without launching it, so hyperband can wind down quickly.
         # noinspection PyProtectedMember
-        if (
-            self.optimizer.total_max_jobs
-            and len(self.optimizer._created_jobs_ids) >= self.optimizer.total_max_jobs
-        ):
+        if self.optimizer.total_max_jobs and len(self.optimizer._created_jobs_ids) >= self.optimizer.total_max_jobs:
             print(
                 "TrainsBandsterWorker: reached total_max_jobs="
                 f"{self.optimizer.total_max_jobs}, skipping configuration {config} "

@@ -581,8 +581,7 @@ class Model(IdObjectBase, AsyncManagerMixin, _StorageUriMixin):
             Model._local_model_to_id_uri[str(local_download)] = (self.model_id, uri)
         elif raise_on_error:
             raise ValueError(
-                f"Could not retrieve a local copy of model weights {self.model_id}, "
-                f"failed downloading {uri}"
+                f"Could not retrieve a local copy of model weights {self.model_id}, failed downloading {uri}"
             )
 
         return local_download

@@ -270,9 +270,7 @@ class PatchFastaiV2:
                         value=v,
                         iteration=self.__train_iter,
                     )
-                params = [
-                    (name, values.clone().detach().cpu()) for (name, values) in self.model.named_parameters()
-                ]  # noqa
+                params = [(name, values.clone().detach().cpu()) for (name, values) in self.model.named_parameters()]  # noqa
                 if self.__gradient_hist_helper.logger is not logger:
                     self.__gradient_hist_helper = WeightsGradientHistHelper(logger)
                 histograms = []
@@ -303,9 +301,7 @@ class PatchFastaiV2:
                         value=metric.value,
                         iteration=self.__train_iter,
                     )
-                gradients = [
-                    x.grad.clone().detach().cpu() for x in self.learn.model.parameters() if x.grad is not None
-                ]  # noqa
+                gradients = [x.grad.clone().detach().cpu() for x in self.learn.model.parameters() if x.grad is not None]  # noqa
                 if len(gradients) == 0:
                     return
 

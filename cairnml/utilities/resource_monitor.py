@@ -586,12 +586,20 @@ class ResourceMonitor(BackgroundMonitor):
 
             if g.entry.get("memory.used") is not None:
                 # use previously sampled process gpu memory, or global if it does not exist
-                stats["gpu_%d_mem_used_gb" % i] = self._safe_cast(gpu_mem[i] if gpu_mem and i in gpu_mem else g.entry["memory.used"], float) / 1024
+                stats["gpu_%d_mem_used_gb" % i] = (
+                    self._safe_cast(gpu_mem[i] if gpu_mem and i in gpu_mem else g.entry["memory.used"], float) / 1024
+                )
                 if g.entry.get("memory.total") is not None:
                     if self._safe_cast(g.entry["memory.total"], float) != 0.0:
-                        stats["gpu_%d_mem_usage" % i] = 100.0 * self._safe_cast(g.entry["memory.used"], float) / self._safe_cast(g.entry["memory.total"], float, default=1.0)
+                        stats["gpu_%d_mem_usage" % i] = (
+                            100.0
+                            * self._safe_cast(g.entry["memory.used"], float)
+                            / self._safe_cast(g.entry["memory.total"], float, default=1.0)
+                        )
                     # already in MBs
-                    stats["gpu_%d_mem_free_gb" % i] = (self._safe_cast(g.entry["memory.total"], float) - self._safe_cast(g.entry["memory.used"], float)) / 1024
+                    stats["gpu_%d_mem_free_gb" % i] = (
+                        self._safe_cast(g.entry["memory.total"], float) - self._safe_cast(g.entry["memory.used"], float)
+                    ) / 1024
             if g.entry.get("power.draw") is not None:
                 # power draw in Watts
                 stats["gpu_%d_power_draw" % i] = self._safe_cast(g.entry["power.draw"], int, default=0)

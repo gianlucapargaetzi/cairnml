@@ -57,7 +57,7 @@ class BatchRequest(Request, ABC):
         requests: Union[List[Request], Tuple[Request]],
         validate_requests: bool = False,
         allow_raw_requests: bool = True,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> None:
         super(BatchRequest, self).__init__(**kwargs)
         self._validate_requests = validate_requests
@@ -93,14 +93,7 @@ class BatchRequest(Request, ABC):
                 raise Exception(f"Validation error in batch item #{i}: {e}") from e
 
     def get_json(self) -> List[Union[Dict, Any]]:
-        return [
-            (
-                r
-                if isinstance(r, dict)
-                else r.to_dict()
-            )
-            for r in self.requests
-        ]
+        return [(r if isinstance(r, dict) else r.to_dict()) for r in self.requests]
 
 
 class CompoundRequest(Request):

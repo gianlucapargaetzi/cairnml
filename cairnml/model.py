@@ -152,7 +152,7 @@ class Framework(Options):
         filename = filename.lower()
 
         def find_framework_by_ext(
-            framework_selector: Callable[[List[str]], Optional[str]]
+            framework_selector: Callable[[List[str]], Optional[str]],
         ) -> Optional[Tuple[str, str]]:
             for ext, frameworks in mapping.items():
                 if frameworks and filename.endswith(ext):
@@ -2189,21 +2189,13 @@ class OutputModel(BaseModel):
         self._name = name
         self._label_enumeration = label_enumeration
         # noinspection PyProtectedMember
-        action_comment = (
-            f"Created by task id: {task.id}"
-            if not base_model_id
-            else f"Overwritten by task id: {task.id}"
-        )
+        action_comment = f"Created by task id: {task.id}" if not base_model_id else f"Overwritten by task id: {task.id}"
         self._floating_data = create_dummy_model(
             design=_Model._wrap_design(config_text),
             labels=label_enumeration or task.get_labels_enumeration(),
             name=name or self._task.name,
             tags=tags,
-            comment=(
-                f"{action_comment}\n{comment}"
-                if comment
-                else action_comment
-            ),
+            comment=(f"{action_comment}\n{comment}" if comment else action_comment),
             framework=framework,
             upload_storage_uri=task.output_uri,
         )
@@ -2365,8 +2357,7 @@ class OutputModel(BaseModel):
 
         if (not weights_filename and not register_uri) or (weights_filename and register_uri):
             raise ValueError(
-                "Model update must have either local weights file to upload, "
-                "or pre-uploaded register_uri, never both"
+                "Model update must have either local weights file to upload, or pre-uploaded register_uri, never both"
             )
 
         # only upload if we are connected to a task
@@ -2443,11 +2434,7 @@ class OutputModel(BaseModel):
         iteration_msg = f"snapshot {weights_filename or register_uri} stored"
         line_break = "" if (self.comment or "").startswith("\n") else "\n"
         comment = (
-            (
-                f"{iteration_msg}{line_break}{self.comment}"
-                if self.comment
-                else f"{iteration_msg}{line_break}"
-            )
+            (f"{iteration_msg}{line_break}{self.comment}" if self.comment else f"{iteration_msg}{line_break}")
             if update_comment
             else None
         )
@@ -2574,11 +2561,7 @@ class OutputModel(BaseModel):
         # and now we should upload the file, always delete the temporary zip file
         iteration_msg = f"snapshot {weights_filenames} stored"
         line_break = "" if (self.comment or "").startswith("\n") else "\n"
-        self.comment = (
-            f"{iteration_msg}{line_break}{self.comment}"
-            if self.comment
-            else f"{iteration_msg}{line_break}"
-        )
+        self.comment = f"{iteration_msg}{line_break}{self.comment}" if self.comment else f"{iteration_msg}{line_break}"
         uploaded_uri = self.update_weights(
             weights_filename=zip_file,
             auto_delete_file=True,
@@ -2711,8 +2694,7 @@ class OutputModel(BaseModel):
     ) -> str:
         if (not weights_filename and not register_uri) or (weights_filename and register_uri):
             raise ValueError(
-                "Model update must have either local weights file to upload, "
-                "or pre-uploaded register_uri, never both"
+                "Model update must have either local weights file to upload, or pre-uploaded register_uri, never both"
             )
         if not self._task:
             raise Exception("Missing a task for this model")

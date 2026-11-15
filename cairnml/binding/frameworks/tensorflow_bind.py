@@ -1200,7 +1200,7 @@ class PatchSummaryToEventTransformer:
             self.cairnml = EventTrainsWriter(
                 PatchSummaryToEventTransformer._current_task.get_logger(),
                 logdir=logdir,
-                **PatchSummaryToEventTransformer.defaults_dict
+                **PatchSummaryToEventTransformer.defaults_dict,
             )
         # noinspection PyBroadException
         try:
@@ -1222,7 +1222,7 @@ class PatchSummaryToEventTransformer:
             self.cairnml = EventTrainsWriter(
                 PatchSummaryToEventTransformer._current_task.get_logger(),
                 logdir=logdir,
-                **PatchSummaryToEventTransformer.defaults_dict
+                **PatchSummaryToEventTransformer.defaults_dict,
             )
         # noinspection PyBroadException
         try:
@@ -1563,7 +1563,7 @@ class PatchTensorFlowEager:
             PatchTensorFlowEager.__trains_event_writer[id(writer)] = EventTrainsWriter(
                 logger=PatchTensorFlowEager._current_task.get_logger(),
                 logdir=logdir,
-                **PatchTensorFlowEager.defaults_dict
+                **PatchTensorFlowEager.defaults_dict,
             )
         return PatchTensorFlowEager.__trains_event_writer[id(writer)]
 
@@ -1583,7 +1583,7 @@ class PatchTensorFlowEager:
         tag: Any,
         summary_metadata: Any,
         name: Optional[str] = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> Any:
         if not PatchTensorFlowEager._current_task:
             return PatchTensorFlowEager.__original_fn_write_summary(
@@ -1730,7 +1730,7 @@ class PatchTensorFlowEager:
         bad_color: Any,
         max_images: Any,
         name: Any,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> Any:
         if not PatchTensorFlowEager._current_task:
             return PatchTensorFlowEager.__original_fn_image(
@@ -1754,7 +1754,7 @@ class PatchTensorFlowEager:
                 a_bad_color: Any,
                 a_max_images: Any,
                 a_name: Optional[str] = None,
-                **_: Any
+                **_: Any,
             ) -> None:
                 if isinstance(a_step, int) or hasattr(a_step, "numpy"):
                     try:
@@ -2138,7 +2138,6 @@ class PatchKerasModelIO:
         else:
             filepath = kwargs["filepath"] if "filepath" in kwargs else args[0]
 
-
         # try to load the files, if something happened exception will be raised before we register the file
         model = original_fn(self, *args, **kwargs)
         # register/load model weights
@@ -2416,7 +2415,6 @@ class PatchTensorflowModelIO:
         if PatchTensorflowModelIO._current_task is None:
             return original_fn(self, sess, save_path, *args, **kwargs)
 
-
         # load model, if something is wrong, exception will be raised before we register the input model
         model = original_fn(self, sess, save_path, *args, **kwargs)
         # register/load model weights
@@ -2432,7 +2430,7 @@ class PatchTensorflowModelIO:
         tags: Optional[Union[str, Iterable[str]]] = None,
         export_dir: Optional[str] = None,
         *args: Any,
-        **saver_kwargs: Any
+        **saver_kwargs: Any,
     ) -> Any:
         if PatchTensorflowModelIO._current_task is None:
             return original_fn(sess, tags, export_dir, *args, **saver_kwargs)
@@ -2625,7 +2623,6 @@ class PatchTensorflow2ModelIO:
     def _restore(original_fn: Callable, self: Any, save_path: str, *args: Any, **kwargs: Any) -> Any:
         if not PatchTensorflow2ModelIO._current_task:
             return original_fn(self, save_path, *args, **kwargs)
-
 
         # load model, if something is wrong, exception will be raised before we register the input model
         model = original_fn(self, save_path, *args, **kwargs)

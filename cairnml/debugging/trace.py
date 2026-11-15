@@ -45,9 +45,7 @@ def _log_stderr(name: str, fnc: callable, args: tuple, kwargs: dict, is_return: 
         h = int(__thread_id())
         ts = time.time() - __trace_start
         prefix = "-" if is_return else ""
-        __stream_write(
-            f"{prefix}{ts:<9.3f}:{os.getpid():5}:{h:8x}: [{threading.current_thread().name}] {t}\n"
-        )
+        __stream_write(f"{prefix}{ts:<9.3f}:{os.getpid():5}:{h:8x}: [{threading.current_thread().name}] {t}\n")
         if __stream_flush:
             __stream_flush()
     except Exception:
@@ -410,7 +408,7 @@ def debug_print(*args: Any, **kwargs: Any) -> None:
         f"\033[1;33m[pid={os.getpid()}, t={time.time() - tic:.04f}] "
         + str(args[0] if len(args) == 1 else ("" if not args else args))
         + "\033[0m",
-        **kwargs
+        **kwargs,
     )
     tic = time.time()
 

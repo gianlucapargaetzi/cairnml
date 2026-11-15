@@ -28,8 +28,18 @@ except ImportError:  # Windows: no cross-process locks, eviction then only runs 
 READY = ".ready"
 LAST_USED = ".last_used"
 
-_UNITS = {"": 1, "B": 1, "K": 1024, "KB": 1024, "M": 1024**2, "MB": 1024**2, "G": 1024**3, "GB": 1024**3,
-          "T": 1024**4, "TB": 1024**4}
+_UNITS = {
+    "": 1,
+    "B": 1,
+    "K": 1024,
+    "KB": 1024,
+    "M": 1024**2,
+    "MB": 1024**2,
+    "G": 1024**3,
+    "GB": 1024**3,
+    "T": 1024**4,
+    "TB": 1024**4,
+}
 
 
 def parse_size(value: Union[str, int, float]) -> int:
@@ -188,8 +198,11 @@ class DatasetCache:
                 key=lambda c: (c / LAST_USED).stat().st_mtime if (c / LAST_USED).exists() else 0,
             )
             for checkout in candidates:
-                lock = _lock(self.root / "locks" / f"use-{checkout.parent.name}-{checkout.name}.lock",
-                             exclusive=True, blocking=False)
+                lock = _lock(
+                    self.root / "locks" / f"use-{checkout.parent.name}-{checkout.name}.lock",
+                    exclusive=True,
+                    blocking=False,
+                )
                 if lock is None:  # in use
                     continue
                 try:

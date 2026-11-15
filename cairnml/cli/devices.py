@@ -6,6 +6,7 @@
 Both sign in with this machine's device key, so the machine must be enrolled (cairnml init). An admin sees every
 device; anyone else sees their own. Revoking asks for confirmation unless --yes is given.
 """
+
 import argparse
 import os
 import sys
@@ -40,8 +41,10 @@ def _state(device: dict) -> str:
 
 def _print_table(devices: list) -> None:
     rows = [("ID", "NAME", "OWNER", "LAST SEEN", "STATE")]
-    rows += [(d.get("id", ""), d.get("name") or "-", d.get("user", ""), d.get("last_used") or "never",
-              _state(d)) for d in devices]
+    rows += [
+        (d.get("id", ""), d.get("name") or "-", d.get("user", ""), d.get("last_used") or "never", _state(d))
+        for d in devices
+    ]
     widths = [max(len(row[i]) for row in rows) for i in range(len(rows[0]))]
     for row in rows:
         print("  ".join(cell.ljust(width) for cell, width in zip(row, widths)).rstrip())
@@ -56,8 +59,9 @@ def _enrolment(args) -> tuple:
 
 
 def list_main(argv) -> int:
-    parser = argparse.ArgumentParser(prog="cairnml devices list",
-                                     description="List the devices enrolled under your sign-in.")
+    parser = argparse.ArgumentParser(
+        prog="cairnml devices list", description="List the devices enrolled under your sign-in."
+    )
     _config_arg(parser)
     args = parser.parse_args(argv)
     server, device = _enrolment(args)
@@ -76,8 +80,9 @@ def list_main(argv) -> int:
 
 
 def revoke_main(argv) -> int:
-    parser = argparse.ArgumentParser(prog="cairnml devices revoke",
-                                     description="Revoke an enrolled device: its key stops working at once.")
+    parser = argparse.ArgumentParser(
+        prog="cairnml devices revoke", description="Revoke an enrolled device: its key stops working at once."
+    )
     parser.add_argument("id", help="the device id, from cairnml devices list")
     parser.add_argument("--yes", "-y", action="store_true", help="revoke without asking for confirmation")
     _config_arg(parser)
@@ -108,10 +113,12 @@ SUBCOMMANDS = {"list": list_main, "revoke": revoke_main}
 def devices_main(argv=None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
     if not args or args[0] in ("-h", "--help"):
-        print("usage: cairnml devices <list|revoke> [arguments]\n\n"
-              "  list           list the devices enrolled under your sign-in\n"
-              "  revoke <id>    revoke an enrolled device (asks first; --yes skips the question)\n\n"
-              "Run 'cairnml devices <subcommand> --help' for the arguments.")
+        print(
+            "usage: cairnml devices <list|revoke> [arguments]\n\n"
+            "  list           list the devices enrolled under your sign-in\n"
+            "  revoke <id>    revoke an enrolled device (asks first; --yes skips the question)\n\n"
+            "Run 'cairnml devices <subcommand> --help' for the arguments."
+        )
         return 0 if args else 2
     name = args[0]
     if name not in SUBCOMMANDS:

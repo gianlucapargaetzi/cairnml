@@ -1,4 +1,5 @@
-""" Logging convenience functions and wrappers """
+"""Logging convenience functions and wrappers"""
+
 import argparse
 import inspect
 import logging

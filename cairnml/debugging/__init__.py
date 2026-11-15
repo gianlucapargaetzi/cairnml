@@ -1,4 +1,5 @@
-""" Debugging module """
+"""Debugging module"""
+
 from .log import (
     get_logger,
     get_null_logger,

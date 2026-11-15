@@ -5438,7 +5438,7 @@ class PipelineDecorator(PipelineController):
                 _node.parameters[f"{CreateFromFunction.kwargs_section}/{key}"] = value
             else:
                 # we need to create an artifact
-                sanitized_node_name = re.sub(r'\W+', '', _node.name)  # Removes any non-[a-zA-Z0-9_] character
+                sanitized_node_name = re.sub(r"\W+", "", _node.name)  # Removes any non-[a-zA-Z0-9_] character
                 artifact_name = f"result_{sanitized_node_name}_{key}"
                 cls._singleton._upload_pipeline_artifact(artifact_name=artifact_name, artifact_object=value)
                 _node.parameters[f"{CreateFromFunction.input_artifact_section}/{key}"] = (

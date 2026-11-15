@@ -1,4 +1,5 @@
-""" Convenience classes supporting python3-like concepts """
+"""Convenience classes supporting python3-like concepts"""
+
 from abc import ABC, abstractmethod
 from types import TracebackType
 from typing import Optional, Type

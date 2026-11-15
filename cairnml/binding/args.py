@@ -1,4 +1,5 @@
-""" Argparse utilities"""
+"""Argparse utilities"""
+
 import argparse
 import sys
 import warnings

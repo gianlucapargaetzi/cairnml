@@ -1,4 +1,5 @@
-""" absl-py FLAGS binding utility functions """
+"""absl-py FLAGS binding utility functions"""
+
 from typing import Any
 
 from ..backend_interface.task.args import _Arguments

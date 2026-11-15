@@ -434,6 +434,7 @@ class Service(ABC):
     """
     Superclass for action-grouping classes.
     """
+
     def __init__(self, session: Session) -> None:
         self.session = session
 

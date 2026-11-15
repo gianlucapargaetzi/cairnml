@@ -116,9 +116,7 @@ class PatchXGBoostModelIO(PatchBaseModelIO):
         empty = _Empty()
         # try to load model before registering, in case we fail
         model = original_fn(f, *args, **kwargs)
-        WeightsFileHandler.restore_weights_file(
-            empty, filename, Framework.xgboost, PatchXGBoostModelIO._current_task
-        )
+        WeightsFileHandler.restore_weights_file(empty, filename, Framework.xgboost, PatchXGBoostModelIO._current_task)
 
         if empty.trains_in_model:
             # noinspection PyBroadException

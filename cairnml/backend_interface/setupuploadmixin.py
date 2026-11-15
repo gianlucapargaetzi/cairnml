@@ -157,9 +157,7 @@ class SetupUploadMixin:
             etc.) instead of an account key. Requires the ``azure-identity`` package.
         """
         if not account_key and not use_default_credential:
-            raise ValueError(
-                "setup_azure_upload requires either 'account_key' or 'use_default_credential=True'"
-            )
+            raise ValueError("setup_azure_upload requires either 'account_key' or 'use_default_credential=True'")
         self._bucket_config = AzureContainerConfig(  # noqa
             account_name=account_name,
             account_key=account_key,

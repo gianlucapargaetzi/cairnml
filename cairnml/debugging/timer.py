@@ -1,4 +1,5 @@
-""" Timing support """
+"""Timing support"""
+
 import time
 from typing import Callable, Optional, Dict, List, Any
 

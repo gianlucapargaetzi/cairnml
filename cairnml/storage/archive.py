@@ -17,7 +17,7 @@ def extract_zip_archive(
     :param str archive_path: The path to the .zip archive file.
     :param str target: The location in the filesystem where the contents of the .zip archive should be extracted.
     """
-    with ZipFile(file=archive_path, mode='r') as zip_file:
+    with ZipFile(file=archive_path, mode="r") as zip_file:
         base_directory = os.path.abspath(target)
         for file_path in zip_file.namelist():
             flag_path_traversal_vulnerability(
@@ -74,20 +74,24 @@ def flag_path_traversal_vulnerability(
     """
     Raises a ValueError if the target_file_path is not contained within the target_folder.
     """
-    extraction_file_absolute_path = os.path.abspath(os.path.join(
-        target_folder,
-        target_file_path,
-    ))
+    extraction_file_absolute_path = os.path.abspath(
+        os.path.join(
+            target_folder,
+            target_file_path,
+        )
+    )
     if not is_within_directory(
         target_folder,
         extraction_file_absolute_path,
     ):
         raise ValueError(
-            "\n".join([
-                "Path traversal detected!",
-                f"Target folder: '{target_folder}'",
-                f"Target path: '{target_file_path}'",
-            ])
+            "\n".join(
+                [
+                    "Path traversal detected!",
+                    f"Target folder: '{target_folder}'",
+                    f"Target path: '{target_file_path}'",
+                ]
+            )
         )
 
 
@@ -99,17 +103,21 @@ def flag_symlink_escape_vulnerability(
     """
     Raises a ValueError if the symlink_target points outside of the target_folder.
     """
-    extraction_link_absolute_path = os.path.abspath(os.path.join(
-        target_folder,
-        symlink_target,
-    ))
+    extraction_link_absolute_path = os.path.abspath(
+        os.path.join(
+            target_folder,
+            symlink_target,
+        )
+    )
     if not is_within_directory(
         target_folder,
         extraction_link_absolute_path,
     ):
         raise ValueError(
-            "\n".join([
-                f"Link target escapes target_folder '{target_folder}': ",
-                f"{target_file_path} -> {symlink_target}",
-            ])
+            "\n".join(
+                [
+                    f"Link target escapes target_folder '{target_folder}': ",
+                    f"{target_file_path} -> {symlink_target}",
+                ]
+            )
         )

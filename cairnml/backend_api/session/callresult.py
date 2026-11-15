@@ -180,9 +180,7 @@ class CallResult:
                         if timeout is False
                         else f"{remaining:.1f}/{float(timeout or 0):.1f} seconds remaining"
                     )
-                    session._logger.info(
-                        f"Waiting for asynchronous call {self.request_cls.__name__} ({progress})"
-                    )
+                    session._logger.info(f"Waiting for asynchronous call {self.request_cls.__name__} ({progress})")
                 time.sleep(poll_interval)
                 remaining -= poll_interval
                 continue

@@ -246,7 +246,7 @@ def flatten_dictionary(a_dict: dict, prefix: str = "", sep: str = "/") -> dict:
         k = str(k)
         if isinstance(v, (float, int, bool, str)):
             flat_dict[prefix + k] = v
-        elif isinstance(v, (list, tuple)) and all([isinstance(i,  (float, int, bool, str)) for i in v]):
+        elif isinstance(v, (list, tuple)) and all([isinstance(i, (float, int, bool, str)) for i in v]):
             flat_dict[prefix + k] = v
         elif isinstance(v, dict):
             nested_flat_dict = flatten_dictionary(v, prefix=prefix + k + sep, sep=sep)
@@ -267,7 +267,7 @@ def nested_from_flat_dictionary(a_dict: dict, flat_dict: dict, prefix: str = "",
         k = str(k)
         if isinstance(v, (float, int, bool, str)):
             a_dict[k] = flat_dict.get(prefix + k, v)
-        elif isinstance(v, (list, tuple)) and all([isinstance(i,  (float, int, bool, str)) for i in v]):
+        elif isinstance(v, (list, tuple)) and all([isinstance(i, (float, int, bool, str)) for i in v]):
             a_dict[k] = flat_dict.get(prefix + k, v)
         elif isinstance(v, dict):
             a_dict[k] = nested_from_flat_dictionary(v, flat_dict, prefix=prefix + k + sep, sep=sep) or v

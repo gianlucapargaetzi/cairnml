@@ -1,4 +1,5 @@
-""" Backend task management support """
+"""Backend task management support"""
+
 import itertools
 import json
 import logging
@@ -340,7 +341,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
                         requirements, conda_requirements = pip_freeze(
                             combine_conda_with_pip=config.get("development.detect_with_conda_freeze", True)
                         )
-                    python_version = sys.version.replace('\n', ' ').replace('\r', ' ')
+                    python_version = sys.version.replace("\n", " ").replace("\r", " ")
                     requirements = f"# Python {python_version}\n\n{requirements}"
                 else:
                     (
@@ -1637,8 +1638,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
             # backwards compatibility
             container = self._get_task_property("container", raise_on_error=False, log_on_error=False, default={})
             return (
-                container.get("image", "")
-                + (f" {container['arguments']}" if container.get("arguments", "") else "")
+                container.get("image", "") + (f" {container['arguments']}" if container.get("arguments", "") else "")
             ) or None
         else:
             return self._get_task_property("execution.docker_cmd", raise_on_error=False, log_on_error=False)
@@ -1908,11 +1908,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         Get the current Task's project name.
         """
         if self.project is not None:
-            if (
-                self._project_name
-                and self._project_name[0] == self.project
-                and self._project_name[1] is not None
-            ):
+            if self._project_name and self._project_name[0] == self.project and self._project_name[1] is not None:
                 return self._project_name[1]
             else:
                 res = self.send(
@@ -1922,11 +1918,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
                     raise_on_errors=False,
                 )
 
-                if (
-                    res
-                    and res.response
-                    and res.response.project
-                ):
+                if res and res.response and res.response.project:
                     self._project_name = (
                         self.project,
                         res.response.project.name,
@@ -1936,14 +1928,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
                 else:
                     return None
         else:
-            return (
-                self._project_name[1]
-                if (
-                    self._project_name
-                    and len(self._project_name) >= 2
-                )
-                else None
-            )
+            return self._project_name[1] if (self._project_name and len(self._project_name) >= 2) else None
 
     def get_project_object(self) -> "projects.Project":
         """Get the current Task's project as a python object."""
@@ -2828,7 +2813,8 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
             ):
                 # the exception being name/comment that we can always change.
                 if kwargs and all(
-                    k in ("name", "display_name", "project", "comment", "tags", "system_tags", "runtime") for k in kwargs.keys()
+                    k in ("name", "display_name", "project", "comment", "tags", "system_tags", "runtime")
+                    for k in kwargs.keys()
                 ):
                     pass
                 else:

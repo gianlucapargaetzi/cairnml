@@ -138,7 +138,9 @@ def enrol(
         if state is True:
             raise EnrolmentFailed(f"this machine is already enrolled with {server_url}; use --force to enroll again")
         if state is None:
-            raise EnrolmentFailed(f"cannot check the existing enrolment: {server_url} did not answer; try again, or use --force")
+            raise EnrolmentFailed(
+                f"cannot check the existing enrolment: {server_url} did not answer; try again, or use --force"
+            )
         # False: the server does not accept this device, so the enrolment is stale. Enrol again.
 
     if force and previous_device_id and key_path.exists():
@@ -146,8 +148,10 @@ def enrol(
             revoke_device(server_url, previous_device_id, key_path=key_path, http=http)
             out(f"revoked the previous device {previous_device_id}")
         except EnrolmentFailed as exc:
-            out(f"warning: the previous device could not be revoked ({exc}); revoke it later with "
-                f"'cairnml devices revoke {previous_device_id}' or in the web app under Settings > Devices")
+            out(
+                f"warning: the previous device could not be revoked ({exc}); revoke it later with "
+                f"'cairnml devices revoke {previous_device_id}' or in the web app under Settings > Devices"
+            )
 
     token = login(settings["issuer"], settings["sdk_client_id"], out=out)
     user = jwt.decode(token, options={"verify_signature": False}).get("preferred_username", "")

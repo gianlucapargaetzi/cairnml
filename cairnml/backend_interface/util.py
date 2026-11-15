@@ -112,11 +112,7 @@ def _get_or_create_project(
         res = session.send(
             projects.GetAllRequest(
                 name=exact_match_regex(project_name),
-                only_fields=(
-                    ["id", "system_tags"]
-                    if system_tags
-                    else ["id"]
-                ),
+                only_fields=(["id", "system_tags"] if system_tags else ["id"]),
                 search_hidden=True,
                 _allow_extra_fields_=True,
             )
@@ -126,18 +122,18 @@ def _get_or_create_project(
             if system_tags:
                 project_system_tags = res.response.projects[0].system_tags
 
-    if (
-        project_id
-        and system_tags
-        and not set(system_tags).issubset(project_system_tags or [])
-    ):
+    if project_id and system_tags and not set(system_tags).issubset(project_system_tags or []):
         session.send(
             projects.UpdateRequest(
                 project=project_id,
-                system_tags=list(set((
-                    *(project_system_tags or []),
-                    *system_tags,
-                ))),
+                system_tags=list(
+                    set(
+                        (
+                            *(project_system_tags or []),
+                            *system_tags,
+                        )
+                    )
+                ),
             )
         )
 
@@ -151,11 +147,7 @@ def _get_or_create_project(
                 system_tags=system_tags,
             )
         )
-        return (
-            res.response.id
-            if res
-            else None
-        )
+        return res.response.id if res else None
 
 
 def get_queue_id(session: Any, queue: str) -> Optional[str]:

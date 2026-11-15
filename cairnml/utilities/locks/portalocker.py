@@ -73,7 +73,9 @@ if os.name == "nt":  # pragma: no cover
                     if savepos:
                         file_.seek(savepos)
             except IOError as exc_value:
-                raise exceptions.LockException(exceptions.LockException.LOCK_FAILED, exc_value.strerror, fh=file_) from exc_value
+                raise exceptions.LockException(
+                    exceptions.LockException.LOCK_FAILED, exc_value.strerror, fh=file_
+                ) from exc_value
 
     def unlock(file_: Any) -> None:
         try:
@@ -114,7 +116,9 @@ if os.name == "nt":  # pragma: no cover
                 if savepos:
                     file_.seek(savepos)
         except IOError as exc_value:
-            raise exceptions.LockException(exceptions.LockException.LOCK_FAILED, exc_value.strerror, fh=file_) from exc_value
+            raise exceptions.LockException(
+                exceptions.LockException.LOCK_FAILED, exc_value.strerror, fh=file_
+            ) from exc_value
 
 elif os.name == "posix":  # pragma: no cover
     import fcntl

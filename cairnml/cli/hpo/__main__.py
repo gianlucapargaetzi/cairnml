@@ -43,8 +43,7 @@ def setup_parser(parser: ArgumentParser) -> None:
         "--task-name",
         type=str,
         default=None,
-        help="The name of the task. "
-        "If task_name is None, the Python script's file name is used.",
+        help="The name of the task. If task_name is None, the Python script's file name is used.",
     )
     group.add_argument(
         "--task-id",
@@ -327,7 +326,7 @@ def cli() -> None:
         objective_metric_sign=args.objective_metric_sign,
         optimizer_class=eval_optimizer_class(args.optimizer_class),
         save_top_k_tasks_only=args.save_top_k_tasks_only,
-        **build_opt_kwargs(args)
+        **build_opt_kwargs(args),
     )
 
     # make sure we sample every 30sec

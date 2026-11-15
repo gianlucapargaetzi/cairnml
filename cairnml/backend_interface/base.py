@@ -56,7 +56,9 @@ class InterfaceBase(SessionInterface):
         try:
             log.setLevel(LOG_LEVEL_ENV_VAR.get(default=log.level))
         except TypeError as ex:
-            raise ValueError("Invalid log level defined in environment variable `%s`: %s" % (LOG_LEVEL_ENV_VAR, ex)) from ex
+            raise ValueError(
+                "Invalid log level defined in environment variable `%s`: %s" % (LOG_LEVEL_ENV_VAR, ex)
+            ) from ex
         return log
 
     @classmethod

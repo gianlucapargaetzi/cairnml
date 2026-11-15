@@ -33,7 +33,7 @@ def initialize(
                 args: tuple,
                 exc_info: Optional[Union[bool, Tuple[Type[BaseException], BaseException, TracebackType]]] = None,
                 extra: Optional[dict] = None,
-                **kwargs: Any
+                **kwargs: Any,
             ) -> None:
                 extra = extra or {}
                 extra.update(self.__extra)

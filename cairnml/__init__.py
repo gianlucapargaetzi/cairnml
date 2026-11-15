@@ -1,4 +1,5 @@
-""" CairnML open SDK """
+"""CairnML open SDK"""
+
 from .version import __version__
 from .task import Task
 from .model import InputModel, OutputModel, Model

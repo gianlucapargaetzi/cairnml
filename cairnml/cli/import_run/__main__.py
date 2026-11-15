@@ -10,6 +10,7 @@ success and on failure.
 
 The run is uploaded and imported with the CairnML web app (Import run) or the imports API.
 """
+
 import argparse
 import re
 import shutil
@@ -50,13 +51,19 @@ def find_train_script(start: Path) -> Optional[Path]:
     return None
 
 
-def manifest_for(run_dir: Path, project: str = "", task: str = "", comment: str = "", tags: Optional[List[str]] = None) -> dict:
+def manifest_for(
+    run_dir: Path, project: str = "", task: str = "", comment: str = "", tags: Optional[List[str]] = None
+) -> dict:
     """The manifest fields the server accepts: format, project, task, comment and tags."""
     parsed = parse_run_name(run_dir.name)
-    details = [part for part in (
-        f"started {parsed['timestamp']}" if parsed["timestamp"] else "",
-        f"input {parsed['resolution']}" if parsed["resolution"] else "",
-    ) if part]
+    details = [
+        part
+        for part in (
+            f"started {parsed['timestamp']}" if parsed["timestamp"] else "",
+            f"input {parsed['resolution']}" if parsed["resolution"] else "",
+        )
+        if part
+    ]
     text = comment or ""
     if details:
         text = (text + " " if text else "") + f"({'; '.join(details)})"
@@ -89,8 +96,15 @@ def _files(run_dir: Path):
         yield path
 
 
-def prepare(run_dir: Path, output: Path, project: str = "", task: str = "", comment: str = "",
-            tags: Optional[List[str]] = None, force: bool = False) -> List[str]:
+def prepare(
+    run_dir: Path,
+    output: Path,
+    project: str = "",
+    task: str = "",
+    comment: str = "",
+    tags: Optional[List[str]] = None,
+    force: bool = False,
+) -> List[str]:
     """Writes the ZIP at output. Returns the warnings about what is still to fill in or missing."""
     run_dir = run_dir.resolve()
     if not run_dir.is_dir():
@@ -146,8 +160,9 @@ def main(argv=None) -> int:
     run_dir = args.run_dir.resolve()
     output = args.output or Path.cwd() / f"{run_dir.name}.zip"
     tags = [t.strip() for t in args.tags.split(",") if t.strip()]
-    warnings = prepare(run_dir, output, project=args.project, task=args.task, comment=args.comment,
-                       tags=tags, force=args.force)
+    warnings = prepare(
+        run_dir, output, project=args.project, task=args.task, comment=args.comment, tags=tags, force=args.force
+    )
     print(f"wrote {output}")
     for warning in warnings:
         print(f"warning: {warning}", file=sys.stderr)

@@ -15,6 +15,7 @@ The checks run in this order, each with the next step when it fails:
 A warning is printed as "warn" and does not change the exit status. The checks change nothing. The exit status is 0
 when no check fails, 1 otherwise.
 """
+
 import argparse
 import os
 import socket
@@ -71,11 +72,17 @@ def check_server(server: Optional[str], http=None) -> Check:
     try:
         settings = idp_enrol._settings(http or requests.Session(), server)
     except idp_enrol.EnrolmentFailed as exc:
-        return _fail("server", f"{server} refused the check ({exc})",
-                     "give the server address that cairnml init used, e.g. http://cairnml")
+        return _fail(
+            "server",
+            f"{server} refused the check ({exc})",
+            "give the server address that cairnml init used, e.g. http://cairnml",
+        )
     except requests.RequestException as exc:
-        return _fail("server", f"cannot reach {server} ({exc.__class__.__name__})",
-                     "check the address, that the server is running, and the port")
+        return _fail(
+            "server",
+            f"cannot reach {server} ({exc.__class__.__name__})",
+            "check the address, that the server is running, and the port",
+        )
     return Check("server", True, f"reachable at {server} (public address {settings.get('public_url', 'unknown')})")
 
 
@@ -87,13 +94,15 @@ def check_device_key(key_path: Path) -> Check:
     except PermissionError as exc:
         return _fail("device key", str(exc), f"chmod 600 {key_path}")
     except Exception as exc:  # the file is not a valid Ed25519 key
-        return _fail("device key", f"{key_path} cannot be read ({exc.__class__.__name__})",
-                     "cairnml init <server address> --force")
+        return _fail(
+            "device key",
+            f"{key_path} cannot be read ({exc.__class__.__name__})",
+            "cairnml init <server address> --force",
+        )
     return Check("device key", True, f"{key_path} is readable by its owner only")
 
 
-def check_sign_in(server: Optional[str], device: Optional[str], key_check: Check, key_path: Path,
-                  http=None) -> Check:
+def check_sign_in(server: Optional[str], device: Optional[str], key_check: Check, key_path: Path, http=None) -> Check:
     if not server:
         return Check("sign-in", None, "skipped: the configuration names no server")
     if not device:
@@ -103,13 +112,18 @@ def check_sign_in(server: Optional[str], device: Optional[str], key_check: Check
     try:
         user = idp_enrol.whoami(server, device, key_path=key_path, http=http or requests.Session())
     except idp_enrol.EnrolmentFailed as exc:
-        return _fail("sign-in", f"the server refused device {device} ({exc})",
-                     "cairnml init <server address> --force, to enrol this machine again")
+        return _fail(
+            "sign-in",
+            f"the server refused device {device} ({exc})",
+            "cairnml init <server address> --force, to enrol this machine again",
+        )
     except requests.RequestException as exc:
-        return _fail("sign-in", f"cannot reach {server} ({exc.__class__.__name__})",
-                     "fix the server check above first")
-    return Check("sign-in", True, f"signed in as {user.get('name', 'unknown')} ({user.get('role', 'unknown')}) "
-                                  f"with device {device}")
+        return _fail("sign-in", f"cannot reach {server} ({exc.__class__.__name__})", "fix the server check above first")
+    return Check(
+        "sign-in",
+        True,
+        f"signed in as {user.get('name', 'unknown')} ({user.get('role', 'unknown')}) with device {device}",
+    )
 
 
 def check_storage(server: Optional[str]) -> Check:
@@ -122,8 +136,11 @@ def check_storage(server: Optional[str]) -> Check:
     try:
         _open_port(host, STORAGE_PORT).close()
     except OSError as exc:
-        return _fail("storage", f"cannot open {host}:{STORAGE_PORT} to the object storage ({exc.__class__.__name__})",
-                     f"open port {STORAGE_PORT} on {host} in the firewall, then run the check again")
+        return _fail(
+            "storage",
+            f"cannot open {host}:{STORAGE_PORT} to the object storage ({exc.__class__.__name__})",
+            f"open port {STORAGE_PORT} on {host} in the firewall, then run the check again",
+        )
     return Check("storage", True, f"object storage accepts connections at {host}:{STORAGE_PORT}")
 
 
@@ -133,8 +150,12 @@ def check_version(server_check: Check, client) -> Check:
         return Check("version", None, "skipped: the server did not answer")
     notice = getattr(client, "upgrade", "")
     if notice:
-        return Check("version", True, f"SDK {__version__} is below the server's minimum: {notice} "
-                                      "- next: pip install -U cairnml", warning=True)
+        return Check(
+            "version",
+            True,
+            f"SDK {__version__} is below the server's minimum: {notice} - next: pip install -U cairnml",
+            warning=True,
+        )
     return Check("version", True, f"SDK {__version__} is at or above the server's minimum")
 
 
@@ -151,8 +172,11 @@ def check_queues(server: Optional[str], device: Optional[str], sign_in: Check, k
         queues = idp_enrol._call(session, base + "queues.get_all", {}, token=token).get("queues") or []
         workers = idp_enrol._call(session, base + "workers.get_all", {}, token=token).get("workers") or []
     except idp_enrol.EnrolmentFailed as exc:
-        return _fail("queues", f"the server refused the queue list ({exc})",
-                     "check that this user may see the queues in the web app")
+        return _fail(
+            "queues",
+            f"the server refused the queue list ({exc})",
+            "check that this user may see the queues in the web app",
+        )
     except requests.RequestException as exc:
         return _fail("queues", f"cannot reach {server} ({exc.__class__.__name__})", "fix the server check first")
     names = [q.get("name", "") for q in queues]
@@ -161,9 +185,13 @@ def check_queues(server: Optional[str], device: Optional[str], sign_in: Check, k
         return Check("queues", True, "the server has no queue yet", warning=True)
     unserved = [name for name in names if name not in listening]
     if unserved:
-        return Check("queues", True, f"no worker listens to {', '.join(unserved)} - next: run "
-                                     f"cairnml-agent daemon --queue <name> on a machine with Docker",
-                     warning=True)
+        return Check(
+            "queues",
+            True,
+            f"no worker listens to {', '.join(unserved)} - next: run "
+            f"cairnml-agent daemon --queue <name> on a machine with Docker",
+            warning=True,
+        )
     return Check("queues", True, f"{len(names)} queue(s), each with a listening worker")
 
 
@@ -181,11 +209,11 @@ def run_checks(conf: Path, key_path: Path = DEVICE_KEY_PATH, http=None) -> List[
 
 
 def doctor_main(argv=None) -> int:
-    parser = argparse.ArgumentParser(prog="cairnml doctor",
-                                     description="Check this machine's setup: configuration, server, sign-in, "
-                                                 "device key, object storage.")
-    parser.add_argument("--file", "-F", default=default_config_file(),
-                        help="configuration file (default: %(default)s)")
+    parser = argparse.ArgumentParser(
+        prog="cairnml doctor",
+        description="Check this machine's setup: configuration, server, sign-in, device key, object storage.",
+    )
+    parser.add_argument("--file", "-F", default=default_config_file(), help="configuration file (default: %(default)s)")
     args = parser.parse_args(argv)
     conf = Path(os.path.expanduser(args.file)).absolute()
     checks = run_checks(conf)

@@ -390,9 +390,7 @@ class Metrics(InterfaceBase):
                                             continue
                                         pre, post = image["source"].split(task_id_sep, 1)
                                         pre = os.sep.join(pre.split(os.sep)[-2:])
-                                        debug_sample = (Path(folder) / "data").joinpath(
-                                            pre + f".{org_task_id}", post
-                                        )
+                                        debug_sample = (Path(folder) / "data").joinpath(pre + f".{org_task_id}", post)
                                         image["source"] = "/".join(
                                             [
                                                 remote_url,

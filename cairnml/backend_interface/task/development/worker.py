@@ -117,9 +117,7 @@ class DevWorker:
     def _launch_abort_cb(self) -> None:
         timeout = self._abort_cb_timeout or 300.0
         if self._task and self._task.log:
-            self._task.log.warning(
-                f"### TASK STOPPING - USER ABORTED - LAUNCHING CALLBACK (timeout {timeout} sec) ###"
-            )
+            self._task.log.warning(f"### TASK STOPPING - USER ABORTED - LAUNCHING CALLBACK (timeout {timeout} sec) ###")
 
         tic = time()
         timed_out = False
@@ -136,13 +134,7 @@ class DevWorker:
             pass
 
         if self._task and self._task.log:
-            callback_status = (
-                "TIMED OUT"
-                if timed_out
-                else "COMPLETED"
-                if self._cb_completed
-                else "FAILED"
-            )
+            callback_status = "TIMED OUT" if timed_out else "COMPLETED" if self._cb_completed else "FAILED"
             time_elapsed = time() - tic
             self._task.log.warning(
                 f"### TASK STOPPING - USER ABORTED - CALLBACK {callback_status} ({time_elapsed:.2f} sec) ###"
