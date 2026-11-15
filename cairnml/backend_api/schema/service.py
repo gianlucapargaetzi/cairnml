@@ -4,7 +4,7 @@ from typing import Dict, Set, Any
 
 import attr
 
-from ...utilities.pyhocon import ConfigTree
+from pyhocon import ConfigTree
 from .action import Action
 
 
@@ -86,7 +86,7 @@ class Service:
             except (ValueError, TypeError) as ex:
                 raise ValueError(
                     f"Failed parsing version number {action_version} ({ex.args[0]}) in {self.name}/{action_name}"
-                )
+                ) from ex
 
         def add_internal(cfg: dict) -> dict:
             if "internal" in action_versions:
@@ -161,7 +161,7 @@ class Service:
                     self._resolve_schema_references(schema, refs=refs)
                     definitions_keys.update(refs)
                 except ValueError as ex:
-                    raise ValueError(f"{ex} in {self.name}.{action_name}/{action_version:.1f}/{schema_key}")
+                    raise ValueError(f"{ex} in {self.name}.{action_name}/{action_version:.1f}/{schema_key}") from ex
 
         return Action(
             name=action_name,
