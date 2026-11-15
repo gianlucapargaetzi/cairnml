@@ -15,6 +15,11 @@ def test_the_update_check_module_is_gone():
     assert importlib.util.find_spec("cairnml_agent.helper.check_update") is None
 
 
+def test_the_managed_mode_scheduler_package_is_gone():
+    assert importlib.util.find_spec("cairnml_agent." + "scheduler") is None
+    assert not (ROOT / "tests" / "scheduler").exists()
+
+
 def test_nothing_in_the_package_names_the_update_service():
     offenders = [
         str(path.relative_to(ROOT))
