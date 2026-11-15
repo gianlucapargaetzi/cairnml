@@ -13,7 +13,6 @@ from ..frameworks import (
 )
 from ..import_bind import PostImportHookPatching
 from ...binding.frameworks.base_bind import PatchBaseModelIO
-from ...config import running_remotely
 from ...model import Framework
 
 
@@ -285,9 +284,7 @@ class PatchPyTorchModelIO(PatchBaseModelIO):
         empty = _Empty()
         # try to load model before registering, in case we fail
         model = original_fn(f, *args, **kwargs)
-        WeightsFileHandler.restore_weights_file(
-            empty, filename, Framework.pytorch, PatchPyTorchModelIO._current_task
-        )
+        WeightsFileHandler.restore_weights_file(empty, filename, Framework.pytorch, PatchPyTorchModelIO._current_task)
 
         if empty.trains_in_model:
             # noinspection PyBroadException
@@ -321,9 +318,7 @@ class PatchPyTorchModelIO(PatchBaseModelIO):
         empty = _Empty()
         # try to load model before registering, in case we fail
         model = original_fn(obj, f, *args, **kwargs)
-        WeightsFileHandler.restore_weights_file(
-            empty, filename, Framework.pytorch, PatchPyTorchModelIO._current_task
-        )
+        WeightsFileHandler.restore_weights_file(empty, filename, Framework.pytorch, PatchPyTorchModelIO._current_task)
 
         if empty.trains_in_model:
             # noinspection PyBroadException

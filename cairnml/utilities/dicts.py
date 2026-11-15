@@ -1,4 +1,5 @@
-""" Utilities """
+"""Utilities"""
+
 from typing import Optional, Any
 
 _epsilon = 0.00001
@@ -6,6 +7,7 @@ _epsilon = 0.00001
 
 class ReadOnlyDict(dict):
     """A read-only dictionary that can only be accessed via its keys."""
+
     def __readonly__(self, *args: Any, **kwargs: Any) -> None:
         raise ValueError("This is a read only dictionary")
 
@@ -143,7 +145,7 @@ def merge_dicts(dict1: dict, dict2: dict) -> dict:
 
 
 def hocon_quote_key(a_obj: Any) -> Any:
-    """Recursively quote key with '.' to \"key\" """
+    """Recursively quote key with '.' to \"key\""""
     if isinstance(a_obj, list):
         return [hocon_quote_key(a) for a in a_obj]
     elif isinstance(a_obj, tuple):

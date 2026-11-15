@@ -3,8 +3,12 @@ from typing import Optional
 from ...backend_config import EnvEntry
 from ...backend_config.converters import safe_text_to_bool
 
-ENV_HOST = EnvEntry("CAIRNML_API_HOST", )
-ENV_WEB_HOST = EnvEntry("CAIRNML_WEB_HOST", )
+ENV_HOST = EnvEntry(
+    "CAIRNML_API_HOST",
+)
+ENV_WEB_HOST = EnvEntry(
+    "CAIRNML_WEB_HOST",
+)
 ENV_AUTH_TOKEN = EnvEntry("CAIRNML_AUTH_TOKEN")
 # Set by the agent for one job: the token is used as it is and is never exchanged for another.
 ENV_JOB_TOKEN = EnvEntry("CAIRNML_JOB_TOKEN")

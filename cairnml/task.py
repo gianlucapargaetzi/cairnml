@@ -837,9 +837,7 @@ class Task(_Task):
 
             if auto_resource_monitoring and not is_sub_process_task_id:
                 resource_monitor_cls = (
-                    auto_resource_monitoring
-                    if isinstance(auto_resource_monitoring, type)
-                    else ResourceMonitor
+                    auto_resource_monitoring if isinstance(auto_resource_monitoring, type) else ResourceMonitor
                 )
                 resource_monitor_kwargs = dict(
                     report_mem_used_per_process=not config.get("development.worker.report_global_mem_used", False),
@@ -967,8 +965,8 @@ class Task(_Task):
         """
         try:
             from .router.router import HttpRouter  # noqa
-        except ImportError:
-            raise UsageError("Could not import `HttpRouter`. Please run `pip install cairnml[router]`")
+        except ImportError as err:
+            raise UsageError("Could not import `HttpRouter`. Please run `pip install cairnml[router]`") from err
 
         if self._http_router is None:
             self._http_router = HttpRouter(self)
@@ -976,11 +974,7 @@ class Task(_Task):
 
     @staticmethod
     def _compose_runtime_key(base_key: str, suffix: Optional[str]) -> str:
-        return (
-            f"{base_key}__{suffix}"
-            if suffix
-            else base_key
-        )
+        return f"{base_key}__{suffix}" if suffix else base_key
 
     def _collect_endpoint_suffixes(self, protocol: str, runtime_props: Mapping[str, Any]) -> Dict[str, Any]:
         port_key = self._external_endpoint_port_map[protocol]
@@ -1075,11 +1069,7 @@ class Task(_Task):
             if out_port:
                 port = out_port
 
-        runtime_key_suffix = (
-            resolved_suffix
-            if resolved_suffix != DEFAULT_ENDPOINT_NAME
-            else None
-        )
+        runtime_key_suffix = resolved_suffix if resolved_suffix != DEFAULT_ENDPOINT_NAME else None
         runtime_properties_to_set: Dict[str, Union[str, int]] = {
             self._compose_runtime_key("_SERVICE", runtime_key_suffix): self._external_endpoint_service_map[protocol],
             self._compose_runtime_key(
@@ -1089,9 +1079,7 @@ class Task(_Task):
         }
         internal_port_key = self._external_endpoint_internal_port_map.get(protocol)
         if internal_port_key and internal_port_key != self._external_endpoint_port_map[protocol]:
-            runtime_properties_to_set[
-                self._compose_runtime_key(internal_port_key, runtime_key_suffix)
-            ] = port
+            runtime_properties_to_set[self._compose_runtime_key(internal_port_key, runtime_key_suffix)] = port
 
         if static_route:
             route_type = router_service.get_route_type(static_route)
@@ -1196,20 +1184,14 @@ class Task(_Task):
             if resolved_suffix not in registry:
                 if warn and first_iteration:
                     if resolved_suffix == DEFAULT_ENDPOINT_NAME:
-                        LoggerRoot.get_base_logger().warning(
-                            f"No external {protocol} endpoints have been requested"
-                        )
+                        LoggerRoot.get_base_logger().warning(f"No external {protocol} endpoints have been requested")
                     else:
                         LoggerRoot.get_base_logger().warning(
                             f"No external {protocol} endpoint named '{resolved_suffix}' has been requested"
                         )
                 return None
             endpoint, browser_endpoint = None, None
-            runtime_key_suffix = (
-                resolved_suffix
-                if resolved_suffix != DEFAULT_ENDPOINT_NAME
-                else None
-            )
+            runtime_key_suffix = resolved_suffix if resolved_suffix != DEFAULT_ENDPOINT_NAME else None
             if protocol == "http":
                 endpoint = runtime_props.get(self._compose_runtime_key("endpoint", runtime_key_suffix))
                 browser_endpoint = runtime_props.get(self._compose_runtime_key("browser_endpoint", runtime_key_suffix))
@@ -1386,8 +1368,7 @@ class Task(_Task):
         if not project_name and not base_task_id:
             if not cls.__main_task:
                 raise ValueError(
-                    "Please provide project_name, no global task context found "
-                    "(Task.current_task hasn't been called)"
+                    "Please provide project_name, no global task context found (Task.current_task hasn't been called)"
                 )
             project_name = cls.__main_task.get_project_name()
         from .backend_interface.task.populate import CreateAndPopulate
@@ -1412,7 +1393,7 @@ class Task(_Task):
             raise_on_missing_entries=False,
             module=module,
             binary=binary,
-            detect_repository=detect_repository
+            detect_repository=detect_repository,
         )
         task = manual_populate.create_task()
         if task and argparse_args:
@@ -1760,8 +1741,7 @@ class Task(_Task):
             helper = StorageHelper.get(value)
             if not helper:
                 raise ValueError(
-                    f"Could not get access credentials for '{value}' "
-                    ", check configuration file ~/cairnml.conf"
+                    f"Could not get access credentials for '{value}' , check configuration file ~/cairnml.conf"
                 )
             helper.check_write_permissions(value)
         self.storage_uri = value
@@ -2105,16 +2085,16 @@ class Task(_Task):
 
         :param tags: A list of tags which describe the Task to add.
         """
-        tags_to_add = (
-            tags.split(" ")
-            if isinstance(tags, str)
-            else tags
-        )
+        tags_to_add = tags.split(" ") if isinstance(tags, str) else tags
 
-        self.data.tags = list(set((
-            *(self.data.tags or []),
-            *tags_to_add,
-        )))
+        self.data.tags = list(
+            set(
+                (
+                    *(self.data.tags or []),
+                    *tags_to_add,
+                )
+            )
+        )
 
         self._edit(tags=self.data.tags)
 
@@ -2125,17 +2105,9 @@ class Task(_Task):
 
         :param tags: A list of tags to add to the Task.
         """
-        tags_to_remove = (
-            tags.split(" ")
-            if isinstance(tags, str)
-            else tags
-        )
+        tags_to_remove = tags.split(" ") if isinstance(tags, str) else tags
 
-        self.data.tags = [
-            tag
-            for tag in (self.data.tags or [])
-            if tag not in tags_to_remove
-        ]
+        self.data.tags = [tag for tag in (self.data.tags or []) if tag not in tags_to_remove]
 
         self._edit(tags=self.data.tags)
 
@@ -2457,11 +2429,10 @@ class Task(_Task):
             try:
                 with open(configuration_path.as_posix(), "rt") as f:
                     configuration_text = f.read()
-            except Exception:
+            except Exception as err:
                 raise ValueError(
-                    f"Could not connect configuration file {configuration_path.as_posix()}, "
-                    "file could not be read"
-                )
+                    f"Could not connect configuration file {configuration_path.as_posix()}, file could not be read"
+                ) from err
             if multi_config_support:
                 self._set_configuration(
                     name=name,
@@ -2671,12 +2642,7 @@ class Task(_Task):
 
         def set_launch_multi_node_runtime_props(task: Task, conf: Dict[str, Any]) -> None:
             # noinspection PyProtectedMember
-            task._set_runtime_properties(
-                {
-                    f"{self._launch_multi_node_section}/{k}": v
-                    for k, v in conf.items()
-                }
-            )
+            task._set_runtime_properties({f"{self._launch_multi_node_section}/{k}": v for k, v in conf.items()})
 
         if total_num_nodes < 1:
             raise UsageError("total_num_nodes needs to be at least 1")
@@ -2759,19 +2725,19 @@ class Task(_Task):
                 try:
                     num_devices = len(devices)
                 except Exception as ex:
-                    raise ValueError(f"Failed parsing number of devices: {ex}")
+                    raise ValueError(f"Failed parsing number of devices: {ex}") from ex
             except ValueError as ex:
-                raise ValueError(f"Failed parsing number of devices: {ex}")
+                raise ValueError(f"Failed parsing number of devices: {ex}") from ex
             if num_devices < 0:
                 try:
                     import torch
 
                     num_devices = torch.cuda.device_count()
-                except ImportError:
+                except ImportError as err:
                     raise ImportError(
                         "Could not import `torch` while finding the number of devices. "
                         "Please install it or set `devices` to a value different than -1"
-                    )
+                    ) from err
 
         os.environ["MASTER_ADDR"] = current_conf.get("master_addr", "")
         os.environ["MASTER_PORT"] = str(current_conf.get("master_port", ""))
@@ -3124,9 +3090,7 @@ class Task(_Task):
             except Exception as e:
                 exception_to_raise = e
             if retry < retries:
-                getLogger().warning(
-                    f"Failed uploading artifact '{name}'. Retrying... ({retry + 1}/{retries})"
-                )
+                getLogger().warning(f"Failed uploading artifact '{name}'. Retrying... ({retry + 1}/{retries})")
         if exception_to_raise:
             raise exception_to_raise
         return False
@@ -3512,7 +3476,7 @@ class Task(_Task):
         diff: Optional[str] = None,
         working_dir: Optional[str] = None,
         entry_point: Optional[str] = None,
-        binary: Optional[str] = None
+        binary: Optional[str] = None,
     ) -> None:
         """
         Set task's script.
@@ -3801,8 +3765,7 @@ class Task(_Task):
         func_name = str(func_name or func.__name__).strip()
         if func_name in self._remote_functions_generated:
             raise ValueError(
-                f"Function name must be unique, a function by the name '{func_name}' "
-                "was already created by this Task."
+                f"Function name must be unique, a function by the name '{func_name}' was already created by this Task."
             )
 
         section_name = "Function"
@@ -3810,18 +3773,11 @@ class Task(_Task):
         func_marker = "__func_readonly__"
 
         # sanitize the dict, leave only basic types that we might want to override later in the UI
-        func_params = {
-            k: v
-            for k, v in kwargs.items()
-            if verify_basic_value(v)
-        }
+        func_params = {k: v for k, v in kwargs.items() if verify_basic_value(v)}
         func_params[func_marker] = func_name
 
         # do not query if we are running locally, there is no need.
-        task_func_marker = (
-            self.running_locally()
-            or self.get_parameter(f"{section_name}/{func_marker}")
-        )
+        task_func_marker = self.running_locally() or self.get_parameter(f"{section_name}/{func_marker}")
 
         # if we are running locally or if we are running remotely but we are not a forked tasks
         # condition explained:
@@ -3831,10 +3787,7 @@ class Task(_Task):
             self._wait_for_repo_detection(300)
             task = self.clone(
                 self,
-                name=(
-                    task_name
-                    or f"{self.name} <{func_name}>"
-                ),
+                name=(task_name or f"{self.name} <{func_name}>"),
                 parent=self.id,
             )
             task.set_system_tags((task.get_system_tags() or []) + [tag_name])
@@ -4163,7 +4116,7 @@ class Task(_Task):
         except Exception as ex:
             raise ValueError(
                 f"Could not read Task object {session_folder / cls._offline_filename}: Exception {ex}"
-            )
+            ) from ex
         current_task = cls.import_task(export_data)
         if previous_task_id:
             task_holding_reports = cls.get_task(task_id=previous_task_id)
@@ -4366,8 +4319,7 @@ class Task(_Task):
         if not project_name:
             if not cls.__main_task:
                 raise ValueError(
-                    "Please provide project_name, no global task context found "
-                    "(Task.current_task hasn't been called)"
+                    "Please provide project_name, no global task context found (Task.current_task hasn't been called)"
                 )
             project_name = cls.__main_task.get_project_name()
 
@@ -4867,11 +4819,7 @@ class Task(_Task):
         if running_remotely() and (self.is_main_task() or self._is_remote_main_task()) and not ignore_remote_overrides:
             parameters = self.get_parameters(cast=True)
             if name:
-                parameters = {
-                    k[len(name) + 1 :]: v
-                    for k, v in parameters.items()
-                    if k.startswith(f"{name}/")
-                }
+                parameters = {k[len(name) + 1 :]: v for k, v in parameters.items() if k.startswith(f"{name}/")}
             parameters.pop(ignore_remote_overrides_section, None)
             attr_class.update_from_dict(parameters)
         else:
@@ -5007,9 +4955,7 @@ class Task(_Task):
                         self._detect_repo_async_thread.join(timeout=timeout)
                         # because join has no return value
                         if self._detect_repo_async_thread.is_alive():
-                            self.log.info(
-                                f"Repository and package analysis timed out ({timeout} sec), giving up"
-                            )
+                            self.log.info(f"Repository and package analysis timed out ({timeout} sec), giving up")
                             # done waiting, kill the thread
                             from .utilities.lowlevel.threads import kill_thread
 
@@ -5122,11 +5068,7 @@ class Task(_Task):
                     ):
                         task_status = (
                             "failed",
-                            (
-                                f"Exception {is_exception}"
-                                if is_exception
-                                else f"Signal {self.__exit_hook.signal}"
-                            ),
+                            (f"Exception {is_exception}" if is_exception else f"Signal {self.__exit_hook.signal}"),
                         )
                         wait_for_uploads = False
                     else:
@@ -5489,14 +5431,7 @@ class Task(_Task):
 
     @classmethod
     def __get_hash_key(cls, *args: Any) -> str:
-        return ":".join([
-            (
-                f"<{arg}>"
-                if arg is not None
-                else ""
-            )
-            for arg in args
-        ])
+        return ":".join([(f"<{arg}>" if arg is not None else "") for arg in args])
 
     @classmethod
     def __get_last_used_task_id(cls, default_project_name, default_task_name, default_task_type):
@@ -5651,10 +5586,7 @@ class Task(_Task):
 
         # compare after casting to string to avoid enum instance issues
         # remember we might have replaced the api version by now, so enums are different
-        return all(
-            str(server_data) == str(task_data.get(task_data_key))
-            for server_data, task_data_key in compares
-        )
+        return all(str(server_data) == str(task_data.get(task_data_key)) for server_data, task_data_key in compares)
 
     @classmethod
     def __close_timed_out_task(cls, task_data: Optional[Dict[str, Any]]) -> bool:

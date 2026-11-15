@@ -53,14 +53,7 @@ def sha256sum(
         LoggerRoot.get_base_logger().warning(str(e))
         return None, None
 
-    return (
-        hasher.hexdigest(),
-        (
-            file_hasher.hexdigest()
-            if skip_header
-            else None
-        )
-    )
+    return (hasher.hexdigest(), (file_hasher.hexdigest() if skip_header else None))
 
 
 def crc32text(

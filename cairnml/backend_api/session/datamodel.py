@@ -93,10 +93,7 @@ class DataModel:
             jsonschema.validate(
                 self.to_dict(),
                 schema or self._schema,
-                types={
-                    "array": (list, tuple),
-                    "integer": (int,)
-                },
+                types={"array": (list, tuple), "integer": (int,)},
             )
         else:
             jsonschema.validate(
@@ -122,8 +119,7 @@ class DataModel:
 
         if not all(isinstance(x, expected) for x in value):
             raise TypeError(
-                f"Expected {field_name} of type list[{expected}], "
-                f"got {', '.join(set(type(x).__name__ for x in value))}"
+                f"Expected {field_name} of type list[{expected}], got {', '.join(set(type(x).__name__ for x in value))}"
             )
 
     @staticmethod

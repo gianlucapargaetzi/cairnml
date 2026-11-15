@@ -30,7 +30,7 @@ try:
     import ConfigSpace.hyperparameters as CSH
 
     Task.add_requirements("hpbandster")
-except ImportError:
+except ImportError as err:
     _py312_note = (
         "\nNote: hpbandster is unmaintained and may fail to install or import on Python 3.12+. "
         "Consider using Python 3.11 or an alternative optimizer (e.g. OptimizerOptuna)."
@@ -40,7 +40,7 @@ except ImportError:
     raise ImportError(
         "OptimizerBOHB requires 'hpbandster' package, it was not found\n"
         "install with: pip install hpbandster" + _py312_note
-    )
+    ) from err
 
 logger = getLogger("cairnml.automation.hpbandster")
 
@@ -88,10 +88,7 @@ class _TrainsBandsterWorker(Worker):
         # optimization appears to never stop). Once the cap is reached we report the trial as
         # infinitely bad without launching it, so hyperband can wind down quickly.
         # noinspection PyProtectedMember
-        if (
-            self.optimizer.total_max_jobs
-            and len(self.optimizer._created_jobs_ids) >= self.optimizer.total_max_jobs
-        ):
+        if self.optimizer.total_max_jobs and len(self.optimizer._created_jobs_ids) >= self.optimizer.total_max_jobs:
             print(
                 "TrainsBandsterWorker: reached total_max_jobs="
                 f"{self.optimizer.total_max_jobs}, skipping configuration {config} "

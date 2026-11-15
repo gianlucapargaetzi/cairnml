@@ -15,17 +15,11 @@ def get_common_path(filepaths: Sequence[Union[str, Path]]) -> Optional[str]:
     if len(filepaths) == 0:
         return None
 
-    abs_paths = [
-        Path(filepath).absolute().parent
-        for filepath in filepaths
-    ]
+    abs_paths = [Path(filepath).absolute().parent for filepath in filepaths]
 
     # Example: if filepaths = ["/a/b", "/c/d/e"], then `folder_names_by_depth = (("/", "/"), ("a","c"), ("b", "d"))`
     # We don't need "e" in this example since it can't be in common with other paths that don't go that deep
-    folder_names_by_depth = zip(*(
-        path.parts
-        for path in abs_paths
-    ))
+    folder_names_by_depth = zip(*(path.parts for path in abs_paths))
 
     common_parts = [
         level_parts[0]  # Folder name in the first path (since they're all equal)
@@ -65,8 +59,5 @@ def is_within_directory(directory: str, target: str) -> bool:
 
     return (
         len(target_absolute_path.parts) >= len(directory_absolute_path.parts)
-        and
-        directory_absolute_path.parts == (
-            target_absolute_path.parts[:len(directory_absolute_path.parts)]
-        )
+        and directory_absolute_path.parts == (target_absolute_path.parts[: len(directory_absolute_path.parts)])
     )

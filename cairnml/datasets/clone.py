@@ -7,7 +7,6 @@ the data is copied from the dataset cache into ``data/``, which git does not tra
 Once access ends, the copy stays readable here; the server refuses its changes (a push needs a write token from it).
 """
 
-import os
 import shutil
 from pathlib import Path
 from typing import Optional
@@ -26,7 +25,7 @@ def _clone_answer(reference: str, commit: Optional[str], session=None) -> dict:
     response = _person_request(session, "clone", body)
     if not response.ok:
         raise DatasetError(f"the server could not clone {reference}: {response.text.strip()}")
-    return (response.json().get("data") or {})
+    return response.json().get("data") or {}
 
 
 def clone_dataset(reference: str, path: Optional[str] = None, commit: Optional[str] = None, session=None) -> Path:
@@ -42,8 +41,9 @@ def clone_dataset(reference: str, path: Optional[str] = None, commit: Optional[s
     target.parent.mkdir(parents=True, exist_ok=True)
     token = answer.get("token")
     try:
-        result = process.run(["git", "clone", "-q", repository, str(target)], env=_env(token),
-                             timeout=process.transfer_timeout())
+        result = process.run(
+            ["git", "clone", "-q", repository, str(target)], env=_env(token), timeout=process.transfer_timeout()
+        )
     except FileNotFoundError:
         raise DatasetError("git is not installed") from None
     if result.returncode != 0:

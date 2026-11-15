@@ -27,10 +27,14 @@ LOCAL_CONFIG_FILES = [
 ]
 """ Local config files (not paths) """
 
-LOCAL_CONFIG_FILE_OVERRIDE_VAR = EnvEntry("CAIRNML_CONFIG_FILE", )
+LOCAL_CONFIG_FILE_OVERRIDE_VAR = EnvEntry(
+    "CAIRNML_CONFIG_FILE",
+)
 """ Local config file override environment variable. If this is set, no other local config files will be used. """
 
-ENV_CONFIG_PATH_OVERRIDE_VAR = EnvEntry("CAIRNML_CONFIG_PATH", )
+ENV_CONFIG_PATH_OVERRIDE_VAR = EnvEntry(
+    "CAIRNML_CONFIG_PATH",
+)
 """
 Environment-related config path override environment variable. If this is set, no other env config path will be used.
 """

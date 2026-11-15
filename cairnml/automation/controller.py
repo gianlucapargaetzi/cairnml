@@ -3792,10 +3792,10 @@ class PipelineController:
         if input_type == "models":
             try:
                 model_type = parts[2].lower()
-            except Exception:
+            except Exception as err:
                 raise ValueError(
                     f"Node '{node.name}', parameter '{v}', input type '{input_type}', model_type is missing {parts}"
-                )
+                ) from err
             if model_type not in ("input", "output"):
                 raise ValueError(
                     f"Node '{node.name}', parameter '{v}', input type '{input_type}', "
@@ -3810,10 +3810,10 @@ class PipelineController:
             # check casting
             try:
                 int(parts[3])
-            except Exception:
+            except Exception as err:
                 raise ValueError(
                     f"Node '{node.name}', parameter '{v}', input type '{input_type}', model index is missing {parts}"
-                )
+                ) from err
 
             if len(parts) < 5:
                 raise ValueError(
@@ -3906,10 +3906,10 @@ class PipelineController:
             try:
                 model_idx = int(parts[3])
                 model = task.models[model_type][model_idx]
-            except Exception:
+            except Exception as err:
                 raise ValueError(
                     f"Could not locate model {'.'.join(parts[1:])} on previous step {prev_step}, index {parts[3]} is invalid"
-                )
+                ) from err
 
             return str(getattr(model, parts[4]))
         elif input_type == "id":
@@ -5438,7 +5438,7 @@ class PipelineDecorator(PipelineController):
                 _node.parameters[f"{CreateFromFunction.kwargs_section}/{key}"] = value
             else:
                 # we need to create an artifact
-                sanitized_node_name = re.sub(r'\W+', '', _node.name)  # Removes any non-[a-zA-Z0-9_] character
+                sanitized_node_name = re.sub(r"\W+", "", _node.name)  # Removes any non-[a-zA-Z0-9_] character
                 artifact_name = f"result_{sanitized_node_name}_{key}"
                 cls._singleton._upload_pipeline_artifact(artifact_name=artifact_name, artifact_object=value)
                 _node.parameters[f"{CreateFromFunction.input_artifact_section}/{key}"] = (

@@ -29,7 +29,7 @@ class PatchGradio:
                 cls._gradio_endpoint = cls._current_task.request_external_endpoint(
                     port=cls._default_gradio_port,
                     static_route=os.environ.get(cls._gradio_static_route_env_var),
-                    wait=True
+                    wait=True,
                 )
                 if cls._gradio_endpoint:
                     break

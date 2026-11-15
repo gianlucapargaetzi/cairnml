@@ -1,4 +1,4 @@
-""" Local and remote storage support """
+"""Local and remote storage support"""
 
 from .manager import StorageManager
 

@@ -19,7 +19,7 @@ import os
 import threading
 import time
 import weakref
-from typing import Any, Dict, Iterable, Iterator, List, Optional, Sequence, TYPE_CHECKING
+from typing import Any, Dict, Iterable, Iterator, List, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .. import Task

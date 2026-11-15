@@ -55,11 +55,7 @@ def format_size(
     numeric_label = f"{scaled_size:.2f}".rstrip("0").rstrip(".")
 
     # Determine unit scale
-    unit_scale = [*(
-        DECIMAL_SCALE
-        if (not binary or use_nonbinary_notation)
-        else BINARY_SCALE
-    )]
+    unit_scale = [*(DECIMAL_SCALE if (not binary or use_nonbinary_notation) else BINARY_SCALE)]
     if not use_b_instead_of_bytes:
         unit_scale[0] = "bytes"
 
@@ -67,11 +63,7 @@ def format_size(
     # Edge case 1:
     # 999995 B gets rounded to 1000 KB by the .2f, but that should be 1 MB
     # We don't move one scale up if the scale is PB (e.g. 1000 PB instead of 1 EB)
-    if (
-        scaled_size < 1000
-        and numeric_label == "1000"
-        and order_of_magnitude < 5
-    ):
+    if scaled_size < 1000 and numeric_label == "1000" and order_of_magnitude < 5:
         return f"1 {unit_scale[order_of_magnitude + 1]}"
     # Edge case 2: "1 bytes" should render as "1 byte"
     elif default_return_value == "1 bytes":
@@ -83,6 +75,7 @@ def format_size(
 
 class UnitMagnitude(Enum):
     """Maps orders of magnitude to power factors."""
+
     BYTE = 0
     KILO = 1
     MEGA = 2
@@ -92,20 +85,41 @@ class UnitMagnitude(Enum):
 
 
 magnitude_map: Dict[str, UnitMagnitude] = {
-    "b": UnitMagnitude.BYTE, "byte": UnitMagnitude.BYTE,
-    "kb": UnitMagnitude.KILO, "kilobyte": UnitMagnitude.KILO, "kib": UnitMagnitude.KILO, "kibibyte": UnitMagnitude.KILO,
-    "mb": UnitMagnitude.MEGA, "megabyte": UnitMagnitude.MEGA, "mib": UnitMagnitude.MEGA, "mebibyte": UnitMagnitude.MEGA,
-    "gb": UnitMagnitude.GIGA, "gigabyte": UnitMagnitude.GIGA, "gib": UnitMagnitude.GIGA, "gibibyte": UnitMagnitude.GIGA,
-    "tb": UnitMagnitude.TERA, "terabyte": UnitMagnitude.TERA, "tib": UnitMagnitude.TERA, "tebibyte": UnitMagnitude.TERA,
-    "pb": UnitMagnitude.PETA, "petabyte": UnitMagnitude.PETA, "pib": UnitMagnitude.PETA, "pebibyte": UnitMagnitude.PETA,
+    "b": UnitMagnitude.BYTE,
+    "byte": UnitMagnitude.BYTE,
+    "kb": UnitMagnitude.KILO,
+    "kilobyte": UnitMagnitude.KILO,
+    "kib": UnitMagnitude.KILO,
+    "kibibyte": UnitMagnitude.KILO,
+    "mb": UnitMagnitude.MEGA,
+    "megabyte": UnitMagnitude.MEGA,
+    "mib": UnitMagnitude.MEGA,
+    "mebibyte": UnitMagnitude.MEGA,
+    "gb": UnitMagnitude.GIGA,
+    "gigabyte": UnitMagnitude.GIGA,
+    "gib": UnitMagnitude.GIGA,
+    "gibibyte": UnitMagnitude.GIGA,
+    "tb": UnitMagnitude.TERA,
+    "terabyte": UnitMagnitude.TERA,
+    "tib": UnitMagnitude.TERA,
+    "tebibyte": UnitMagnitude.TERA,
+    "pb": UnitMagnitude.PETA,
+    "petabyte": UnitMagnitude.PETA,
+    "pib": UnitMagnitude.PETA,
+    "pebibyte": UnitMagnitude.PETA,
 }
 
 explicitly_binary_labels: Set[str] = {
-    "kib", "kibibyte",
-    "mib", "mebibyte",
-    "gib", "gibibyte",
-    "tib", "tebibyte",
-    "pib", "pebibyte",
+    "kib",
+    "kibibyte",
+    "mib",
+    "mebibyte",
+    "gib",
+    "gibibyte",
+    "tib",
+    "tebibyte",
+    "pib",
+    "pebibyte",
 }
 
 
@@ -158,11 +172,7 @@ def parse_size(
     magnitude = magnitude_map[label]
     is_explicitly_binary = label in explicitly_binary_labels
 
-    base_factor = (
-        1024
-        if (is_explicitly_binary or binary)
-        else 1000
-    ) ** magnitude.value
+    base_factor = (1024 if (is_explicitly_binary or binary) else 1000) ** magnitude.value
 
     return int(number * base_factor)
 

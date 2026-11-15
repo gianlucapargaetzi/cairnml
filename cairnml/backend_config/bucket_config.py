@@ -27,6 +27,7 @@ def _url_stripper(bucket: str) -> str:
 @attrs
 class S3BucketConfig:
     """Configuration for an S3 bucket"""
+
     bucket = attrib(type=str, converter=_url_stripper, default="")
     subdir = attrib(type=str, converter=_url_stripper, default="")
     host = attrib(type=str, converter=_none_to_empty_string, default="")
@@ -76,31 +77,16 @@ class S3BucketConfig:
         dict_list: Union[Tuple[Dict], List[Dict]],
         log: Optional[logging.Logger] = None,
     ) -> List["S3BucketConfig"]:
-        if not (
-            isinstance(dict_list, (tuple, list))
-            and all(
-                isinstance(x, dict)
-                for x in dict_list
-            )
-        ):
+        if not (isinstance(dict_list, (tuple, list)) and all(isinstance(x, dict) for x in dict_list)):
             raise ValueError("Expecting a list of configurations dictionaries")
 
-        configs = [
-            cls(**entry)
-            for entry in dict_list
-        ]
-        valid_configs = [
-            conf
-            for conf in configs
-            if conf.is_valid()
-        ]
+        configs = [cls(**entry) for entry in dict_list]
+        valid_configs = [conf for conf in configs if conf.is_valid()]
 
         if log and len(valid_configs) < len(configs):
-            buckets_with_invalid_configuration = ", ".join((
-                f"{config.host}/{config.bucket}"
-                for config in configs
-                if config not in valid_configs
-            ))
+            buckets_with_invalid_configuration = ", ".join(
+                (f"{config.host}/{config.bucket}" for config in configs if config not in valid_configs)
+            )
             log.warning(f"Invalid bucket configurations detected for {buckets_with_invalid_configuration}")
 
         return valid_configs
@@ -475,8 +461,7 @@ class AzureContainerConfigurations:
 
         if not f.path.segments:
             raise ValueError(
-                f"URI {uri} is missing a container name (expected "
-                "[https/azure]://<account-name>.../<container-name>)"
+                f"URI {uri} is missing a container name (expected [https/azure]://<account-name>.../<container-name>)"
             )
 
         container = f.path.segments[0]

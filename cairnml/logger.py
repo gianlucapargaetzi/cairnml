@@ -69,9 +69,9 @@ class Logger:
         connect_logging: bool = False,
     ) -> None:
 
-        assert isinstance(
-            private_task, _Task
-        ), "Logger object cannot be instantiated externally, use Logger.current_logger()"
+        assert isinstance(private_task, _Task), (
+            "Logger object cannot be instantiated externally, use Logger.current_logger()"
+        )
         super(Logger, self).__init__()
         self._task = private_task
         self._default_upload_destination = None

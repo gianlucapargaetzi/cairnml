@@ -10,7 +10,6 @@ from typing import TYPE_CHECKING, Callable, Dict, Optional, Union, Any
 from pathlib2 import Path
 
 from ...backend_interface.model import Model
-from ...config import running_remotely
 from ...debugging.log import get_logger
 from ...model import InputModel, OutputModel
 
@@ -312,8 +311,8 @@ class WeightsFileHandler:
             task.connect(trains_in_model)
             # if we are running remotely we should deserialize the object
             # because someone might have changed the config_dict
-                    # update filepath to point to downloaded weights file
-                    # actual model weights loading will be done outside the try/exception block
+            # update filepath to point to downloaded weights file
+            # actual model weights loading will be done outside the try/exception block
 
             # update back the internal Model lookup, and replace the local file with our file
             # noinspection PyProtectedMember
@@ -453,16 +452,8 @@ class WeightsFileHandler:
 
                 trains_out_model = OutputModel(
                     task=task,
-                    config_dict=(
-                        config_obj
-                        if isinstance(config_obj, dict)
-                        else None
-                    ),
-                    config_text=(
-                        config_obj
-                        if isinstance(config_obj, str)
-                        else None
-                    ),
+                    config_dict=(config_obj if isinstance(config_obj, dict) else None),
+                    config_text=(config_obj if isinstance(config_obj, str) else None),
                     name=(
                         f"{task.name} - {model_name or Path(model_info.local_model_path).stem}"
                         if not in_model_id

@@ -23,7 +23,11 @@ from .cache import DatasetCache
 from .check import run_check
 from ._shared import git_token, on_github
 from .credentials import (
-    StorageKeys, fetch_person_git_token, fetch_repository_list, fetch_storage_keys, register_dataset,
+    StorageKeys,
+    fetch_person_git_token,
+    fetch_repository_list,
+    fetch_storage_keys,
+    register_dataset,
 )
 from .dvcutil import Dvc
 from .errors import DatasetError
@@ -33,7 +37,9 @@ DATA_DIR = "data"
 DEFAULT_BRANCH = "main"
 DVC_FILE = footprint.DVC_FILE
 WORKFLOW_FILE = ".github/workflows/dataset.yml"
-IGNORED = ("__pycache__/",)  # bytecode is never part of a dataset: init puts these in the ignore lists of the repository
+IGNORED = (
+    "__pycache__/",
+)  # bytecode is never part of a dataset: init puts these in the ignore lists of the repository
 
 WORKFLOW = """name: dataset
 
@@ -221,7 +227,9 @@ class DatasetRepo:
         if self.git.remote_url():
             raise DatasetError("the repository already has an origin: remote add runs once")
         if lfs and storage_url is not None:
-            raise DatasetError("storage_url applies to s3 storage only: an lfs dataset keeps its files in the GitHub LFS")
+            raise DatasetError(
+                "storage_url applies to s3 storage only: an lfs dataset keeps its files in the GitHub LFS"
+            )
         if lfs and not self.git.lfs_available():
             raise DatasetError("git lfs is not installed: install it from https://git-lfs.com and run remote add again")
         name = github_name(url)
@@ -257,8 +265,9 @@ class DatasetRepo:
         return where
 
     @staticmethod
-    def _access_warnings(url: str, credential: Optional[str],
-                         check_access: Optional[Callable[[str, str], Optional[str]]]) -> List[str]:
+    def _access_warnings(
+        url: str, credential: Optional[str], check_access: Optional[Callable[[str, str], Optional[str]]]
+    ) -> List[str]:
         """What the person must do about access, as warnings: nothing fails, the set-up is kept. Without a credential the
         dataset is public, unless the repository is private, which the credential is for. With one, the repository must be
         reachable with the person's login."""
@@ -291,7 +300,9 @@ class DatasetRepo:
         target = self.path / footprint.ATTRIBUTES_FILE
         existing = target.read_text() if target.is_file() else ""
         if footprint.LFS_PATTERN not in existing.splitlines():
-            target.write_text(existing + ("" if not existing or existing.endswith("\n") else "\n") + footprint.LFS_PATTERN + "\n")
+            target.write_text(
+                existing + ("" if not existing or existing.endswith("\n") else "\n") + footprint.LFS_PATTERN + "\n"
+            )
 
     def _write_tooling(self) -> None:
         """The footprint script and the workflow that runs it, kept at this tool's version."""
@@ -310,12 +321,14 @@ class DatasetRepo:
 
         def files(group: Dict[str, List[str]]) -> Dict[str, List[str]]:
             return {
-                kind: [p for p in group.get(kind, []) if not p.endswith("/")] for kind in ("added", "modified", "deleted")
+                kind: [p for p in group.get(kind, []) if not p.endswith("/")]
+                for kind in ("added", "modified", "deleted")
             }
 
         ours = (DVC_FILE, ".gitignore", footprint.CONFIG_FILE, footprint.LOCK_FILE)
         other = [
-            path for _i, _w, path in self.git.porcelain()
+            path
+            for _i, _w, path in self.git.porcelain()
             if path not in ours and not path.startswith((".dvc", ".cairnml", ".github"))
         ]
         return {
@@ -369,7 +382,8 @@ class DatasetRepo:
         raw = sorted(path for path, size in sizes.items() if size >= footprint.POINTER_MAX_BYTES)
         if raw:
             raise DatasetError(
-                "these files would be stored in git, not in LFS: " + ", ".join(raw[:5])
+                "these files would be stored in git, not in LFS: "
+                + ", ".join(raw[:5])
                 + ("" if len(raw) <= 5 else f" and {len(raw) - 5} more")
                 + ". Run 'git rm -r --cached data', check that 'git lfs install --local' was run, then add again"
             )
@@ -392,7 +406,9 @@ class DatasetRepo:
         if storage == "s3" and not dvc_file.exists():
             raise DatasetError(f"{DVC_FILE} is missing; run 'cairnml dataset add' first")
         if not config_file.exists():
-            raise DatasetError(f"{footprint.CONFIG_FILE} is missing; say how data/ is read ('format: native' or 'adapter: <name>')")
+            raise DatasetError(
+                f"{footprint.CONFIG_FILE} is missing; say how data/ is read ('format: native' or 'adapter: <name>')"
+            )
         try:
             config = footprint.parse_config(config_file.read_text())
             dvc_info = footprint.parse_dvc_file(dvc_file.read_text()) if storage == "s3" else None
@@ -506,9 +522,7 @@ class DatasetRepo:
         if shutil.which("gh") is None:
             return {**none, "problem": "the GitHub command line (gh) is not installed"}
         try:
-            made = process.run(
-                ["gh", "pr", "create", "--base", base, "--head", branch, "--fill"], cwd=str(self.path)
-            )
+            made = process.run(["gh", "pr", "create", "--base", base, "--head", branch, "--fill"], cwd=str(self.path))
             if made.returncode != 0:
                 return {**none, "problem": (made.stderr or made.stdout).strip() or "gh pr create failed"}
             url = (made.stdout.strip().splitlines() or [None])[-1]
@@ -517,7 +531,8 @@ class DatasetRepo:
             return {**none, "problem": str(exc)}
         if merge.returncode != 0:
             return {
-                "pull_request": url, "auto_merge": False,
+                "pull_request": url,
+                "auto_merge": False,
                 "problem": (merge.stderr or merge.stdout).strip() or "gh pr merge failed",
             }
         return {"pull_request": url, "auto_merge": True, "problem": None}
@@ -561,27 +576,51 @@ class DatasetRepo:
             check("set-up", False, "run: cairnml dataset init")
         if setup and self.storage() == "lfs":
             lfs = self.git.lfs_available()
-            check("git lfs", lfs, "git lfs is installed" if lfs
-                  else "git lfs is not installed: install it from https://git-lfs.com")
+            check(
+                "git lfs",
+                lfs,
+                "git lfs is installed" if lfs else "git lfs is not installed: install it from https://git-lfs.com",
+            )
         workflow = self.path / WORKFLOW_FILE
         current = workflow.is_file() and workflow.read_text() == WORKFLOW
-        check("workflow", current, f"{WORKFLOW_FILE} is in place" if current
-              else "missing or out of date: run cairnml dataset check, then commit the change")
+        check(
+            "workflow",
+            current,
+            f"{WORKFLOW_FILE} is in place"
+            if current
+            else "missing or out of date: run cairnml dataset check, then commit the change",
+        )
         script = self.path / footprint.VERIFY_SCRIPT
         current = script.is_file() and script.read_bytes() == Path(footprint.__file__).read_bytes()
-        check("verify script", current, f"{footprint.VERIFY_SCRIPT} matches this version" if current
-              else "missing or from another version: run cairnml dataset check, then commit the change")
+        check(
+            "verify script",
+            current,
+            f"{footprint.VERIFY_SCRIPT} matches this version"
+            if current
+            else "missing or from another version: run cairnml dataset check, then commit the change",
+        )
 
         if not self.git.remote_heads():
-            check("default branch", None, "the repository is empty: the first push creates its default branch, "
-                  "protect it after that and run doctor again")
+            check(
+                "default branch",
+                None,
+                "the repository is empty: the first push creates its default branch, "
+                "protect it after that and run doctor again",
+            )
             return checks
         default = self.git.default_branch()
         if shutil.which("gh") is None:
-            check("GitHub command line", False, "gh is not installed: push prints the link to open the pull request "
-                  "instead. Install it from https://cli.github.com to let push open it and switch on auto-merge")
-            check("branch protection", None, f"cannot be read without gh: check {default} at "
-                  f"https://github.com/{repo}/settings/branches")
+            check(
+                "GitHub command line",
+                False,
+                "gh is not installed: push prints the link to open the pull request "
+                "instead. Install it from https://cli.github.com to let push open it and switch on auto-merge",
+            )
+            check(
+                "branch protection",
+                None,
+                f"cannot be read without gh: check {default} at https://github.com/{repo}/settings/branches",
+            )
             return checks
         check("GitHub command line", True, "gh is installed")
         try:
@@ -600,37 +639,56 @@ class DatasetRepo:
         elif settings.get("allow_auto_merge"):
             check("auto-merge", True, "auto-merge is allowed, so push can switch it on")
         else:
-            check("auto-merge", False, f"auto-merge is off: switch on 'Allow auto-merge' at "
-                  f"https://github.com/{repo}/settings")
+            check(
+                "auto-merge",
+                False,
+                f"auto-merge is off: switch on 'Allow auto-merge' at https://github.com/{repo}/settings",
+            )
 
         protection, why = self._gh_api(f"repos/{repo}/branches/{default}/protection")
         if protection is None and "Branch not protected" in why:
-            check("branch protection", False, f"{default} is not protected. At https://github.com/{repo}/settings/"
-                  f"branches require pull requests, block force pushes and deletions. "
-                  "cairnml dataset create sets this up (it needs administration rights)")
+            check(
+                "branch protection",
+                False,
+                f"{default} is not protected. At https://github.com/{repo}/settings/"
+                f"branches require pull requests, block force pushes and deletions. "
+                "cairnml dataset create sets this up (it needs administration rights)",
+            )
         elif protection is None:
             check("branch protection", None, f"could not read the protection of {default}: {why}")
         else:
             problems = protection_problems(protection)
             if problems:
-                check("branch protection", False, f"{default}: " + "; ".join(problems) + f" (see https://github.com/"
-                      f"{repo}/settings/branches)")
+                check(
+                    "branch protection",
+                    False,
+                    f"{default}: " + "; ".join(problems) + f" (see https://github.com/{repo}/settings/branches)",
+                )
             else:
-                check("branch protection", True, f"{default} requires pull requests and blocks force pushes and deletions")
+                check(
+                    "branch protection", True, f"{default} requires pull requests and blocks force pushes and deletions"
+                )
         return checks
 
-    def _app_installed(self, repo: str, list_repositories: Callable[[], List[Dict[str, Any]]]) -> Tuple[Optional[bool], str]:
+    def _app_installed(
+        self, repo: str, list_repositories: Callable[[], List[Dict[str, Any]]]
+    ) -> Tuple[Optional[bool], str]:
         """Whether the server lists the repository as a dataset you can read (repositories.get_all): how you read it is not
         "not readable". The server's records are read, not changed."""
         try:
             rows = list_repositories()
         except DatasetError:
             return None, "the server is not reachable or not logged in; nothing checked"
-        found = [item for item in rows
-                 if "dataset" in (item.get("roles") or []) and str(item.get("path", "")).lower() == repo.lower()]
+        found = [
+            item
+            for item in rows
+            if "dataset" in (item.get("roles") or []) and str(item.get("path", "")).lower() == repo.lower()
+        ]
         if not found:
-            return False, (f"the server does not list {repo} as a dataset: list it with cairnml repository add, or in the web "
-                           "app under Repositories and Datasets")
+            return False, (
+                f"the server does not list {repo} as a dataset: list it with cairnml repository add, or in the web "
+                "app under Repositories and Datasets"
+            )
         access = found[0].get("access") or {}
         if access.get("state") in ("unreachable",):
             return False, f"the server lists {repo} but cannot read it: {access.get('message') or 'no access'}"
@@ -663,15 +721,18 @@ class DatasetRepo:
         try:
             made = process.run(
                 ["gh", "api", "-X", "PUT", f"repos/{name}/branches/{DEFAULT_BRANCH}/protection", "--input", "-"],
-                cwd=str(self.path), stdin=json.dumps(protection_body()),
+                cwd=str(self.path),
+                stdin=json.dumps(protection_body()),
             )
         except process.CommandTimeout as exc:
             return {"ok": False, "problem": str(exc)}
         if made.returncode != 0:
             text = (made.stderr or made.stdout).strip() or "gh api failed"
             if "403" in text:
-                text = (f"needs administration rights on {name} (the Administration permission for a token, or the "
-                        f"admin role for a login); gh said: {text}")
+                text = (
+                    f"needs administration rights on {name} (the Administration permission for a token, or the "
+                    f"admin role for a login); gh said: {text}"
+                )
             return {"ok": False, "problem": text}
         return {"ok": True, "problem": None}
 
@@ -733,8 +794,9 @@ class DatasetRepo:
         existed = target.exists()
         try:
             repo.init(adapter=adapter, registry=registry)
-            where = repo.remote_add(url, lfs=storage == "lfs", credential=credential, register=register,
-                                    check_access=check_access)
+            where = repo.remote_add(
+                url, lfs=storage == "lfs", credential=credential, register=register, check_access=check_access
+            )
         except DatasetError as exc:
             if not existed:
                 shutil.rmtree(target, ignore_errors=True)  # the folder this create made: nothing is left behind
@@ -754,6 +816,11 @@ class DatasetRepo:
         pushed = repo.push()
         protection = repo.protect() if protect else None
         return {
-            "url": url, "storage": storage, "where": where, "commit": commit, "branch": pushed["branch"],
-            "protection": protection, "warnings": repo.warnings,
+            "url": url,
+            "storage": storage,
+            "where": where,
+            "commit": commit,
+            "branch": pushed["branch"],
+            "protection": protection,
+            "warnings": repo.warnings,
         }

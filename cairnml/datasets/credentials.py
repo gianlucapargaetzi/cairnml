@@ -122,14 +122,25 @@ def _row(response, what: str) -> dict:
     return (response.json().get("data") or {}).get("repository") or {}
 
 
-def add_repository(url: str, role: str = "dataset", credential: Optional[str] = None, none_needed: bool = False,
-                   shared: bool = False, project: Optional[str] = None, session=None) -> dict:
+def add_repository(
+    url: str,
+    role: str = "dataset",
+    credential: Optional[str] = None,
+    none_needed: bool = False,
+    shared: bool = False,
+    project: Optional[str] = None,
+    session=None,
+) -> dict:
     """Lists a repository (repositories.add) as code, a dataset or a registry. Your entry is non-shared: only you and the
     projects it is listed in see it. ``shared`` (the admin only) makes it visible to everyone. With ``credential`` (one of
     yours, or the company's) or ``none_needed`` your assignment is set too. Returns the repository as the server lists it."""
     body = {"url": url, "role": role}
-    for key, value in (("credential", credential), ("none_needed", none_needed or None), ("shared", shared or None),
-                       ("project", project)):
+    for key, value in (
+        ("credential", credential),
+        ("none_needed", none_needed or None),
+        ("shared", shared or None),
+        ("project", project),
+    ):
         if value:
             body[key] = value
     return _row(_person_request(session, "add", body, service="repositories"), f"to list {url}")
@@ -140,8 +151,9 @@ def register_dataset(url: str, credential: Optional[str] = None, session=None) -
     return add_repository(url, "dataset", credential, session=session)
 
 
-def assign_credential(repository: str, credential: Optional[str] = None, none_needed: bool = False, role: str = "dataset",
-                      session=None) -> dict:
+def assign_credential(
+    repository: str, credential: Optional[str] = None, none_needed: bool = False, role: str = "dataset", session=None
+) -> dict:
     """Sets your own assignment on a repository (repositories.assign): one of your credentials, or the company's, or
     ``none_needed`` (the host clones it without one). With neither it is cleared. The credential must read the repository.
     On a shared repository only a company credential is accepted. An address nobody has listed is listed first, with ``role``."""
@@ -155,13 +167,17 @@ def assign_credential(repository: str, credential: Optional[str] = None, none_ne
 
 def unassign_credential(repository: str, session=None) -> dict:
     """Clears your own assignment on a repository (repositories.unassign)."""
-    return _row(_person_request(session, "unassign", {"ref": repository}, service="repositories"),
-                f"to clear the credential of {repository}")
+    return _row(
+        _person_request(session, "unassign", {"ref": repository}, service="repositories"),
+        f"to clear the credential of {repository}",
+    )
 
 
 def check_repository(repository: str, session=None) -> dict:
     """Looks at a repository again (repositories.check) and returns it with what was found."""
-    return _row(_person_request(session, "check", {"ref": repository}, service="repositories"), f"to check {repository}")
+    return _row(
+        _person_request(session, "check", {"ref": repository}, service="repositories"), f"to check {repository}"
+    )
 
 
 def delete_repository(repository: str, session=None) -> None:
@@ -171,8 +187,9 @@ def delete_repository(repository: str, session=None) -> None:
         raise DatasetError(f"the server refused to delete {repository}: {_reason(response)}")
 
 
-def set_repository_shared(repository: str, shared: bool, credential: Optional[str] = None, none_needed: bool = False,
-                          session=None) -> dict:
+def set_repository_shared(
+    repository: str, shared: bool, credential: Optional[str] = None, none_needed: bool = False, session=None
+) -> dict:
     """Makes a repository shared (the owner or the admin; ownership moves to the admin) or non-shared (the admin). To share, the
     company credential that reads it, or ``none_needed`` for a public repository, is required; the server verifies it first."""
     body = {"ref": repository, "shared": shared}
@@ -180,20 +197,25 @@ def set_repository_shared(repository: str, shared: bool, credential: Optional[st
         body["credential"] = credential
     if none_needed:
         body["none_needed"] = True
-    return _row(_person_request(session, "set_shared", body, service="repositories"),
-                f"to change the sharing of {repository}")
+    return _row(
+        _person_request(session, "set_shared", body, service="repositories"), f"to change the sharing of {repository}"
+    )
 
 
 def link_repository(repository: str, project: str, session=None) -> dict:
     """Lists a repository in a project you are a member of (repositories.link)."""
-    return _row(_person_request(session, "link", {"ref": repository, "project": project}, service="repositories"),
-                f"to list {repository} in the project")
+    return _row(
+        _person_request(session, "link", {"ref": repository, "project": project}, service="repositories"),
+        f"to list {repository} in the project",
+    )
 
 
 def unlink_repository(repository: str, project: str, session=None) -> dict:
     """Takes a repository out of a project's list (repositories.unlink); the repository and its assignments stay."""
-    return _row(_person_request(session, "unlink", {"ref": repository, "project": project}, service="repositories"),
-                f"to take {repository} out of the project")
+    return _row(
+        _person_request(session, "unlink", {"ref": repository, "project": project}, service="repositories"),
+        f"to take {repository} out of the project",
+    )
 
 
 def resolve_dataset(reference: str, task: Optional[str] = None, session=None) -> dict:

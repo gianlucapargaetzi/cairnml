@@ -44,7 +44,7 @@ class TokenManager(ABC):
         req_token_expiration_sec: int = None,
         token_history: dict = None,
         token_expiration_threshold_sec: int = 60,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> None:
         super(TokenManager, self).__init__()
         assert isinstance(token_history, (type(None), dict))

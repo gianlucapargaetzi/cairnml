@@ -43,14 +43,16 @@ def _lines(rows: list) -> list:
     for row in rows:
         mine = next((a for a in row.get("assignments") or [] if a.get("mine")), None)
         access = row.get("access") or {}
-        lines.append((
-            f"{row.get('host', '')}/{row.get('path', '')}".strip("/"),
-            ", ".join(row.get("roles") or []) or "-",
-            "shared" if row.get("shared") else (row.get("owner_name") or ""),
-            READ_AS.get(access.get("state"), access.get("state") or ""),
-            (mine or {}).get("credential_name") or "",
-            access.get("message") or "",
-        ))
+        lines.append(
+            (
+                f"{row.get('host', '')}/{row.get('path', '')}".strip("/"),
+                ", ".join(row.get("roles") or []) or "-",
+                "shared" if row.get("shared") else (row.get("owner_name") or ""),
+                READ_AS.get(access.get("state"), access.get("state") or ""),
+                (mine or {}).get("credential_name") or "",
+                access.get("message") or "",
+            )
+        )
     return lines
 
 
@@ -67,7 +69,9 @@ def list_main(role: Optional[str] = None, as_json: bool = False) -> int:
         print(json.dumps(rows, indent=2))
         return 0
     if not rows:
-        print("No repositories yet. A repository is listed once a run in one of your projects uses it, or with cairnml repository add.")
+        print(
+            "No repositories yet. A repository is listed once a run in one of your projects uses it, or with cairnml repository add."
+        )
         return 0
     lines = _lines(rows)
     print(table(("REPOSITORY", "TYPE", "OWNER", "READ AS", "YOUR CREDENTIAL"), [line[:5] for line in lines]))
@@ -79,8 +83,10 @@ def list_main(role: Optional[str] = None, as_json: bool = False) -> int:
 
 def _show(row: dict) -> None:
     access = row.get("access") or {}
-    print(f"{row.get('host', '')}/{row.get('path', '')}: {READ_AS.get(access.get('state'), access.get('state'))}"
-          f" ({access.get('message') or 'ok'})")
+    print(
+        f"{row.get('host', '')}/{row.get('path', '')}: {READ_AS.get(access.get('state'), access.get('state'))}"
+        f" ({access.get('message') or 'ok'})"
+    )
 
 
 def _run(action) -> int:
@@ -104,9 +110,13 @@ def main(argv: Optional[List[str]] = None) -> int:
     add.add_argument("url", help="the address of the repository, for example https://github.com/owner/name")
     add.add_argument("--type", choices=TYPES, default="dataset", help="how it is used (default: dataset)")
     add.add_argument("--project", help="list it in this project too")
-    add.add_argument("--credential", help="your own credential, or a company credential, that reads it (cairnml credential list)")
+    add.add_argument(
+        "--credential", help="your own credential, or a company credential, that reads it (cairnml credential list)"
+    )
     add.add_argument("--none-needed", action="store_true", help="the host clones it without a credential")
-    add.add_argument("--shared", action="store_true", help="shared: owned by the admin and visible to everyone (the admin only)")
+    add.add_argument(
+        "--shared", action="store_true", help="shared: owned by the admin and visible to everyone (the admin only)"
+    )
 
     assign = sub.add_parser("assign", help="set your own credential for a repository")
     assign.add_argument("repository", help="its address, its name or its id")
@@ -114,15 +124,25 @@ def main(argv: Optional[List[str]] = None) -> int:
     assign.add_argument("--none-needed", action="store_true", help="the host clones it without a credential")
     assign.add_argument("--type", choices=TYPES, default="dataset", help="how it is used, when it is not listed yet")
 
-    for name, text in (("unassign", "clear your own credential for a repository"), ("check", "look at a repository again"),
-                       ("delete", "remove a repository, with its assignments and links (its owner and the admin)"),
-                       ("unshare", "make a shared repository non-shared again (the admin)")):
+    for name, text in (
+        ("unassign", "clear your own credential for a repository"),
+        ("check", "look at a repository again"),
+        ("delete", "remove a repository, with its assignments and links (its owner and the admin)"),
+        ("unshare", "make a shared repository non-shared again (the admin)"),
+    ):
         sub.add_parser(name, help=text).add_argument("repository", help="its address, its name or its id")
-    share = sub.add_parser("share", help="make a repository shared (its owner or the admin; ownership moves to the admin)")
+    share = sub.add_parser(
+        "share", help="make a repository shared (its owner or the admin; ownership moves to the admin)"
+    )
     share.add_argument("repository", help="its address, its name or its id")
     share.add_argument("--credential", help="the company credential that reads it (confirmed before it is shared)")
-    share.add_argument("--none-needed", action="store_true", help="it is public: the host clones it without a credential")
-    for name, text in (("link", "list a repository in a project"), ("unlink", "take a repository out of a project's list")):
+    share.add_argument(
+        "--none-needed", action="store_true", help="it is public: the host clones it without a credential"
+    )
+    for name, text in (
+        ("link", "list a repository in a project"),
+        ("unlink", "take a repository out of a project's list"),
+    ):
         parser_ = sub.add_parser(name, help=text)
         parser_.add_argument("repository", help="its address, its name or its id")
         parser_.add_argument("project", help="the project id")
@@ -132,14 +152,20 @@ def main(argv: Optional[List[str]] = None) -> int:
     if command == "list":
         return list_main(args.type, args.json)
     if command == "add":
-        return _run(lambda: _show(credentials.add_repository(
-            args.url, args.type, args.credential, args.none_needed, args.shared, args.project)))
+        return _run(
+            lambda: _show(
+                credentials.add_repository(
+                    args.url, args.type, args.credential, args.none_needed, args.shared, args.project
+                )
+            )
+        )
     if command == "assign":
         if bool(args.credential) == bool(args.none_needed):
             print("error: give a credential id, or --none-needed", file=sys.stderr)
             return 2
-        return _run(lambda: _show(credentials.assign_credential(
-            args.repository, args.credential, args.none_needed, args.type)))
+        return _run(
+            lambda: _show(credentials.assign_credential(args.repository, args.credential, args.none_needed, args.type))
+        )
     if command == "unassign":
         return _run(lambda: _show(credentials.unassign_credential(args.repository)))
     if command == "check":
@@ -147,8 +173,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     if command == "delete":
         return _run(lambda: credentials.delete_repository(args.repository))
     if command == "share":
-        return _run(lambda: _show(credentials.set_repository_shared(
-            args.repository, True, args.credential, args.none_needed)))
+        return _run(
+            lambda: _show(credentials.set_repository_shared(args.repository, True, args.credential, args.none_needed))
+        )
     if command == "unshare":
         return _run(lambda: _show(credentials.set_repository_shared(args.repository, False)))
     if command == "link":

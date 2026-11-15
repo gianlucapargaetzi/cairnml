@@ -408,7 +408,8 @@ def make_action(service: "Service", request_cls: Type["APIRequest"]) -> Callable
                 Namespace(id=self.session.send(request_cls(*args, **kwargs)).response.id),
             )
 
-    elif action in ["get_all", "get_all_ex"]:
+    else:
+        # the actions "get_all" and "get_all_ex"; every other action was handled above
         # noinspection PyProtectedMember
         for dest in service.response_mapping[request_cls]._get_data_props().keys():
             if dest != "scroll_id":
@@ -424,9 +425,6 @@ def make_action(service: "Service", request_cls: Type["APIRequest"]) -> Callable
                 fields=kwargs.pop("only_fields", None),
             )
 
-    else:
-        raise
-
     get.__name__ = get.__qualname__ = action
 
     return get
@@ -436,6 +434,7 @@ class Service(ABC):
     """
     Superclass for action-grouping classes.
     """
+
     def __init__(self, session: Session) -> None:
         self.session = session
 

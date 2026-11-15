@@ -361,9 +361,7 @@ class Reporter(InterfaceBase, AbstractContextManager, SetupUploadMixin, AsyncMan
             self.wait_for_events()
             self.stop()
         except Exception as e:
-            logging.getLogger("cairnml.reporter").warning(
-                f"Exception encountered cleaning up the reporter: {e}"
-            )
+            logging.getLogger("cairnml.reporter").warning(f"Exception encountered cleaning up the reporter: {e}")
 
     def flush(self) -> None:
         """
@@ -495,6 +493,7 @@ class Reporter(InterfaceBase, AbstractContextManager, SetupUploadMixin, AsyncMan
         :param nan_as_null: If True, Convert NaN to None (null), otherwise use 'nan'
         :type nan_as_null: bool
         """
+
         def to_base_type(
             o: Any,
         ) -> Union[None, str, float, int, datetime.date, datetime.datetime]:

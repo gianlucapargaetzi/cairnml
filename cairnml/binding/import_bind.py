@@ -2,7 +2,7 @@ import sys
 import builtins
 import types
 from collections import defaultdict
-from typing import Callable, Any
+from typing import Callable, Any, Optional
 
 
 class PostImportHookPatching:
@@ -21,11 +21,14 @@ class PostImportHookPatching:
     @staticmethod
     def __patched_import2(
         name: str,
-        globals: dict = {},
-        locals: dict = {},
-        fromlist: list = [],
+        globals: Optional[dict] = None,
+        locals: Optional[dict] = None,
+        fromlist: Optional[list] = None,
         level: int = -1,
     ) -> types.ModuleType:
+        globals = {} if globals is None else globals
+        locals = {} if locals is None else locals
+        fromlist = [] if fromlist is None else fromlist
         already_imported = name in sys.modules
         mod = builtins.__org_import__(name, globals=globals, locals=locals, fromlist=fromlist, level=level)
 

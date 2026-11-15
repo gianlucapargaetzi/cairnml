@@ -55,7 +55,9 @@ def read_pin(tree: Path, name: str) -> Pin:
     path = tree / "datasets" / f"{name}.yaml"
     if not path.exists():
         known = sorted(p.stem for p in (tree / "datasets").glob("*.yaml"))
-        raise DatasetError(f"no dataset {name!r} in the external-datasets repository; known: {', '.join(known) or 'none'}")
+        raise DatasetError(
+            f"no dataset {name!r} in the external-datasets repository; known: {', '.join(known) or 'none'}"
+        )
     data = yaml.safe_load(path.read_text()) or {}
     if data.get("source") == "repo":
         link = data.get("link") or "<repository>"
@@ -86,7 +88,9 @@ def load_adapter_module(tree: Path, adapter_name: str) -> Tuple[Adapter, types.M
     """The adapter of the registry and its module (which holds ``REQUIREMENTS``, ``fetch`` and ``resolve`` if it has them)."""
     path = tree / "adapters" / f"{adapter_name}.py"
     if not path.exists():
-        raise DatasetError(f"adapter {adapter_name!r} is not in the external-datasets repository (adapters/{path.name})")
+        raise DatasetError(
+            f"adapter {adapter_name!r} is not in the external-datasets repository (adapters/{path.name})"
+        )
     return _instantiate(path, f"cairnml_adapter_{adapter_name}", f"adapter {adapter_name!r}", f"adapters/{path.name}")
 
 
@@ -119,8 +123,12 @@ def _instantiate(path: Path, module_name: str, label: str, where: str) -> Tuple[
     except Exception as exc:
         raise DatasetError(f"{label} cannot be loaded: {exc}") from exc
     found = [
-        obj for obj in vars(module).values()
-        if isinstance(obj, type) and issubclass(obj, Adapter) and obj is not Adapter and obj.__module__ == module.__name__
+        obj
+        for obj in vars(module).values()
+        if isinstance(obj, type)
+        and issubclass(obj, Adapter)
+        and obj is not Adapter
+        and obj.__module__ == module.__name__
     ]
     if len(found) != 1:
         raise DatasetError(f"{where} must define exactly one Adapter class, found {len(found)}")
@@ -160,7 +168,7 @@ def check_requirements(requirements: List[str], adapter_name: str) -> None:
         if installed != version:
             found = "is not installed" if installed is None else f"is {installed}"
             raise DatasetError(
-                f'adapter {adapter_name!r} needs {name} {version}, but {name} {found}. '
+                f"adapter {adapter_name!r} needs {name} {version}, but {name} {found}. "
                 f'Install it with: pip install "{requirement}"'
             )
 
@@ -233,7 +241,9 @@ def _default_repo() -> str:
 
     repo = config.get("sdk.datasets.external_repo", None) or config.get("datasets.external_repo", None)
     if not repo:
-        raise DatasetError("name the external-datasets repository: repo=..., or sdk.datasets.external_repo in the configuration")
+        raise DatasetError(
+            "name the external-datasets repository: repo=..., or sdk.datasets.external_repo in the configuration"
+        )
     return repo
 
 
@@ -299,7 +309,9 @@ def get_external(
         check_requirements(requirements, adapter_name)  # before the download, which may need them
         source_root = _ensure_source(cache, pin, fetch, link, resolved)
 
-    output = cache.root / "checkouts" / f"ext__{name}" / f"{sha[:12]}-{resolved[:12]}-{requirements_digest(requirements)}"
+    output = (
+        cache.root / "checkouts" / f"ext__{name}" / f"{sha[:12]}-{resolved[:12]}-{requirements_digest(requirements)}"
+    )
     if not cache.is_ready(output):
         _build(cache, adapter, adapter_name, requirements, source_root, output, pin, resolved, sha, repo)
     cache.touch(output)

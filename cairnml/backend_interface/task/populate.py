@@ -18,21 +18,13 @@ from ...config import deferred_config, DEVELOPMENT_DEFAULT_SHELL_BINARY_PATH
 
 
 class CreateAndPopulate:
-    _VCS_SSH_REGEX = (
-        "^"
-        "(?:(?P<user>{regular}*?)@)?"
-        "(?P<host>{regular}*?)"
-        ":"
-        "(?P<path>{regular}.*)?"
-        "$".format(regular=r"[^/@:#]")
+    _VCS_SSH_REGEX = "^(?:(?P<user>{regular}*?)@)?(?P<host>{regular}*?):(?P<path>{regular}.*)?$".format(
+        regular=r"[^/@:#]"
     )
 
-    _DEFAULT_SHELL_BINARY_PATH = (
-        DEVELOPMENT_DEFAULT_SHELL_BINARY_PATH.get()
-        or deferred_config(
-            "development.default_shell_binary",
-            "/bin/bash",
-        )
+    _DEFAULT_SHELL_BINARY_PATH = DEVELOPMENT_DEFAULT_SHELL_BINARY_PATH.get() or deferred_config(
+        "development.default_shell_binary",
+        "/bin/bash",
     )
 
     def __init__(
@@ -58,7 +50,7 @@ class CreateAndPopulate:
         raise_on_missing_entries: bool = False,
         verbose: bool = False,
         binary: Optional[str] = None,
-        detect_repository: bool = True
+        detect_repository: bool = True,
     ) -> None:
         """
         Create a new Task from an existing code base.
@@ -468,8 +460,7 @@ class CreateAndPopulate:
             poetry_toml_file = Path(repo_info.script["repo_root"]) / "pyproject.toml"
             if self.raise_on_missing_entries and not reqs_txt_file.is_file() and not poetry_toml_file.is_file():
                 raise ValueError(
-                    f"requirements.txt not found [{reqs_txt_file.as_posix()}] "
-                    "Use --requirements or --packages"
+                    f"requirements.txt not found [{reqs_txt_file.as_posix()}] Use --requirements or --packages"
                 )
 
         if self.add_task_init_call:
@@ -578,21 +569,19 @@ class CreateAndPopulate:
 
             if task_state["script"].get("requirements") and task_state["script"]["requirements"].get("pip"):
                 requirements_file_line = (
-                    f"Using requirements.txt: {self.requirements_file.as_posix()}"
-                    if self.requirements_file
-                    else None
+                    f"Using requirements.txt: {self.requirements_file.as_posix()}" if self.requirements_file else None
                 )
                 packages_line_title = "Additional Packages" if self.requirements_file else "Packages"
-                packages_line = (
-                    f"{packages_line_title}: {self.packages}"
-                    if self.packages
-                    else None
+                packages_line = f"{packages_line_title}: {self.packages}" if self.packages else None
+                print(
+                    "\n  ".join(
+                        [
+                            "Requirements:",
+                            *([requirements_file_line] if requirements_file_line is not None else []),
+                            *([packages_line] if packages_line is not None else []),
+                        ]
+                    )
                 )
-                print("\n  ".join([
-                    "Requirements:",
-                    *([requirements_file_line] if requirements_file_line is not None else []),
-                    *([packages_line] if packages_line is not None else []),
-                ]))
 
             if self.docker:
                 print(f"Base docker image: {self.docker}")
@@ -961,8 +950,7 @@ if __name__ == '__main__':
 
                 if inspect_defaults_vals and len(inspect_defaults_vals) != len(inspect_defaults_args):
                     getLogger().warning(
-                        "Ignoring default argument values: "
-                        f"could not find all default valued for: '{function_name}'"
+                        f"Ignoring default argument values: could not find all default valued for: '{function_name}'"
                     )
                     inspect_defaults_vals = []
 
@@ -1068,9 +1056,7 @@ if __name__ == '__main__':
                     }
                 )
                 hyper_parameters = (
-                    {f"{cls.kwargs_section}/{k}": str(v) for k, v in function_kwargs}
-                    if function_kwargs
-                    else {}
+                    {f"{cls.kwargs_section}/{k}": str(v) for k, v in function_kwargs} if function_kwargs else {}
                 )
                 hyper_parameters.update(
                     {f"{cls.input_artifact_section}/{k}": str(v) for k, v in function_input_artifacts}

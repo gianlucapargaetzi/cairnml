@@ -149,9 +149,7 @@ class CacheManager:
 
             new_file_name = file_basename + file_ext
 
-            LoggerRoot.get_base_logger().warning(
-                f'Renaming file to "{new_file_name}" due to filename length limit'
-            )
+            LoggerRoot.get_base_logger().warning(f'Renaming file to "{new_file_name}" due to filename length limit')
 
             return new_file_name
 

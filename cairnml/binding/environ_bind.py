@@ -50,13 +50,7 @@ class EnvironmentBind:
         for match in environ_log:
             match = match.strip()
             if match == "*":
-                env_param.update(
-                    {
-                        k: os.environ.get(k)
-                        for k in os.environ
-                        if not k.startswith("CAIRNML_")
-                    }
-                )
+                env_param.update({k: os.environ.get(k) for k in os.environ if not k.startswith("CAIRNML_")})
             elif match.endswith("*"):
                 match = match.rstrip("*")
                 env_param.update({k: os.environ.get(k) for k in os.environ if k.startswith(match)})

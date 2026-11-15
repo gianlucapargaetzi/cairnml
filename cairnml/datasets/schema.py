@@ -85,7 +85,9 @@ def _check_tabular(sample_id: str, name: str, value: Any, columns: Dict[str, tup
         if not isinstance(column, str) or not column:
             problems.append(f"{sample_id}: label {name!r} has a column name that is not text: {column!r}")
         elif not (isinstance(cell, str) or _is_number(cell)):
-            problems.append(f"{sample_id}: label {name!r} column {column!r} must be a finite number or text, not {cell!r}")
+            problems.append(
+                f"{sample_id}: label {name!r} column {column!r} must be a finite number or text, not {cell!r}"
+            )
     names = tuple(sorted(value))
     first = columns.setdefault(name, names)
     if names != first:
@@ -163,7 +165,8 @@ def to_arrow_value(label_type: str, value: Any) -> Any:
     if label_type != "tabular" or value is None:
         return value
     return [
-        {"column": column, "number": float(cell), "text": None} if _is_number(cell)
+        {"column": column, "number": float(cell), "text": None}
+        if _is_number(cell)
         else {"column": column, "number": None, "text": cell}
         for column, cell in value.items()
     ]
@@ -175,10 +178,7 @@ def from_arrow_value(label_type: str, value: Any) -> Any:
         return value
     if not isinstance(value, list) or not all(isinstance(cell, dict) and "column" in cell for cell in value):
         raise SchemaError("a tabular label must be a list of cells with a column, a number and a text")
-    return {
-        cell["column"]: cell["number"] if cell.get("number") is not None else cell.get("text")
-        for cell in value
-    }
+    return {cell["column"]: cell["number"] if cell.get("number") is not None else cell.get("text") for cell in value}
 
 
 def write_manifest(directory: Path, modalities: Dict[str, str], labels: Dict[str, str], extra: Dict[str, Any]) -> None:

@@ -354,9 +354,7 @@ class TaskHandler(BufferingHandler):
                 if batch_requests.requests:
                     res = task.session.send(batch_requests)
                     if res and not res.ok():
-                        warning(
-                            f"failed logging task to backend ({len(batch_requests.requests):d} lines, {res.meta})"
-                        )
+                        warning(f"failed logging task to backend ({len(batch_requests.requests):d} lines, {res.meta})")
         return True
 
     @staticmethod

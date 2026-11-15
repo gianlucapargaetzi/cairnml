@@ -171,7 +171,7 @@ class HttpRouter:
         wait: bool = False,
         wait_interval_seconds: float = 3.0,
         wait_timeout_seconds: float = 90.0,
-        static_route: Optional[str] = None
+        static_route: Optional[str] = None,
     ) -> Optional[Dict]:
         """
         Start the local HTTP proxy and request an external endpoint for an application
@@ -204,7 +204,7 @@ class HttpRouter:
             wait=wait,
             wait_interval_seconds=wait_interval_seconds,
             wait_timeout_seconds=wait_timeout_seconds,
-            static_route=static_route
+            static_route=static_route,
         )
 
     def wait_for_external_endpoint(

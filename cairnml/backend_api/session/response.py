@@ -56,21 +56,12 @@ class ResponseMeta(jsonmodels.models.Base):
 
     def __str__(self) -> str:
         result_code = (
-            self.result_code
-            if self.result_code == requests.codes.ok
-            else f"{self.result_code}/{self.result_subcode}"
+            self.result_code if self.result_code == requests.codes.ok else f"{self.result_code}/{self.result_subcode}"
         )
         endpoint = (
             f"{self.endpoint.name}/v{self.endpoint.actual_version}"
-            if (
-                self.result_code == requests.codes.ok
-                or self._is_valid
-            )
+            if (self.result_code == requests.codes.ok or self._is_valid)
             else self.endpoint.name
         )
 
-        return (
-            f"<{result_code}: {endpoint} ({self.result_msg})>"
-            if self.result_msg
-            else f"<{result_code}: {endpoint}>"
-        )
+        return f"<{result_code}: {endpoint} ({self.result_msg})>" if self.result_msg else f"<{result_code}: {endpoint}>"

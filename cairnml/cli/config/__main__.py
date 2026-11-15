@@ -1,8 +1,9 @@
-""" cairnml init: enrol this machine with the server. Reads the server address from the command line.
+"""cairnml init: enrol this machine with the server. Reads the server address from the command line.
 
 The same set as the mlops client: cairnml init (enrol), cairnml whoami and cairnml logout live in
 cairnml.cli.enrolment. This module keeps the configuration writer and the host helpers they use.
 """
+
 import sys
 from typing import Any, Optional, Tuple
 from urllib.parse import ParseResult, urlparse
@@ -35,8 +36,7 @@ def write_config(conf_file, api_host: str, web_host: str, device_id: Optional[st
                 '        device_id: "%s"\n'
                 "    }\n"
                 "}\n"
-                "sdk "
-                % (api_host, web_host, device_id or "")
+                "sdk " % (api_host, web_host, device_id or "")
             )
             f.write(header)
             f.write(default_sdk)

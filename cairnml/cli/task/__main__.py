@@ -111,8 +111,7 @@ def setup_parser(parser: ArgumentParser) -> None:
         "--queue",
         type=str,
         default=None,
-        help="Select the queue to launch the task. "
-        "If not provided a Task will be created but it will not be launched.",
+        help="Select the queue to launch the task. If not provided a Task will be created but it will not be launched.",
     )
     parser.add_argument(
         "--requirements",
@@ -183,20 +182,20 @@ def setup_parser(parser: ArgumentParser) -> None:
     parser.add_argument(
         "--force-no-requirements",
         action="store_true",
-        help="If specified, no requirements will be installed, nor do they need to be specified"
+        help="If specified, no requirements will be installed, nor do they need to be specified",
     )
     parser.add_argument(
         "--skip-repo-detection",
         action="store_true",
         help="If specified, skip repository detection when no repository is specified. "
-        "No repository will be set in remote execution"
+        "No repository will be set in remote execution",
     )
     parser.add_argument(
         "--skip-python-env-install",
         action="store_true",
         help="If specified, the agent will not install any required Python packages when running the task. "
         "Instead, it will use the preexisting Python environment to run the task. "
-        "Only relevant when the agent is running in Docker mode or is running the task in Kubernetes"
+        "Only relevant when the agent is running in Docker mode or is running the task in Kubernetes",
     )
     parser.add_argument(
         "--pipeline",
@@ -258,7 +257,7 @@ def cli() -> None:
             print("Detected shell script. Binary will be set to '/bin/bash'")
         if args.pipeline:
             argparse_args = []
-            for arg in (args.args or []):
+            for arg in args.args or []:
                 arg_split = arg.split("=")
                 if len(arg_split) != 2:
                     raise ValueError(f"Invalid argument: {arg}. Format should be key=value")
@@ -281,7 +280,7 @@ def cli() -> None:
                 add_run_number=False if args.pipeline_dont_add_run_number else True,
                 binary=args.binary,
                 argparse_args=argparse_args or None,
-                detect_repository=not args.skip_repo_detection
+                detect_repository=not args.skip_repo_detection,
             )
             created_task = pipeline._task
         else:
@@ -306,7 +305,7 @@ def cli() -> None:
                 raise_on_missing_entries=True,
                 verbose=True,
                 binary=args.binary,
-                detect_repository=not args.skip_repo_detection
+                detect_repository=not args.skip_repo_detection,
             )
             # verify args before creating the Task
             create_and_populate.update_task_args(args.args)
@@ -329,10 +328,7 @@ def cli() -> None:
             exit(0)
 
         Task.enqueue(created_task, queue_name=args.queue)
-        print(
-            f"{entity.capitalize()} id={created_task.id} "
-            f"sent for execution on queue {args.queue}"
-        )
+        print(f"{entity.capitalize()} id={created_task.id} sent for execution on queue {args.queue}")
         print(f"Execution log at: {created_task.get_output_log_web_page()}")
 
 

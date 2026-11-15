@@ -124,20 +124,22 @@ class Version(_BaseVersion):
         return f"<Version({repr(str(self))})>"
 
     def __str__(self) -> str:
-        return "".join([
-            # Epoch
-            *([f"{self.epoch}!"] if self.epoch != 0 else []),
-            # Release segment
-            ".".join(str(x) for x in self.release),
-            # Pre-release
-            *(["".join(str(x) for x in self.pre)] if self.pre is not None else []),
-            # Post-release
-            *([f".post{self.post}"] if self.post is not None else []),
-            # Development release
-            *([f".dev{self.dev}"] if self.dev is not None else []),
-            # Local version segment
-            *([f"+{self.local}"] if self.local is not None else [])
-        ])
+        return "".join(
+            [
+                # Epoch
+                *([f"{self.epoch}!"] if self.epoch != 0 else []),
+                # Release segment
+                ".".join(str(x) for x in self.release),
+                # Pre-release
+                *(["".join(str(x) for x in self.pre)] if self.pre is not None else []),
+                # Post-release
+                *([f".post{self.post}"] if self.post is not None else []),
+                # Development release
+                *([f".dev{self.dev}"] if self.dev is not None else []),
+                # Local version segment
+                *([f"+{self.local}"] if self.local is not None else []),
+            ]
+        )
 
     def get_next_version(self) -> "Version":
         def increment(part: Union[int, List[Union[int, str]]]) -> Union[int, List[Union[int, str]]]:

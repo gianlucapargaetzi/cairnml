@@ -14,6 +14,7 @@ Manually unlock, only needed internally
 
 - `LOCK_UN` unlock
 """
+
 import os
 
 # The actual tests will execute the code anyhow so the following code can

@@ -3,6 +3,7 @@
 They replace the mlops enroll, whoami and logout commands. The server is named on the command line
 (cairnml init http://cairnml); nothing is asked interactively.
 """
+
 import argparse
 import os
 import socket
@@ -98,10 +99,14 @@ def init_main(argv=None) -> int:
     parser = argparse.ArgumentParser(prog="cairnml init", description="Enrol this machine with the CairnML server.")
     parser.add_argument("server", help="the server's address, e.g. http://cairnml")
     parser.add_argument("--name", default=socket.gethostname(), help="the name of this machine (default: %(default)s)")
-    parser.add_argument("--force", action="store_true",
-                        help="enrol again: the previous device is revoked and the key replaced")
-    parser.add_argument("--device", action="store_true",
-                        help="sign in with a code on another device instead of the browser (for headless machines)")
+    parser.add_argument(
+        "--force", action="store_true", help="enrol again: the previous device is revoked and the key replaced"
+    )
+    parser.add_argument(
+        "--device",
+        action="store_true",
+        help="sign in with a code on another device instead of the browser (for headless machines)",
+    )
     _config_arg(parser)
     args = parser.parse_args(argv)
 
@@ -110,8 +115,14 @@ def init_main(argv=None) -> int:
     api_server, _ = parse_known_host(urlparse(args.server))
     client = ClientSession()
     try:
-        result = enrol(api_server or args.server, name=args.name, force=args.force, previous_device_id=previous,
-                       login=choose_login(args.device), http=client)
+        result = enrol(
+            api_server or args.server,
+            name=args.name,
+            force=args.force,
+            previous_device_id=previous,
+            login=choose_login(args.device),
+            http=client,
+        )
     except EnrolmentFailed as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
@@ -146,8 +157,9 @@ def whoami_main(argv=None) -> int:
 
 
 def logout_main(argv=None) -> int:
-    parser = argparse.ArgumentParser(prog="cairnml logout",
-                                     description="Revoke this machine's enrolment and remove its key.")
+    parser = argparse.ArgumentParser(
+        prog="cairnml logout", description="Revoke this machine's enrolment and remove its key."
+    )
     _config_arg(parser)
     args = parser.parse_args(argv)
     conf = Path(os.path.expanduser(args.file)).absolute()

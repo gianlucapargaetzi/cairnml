@@ -109,9 +109,7 @@ class ProgressReport:
     def _report(self, total_mb: float, current_mb: float, speed_mbps: float) -> None:
         if self._report_start and self.last_reported <= 0:
             # first time - print before initializing the tqdm bar
-            self._log.info(
-                f"{self._description_prefix}: {total_mb:.2f}MB {self._description_suffix}".strip(" :")
-            )
+            self._log.info(f"{self._description_prefix}: {total_mb:.2f}MB {self._description_suffix}".strip(" :"))
 
         # initialize or reuse the bar
         _tqdm = self._get_tqdm()

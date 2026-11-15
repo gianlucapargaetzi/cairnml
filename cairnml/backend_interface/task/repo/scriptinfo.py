@@ -226,7 +226,7 @@ class ScriptRequirements:
             log_ignored(get_logger("Repository Detection"), "create_requirements_txt")
 
         # python version header
-        python_version = sys.version.replace('\n', ' ').replace('\r', ' ')
+        python_version = sys.version.replace("\n", " ").replace("\r", " ")
         requirements_txt = f"# Python {python_version}\n"
 
         if local_pks:
@@ -308,7 +308,7 @@ class ScriptRequirements:
         package_names_to_remove_version: Tuple[str],
     ) -> Dict[str, Union[Tuple[str, Optional[str]], Dict[str, Any]]]:
         def _internal(
-            _installed_pkgs: Dict[str, Union[Tuple[str, Optional[str]], Dict[str, Any]]]
+            _installed_pkgs: Dict[str, Union[Tuple[str, Optional[str]], Dict[str, Any]]],
         ) -> Dict[str, Union[Tuple[str, Optional[str]], Dict[str, Any]]]:
             return {
                 k: (v[0], None if str(k) in package_names_to_remove_version else v[1])
@@ -1292,8 +1292,7 @@ class ScriptInfo:
                 entry_point = f"-m {' '.join(new_cmd)} {entry_point}"
             if log:
                 log.info(
-                    f"{framework} execution detected: adjusting entrypoint to "
-                    "reflect distributed execution arguments"
+                    f"{framework} execution detected: adjusting entrypoint to reflect distributed execution arguments"
                 )
         except Exception:
             if log:
@@ -1403,11 +1402,7 @@ class ScriptInfo:
                     module_name = vars(sys.modules["__main__"])["__package__"]
 
                 # update the script entry point to match the real argv and module call
-                script_dict["entry_point"] = (
-                    f"-m {module_name} {argvs}"
-                    if argvs
-                    else f"-m {module_name}"
-                )
+                script_dict["entry_point"] = f"-m {module_name} {argvs}" if argvs else f"-m {module_name}"
         except Exception:
             log_ignored(get_logger("Repository Detection"), "detect_running_module")
         return script_dict

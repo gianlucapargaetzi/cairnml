@@ -65,9 +65,7 @@ class Service:
         all_refs = set(itertools.chain(*self.definitions_refs.values()))
         if not all_refs.issubset(self.definitions):
             unresolved_references = ", ".join(all_refs.difference(self.definitions))
-            raise ValueError(
-                f"Unresolved references ({unresolved_references}) in {self.name}/definitions"
-            )
+            raise ValueError(f"Unresolved references ({unresolved_references}) in {self.name}/definitions")
 
         actions = {k: v.as_plain_ordered_dict() for k, v in service_config.items() if not k.startswith("_")}
         self._actions = {
@@ -168,9 +166,5 @@ class Service:
             version=action_version,
             definitions_keys=list(definitions_keys),
             service=self.name,
-            **({
-                key: value
-                for key, value in data.items()
-                if key in attr.fields_dict(Action)
-            })
+            **({key: value for key, value in data.items() if key in attr.fields_dict(Action)}),
         )

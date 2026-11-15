@@ -139,16 +139,9 @@ class _Arguments:
 
         def format_action(action):
             default = defaults_.get(action.dest, "")
-            return (
-                f"choices: {action.choices}, default: {default}"
-                if action.choices
-                else f"default: {default}"
-            )
+            return f"choices: {action.choices}, default: {default}" if action.choices else f"default: {default}"
 
-        desc_ = {
-            action.dest: str(action.help) or format_action(action=action)
-            for action in actions
-        }
+        desc_ = {action.dest: str(action.help) or format_action(action=action) for action in actions}
         descriptions.update(desc_)
         types_ = {action.dest: (action.type or None) for action in actions}
         arg_types.update(types_)
@@ -412,9 +405,7 @@ class _Arguments:
                         dict,
                         list,
                         tuple,
-                    ) and str(
-                        self.__cast_arg(current_action.default)
-                    ) == str(v):
+                    ) and str(self.__cast_arg(current_action.default)) == str(v):
                         # there is nothing we can Do, just leave with the default
                         continue
 
@@ -635,7 +626,7 @@ class _Arguments:
                 # this will be type(None), we deal with it later
                 v_type = type(v)
 
-            def warn_failed_parsing() -> None:
+            def warn_failed_parsing(k=k, param=param, v=v) -> None:
                 self._task.log.warning(f"Failed parsing task parameter {k}={param} keeping default {k}={v}")
 
             # if parameter is empty and default value is None, keep as None

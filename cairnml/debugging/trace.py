@@ -45,9 +45,7 @@ def _log_stderr(name: str, fnc: callable, args: tuple, kwargs: dict, is_return: 
         h = int(__thread_id())
         ts = time.time() - __trace_start
         prefix = "-" if is_return else ""
-        __stream_write(
-            f"{prefix}{ts:<9.3f}:{os.getpid():5}:{h:8x}: [{threading.current_thread().name}] {t}\n"
-        )
+        __stream_write(f"{prefix}{ts:<9.3f}:{os.getpid():5}:{h:8x}: [{threading.current_thread().name}] {t}\n")
         if __stream_flush:
             __stream_flush()
     except Exception:
@@ -127,9 +125,11 @@ def _patch_module(
     prefix: str = "",
     basepath: Optional[str] = None,
     basemodule: Optional[str] = None,
-    exclude_prefixes: List[str] = [],
-    only_prefix: List[str] = [],
+    exclude_prefixes: Optional[List[str]] = None,
+    only_prefix: Optional[List[str]] = None,
 ) -> None:
+    exclude_prefixes = exclude_prefixes or []
+    only_prefix = only_prefix or []
     if isinstance(module, str):
         if basemodule is None:
             basemodule = module + "."
@@ -233,8 +233,8 @@ def _patch_module(
 def trace_trains(
     stream: Union[str, TextIO, None] = None,
     level: int = 1,
-    exclude_prefixes: List[str] = [],
-    only_prefix: List[str] = [],
+    exclude_prefixes: Optional[List[str]] = None,
+    only_prefix: Optional[List[str]] = None,
 ) -> None:
     """
     DEBUG ONLY - Add full CairnML package code trace
@@ -249,6 +249,8 @@ def trace_trains(
     :param stream: stream or filename for trace log (default stderr)
     :param int level: Trace level
     """
+    exclude_prefixes = exclude_prefixes or []
+    only_prefix = only_prefix or []
     global __patched_trace, __stream_write, __stream_flush, __trace_level, __trace_start, __thread_id, __thread_so
     __trace_level = level
     if __patched_trace:
@@ -406,7 +408,7 @@ def debug_print(*args: Any, **kwargs: Any) -> None:
         f"\033[1;33m[pid={os.getpid()}, t={time.time() - tic:.04f}] "
         + str(args[0] if len(args) == 1 else ("" if not args else args))
         + "\033[0m",
-        **kwargs
+        **kwargs,
     )
     tic = time.time()
 

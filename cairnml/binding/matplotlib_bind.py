@@ -189,8 +189,8 @@ class PatchedMatplotlib:
             if not PatchedMatplotlib._plotly_missing_reported:
                 PatchedMatplotlib._plotly_missing_reported = True
                 LoggerRoot.get_base_logger().warning(
-                    'plotly is not installed, matplotlib figures are sent as images; '
-                    'install the extra cairnml[plot] for interactive plots'
+                    "plotly is not installed, matplotlib figures are sent as images; "
+                    "install the extra cairnml[plot] for interactive plots"
                 )
             return False
 
@@ -545,9 +545,7 @@ class PatchedMatplotlib:
                         # try to bring back legend
                         # noinspection PyBroadException
                         try:
-                            if plotly_fig.get("layout", {}).get(
-                                "showlegend"
-                            ) and plotly_fig.get("data"):
+                            if plotly_fig.get("layout", {}).get("showlegend") and plotly_fig.get("data"):
                                 # the legend names is the upper half of the data points:
                                 lines_ = plotly_fig["data"]
                                 half_mark = len(lines_) // 2

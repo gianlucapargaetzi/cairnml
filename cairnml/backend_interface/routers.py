@@ -22,11 +22,7 @@ class RouterService(InterfaceBase):
             "routers",
             "get_routes",
             json={
-                **(
-                    {"name": name}
-                    if name is not None
-                    else {}
-                ),
+                **({"name": name} if name is not None else {}),
             },
         )
 
@@ -49,11 +45,7 @@ class RouterService(InterfaceBase):
         """
         routes = self.get_routes(name=f"^{name}$")
 
-        first_route_type = (
-            routes[0].get("type")
-            if routes
-            else None
-        )
+        first_route_type = routes[0].get("type") if routes else None
 
         return first_route_type or "path"
 
@@ -63,10 +55,7 @@ class RouterService(InterfaceBase):
         """
         Session.verify_feature_set("advanced")
         if not Session.check_min_server_version("3.26"):
-            raise ValueError(
-                "Static routes not supported by the server version. "
-                "Minimum required version is 3.26"
-            )
+            raise ValueError("Static routes not supported by the server version. Minimum required version is 3.26")
 
     def validate_static_route(self, static_route: str) -> None:
         """
@@ -85,8 +74,7 @@ class RouterService(InterfaceBase):
         if not static_route_object.get("enabled", False):
             raise ValueError(f"Static route '{static_route}' is disabled")
 
-        if (
-            static_route_object.get("status", "") == "active"
-            and not static_route_object.get("load_balancer", {}).get("enabled", False)
+        if static_route_object.get("status", "") == "active" and not static_route_object.get("load_balancer", {}).get(
+            "enabled", False
         ):
             raise ValueError(f"Static route '{static_route}' is active but not load-balanced")

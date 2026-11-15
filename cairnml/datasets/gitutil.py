@@ -124,7 +124,10 @@ class Git:
         try:
             proc = subprocess.run(
                 self._base() + ["cat-file", "--batch-check=%(objectsize)"],
-                input="".join(f"{blobs[p]}\n" for p in paths), capture_output=True, text=True, check=False,
+                input="".join(f"{blobs[p]}\n" for p in paths),
+                capture_output=True,
+                text=True,
+                check=False,
                 env=_env(self.token),
             )
         except FileNotFoundError:
@@ -137,7 +140,8 @@ class Git:
         """``git lfs <args>``. ``transfer`` marks a command that moves objects (it is not limited by the short timeout)."""
         try:
             result = process.run(
-                self._base() + ["lfs", *args], env=_env(self.token),
+                self._base() + ["lfs", *args],
+                env=_env(self.token),
                 timeout=process.transfer_timeout() if transfer else -1,
             )
         except FileNotFoundError:

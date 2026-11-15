@@ -156,8 +156,11 @@ class AutoScaler:
         all_queues = {q.name for q in list(self.api_client.queues.get_all(only_fields=["name"]))}
         missing_queues = set(self.queues) - all_queues
         if missing_queues:
-            raise ValueError("these queues do not exist; they are made by enrolling an agent: {}".format(
-                ", ".join(sorted(missing_queues))))
+            raise ValueError(
+                "these queues do not exist; they are made by enrolling an agent: {}".format(
+                    ", ".join(sorted(missing_queues))
+                )
+            )
 
     def queue_mapping(self) -> Tuple[Dict[str, str], Dict[str, str]]:
         id_to_name = {}
@@ -311,11 +314,7 @@ class AutoScaler:
                         resource = WorkerId(worker_id).name
 
                     queue = self.resource_to_queue[resource]
-                    suffix = (
-                        f", task_id={task_id!r}"
-                        if task_id
-                        else ""
-                    )
+                    suffix = f", task_id={task_id!r}" if task_id else ""
                     self.logger.info(
                         "Spinning new instance "
                         f"resource={resource!r}, "

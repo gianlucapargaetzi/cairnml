@@ -101,7 +101,7 @@ class BlockedPickledArtifactError(BlockedArtifactTypeError):
                     "To allow download, set 'sdk.storage.block_pickled_artifacts' configuration option to 'False'"
                     f" or use the environment variable '{BLOCK_PICKLED_ARTIFACTS.key}=False'"
                 )
-            )
+            ),
         )
 
 
@@ -111,12 +111,9 @@ class Artifact:
     """
 
     _not_set = object()
-    _block_pickled_artifacts: bool = (
-        BLOCK_PICKLED_ARTIFACTS.get()
-        or deferred_config(
-            "storage.block_pickled_artifacts",
-            False,
-        )
+    _block_pickled_artifacts: bool = BLOCK_PICKLED_ARTIFACTS.get() or deferred_config(
+        "storage.block_pickled_artifacts",
+        False,
     )
 
     @property
@@ -799,8 +796,7 @@ class Artifacts:
 
                 override_filename_in_uri = artifact_object.parts[-1]
                 artifact_type_data.preview = (
-                    preview
-                    or f"{artifact_object.name} - {format_size(artifact_object.stat().st_size)}\n"
+                    preview or f"{artifact_object.name} - {format_size(artifact_object.stat().st_size)}\n"
                 )
                 artifact_object = artifact_object.as_posix()
                 artifact_type = "custom"
@@ -1204,7 +1200,7 @@ class Artifacts:
 
                 a_unique_hash = set()
 
-                def hash_row(r: Any) -> None:
+                def hash_row(r: Any, a_unique_hash=a_unique_hash) -> None:
                     a_unique_hash.add(hash(bytes(r)))
 
                 a_shape = a_df.shape
@@ -1223,17 +1219,11 @@ class Artifacts:
             # build intersection summary
             for i, (name, shape, unique_hash) in enumerate(artifacts_summary):
                 percentage = 100 * len(unique_hash) / float(shape[0])
-                summary += (
-                    f"[{name}]: shape={shape}, {len(unique_hash)} unique rows, "
-                    f"{percentage:.1f}% uniqueness\n"
-                )
+                summary += f"[{name}]: shape={shape}, {len(unique_hash)} unique rows, {percentage:.1f}% uniqueness\n"
                 for name2, shape2, unique_hash2 in artifacts_summary[i + 1 :]:
                     intersection = len(unique_hash & unique_hash2)
                     percentage2 = 100 * intersection / float(len(unique_hash2))
-                    summary += (
-                        f"\tIntersection with [{name2}] {intersection} rows: "
-                        f"{percentage2:.1f}%\n"
-                    )
+                    summary += f"\tIntersection with [{name2}] {intersection} rows: {percentage2:.1f}%\n"
         except Exception as e:
             LoggerRoot.get_base_logger().warning(str(e))
         finally:
@@ -1250,11 +1240,7 @@ class Artifacts:
 
     def _get_storage_uri_prefix(self) -> str:
         project_name = self._task.get_project_name() or "unknown"
-        if (
-            not self._storage_prefix
-            or self._task_name != self._task.name
-            or self._project_name != project_name
-        ):
+        if not self._storage_prefix or self._task_name != self._task.name or self._project_name != project_name:
             # noinspection PyProtectedMember
             self._storage_prefix = self._task._get_output_destination_suffix()
             self._task_name = self._task.name
@@ -1347,7 +1333,7 @@ class Artifacts:
             local_filename = temp_filename
             os.rmdir(temp_folder)
         except Exception as ex:
-            raise ValueError(f"Failed storing temp artifact into {local_filename}: error: {ex}")
+            raise ValueError(f"Failed storing temp artifact into {local_filename}: error: {ex}") from ex
 
         return temp_filename
 

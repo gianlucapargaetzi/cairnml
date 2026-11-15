@@ -47,7 +47,11 @@ def _storage_of(checkout: Path) -> str:
 
 def _is_address(reference: str) -> bool:
     # an address starts with its host: "github.com/owner/name", not a name that merely contains "github.com"
-    return "://" in reference or reference.startswith("git@") or reference.lower().startswith(("github.com/", "www.github.com/"))
+    return (
+        "://" in reference
+        or reference.startswith("git@")
+        or reference.lower().startswith(("github.com/", "www.github.com/"))
+    )
 
 
 def _resolve_reference(reference: str):
@@ -74,9 +78,7 @@ def _resolve_reference(reference: str):
 class Dataset:
     """One version of a local dataset, available as a folder of files."""
 
-    def __init__(
-        self, repo: str, commit: str, path: Path, content_hash: Optional[str], storage: str = "s3"
-    ) -> None:
+    def __init__(self, repo: str, commit: str, path: Path, content_hash: Optional[str], storage: str = "s3") -> None:
         self.repo = repo
         self.commit = commit
         self.path = path
@@ -116,9 +118,7 @@ class Dataset:
         git = mirror(cache, repo, git_token(repo, "read"))
         sha = resolve_commit(git, repo, commit)
         if not git.ok("cat-file", "-e", f"{sha}:{footprint.CONFIG_FILE}"):
-            raise DatasetError(
-                f"{repo} is not a CairnML dataset: {footprint.CONFIG_FILE} is missing at {sha[:10]}"
-            )
+            raise DatasetError(f"{repo} is not a CairnML dataset: {footprint.CONFIG_FILE} is missing at {sha[:10]}")
 
         checkout = cache.checkout_dir(repo, sha)
         if not cache.is_ready(checkout):
@@ -170,7 +170,9 @@ class Dataset:
                     dvc.pull()
                 except DatasetError as exc:
                     shutil.rmtree(checkout, ignore_errors=True)
-                    raise DatasetError(f"the files of {repo}@{sha[:10]} are not in storage: push them first ({exc})")
+                    raise DatasetError(
+                        f"the files of {repo}@{sha[:10]} are not in storage: push them first ({exc})"
+                    ) from exc
             cache.mark_ready(checkout)
 
     @staticmethod
@@ -199,8 +201,11 @@ class Dataset:
 
     def _record(self, alias: Optional[str]) -> None:
         values = {
-            "kind": "local", "repo": self.repo, "commit": self.commit,
-            "content_hash": self.content_hash or "", "storage": self.storage,
+            "kind": "local",
+            "repo": self.repo,
+            "commit": self.commit,
+            "content_hash": self.content_hash or "",
+            "storage": self.storage,
         }
         if self.dataset_id:
             values["id"] = self.dataset_id
@@ -209,7 +214,9 @@ class Dataset:
         record(alias or self.reference or default_alias(self.repo), values)
 
     @classmethod
-    def get_external(cls, name: str, commit: Optional[str] = None, revision: Optional[str] = None, **kwargs) -> "ExternalDataset":
+    def get_external(
+        cls, name: str, commit: Optional[str] = None, revision: Optional[str] = None, **kwargs
+    ) -> "ExternalDataset":
         """An outside dataset read through its adapter. See :func:`cairnml.datasets.external.get_external`."""
         from .external import get_external
 

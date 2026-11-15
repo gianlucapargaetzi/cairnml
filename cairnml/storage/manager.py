@@ -23,6 +23,7 @@ class StorageManager:
     Supported remote servers: ``http(s)``, ``s3``, ``gs``, ``azure``, and shared filesystem.
     Caching is enabled by default for all downloaded files.
     """
+
     _file_upload_retries = deferred_config("network.file_upload_retries", 3)
 
     storage_helper = StorageHelper
@@ -70,9 +71,9 @@ class StorageManager:
             cache_path_encoding = Path(cached_file).parent / cache.get_hashed_url_file(remote_url)
             return cls._extract_to_cache(
                 cached_file,
-                name='cache',
+                name="cache",
                 cache_context=cache_context,
-                cache_path_encoding=cache_path_encoding.as_posix()
+                cache_path_encoding=cache_path_encoding.as_posix(),
             )
         cache = CacheManager.get_cache_manager(cache_context=cache_context)
         cached_file = cache.get_local_copy(remote_url=remote_url, force_download=force_download)
@@ -267,9 +268,7 @@ class StorageManager:
                     try:
                         shutil.rmtree(temp_target_folder.as_posix())
                     except Exception as ex:
-                        base_logger.warning(
-                            f"Exception {ex}\nFailed deleting folder {temp_target_folder.as_posix()}"
-                        )
+                        base_logger.warning(f"Exception {ex}\nFailed deleting folder {temp_target_folder.as_posix()}")
         except Exception as ex:
             # failed extracting the file:
             base_logger.warning(f"Exception {ex}\nFailed extracting zip file {cached_file.as_posix()}")
@@ -552,11 +551,7 @@ class StorageManager:
 
         prefix = remote_url.rstrip("/") if helper.base_url == "file://" else helper.base_url
         if not with_metadata:
-            return (
-                [f"{prefix}/{name}" for name in helper_list_result]
-                if return_full_path
-                else helper_list_result
-            )
+            return [f"{prefix}/{name}" for name in helper_list_result] if return_full_path else helper_list_result
         else:
             if return_full_path:
                 for obj in helper_list_result:

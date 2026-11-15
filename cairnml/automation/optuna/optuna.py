@@ -16,8 +16,10 @@ try:
     import optuna
 
     Task.add_requirements("optuna")
-except ImportError:
-    raise ImportError("OptimizerOptuna requires 'optuna' package, it was not found\n install with: pip install optuna")
+except ImportError as err:
+    raise ImportError(
+        "OptimizerOptuna requires 'optuna' package, it was not found\n install with: pip install optuna"
+    ) from err
 
 
 class OptunaObjective:
@@ -109,9 +111,7 @@ class OptunaObjective:
             # exception propagate and abort the entire optimization, prune this trial. Optuna
             # records it as pruned (excluded from the sampler) and keeps optimizing the rest,
             # which is also safe for value-based samplers (e.g. GP, CMA-ES).
-            print(
-                f"OptunaObjective: job {current_job.task_id()} reported no objective metric, pruning trial"
-            )
+            print(f"OptunaObjective: job {current_job.task_id()} reported no objective metric, pruning trial")
             # noinspection PyProtectedMember
             self.optimizer._current_jobs.remove(current_job)
             raise optuna.TrialPruned()
@@ -142,7 +142,7 @@ class OptimizerOptuna(SearchStrategy):
         optuna_sampler: Optional[Any] = None,
         optuna_pruner: Optional[Any] = None,
         continue_previous_study: Optional[optuna.Study] = None,
-        **optuna_kwargs: Any
+        **optuna_kwargs: Any,
     ) -> None:
         """
         Initialize an Optuna search strategy optimizer
