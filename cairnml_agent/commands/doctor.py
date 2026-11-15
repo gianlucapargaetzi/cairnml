@@ -24,7 +24,7 @@ from typing import List, Optional, Tuple
 import requests
 
 from cairnml_agent.commands.config import default_config_file
-from cairnml_agent.external.pyhocon import ConfigFactory
+from pyhocon import ConfigFactory
 from cairnml_agent.idp import enrol as idp_enrol
 
 DOCKER_DOCS = "https://docs.docker.com/engine/install/"

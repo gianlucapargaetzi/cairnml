@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
-EXCLUDE = "*_vendor*,*/external/*,*backend_api/services*,*/tests/*,*pyhocon*,*pynvml*"
+EXCLUDE = "*_vendor*,*/external/*,*backend_api/services*,*/tests/*"
 
 
 def test_the_update_check_module_is_gone():

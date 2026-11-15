@@ -24,7 +24,7 @@ from cairnml_agent.session import normalize_cuda_version, Session  # noqa: F401 
 from cairnml_agent.helper.package.requirement_lines import Requirement, parse
 
 from .translator import RequirementsTranslator
-from cairnml_agent.external.pyhocon import ConfigTree  # noqa: F401  # named by type comments
+from pyhocon import ConfigTree  # noqa: F401  # named by type comments
 
 
 class SpecsResolutionError(Exception):

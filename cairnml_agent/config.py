@@ -1,5 +1,5 @@
 
-from cairnml_agent.external.pyhocon import ConfigTree
+from pyhocon import ConfigTree
 from cairnml_agent.helper.base import Singleton
 
 

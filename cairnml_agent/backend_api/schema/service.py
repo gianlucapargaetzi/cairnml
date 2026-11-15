@@ -3,7 +3,7 @@ import re
 
 import attr
 
-from cairnml_agent.external import pyhocon
+import pyhocon
 
 from .action import Action
 
@@ -98,7 +98,7 @@ class Service(object):
                     "Failed parsing version number {} ({}) in {}/{}".format(
                         action_version, ex.args[0], self.name, action_name
                     )
-                )
+                ) from ex
 
         def add_internal(cfg):
             if "internal" in action_versions:
@@ -183,7 +183,7 @@ class Service(object):
                         action_version,
                         schema_key,
                     )
-                    raise ValueError("%s in %s" % (str(ex), name))
+                    raise ValueError("%s in %s" % (str(ex), name)) from ex
 
         return Action(
             name=action_name,

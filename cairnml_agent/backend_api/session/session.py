@@ -8,7 +8,7 @@ from socket import gethostname
 import jwt
 import requests
 
-from cairnml_agent.external.pyhocon import ConfigTree, ConfigFactory
+from pyhocon import ConfigTree, ConfigFactory
 from .callresult import CallResult
 from .defs import (
     ENV_VERBOSE, ENV_HOST, ENV_WEB_HOST, ENV_AUTH_TOKEN, ENV_JOB_TOKEN, ENV_JOB_TOKEN_FILE,
@@ -515,7 +515,7 @@ class Session(TokenManager):
         except AttributeError:
             raise TypeError(
                 '"req_obj" parameter must be an backend_api.session.Request object'
-            )
+            ) from None
 
         validate()
 

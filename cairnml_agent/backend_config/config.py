@@ -15,8 +15,8 @@ from pyparsing import (
     ParseSyntaxException,
 )
 
-from cairnml_agent.external import pyhocon
-from cairnml_agent.external.pyhocon import ConfigTree, ConfigFactory
+import pyhocon
+from pyhocon import ConfigTree, ConfigFactory
 
 from .defs import (
     ENV_VAR,
@@ -256,13 +256,13 @@ class Config(object):
         loggers = list(logging_config.get("loggers", {}).values()) + (
             [root_logger] if root_logger else []
         )
-        for logger in loggers:
-            handlers = logger.get("handlers", None)
+        for logger_config in loggers:
+            handlers = logger_config.get("handlers", None)
             if debug:
-                logger['level'] = 'DEBUG'
+                logger_config['level'] = 'DEBUG'
             if not handlers:
                 continue
-            logger["handlers"] = [h for h in handlers if h not in deleted]
+            logger_config["handlers"] = [h for h in handlers if h not in deleted]
 
         extra = None
         if self._app:
@@ -273,7 +273,7 @@ class Config(object):
     def __getitem__(self, key):
         try:
             return self._config[key]
-        except:
+        except Exception:
             return None
 
     def __getattr__(self, key):
@@ -374,12 +374,12 @@ class Config(object):
             msg = "Failed parsing {0} ({1.__class__.__name__}): (at char {1.loc}, line:{1.lineno}, col:{1.column})".format(
                 file_path, ex
             )
-            raise ConfigurationError(msg, file_path=file_path).with_traceback(sys.exc_info()[2])
+            raise ConfigurationError(msg, file_path=file_path).with_traceback(sys.exc_info()[2]) from ex
         except (ParseException, ParseFatalException, RecursiveGrammarException) as ex:
             msg = "Failed parsing {0} ({1.__class__.__name__}): {1}".format(
                 file_path, ex
             )
-            raise ConfigurationError(msg).with_traceback(sys.exc_info()[2])
+            raise ConfigurationError(msg).with_traceback(sys.exc_info()[2]) from ex
         except Exception as ex:
             print("Failed loading %s: %s" % (file_path, ex))
             raise

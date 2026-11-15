@@ -71,3 +71,14 @@ def test_every_module_of_the_agent_imports_except_the_known_failures():
 
     assert result.returncode == 0, result.stderr
     assert set(result.stdout.split()) == KNOWN_IMPORT_FAILURES
+
+
+def test_the_embedded_pyhocon_jsonmodels_and_pynvml_copies_are_gone():
+    import importlib.util
+
+    for name in (
+        "cairnml_agent.external.pyhocon",
+        "cairnml_agent.backend_api.session.jsonmodels",
+        "cairnml_agent.helper.gpu.pynvml",
+    ):
+        assert importlib.util.find_spec(name) is None, name
