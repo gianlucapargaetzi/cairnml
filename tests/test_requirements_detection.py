@@ -3,7 +3,7 @@
 The table is fixed so the expectations do not depend on what the test machine has installed.
 """
 
-from cairnml.utilities.pigar.__main__ import GenerateReqs
+from cairnml.utilities.project_requirements import GenerateReqs
 
 IGNORES = [".git", ".hg", ".idea", "__pycache__", ".ipynb_checkpoints", "site-packages", "dist-packages"]
 
@@ -16,7 +16,7 @@ INSTALLED = {
 
 
 def scan(project, entry=None):
-    generator = GenerateReqs(save_path="", project_path=str(project), installed_pkgs=INSTALLED, ignores=IGNORES)
+    generator = GenerateReqs(project_path=str(project), ignores=IGNORES, installed_pkgs=INSTALLED)
     reqs, try_imports, guess, local = generator.extract_reqs(entry_point_filename=entry)
     return {
         "reqs": {name: detail.version for name, detail in reqs.sorted_items()},
@@ -60,7 +60,7 @@ def test_an_import_that_is_not_installed_is_a_guess(tmp_path):
 
 
 def test_a_notebook_code_string_is_scanned_as_a_file(tmp_path):
-    from cairnml.utilities.pigar.reqs import file_import_modules
+    from cairnml.utilities.project_requirements import file_import_modules
 
     modules, try_imports = file_import_modules(
         "notebook.ipynb", b"import numpy\ntry:\n    import ujson\nexcept ImportError:\n    pass\n"
@@ -69,14 +69,16 @@ def test_a_notebook_code_string_is_scanned_as_a_file(tmp_path):
     assert sorted(try_imports) == EXPECTED["notebook"]["try"]
 
 
-# Recorded from the embedded pigar copy on d509740b. Two results are current gaps, kept as they are until slice 2
-# decides them: a local module that sits in the project folder is a guess, not a local module, and an entry script's
-# local import is not followed, so the PyYAML that utils.py needs is missing from the entry_script requirements.
+# Expected requirements. Recorded from the embedded pigar copy on d509740b, then changed on purpose in slice 2, one
+# difference at a time:
+#  - local_modules: "helper" is a module of the project, so it is no longer a guess (it was listed as not installed).
+#  - entry_script: the entry script imports the project's utils.py, so the whole project is scanned, as the old code
+#    did; that reads sub/unused.py too, and PyYAML (from utils.py) and requests are now recorded.
 EXPECTED = {
     "local_modules": {
         "reqs": {"numpy": "1.26.4", "requests": "2.31.0"},
         "try": [],
-        "guess": ["helper"],
+        "guess": [],
         "local": [],
     },
     "try_except": {
@@ -92,9 +94,9 @@ EXPECTED = {
         "local": [],
     },
     "entry_script": {
-        "reqs": {"numpy": "1.26.4"},
+        "reqs": {"PyYAML": "6.0.1", "numpy": "1.26.4", "requests": "2.31.0"},
         "try": [],
-        "guess": ["utils"],
+        "guess": [],
         "local": [],
     },
     "not_installed": {
@@ -105,3 +107,15 @@ EXPECTED = {
     },
     "notebook": {"modules": ["numpy", "ujson"], "try": ["ujson"]},
 }
+
+
+def test_a_scan_leaves_the_sys_path_and_sys_modules_of_the_calling_process_unchanged(tmp_path):
+    import sys
+
+    write(tmp_path / "main.py", "import helper\nimport requests\nimport notinstalledpkg\n")
+    write(tmp_path / "helper.py", "import numpy\n")
+    path_before = list(sys.path)
+    modules_before = set(sys.modules)
+    scan(tmp_path)
+    assert sys.path == path_before
+    assert set(sys.modules) == modules_before

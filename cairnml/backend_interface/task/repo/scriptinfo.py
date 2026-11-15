@@ -55,12 +55,10 @@ class ScriptRequirements:
     ) -> Tuple[str, str]:
         # noinspection PyBroadException
         try:
-            from ....utilities.pigar.reqs import get_installed_pkgs_detail
-            from ....utilities.pigar.__main__ import GenerateReqs
+            from ....utilities.project_requirements import get_installed_pkgs_detail, GenerateReqs
 
             installed_pkgs = self._remove_package_versions(get_installed_pkgs_detail(), self._packages_remove_version)
             gr = GenerateReqs(
-                save_path="",
                 project_path=self._root_folder,
                 installed_pkgs=installed_pkgs,
                 ignores=[
@@ -410,14 +408,11 @@ class _JupyterObserver:
         # load pigar
         # noinspection PyBroadException
         try:
-            from ....utilities.pigar.reqs import (
+            from ....utilities.project_requirements import (
                 get_installed_pkgs_detail,
                 file_import_modules,
+                ReqsModules,
             )
-            from ....utilities.pigar.modules import ReqsModules
-            from ....utilities.pigar.log import logger
-
-            logger.setLevel(logging.WARNING)
         except Exception:
             file_import_modules = None
         # load IPython
@@ -523,7 +518,7 @@ class _JupyterObserver:
                             with open(local_jupyter_filename, "r") as f:
                                 script_code = f.read()
                             # load the modules
-                            from ....utilities.pigar.modules import ImportedModules
+                            from ....utilities.project_requirements import ImportedModules
 
                             fmodules = ImportedModules()
                             for nm in set([str(m).split(".")[0] for m in sys.modules]):
