@@ -5,6 +5,7 @@ import sys
 import types
 import weakref
 from io import IOBase
+from pathlib import Path
 from socket import gethostname
 from time import sleep
 
@@ -137,6 +138,7 @@ class Session(TokenManager):
         verbose: Optional[bool] = None,
         config: Optional[ConfigTree] = None,
         http_retries_config: Optional[dict] = None,
+        device_key_path: Optional[str] = None,
         **kwargs: Any,
     ) -> None:
         self.__class__._sessions_weakrefs.append(weakref.ref(self))
@@ -152,6 +154,7 @@ class Session(TokenManager):
 
         self.__init_host = host
         self.__init_http_retries_config = http_retries_config
+        self.__init_device_key_path = device_key_path
         self.__token_manager_kwargs = kwargs
         if config is not None:
             self.config = config
@@ -209,6 +212,8 @@ class Session(TokenManager):
 
         self.__auth_token = None
         self.__device_id = self.config.get("api.idp.device_id", None)
+        # The argument wins over the config value; None means the SDK's default key file.
+        self.__device_key_path = self.__init_device_key_path or self.config.get("api.idp.device_key_path", None)
         self.__job_token = ENV_JOB_TOKEN.get()
         self.__job_token_file = ENV_JOB_TOKEN_FILE.get()
         self._update_default_api_method()
@@ -858,7 +863,8 @@ class Session(TokenManager):
 
     def _exchange_device_assertion(self) -> str:
         """Sign an assertion with this device's key and exchange it for a short-lived token."""
-        assertion = device_assertion(self.__device_id, self.host)
+        key_path = Path(self.__device_key_path).expanduser() if self.__device_key_path else None
+        assertion = device_assertion(self.__device_id, self.host, key_path=key_path)
         res = self._send_request(
             service="devices",
             action="exchange",
