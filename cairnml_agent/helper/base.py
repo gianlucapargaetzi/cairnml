@@ -15,7 +15,7 @@ import tempfile
 from abc import ABCMeta
 from collections import OrderedDict
 from functools import total_ordering
-from typing import Text, Dict, Any, Optional, AnyStr, IO, Union
+from typing import Text, Dict, Any, Optional, AnyStr, IO, Union  # noqa: F401  # named by type comments
 
 import attr
 import furl
@@ -248,7 +248,7 @@ def add_python_path(base_path, extra_path):
         if not base_path.endswith(python_path_sep):
             base_path += python_path_sep
         base_path += extra_path.replace(':', python_path_sep)
-    except:
+    except Exception:
         pass
     return base_path
 
@@ -310,7 +310,7 @@ def load_yaml(path):
         with open(path) as data_file:
             return yaml.safe_load(data_file) or {}
     except yaml.YAMLError as e:
-        raise ValueError('Failed parsing yaml file [{}]: {}'.format(path, e))
+        raise ValueError('Failed parsing yaml file [{}]: {}'.format(path, e)) from e
 
 
 def dump_yaml(obj, path=None, dump_all=False, **kwargs):
@@ -513,9 +513,9 @@ def check_directory_path(path, check_whitespace_in_path=True):
     try:
         Path(os.path.expandvars(path)).expanduser().mkdir(parents=True, exist_ok=True)
     except OSError as e:
-        raise CommandFailedError(message.format(path, e.strerror))
+        raise CommandFailedError(message.format(path, e.strerror)) from e
     except Exception as e:
-        raise CommandFailedError(message.format(path, e))
+        raise CommandFailedError(message.format(path, e)) from e
 
 
 def create_file_if_not_exists(path):
@@ -543,7 +543,7 @@ def rm_file(filename):  # type: (Union[Path, Text]) -> None
     """
     try:
         os.unlink(os.path.expanduser(os.path.expandvars(Text(filename))))
-    except:
+    except Exception:
         return False
     return True
 

@@ -22,7 +22,7 @@ from cairnml_agent.helper.base import HOCONEncoder
 from cairnml_agent.helper.process import Argv
 from cairnml_agent.helper.docker_args import DockerArgsSanitizer, sanitize_urls
 from .version import __version__
-from typing import Any, Callable
+from typing import Any, Callable  # noqa: F401  # named by type comments
 
 POETRY = "poetry"
 UV = "uv"
@@ -240,7 +240,7 @@ class Session(_Session):
             folder_key.set(folder.as_posix())
             try:
                 folder.mkdir(parents=True, exist_ok=True)
-            except:
+            except Exception:
                 pass
 
     def print_configuration(self):
@@ -339,7 +339,7 @@ class Session(_Session):
             res_json = res.json()
             return_code = res_json["meta"]["result_code"]
         except (ValueError, KeyError, TypeError):
-            raise APIError(res)
+            raise APIError(res) from None
 
         # check return code
         if return_code != 200:

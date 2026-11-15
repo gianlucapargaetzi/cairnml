@@ -515,7 +515,7 @@ class Session(TokenManager):
         except AttributeError:
             raise TypeError(
                 '"req_obj" parameter must be an backend_api.session.Request object'
-            )
+            ) from None
 
         validate()
 

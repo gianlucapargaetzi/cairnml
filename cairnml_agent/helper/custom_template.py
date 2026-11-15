@@ -336,7 +336,7 @@ class CustomTemplate(Template):
                 return additional_mappings[prefix] or default
 
         except Exception:
-            raise KeyError((key,))
+            raise KeyError((key,)) from None
 
         # default, nothing
         raise KeyError((key,))
