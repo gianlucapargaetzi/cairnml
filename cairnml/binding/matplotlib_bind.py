@@ -2,6 +2,7 @@
 
 import sys
 import threading
+import warnings
 from copy import deepcopy
 from tempfile import mkstemp
 from typing import Union, Dict, List, Tuple, TYPE_CHECKING, Any
@@ -15,6 +16,16 @@ from .import_bind import PostImportHookPatching
 from ..config import running_remotely
 from ..debugging.log import LoggerRoot
 from ..utilities.resource_monitor import ResourceMonitor
+
+
+def _plotly_json(figure: Any) -> Dict:
+    """The plot as a dict for the web app. plotly's own template and background colours are dropped, so a plot
+    looks as it did with the embedded converter (which set none of them)."""
+    data = figure.to_dict() if hasattr(figure, "to_dict") else figure
+    layout = data.get("layout", {})
+    for key in ("template", "paper_bgcolor", "plot_bgcolor"):
+        layout.pop(key, None)
+    return data
 
 
 class PatchedMatplotlib:
@@ -40,18 +51,7 @@ class PatchedMatplotlib:
     _logger_started_reporting = False
     _matplotlib_reported_titles = set()
 
-    class _PatchWarnings:
-        def __init__(self) -> None:
-            pass
-
-        def warn(self, text: str, *args: Any, **kwargs: Any) -> None:
-            raise ValueError(text)
-
-        def __getattr__(self, item: str) -> Any:
-            def bypass(*_: Any, **__: Any) -> None:
-                pass
-
-            return bypass
+    _plotly_missing_reported = False
 
     @staticmethod
     def force_report_as_image(force: bool) -> None:
@@ -111,11 +111,6 @@ class PatchedMatplotlib:
             figure.Figure.show = PatchedMatplotlib.patched_figure_show
             sys.modules["matplotlib"].pyplot.imshow = PatchedMatplotlib.patched_imshow
             sys.modules["matplotlib"].figure.Figure.savefig = PatchedMatplotlib.patched_savefig
-            # patch plotly so we know it failed us.
-            from ..utilities.plotlympl import renderer
-
-            # noinspection PyProtectedMember
-            renderer.warnings = PatchedMatplotlib._PatchWarnings()
 
         except Exception:
             return False
@@ -183,14 +178,20 @@ class PatchedMatplotlib:
         if PatchedMatplotlib._matplotlylib and PatchedMatplotlib._plotly_renderer:
             return True
 
-        # create plotly renderer
+        # the plotly exporter is the optional extra cairnml[plot]; without it figures are sent as images
         # noinspection PyBroadException
         try:
-            from ..utilities import plotlympl
+            from plotly import matplotlylib
 
-            PatchedMatplotlib._matplotlylib = plotlympl
-            PatchedMatplotlib._plotly_renderer = plotlympl.PlotlyRenderer()
+            PatchedMatplotlib._matplotlylib = matplotlylib
+            PatchedMatplotlib._plotly_renderer = matplotlylib.PlotlyRenderer
         except Exception:
+            if not PatchedMatplotlib._plotly_missing_reported:
+                PatchedMatplotlib._plotly_missing_reported = True
+                LoggerRoot.get_base_logger().warning(
+                    'plotly is not installed, matplotlib figures are sent as images; '
+                    'install the extra cairnml[plot] for interactive plots'
+                )
             return False
 
         return True
@@ -444,7 +445,13 @@ class PatchedMatplotlib:
                             return None
 
                         plotly_renderer = PatchedMatplotlib._matplotlylib.PlotlyRenderer()
-                        PatchedMatplotlib._matplotlylib.Exporter(plotly_renderer, close_mpl=False).run(fig)
+                        with warnings.catch_warnings():
+                            # the converter warns about a plot it cannot draw: such a figure is sent as an image.
+                            # Its warning about a path in a legend (a line plot's legend) is harmless and is ignored.
+                            warnings.simplefilter("error", UserWarning)
+                            warnings.filterwarnings("ignore", message="I found a path object", category=UserWarning)
+                            PatchedMatplotlib._matplotlylib.Exporter(plotly_renderer, close_mpl=False).run(fig)
+                        plotly_fig = _plotly_json(plotly_renderer.plotly_fig)
 
                         def process_tick_text(
                             ticks: List["matplotlib.text.Text"],
@@ -480,8 +487,8 @@ class PatchedMatplotlib:
                                         except Exception:
                                             return text
 
-                                    _axis = next(x for x in axes if x in plotly_renderer.plotly_fig["layout"])
-                                    plotly_renderer.plotly_fig["layout"][_axis].update(
+                                    _axis = next(x for x in axes if x in plotly_fig["layout"])
+                                    plotly_fig["layout"][_axis].update(
                                         {
                                             "ticktext": [
                                                 convert_latex_math_powers_to_html(t.get_text()) for t in ticks
@@ -489,8 +496,8 @@ class PatchedMatplotlib:
                                             "tickvals": [t.get_position()[val_index] for t in ticks],
                                         }
                                     )
-                                    if plotly_renderer.plotly_fig["layout"][_axis].get("type") == "linear":
-                                        plotly_renderer.plotly_fig["layout"][_axis].pop("type", None)
+                                    if plotly_fig["layout"][_axis].get("type") == "linear":
+                                        plotly_fig["layout"][_axis].pop("type", None)
                                 except Exception:
                                     pass
 
@@ -508,10 +515,10 @@ class PatchedMatplotlib:
                         try:
                             # check if we have a 3d plot
                             if (
-                                "zaxis" in plotly_renderer.plotly_fig.get("layout", {})
-                                or "zaxis0" in plotly_renderer.plotly_fig.get("layout", {})
-                                or "zaxis1" in plotly_renderer.plotly_fig.get("layout", {})
-                                or len(plotly_renderer.plotly_fig.get("data", [{}])[0].get("z", [])) > 0
+                                "zaxis" in plotly_fig.get("layout", {})
+                                or "zaxis0" in plotly_fig.get("layout", {})
+                                or "zaxis1" in plotly_fig.get("layout", {})
+                                or len(plotly_fig.get("data", [{}])[0].get("z", [])) > 0
                             ):
                                 process_tick_text(
                                     list(plotly_renderer.current_mpl_ax.get_zticklabels()),
@@ -520,16 +527,16 @@ class PatchedMatplotlib:
                                 )
 
                                 # rotate the X axis -90 degrees such that it matches matplotlib
-                                plotly_renderer.plotly_fig.setdefault("layout", {}).setdefault("scene", {}).setdefault(
+                                plotly_fig.setdefault("layout", {}).setdefault("scene", {}).setdefault(
                                     "camera", {}
                                 ).setdefault("eye", {}).setdefault("x", -1)
 
                                 # reverse the X and Y axes such that they match matplotlib
-                                plotly_renderer.plotly_fig.setdefault("layout", {}).setdefault("scene", {}).setdefault(
+                                plotly_fig.setdefault("layout", {}).setdefault("scene", {}).setdefault(
                                     "xaxis", {}
                                 ).setdefault("autorange", "reversed")
 
-                                plotly_renderer.plotly_fig.setdefault("layout", {}).setdefault("scene", {}).setdefault(
+                                plotly_fig.setdefault("layout", {}).setdefault("scene", {}).setdefault(
                                     "yaxis", {}
                                 ).setdefault("autorange", "reversed")
                         except Exception:
@@ -538,11 +545,11 @@ class PatchedMatplotlib:
                         # try to bring back legend
                         # noinspection PyBroadException
                         try:
-                            if plotly_renderer.plotly_fig.get("layout", {}).get(
+                            if plotly_fig.get("layout", {}).get(
                                 "showlegend"
-                            ) and plotly_renderer.plotly_fig.get("data"):
+                            ) and plotly_fig.get("data"):
                                 # the legend names is the upper half of the data points:
-                                lines_ = plotly_renderer.plotly_fig["data"]
+                                lines_ = plotly_fig["data"]
                                 half_mark = len(lines_) // 2
                                 if len(lines_) % 2 == 0 and all(
                                     not ln.get("x") and not ln.get("y") for ln in lines_[half_mark:]
@@ -553,11 +560,11 @@ class PatchedMatplotlib:
                             pass
 
                         # let plotly deal with the range in realtime (otherwise there is no real way to change it to
-                        if not plotly_renderer.plotly_fig.get("layout", {}).get("xaxis", {}).pop("custom_range", False):
-                            plotly_renderer.plotly_fig.get("layout", {}).get("xaxis", {}).pop("range", None)
-                        if not plotly_renderer.plotly_fig.get("layout", {}).get("yaxis", {}).pop("custom_range", False):
-                            plotly_renderer.plotly_fig.get("layout", {}).get("yaxis", {}).pop("range", None)
-                        return deepcopy(plotly_renderer.plotly_fig)
+                        if not plotly_fig.get("layout", {}).get("xaxis", {}).pop("custom_range", False):
+                            plotly_fig.get("layout", {}).get("xaxis", {}).pop("range", None)
+                        if not plotly_fig.get("layout", {}).get("yaxis", {}).pop("custom_range", False):
+                            plotly_fig.get("layout", {}).get("yaxis", {}).pop("range", None)
+                        return deepcopy(plotly_fig)
 
                     plotly_dict = our_mpl_to_plotly(mpl_fig)
 
