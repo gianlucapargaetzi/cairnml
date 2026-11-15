@@ -1204,7 +1204,7 @@ class Artifacts:
 
                 a_unique_hash = set()
 
-                def hash_row(r: Any) -> None:
+                def hash_row(r: Any, a_unique_hash=a_unique_hash) -> None:
                     a_unique_hash.add(hash(bytes(r)))
 
                 a_shape = a_df.shape
@@ -1347,7 +1347,7 @@ class Artifacts:
             local_filename = temp_filename
             os.rmdir(temp_folder)
         except Exception as ex:
-            raise ValueError(f"Failed storing temp artifact into {local_filename}: error: {ex}")
+            raise ValueError(f"Failed storing temp artifact into {local_filename}: error: {ex}") from ex
 
         return temp_filename
 

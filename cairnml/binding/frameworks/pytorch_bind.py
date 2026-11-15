@@ -13,7 +13,6 @@ from ..frameworks import (
 )
 from ..import_bind import PostImportHookPatching
 from ...binding.frameworks.base_bind import PatchBaseModelIO
-from ...config import running_remotely
 from ...model import Framework
 
 

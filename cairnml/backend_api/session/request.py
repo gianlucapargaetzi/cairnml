@@ -90,7 +90,7 @@ class BatchRequest(Request, ABC):
             try:
                 req.validate()
             except (SchemaError, ValidationError, FormatError, Unresolvable) as e:
-                raise Exception(f"Validation error in batch item #{i}: {e}")
+                raise Exception(f"Validation error in batch item #{i}: {e}") from e
 
     def get_json(self) -> List[Union[Dict, Any]]:
         return [

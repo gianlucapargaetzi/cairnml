@@ -635,7 +635,7 @@ class _Arguments:
                 # this will be type(None), we deal with it later
                 v_type = type(v)
 
-            def warn_failed_parsing() -> None:
+            def warn_failed_parsing(k=k, param=param, v=v) -> None:
                 self._task.log.warning(f"Failed parsing task parameter {k}={param} keeping default {k}={v}")
 
             # if parameter is empty and default value is None, keep as None

@@ -16,8 +16,8 @@ try:
     import optuna
 
     Task.add_requirements("optuna")
-except ImportError:
-    raise ImportError("OptimizerOptuna requires 'optuna' package, it was not found\n install with: pip install optuna")
+except ImportError as err:
+    raise ImportError("OptimizerOptuna requires 'optuna' package, it was not found\n install with: pip install optuna") from err
 
 
 class OptunaObjective:

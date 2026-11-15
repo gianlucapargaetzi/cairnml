@@ -7,7 +7,6 @@ the data is copied from the dataset cache into ``data/``, which git does not tra
 Once access ends, the copy stays readable here; the server refuses its changes (a push needs a write token from it).
 """
 
-import os
 import shutil
 from pathlib import Path
 from typing import Optional

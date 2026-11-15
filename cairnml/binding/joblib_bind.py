@@ -8,7 +8,6 @@ from pathlib2 import Path
 
 from .import_bind import PostImportHookPatching
 from ..binding.frameworks import _patched_call, _Empty, WeightsFileHandler
-from ..config import running_remotely
 from ..debugging.log import LoggerRoot
 from ..model import Framework
 from ..utilities.lowlevel.file_access import (

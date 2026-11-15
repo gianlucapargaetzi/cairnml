@@ -10,7 +10,6 @@ from typing import TYPE_CHECKING, Callable, Dict, Optional, Union, Any
 from pathlib2 import Path
 
 from ...backend_interface.model import Model
-from ...config import running_remotely
 from ...debugging.log import get_logger
 from ...model import InputModel, OutputModel
 

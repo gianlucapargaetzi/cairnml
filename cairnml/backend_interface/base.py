@@ -56,7 +56,7 @@ class InterfaceBase(SessionInterface):
         try:
             log.setLevel(LOG_LEVEL_ENV_VAR.get(default=log.level))
         except TypeError as ex:
-            raise ValueError("Invalid log level defined in environment variable `%s`: %s" % (LOG_LEVEL_ENV_VAR, ex))
+            raise ValueError("Invalid log level defined in environment variable `%s`: %s" % (LOG_LEVEL_ENV_VAR, ex)) from ex
         return log
 
     @classmethod
@@ -119,7 +119,7 @@ class InterfaceBase(SessionInterface):
                         exc_info=log.isEnabledFor(logging.DEBUG),
                     )
                 if raise_on_errors:
-                    raise ValidationError("Field %s contains illegal schema: %s" % (".".join(e.path), e.message))
+                    raise ValidationError("Field %s contains illegal schema: %s" % (".".join(e.path), e.message)) from e
                 # We do not want to retry
                 return None
             except Exception as e:

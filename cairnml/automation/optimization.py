@@ -973,8 +973,8 @@ class SearchStrategy:
         try:
             task = Task.get_task(task_id=self._base_task_id)
             self._base_task_name = task.name
-        except ValueError:
-            raise ValueError(f"Could not find base task id {self._base_task_id}")
+        except ValueError as err:
+            raise ValueError(f"Could not find base task id {self._base_task_id}") from err
         # check if the hyper-parameters exist:
         task_parameters = task.get_parameters(backwards_compatibility=False)
         missing_params = [h.name for h in self._hyper_parameters if h.name not in task_parameters]
@@ -1607,8 +1607,8 @@ class HyperParameterOptimizer:
 
                 if optimizer_class != OptimizerOptuna:
                     raise ValueError(optuna_error_message)
-        except Exception:
-            raise ValueError(optuna_error_message)
+        except Exception as err:
+            raise ValueError(optuna_error_message) from err
         # if optimizer_class is an instance, use it as is.
         if not isinstance(optimizer_class, type):
             self.optimizer = optimizer_class

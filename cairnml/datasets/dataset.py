@@ -170,7 +170,7 @@ class Dataset:
                     dvc.pull()
                 except DatasetError as exc:
                     shutil.rmtree(checkout, ignore_errors=True)
-                    raise DatasetError(f"the files of {repo}@{sha[:10]} are not in storage: push them first ({exc})")
+                    raise DatasetError(f"the files of {repo}@{sha[:10]} are not in storage: push them first ({exc})") from exc
             cache.mark_ready(checkout)
 
     @staticmethod

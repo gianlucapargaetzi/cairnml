@@ -9,7 +9,6 @@ from ..import_bind import PostImportHookPatching
 
 if TYPE_CHECKING:
     from ... import Task
-from ...config import running_remotely
 from ...model import Framework
 
 

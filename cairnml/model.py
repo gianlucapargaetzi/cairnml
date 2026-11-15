@@ -1587,9 +1587,9 @@ class Model(BaseModel):
         # noinspection PyBroadException
         try:
             weights_url = model.url
-        except Exception:
+        except Exception as err:
             if raise_on_errors:
-                raise ValueError(f"Could not find model id={model.id}")
+                raise ValueError(f"Could not find model id={model.id}") from err
             return False
 
         try:
@@ -1604,7 +1604,7 @@ class Model(BaseModel):
                 return False
         except SendError as ex:
             if raise_on_errors:
-                raise ValueError(f"Could not remove model id={model.id}: {ex}")
+                raise ValueError(f"Could not remove model id={model.id}: {ex}") from ex
             return False
         except ValueError:
             if raise_on_errors:
@@ -1612,7 +1612,7 @@ class Model(BaseModel):
             return False
         except Exception as ex:
             if raise_on_errors:
-                raise ValueError(f"Could not remove model id={model.id}: {ex}")
+                raise ValueError(f"Could not remove model id={model.id}: {ex}") from ex
             return False
 
         if not delete_weights_file:
@@ -1626,7 +1626,7 @@ class Model(BaseModel):
                 return False
         except Exception as ex:
             if raise_on_errors:
-                raise ValueError(f"Could not remove model id={model.id} weights file '{weights_url}': {ex}")
+                raise ValueError(f"Could not remove model id={model.id} weights file '{weights_url}': {ex}") from ex
             return False
 
         return True
@@ -2310,8 +2310,8 @@ class OutputModel(BaseModel):
         # Verify that we can upload to this destination
         try:
             uri = storage.verify_upload(folder_uri=uri)
-        except Exception:
-            raise ValueError(f"Could not set destination uri to: {uri} [Check write permissions]")
+        except Exception as err:
+            raise ValueError(f"Could not set destination uri to: {uri} [Check write permissions]") from err
 
         # store default uri
         self._get_base_model().upload_storage_uri = uri

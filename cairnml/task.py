@@ -967,8 +967,8 @@ class Task(_Task):
         """
         try:
             from .router.router import HttpRouter  # noqa
-        except ImportError:
-            raise UsageError("Could not import `HttpRouter`. Please run `pip install cairnml[router]`")
+        except ImportError as err:
+            raise UsageError("Could not import `HttpRouter`. Please run `pip install cairnml[router]`") from err
 
         if self._http_router is None:
             self._http_router = HttpRouter(self)
@@ -2457,11 +2457,11 @@ class Task(_Task):
             try:
                 with open(configuration_path.as_posix(), "rt") as f:
                     configuration_text = f.read()
-            except Exception:
+            except Exception as err:
                 raise ValueError(
                     f"Could not connect configuration file {configuration_path.as_posix()}, "
                     "file could not be read"
-                )
+                ) from err
             if multi_config_support:
                 self._set_configuration(
                     name=name,
@@ -2759,19 +2759,19 @@ class Task(_Task):
                 try:
                     num_devices = len(devices)
                 except Exception as ex:
-                    raise ValueError(f"Failed parsing number of devices: {ex}")
+                    raise ValueError(f"Failed parsing number of devices: {ex}") from ex
             except ValueError as ex:
-                raise ValueError(f"Failed parsing number of devices: {ex}")
+                raise ValueError(f"Failed parsing number of devices: {ex}") from ex
             if num_devices < 0:
                 try:
                     import torch
 
                     num_devices = torch.cuda.device_count()
-                except ImportError:
+                except ImportError as err:
                     raise ImportError(
                         "Could not import `torch` while finding the number of devices. "
                         "Please install it or set `devices` to a value different than -1"
-                    )
+                    ) from err
 
         os.environ["MASTER_ADDR"] = current_conf.get("master_addr", "")
         os.environ["MASTER_PORT"] = str(current_conf.get("master_port", ""))
@@ -4163,7 +4163,7 @@ class Task(_Task):
         except Exception as ex:
             raise ValueError(
                 f"Could not read Task object {session_folder / cls._offline_filename}: Exception {ex}"
-            )
+            ) from ex
         current_task = cls.import_task(export_data)
         if previous_task_id:
             task_holding_reports = cls.get_task(task_id=previous_task_id)

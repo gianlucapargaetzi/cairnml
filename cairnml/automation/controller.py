@@ -3792,10 +3792,10 @@ class PipelineController:
         if input_type == "models":
             try:
                 model_type = parts[2].lower()
-            except Exception:
+            except Exception as err:
                 raise ValueError(
                     f"Node '{node.name}', parameter '{v}', input type '{input_type}', model_type is missing {parts}"
-                )
+                ) from err
             if model_type not in ("input", "output"):
                 raise ValueError(
                     f"Node '{node.name}', parameter '{v}', input type '{input_type}', "
@@ -3810,10 +3810,10 @@ class PipelineController:
             # check casting
             try:
                 int(parts[3])
-            except Exception:
+            except Exception as err:
                 raise ValueError(
                     f"Node '{node.name}', parameter '{v}', input type '{input_type}', model index is missing {parts}"
-                )
+                ) from err
 
             if len(parts) < 5:
                 raise ValueError(
@@ -3906,10 +3906,10 @@ class PipelineController:
             try:
                 model_idx = int(parts[3])
                 model = task.models[model_type][model_idx]
-            except Exception:
+            except Exception as err:
                 raise ValueError(
                     f"Could not locate model {'.'.join(parts[1:])} on previous step {prev_step}, index {parts[3]} is invalid"
-                )
+                ) from err
 
             return str(getattr(model, parts[4]))
         elif input_type == "id":
