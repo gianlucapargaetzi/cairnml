@@ -11,7 +11,7 @@ from copy import deepcopy
 import attr
 from pathlib import Path
 
-from cairnml_agent.external.pyhocon import ConfigFactory, HOCONConverter, ConfigTree
+from pyhocon import ConfigFactory, HOCONConverter, ConfigTree
 from cairnml_agent.backend_api.session.session import Session as _Session
 from cairnml_agent.backend_api.session.request import Request
 from cairnml_agent.backend_api.session.client.client import APIClient

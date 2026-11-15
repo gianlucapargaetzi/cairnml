@@ -256,7 +256,7 @@ def _clone_with(monkeypatch, tmp_path, session, repository):
     """Run clone_repository_cached against a fake clone and return what git was asked to clone and with what."""
     import cairnml_agent.helper.repo as repo_module
     from cairnml_agent.helper.repo import RepoInfo, clone_repository_cached
-    from cairnml_agent.external.pyhocon import ConfigTree
+    from pyhocon import ConfigTree
 
     seen = {}
 

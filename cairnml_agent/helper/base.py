@@ -25,7 +25,7 @@ from functools import reduce
 import yaml
 
 from cairnml_agent.errors import CommandFailedError
-from cairnml_agent.external import pyhocon
+import pyhocon
 from cairnml_agent.helper.dicts import filter_keys
 
 pretty_lines = False

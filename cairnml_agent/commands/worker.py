@@ -32,7 +32,7 @@ import attr
 from pathlib import Path
 from urllib.parse import quote  # noqa
 
-from cairnml_agent.external.pyhocon import ConfigTree, ConfigFactory
+from pyhocon import ConfigTree, ConfigFactory
 from cairnml_agent.backend_api.services import auth as auth_api
 from cairnml_agent.backend_api.services import queues as queues_api
 from cairnml_agent.backend_api.services import tasks as tasks_api

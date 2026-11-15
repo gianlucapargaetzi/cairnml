@@ -14,7 +14,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from cairnml_agent.backend_config.defs import LOCAL_CONFIG_FILE_OVERRIDE_VAR, LOCAL_CONFIG_FILES
-from cairnml_agent.external.pyhocon import ConfigFactory
+from pyhocon import ConfigFactory
 from cairnml_agent.idp.device_login import choose_login
 from cairnml_agent.idp.enrol import EnrolmentFailed, enrol
 

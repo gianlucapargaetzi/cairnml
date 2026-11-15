@@ -3,7 +3,7 @@ import re
 
 import attr
 
-from cairnml_agent.external import pyhocon
+import pyhocon
 
 from .action import Action
 

@@ -15,8 +15,8 @@ from pyparsing import (
     ParseSyntaxException,
 )
 
-from cairnml_agent.external import pyhocon
-from cairnml_agent.external.pyhocon import ConfigTree, ConfigFactory
+import pyhocon
+from pyhocon import ConfigTree, ConfigFactory
 
 from .defs import (
     ENV_VAR,
