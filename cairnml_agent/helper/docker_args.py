@@ -17,7 +17,7 @@ from cairnml_agent.helper.os.networking import TcpPorts
 from cairnml_agent.helper.custom_template import CustomTemplate, TemplateResolver
 
 if TYPE_CHECKING:
-    from cairnml_agent.session import Session
+    from cairnml_agent.session import Session  # noqa: F401  # used in type comments
 
 def sanitize_urls(s: str) -> Tuple[str, bool]:
     """
@@ -328,6 +328,6 @@ class DockerArgsTemplateResolver(TemplateResolver):
                     project_info=self.project_info,
                 )
             except Exception as ex:
-                print("Failed parsing CairnML Template argument [{}] skipped: error ()".format(token, ex))
+                print("Failed parsing CairnML Template argument [{}] skipped: error {}".format(token, ex))
 
         return full_docker_cmd

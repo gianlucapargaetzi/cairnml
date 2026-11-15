@@ -8,7 +8,7 @@ import psutil
 from pathlib import Path
 
 from .locks import FileLock
-from typing import List, Optional, Sequence
+from typing import List, Optional, Sequence  # noqa: F401  # used in type comments
 
 
 class FolderCache(object):
@@ -132,7 +132,7 @@ class FolderCache(object):
                 try:
                     shutil.move(src=cached_entry.as_posix(), dst=dst.as_posix())
                 except BaseException as ex:
-                    warning('Could not rename cache entry {} to {}: ex'.format(
+                    warning('Could not rename cache entry {} to {}: {}'.format(
                         cached_entry.as_posix(), dst.as_posix(), ex))
                 # release lock
                 self._lock.release()
