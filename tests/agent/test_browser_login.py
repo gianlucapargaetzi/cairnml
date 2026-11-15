@@ -12,6 +12,15 @@ from cairnml_agent.idp.browser_login import LoginFailed, LoginPortBusy, browser_
 ISSUER = "https://idp.example/realms/mlops"
 
 
+@pytest.fixture(autouse=True)
+def free_login_port(monkeypatch):
+    """Every test takes a port the system chooses, so concurrent runs on one machine do not collide.
+
+    The test that checks the registered port (8765) removes this override itself.
+    """
+    monkeypatch.setenv("CAIRNML_LOGIN_PORT", "0")
+
+
 class Response:
     def __init__(self, status_code, body):
         self.status_code = status_code
@@ -147,13 +156,17 @@ def test_no_sign_in_in_time_is_a_timeout():
         browser_login(ISSUER, "cairnml-sdk", session=FakeIdp(), open_browser=lambda url: True, timeout=1)
 
 
-def test_the_reply_comes_back_to_the_registered_port():
+def test_the_reply_comes_back_to_the_registered_port(monkeypatch):
     from cairnml_agent.idp.browser_login import LOGIN_PORT
 
-    open_browser, seen = browser(approve)
-    browser_login(ISSUER, "cairnml-sdk", session=FakeIdp(), open_browser=open_browser, timeout=20)
-    assert seen["redirect_uri"] == f"http://127.0.0.1:{LOGIN_PORT}/callback"
+    monkeypatch.delenv("CAIRNML_LOGIN_PORT", raising=False)
     assert LOGIN_PORT == 8765
+    open_browser, seen = browser(approve)
+    try:
+        browser_login(ISSUER, "cairnml-sdk", session=FakeIdp(), open_browser=open_browser, timeout=20)
+    except LoginPortBusy:
+        pytest.skip("port 8765 is in use")
+    assert seen["redirect_uri"] == f"http://127.0.0.1:{LOGIN_PORT}/callback"
 
 
 def test_the_sign_in_always_asks_for_the_credentials():
