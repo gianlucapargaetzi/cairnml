@@ -55,6 +55,14 @@ Before you submit a new PR:
 * Make sure your code conforms to the CairnML coding standards by running:  
   `pip install -r lint-requirements.txt`, then `ruff check --isolated --select F,B904,E722,B006,B023,PLE --line-length 120 <changed files>` and `ruff format --check --isolated --line-length 120 <new files>`. CI runs both on the Python files a pull request changes.
 
+## The generated API client
+
+`cairnml/backend_api/services/<service>.py` for the services listed in the server's generator (today `queues`) is generated
+from the server's schema and must not be edited by hand; the `api contract` CI job fails on any difference. To change it,
+change the schema in cairnml-server, then run `scripts/regenerate-api.sh <server-commit>` (needs `pip install pyhocon jinja2`),
+which also moves the pin in `scripts/api-schema-ref`. Hand-written calls to the API are checked against the same schema;
+the exceptions are in `scripts/api-allow.txt`, each with a reason.
+
 In your PR include:
 * A reference to the issue it addresses
 * A brief description of the approach you've taken for implementing

@@ -1,5 +1,8 @@
 from ..api_proxy import ApiServiceProxy
 
+# generated from the server schema (scripts/regenerate-api.sh), no version proxy
+from . import queues
+
 
 # allow us to replace the api version after we have completed the authentication process,
 # and we know the backend server api version.
@@ -10,7 +13,6 @@ models = ApiServiceProxy("models")
 projects = ApiServiceProxy("projects")
 tasks = ApiServiceProxy("tasks")
 workers = ApiServiceProxy("workers")
-queues = ApiServiceProxy("queues")
 
 __all__ = [
     "auth",
