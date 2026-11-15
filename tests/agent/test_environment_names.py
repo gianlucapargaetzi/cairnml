@@ -117,3 +117,30 @@ def test_every_name_in_the_documented_table_is_read_by_the_code():
     unknown = sorted(_names_in_table() - _names_in_code())
 
     assert unknown == []
+
+
+def test_no_removed_access_key_name_is_left():
+    removed = ("CAIRNML_API_ACCESS_KEY", "CAIRNML_API_SECRET_KEY")
+    files = [
+        *_source_files(PACKAGE, {".py", ".conf"}),
+        *_source_files(DOCKER, {".yml", ".yaml", ".conf"}),
+        DOCUMENTATION,
+    ]
+    offenders = sorted(
+        {str(path.relative_to(ROOT)) for path in files
+         if any(name in path.read_text(encoding="utf-8") for name in removed)}
+    )
+
+    assert offenders == []
+
+
+def test_the_ssh_setup_command_has_no_accept_env_and_no_empty_step():
+    from cairnml_agent.glue.k8s import K8sIntegration
+
+    command = K8sIntegration.get_ssh_server_bash(10022)
+    segments = command.split(" ; ")
+
+    assert "/usr/sbin/sshd -p 10022" in command
+    assert "PermitRootLogin yes" in command
+    assert "AcceptEnv" not in command
+    assert all(segment.strip() for segment in segments)
