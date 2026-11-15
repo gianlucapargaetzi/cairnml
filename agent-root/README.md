@@ -97,6 +97,10 @@ The agent reads its settings from its configuration file and from environment va
 
 Continue with the [CairnML examples](https://github.com/gianlucapargaetzi/cairnml-examples).
 
+## Development
+
+A pull request is checked with [ruff](https://docs.astral.sh/ruff/) on the Python files it adds or changes (vendored and generated code is skipped). Run the same checks locally with `pip install -r lint-requirements.txt`, then `ruff check --config ruff.toml --select F,B904,E722,B006,B023,PLE <files>` and, for a new file, `ruff format --check --config ruff.toml <file>`.
+
 ## Having problems
 
 1. Check the [open issues](https://github.com/gianlucapargaetzi/cairnml-agent/issues).
