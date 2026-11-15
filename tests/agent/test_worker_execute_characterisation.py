@@ -66,6 +66,9 @@ class Recorder:
     _prepare_environment = Worker._prepare_environment
     _run_command = Worker._run_command
     _finish_run = Worker._finish_run
+    _run_custom_build = Worker._run_custom_build
+    _select_requirements = Worker._select_requirements
+    _take_freeze = Worker._take_freeze
 
     """A stub worker: records the calls execute makes on it."""
 
