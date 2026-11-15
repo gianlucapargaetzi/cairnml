@@ -59,7 +59,7 @@ from heapq import heapify, heappush, heappop
 from psutil import disk_usage
 
 from cairnml.utilities.hashing import md5_safe_hash
-from cairnml.utilities.requests_toolbelt import (
+from requests_toolbelt import (
     MultipartEncoderMonitor,
     MultipartEncoder,
 )
@@ -483,9 +483,9 @@ class _Stream:
                     if isinstance(chunck, str):
                         chunck = chunck.encode("utf-8")
                     return chunck
-                except StopIteration:
+                except StopIteration as err:
                     self.closed = True
-                    raise StopIteration()
+                    raise StopIteration() from err
                 except Exception as ex:
                     logger = _Driver.get_logger()
                     logger.error(
@@ -572,10 +572,10 @@ class _Boto3Driver(_Driver):
         def __init__(self, name: str, cfg: S3BucketConfig) -> None:
             try:
                 import boto3
-            except ImportError:
+            except ImportError as err:
                 raise UsageError(
                     "AWS S3 storage driver (boto3) not found. " 'Please install driver using: pip install "cairnml[s3]"'
-                )
+                ) from err
             # skip 's3://'
             self.name = name[5:]
 
@@ -610,10 +610,10 @@ class _Boto3Driver(_Driver):
     def _get_boto_resource_kwargs_from_config(cls, cfg: S3BucketConfig) -> Dict[str, Any]:
         try:
             import botocore.client
-        except ImportError:
+        except ImportError as err:
             raise UsageError(
                 "AWS S3 storage driver (boto3) not found. " 'Please install driver using: pip install "cairnml[s3]"'
-            )
+            ) from err
         endpoint = (("https://" if cfg.secure else "http://") + cfg.host) if cfg.host else None
         verify = cfg.verify
         if verify is True:
@@ -1044,11 +1044,11 @@ class _GoogleCloudStorageDriver(_Driver):
             try:
                 from google.cloud import storage  # noqa
                 from google.oauth2 import service_account  # noqa
-            except ImportError:
+            except ImportError as err:
                 raise UsageError(
                     "Google cloud driver not found. "
                     'Please install driver using: pip install "google-cloud-storage>=1.13.2"'
-                )
+                ) from err
 
             self.name = name[len(_GoogleCloudStorageDriver.scheme_prefix) :]
 
@@ -2045,7 +2045,7 @@ class _FileStorageDriver(_Driver):
         except OSError:
             exp = sys.exc_info()[1]
             if exp.errno == errno.EEXIST and not ignore_existing:
-                raise exp
+                raise
 
     def _check_container_name(self, container_name: str) -> None:
         """
@@ -2074,8 +2074,8 @@ class _FileStorageDriver(_Driver):
 
         try:
             stat = os.stat(full_path)
-        except OSError:
-            raise OSError(f'Target path "{full_path}" is not accessible or does not exist')
+        except OSError as err:
+            raise OSError(f'Target path "{full_path}" is not accessible or does not exist') from err
 
         extra = {
             "creation_time": stat.st_ctime,
@@ -2105,8 +2105,8 @@ class _FileStorageDriver(_Driver):
 
         try:
             stat = os.stat(full_path)
-        except Exception:
-            raise ValueError(f'Cannot access target path "{full_path}"')
+        except Exception as err:
+            raise ValueError(f'Cannot access target path "{full_path}"') from err
 
         extra = {
             "creation_time": stat.st_ctime,
@@ -2456,18 +2456,18 @@ class _FileStorageDriver(_Driver):
 
         try:
             self._make_path(path, ignore_existing=False)
-        except OSError:
+        except OSError as err:
             exp = sys.exc_info()[1]
             if exp.errno == errno.EEXIST:
                 raise ValueError(
                     f'Container "{container_name}" with this name already exists. The name '
                     "must be unique among all the containers in the "
                     "system"
-                )
+                ) from err
             else:
-                raise ValueError(f'Error creating container "{container_name}"')
-        except Exception:
-            raise ValueError(f'Error creating container "{container_name}"')
+                raise ValueError(f'Error creating container "{container_name}"') from err
+        except Exception as err:
+            raise ValueError(f'Error creating container "{container_name}"') from err
 
         return self._make_container(container_name)
 
@@ -3535,7 +3535,7 @@ class _StorageHelper:
             # noinspection PyBroadException
             try:
                 os.rename(temp_local_path, local_path)
-            except Exception:
+            except Exception as err:
                 # noinspection PyBroadException
                 try:
                     os.unlink(temp_local_path)
@@ -3544,7 +3544,7 @@ class _StorageHelper:
                 # file was downloaded by a parallel process, check we have the final output and delete the partial copy
                 path_local_path = Path(local_path)
                 if not path_local_path.is_file() or (not skip_zero_size_check and path_local_path.stat().st_size <= 0):
-                    raise Exception("Failed renaming partial file, downloaded file exists and a 0-sized file")
+                    raise Exception("Failed renaming partial file, downloaded file exists and a 0-sized file") from err
 
             # report download if we are on the second chunk
             if cb:
@@ -3632,12 +3632,12 @@ class _StorageHelper:
 
         try:
             self.upload_from_stream(stream=BytesIO(b"cairnml"), dest_path=dest_path)
-        except Exception:
-            raise ValueError(f"Insufficient permissions (write failed) for {base_url}")
+        except Exception as err:
+            raise ValueError(f"Insufficient permissions (write failed) for {base_url}") from err
         try:
             self.delete(path=dest_path)
-        except Exception:
-            raise ValueError(f"Insufficient permissions (delete failed) for {base_url}")
+        except Exception as err:
+            raise ValueError(f"Insufficient permissions (delete failed) for {base_url}") from err
         return True
 
     @classmethod
@@ -3900,8 +3900,8 @@ class _StorageHelper:
                 container_name=self._container.name if self._container else "",
                 object_name=object_name,
             )
-        except ConnectionError:
-            raise DownloadError
+        except ConnectionError as err:
+            raise DownloadError from err
         except Exception as e:
             if not silence_errors:
                 self.log.warning(f"Storage helper problem for {object_name}: {e}")
@@ -4133,7 +4133,8 @@ class StorageHelper(_StorageHelper):
 
     def __init__(self, *args, **kwargs):
         if not self._use_disk_space_file_size_strategy():
-            return super(StorageHelper, self).__init__(*args, **kwargs)
+            super(StorageHelper, self).__init__(*args, **kwargs)
+            return
 
         self.__class__.init_configs()
 
@@ -4174,7 +4175,7 @@ class StorageHelper(_StorageHelper):
         except OSError as ex:
             raise StorageError(
                 f"Failed creating cache folder {self.cache_base_dir}: {ex}"
-            )
+            ) from ex
 
     @classmethod
     def register_pre_delete_hook(cls, client_name, hook, override=False):
@@ -4331,9 +4332,9 @@ class StorageHelper(_StorageHelper):
                             exc_info=self._log.isEnabledFor(logging.DEBUG),
                         )
             return download_path
-        except self._NotDirectOrCached:
+        except self._NotDirectOrCached as err:
             if not local_path:
-                raise ValueError("Object is not cached, local_path is required (%s)" % remote_path)
+                raise ValueError("Object is not cached, local_path is required (%s)" % remote_path) from err
             return super(StorageHelper, self).download_to_file(
                 remote_path, local_path, overwrite_existing, delete_on_failure
             )

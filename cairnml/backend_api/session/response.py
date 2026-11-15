@@ -2,7 +2,8 @@ from typing import Any
 
 import requests
 
-from . import jsonmodels
+import jsonmodels.fields
+import jsonmodels.models
 from .apimodel import ApiModel
 from .datamodel import NonStrictDataModelMixin
 
