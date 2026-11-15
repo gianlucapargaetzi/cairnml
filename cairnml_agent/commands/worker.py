@@ -3140,6 +3140,126 @@ class Worker(ServiceCommandSection):
 
         # if we are in bootstrap compiled execution run, there is no actual python executable and env.
         # this means if we are using pip package manager, we need to set to UV so it installs python binaries.
+        self._prepare_compiled_bootstrap(current_task)
+
+        current_task = self._clone_or_dequeue(task_id, current_task, clone, require_queue)
+
+        if docker is not False and docker is not None:
+            self.set_docker_variables(docker)
+
+        # We expect the same behavior in case full_monitoring was set, and in case docker mode is used
+
+        if full_monitoring or docker is not False:
+            return self._run_in_worker(current_task, task_id, log_level, docker, full_monitoring)
+
+        self._session.print_configuration()
+
+        # now mark the task as started
+        self._session.api_client.tasks.started(
+            task=current_task.id,
+            status_reason="worker started execution",
+            status_message=self._task_status_change_message,
+            force=True,
+        )
+
+        if not disable_monitoring:
+            self.log.debug("starting resource monitor")
+            self.report_monitor(ResourceMonitor.StatusReport(task=current_task.id))
+
+        execution = self.get_execution_info(current_task)
+
+        freeze, repo_info, script_dir, venv_folder = self._prepare_environment(current_task, execution, standalone_mode)
+
+        # run code
+        # print("Running task id [%s]:" % current_task.id)
+        print(self._task_logging_pass_control_message.format(current_task.id))
+
+        command = self._build_command(current_task, execution, script_dir, optimization, log_level)
+        print("[{}]$ {}".format(execution.working_dir, command.pretty()))
+
+        if freeze:
+            print("Summary - installed python packages:")
+            print(dump_flat_dict(freeze))
+        else:
+            print("No freeze information available")
+
+        print("Environment setup completed successfully\n")
+
+        # update the jobs global environment variable
+        os.environ.update(self._get_job_os_envs(current_task, log_level))
+
+        if repo_info:
+            self._update_commit_id(current_task.id, execution, repo_info)
+
+        # get Task Environments variables and update the process (if enabled)
+        os.environ.update(self._get_task_os_env(self._session.config, current_task) or dict())
+
+        # Add the script CWD to the python path
+        if repo_info and repo_info.root and self._session.config.get('agent.force_git_root_python_path', None):
+            python_path = get_python_path(repo_info.root, None, self.package_api,
+                                          is_conda_env=self.is_conda or self.uv.enabled)
+        else:
+            python_path = get_python_path(script_dir, execution.entry_point, self.package_api,
+                                          is_conda_env=self.is_conda or self.uv.enabled)
+        if ENV_TASK_EXTRA_PYTHON_PATH.get():
+            python_path = add_python_path(python_path, ENV_TASK_EXTRA_PYTHON_PATH.get())
+        if python_path:
+            os.environ['PYTHONPATH'] = os.pathsep.join(filter(None, (os.environ.get('PYTHONPATH', None), python_path)))
+
+        # check if we want to run as another user, only supported on linux
+        # Note: User execution requires a virtual environment, so it's disabled when 
+        # ENV_AGENT_SKIP_PYTHON_ENV_INSTALL is set
+        if ENV_TASK_EXECUTE_AS_USER.get() and is_linux_platform() and not ENV_AGENT_SKIP_PYTHON_ENV_INSTALL.get():
+            command, script_dir = self._run_as_user_patch(
+                command, self._session.config_file,
+                script_dir, venv_folder,
+                self._session.config.get('sdk.storage.cache.default_base_dir'),
+                ENV_TASK_EXECUTE_AS_USER.get())
+            use_execv = False
+        else:
+            use_execv = is_linux_platform() and not isinstance(self.package_api, (PoetryAPI, UvAPI ,CondaAPI))
+
+        self._session.api_client.tasks.started(
+            task=current_task.id,
+            status_reason="worker starting task execution",
+            status_message=self._task_status_change_message,
+            force=True,
+        )
+
+        stop_signal = None
+        if TaskStopSignal.check_registered_bash_callback():
+            use_execv = False
+            stop_signal = TaskStopSignal(
+                command=self,
+                session=self._session,
+                events_service=self.get_service(Events),
+                task_id=task_id,
+                bash_cwd=script_dir
+            )
+            stop_signal.start_monitor_thread(polling_interval_sec=self._polling_interval)
+
+        # check if we need to add encoding to the subprocess
+        if sys.getfilesystemencoding() == 'ascii' and not os.environ.get("PYTHONIOENCODING"):
+            os.environ["PYTHONIOENCODING"] = "utf-8"
+
+        # remove our internal env
+        os.environ.pop("CAIRNML_APT_INSTALL", None)
+        # remove UV stuff, just in case
+        os.environ.pop("UV_CACHE_DIR", None)
+        os.environ.pop("UV_PYTHON_CACHE_DIR", None)
+        os.environ.pop("UV_PYTHON_INSTALL_DIR", None)
+
+        # if we are using a Command i.e. not execs update command env vars
+        command.update_envs(os.environ)
+
+        print("Starting Task Execution: {}\n".format(current_task.id))
+        exit_code = self._run_command(current_task, task_id, command, script_dir, use_execv,
+                                      disable_monitoring, log_file, stop_signal)
+
+        return self._finish_run(current_task, exit_code, disable_monitoring, stop_signal)
+
+    def _prepare_compiled_bootstrap(self, current_task):
+        """Choose the Python and package manager for a compiled (bootstrap) agent before the task runs."""
         if "__compiled__" in globals():
             self._compiled = True
             print("INFO: COMPILED BOOTSTRAP AGENT detected - Running as a compiled binary - Verifying or creating Python environment")
@@ -3227,7 +3347,8 @@ class Worker(ServiceCommandSection):
                   f"python='{sys.executable or 'none - Pending UV installation'}', "
                   f"package_manager='{self._session.config.get('agent.package_manager.type', 'not set')}'")
 
-
+    def _clone_or_dequeue(self, task_id, current_task, clone, require_queue):
+        """Clone the task (for a clone run), or move it out of the queue and mark it started."""
         if clone:
             try:
                 print("Cloning task id={}".format(task_id))
@@ -3267,61 +3388,135 @@ class Worker(ServiceCommandSection):
                 if require_queue:
                     raise
 
-        if docker is not False and docker is not None:
-            self.set_docker_variables(docker)
+        return current_task
 
-        # We expect the same behavior in case full_monitoring was set, and in case docker mode is used
-        if full_monitoring or docker is not False:
-            if full_monitoring:
-                if not (ENV_WORKER_ID.get() or "").strip():
-                    self._session.config["agent"]["worker_id"] = ""
-                # make sure we support multiple instances if we need to
-                self._singleton()
-                self.temp_config_path = self.temp_config_path or safe_mkstemp(
-                    suffix=".cfg",
-                    prefix=".cairnml_agent.",
-                    text=True,
-                    name_only=True,
-                    dir=(ENV_TEMP_STDOUT_FILE_DIR.get() or None)
-                )
-                self.dump_config(filename=self.temp_config_path, config=self._session.pre_vault_config)
-                self._session._config_file = self.temp_config_path
-
-            worker_params = WorkerParams(
-                log_level=log_level,
-                config_file=self._session.config_file,
-                debug=self._session.debug_mode,
-                trace=self._session.trace,
-                program_invocation=sys.argv[:1] if self._compiled else None
+    def _run_in_worker(self, current_task, task_id, log_level, docker, full_monitoring):
+        """Run the task under this worker's monitor, in a child process or in a container."""
+        if full_monitoring:
+            if not (ENV_WORKER_ID.get() or "").strip():
+                self._session.config["agent"]["worker_id"] = ""
+            # make sure we support multiple instances if we need to
+            self._singleton()
+            self.temp_config_path = self.temp_config_path or safe_mkstemp(
+                suffix=".cfg",
+                prefix=".cairnml_agent.",
+                text=True,
+                name_only=True,
+                dir=(ENV_TEMP_STDOUT_FILE_DIR.get() or None)
             )
-            try:
-                self.report_monitor(ResourceMonitor.StatusReport(task=current_task.id))
-                status = self.run_one_task(queue='', task_id=current_task.id, worker_args=worker_params, docker=docker)
-            finally:
-                self.stop_monitor()
-                self._unregister()
+            self.dump_config(filename=self.temp_config_path, config=self._session.pre_vault_config)
+            self._session._config_file = self.temp_config_path
 
-                if full_monitoring and self.temp_config_path:
-                    safe_remove_file(self._session.config_file)
-                    Singleton.close_pid_file()
-            return status if ENV_PROPAGATE_EXITCODE.get() else 0
-
-        self._session.print_configuration()
-
-        # now mark the task as started
-        self._session.api_client.tasks.started(
-            task=current_task.id,
-            status_reason="worker started execution",
-            status_message=self._task_status_change_message,
-            force=True,
+        worker_params = WorkerParams(
+            log_level=log_level,
+            config_file=self._session.config_file,
+            debug=self._session.debug_mode,
+            trace=self._session.trace,
+            program_invocation=sys.argv[:1] if self._compiled else None
         )
-
-        if not disable_monitoring:
-            self.log.debug("starting resource monitor")
+        try:
             self.report_monitor(ResourceMonitor.StatusReport(task=current_task.id))
+            status = self.run_one_task(queue='', task_id=current_task.id, worker_args=worker_params, docker=docker)
+        finally:
+            self.stop_monitor()
+            self._unregister()
 
-        execution = self.get_execution_info(current_task)
+            if full_monitoring and self.temp_config_path:
+                safe_remove_file(self._session.config_file)
+                Singleton.close_pid_file()
+        return status if ENV_PROPAGATE_EXITCODE.get() else 0
 
+    def _build_command(self, current_task, execution, script_dir, optimization, log_level):
+        """Build the command line that runs the task's entry point, for a Python or a bash task."""
+        is_python_binary, is_bash_binary = check_is_binary_python_or_bash(current_task.script.binary)
+
+        extra = []
+        if is_python_binary:
+            extra = ['-u', ]
+            if optimization:
+                extra.append(
+                    WorkerParams(optimization=optimization).get_optimization_flag()
+                )
+        elif is_bash_binary:
+            # if we needed some arguments for bash, that's where we will add them
+            extra = []
+
+        script_full_path = None
+
+        # check if this is a module load, then load it.
+        # noinspection PyBroadException
+        try:
+            if is_python_binary and execution.entry_point and execution.entry_point.strip().split()[0].strip() == '-m':
+                # do not parse $env when running as user
+                if "$" in execution.entry_point and not ENV_TASK_EXECUTE_AS_USER.get() and is_linux_platform():
+                    print("INFO: parsing environment variables: {}".format(execution.entry_point))
+                    _org_env = copy(os.environ)
+                    os.environ.update(self._get_job_os_envs(current_task, log_level))
+                    os.environ.update(self._get_task_os_env(self._session.config, current_task) or dict())
+                    parsed_cmd = shlex.split(os.path.expandvars(execution.entry_point))
+                    script_full_path = Path(script_dir) / parsed_cmd[0]
+                    extra.extend(parsed_cmd)
+                    # restore (just in case, so we do not interfere with our local execution)
+                    os.environ = _org_env
+                else:
+                    parsed_cmd = shlex.split(execution.entry_point)
+                    script_full_path = Path(script_dir) / parsed_cmd[0]
+                    extra.extend(parsed_cmd)
+            elif (is_python_binary and execution.entry_point and
+                  execution.entry_point.strip().lower().endswith('.ipynb')):
+
+                # now we have to convert the notebook to python
+                convert_extra = copy(extra)
+                convert_extra.extend(["-m", "nbconvert", "--to", "python", execution.entry_point])
+                convert_command = self.package_api.get_python_command(convert_extra)
+
+                exit_code = convert_command.check_call(cwd=script_dir)
+                if exit_code:
+                    raise ValueError("Failed [{}] converting jupyter notebook: {}".format(
+                        exit_code, execution.entry_point))
+
+                converted_script_filename = Path(execution.entry_point).with_suffix(".py").as_posix()
+                script_full_path = Path(script_dir) / converted_script_filename
+
+                extra.append(converted_script_filename)
+            elif is_bash_binary and execution.entry_point and execution.entry_point.strip().split()[0].strip() == '-c':
+                extra.append("-c")
+                extra.append(" ".join(execution.entry_point.strip().split()[1:]))
+            else:
+                if not (Path(script_dir) / Path(execution.entry_point)).exists():
+                    parsed_cmd = shlex.split(execution.entry_point)
+                    script_full_path = Path(script_dir) / parsed_cmd[0]
+                    extra.extend(parsed_cmd)
+                    print("INFO: script entrypoint contains args, "
+                          "parsing and passing directly to execution: {}".format(extra))
+                else:
+                    script_full_path = Path(script_dir) / execution.entry_point
+                    extra.append(execution.entry_point)
+
+        except Exception:
+            script_full_path = Path(script_dir) / execution.entry_point
+            extra.append(execution.entry_point)
+
+        # check if we need to patch entry point script
+        if ENV_AGENT_FORCE_TASK_INIT.get() and script_full_path:
+            patch_add_task_init_call(Path(script_full_path).as_posix())
+
+        if is_python_binary:
+            command = self.package_api.get_python_command(extra)
+        elif is_bash_binary:
+            # TODO: check that the venv we created for the Task is available in the bash when running `python``
+            bash_binary = os.environ.get("SHELL", "/bin/bash" if os.path.exists("/bin/bash") else "/bin/sh")
+            command = Argv(Path(bash_binary), *extra)
+        else:
+            # actually we should not be here because we default to python is we do not recognize the binary
+            raise ValueError("Task execution binary requested {} is not supported!".format(current_task.script.binary))
+        return command
+
+    def _prepare_environment(self, current_task, execution, standalone_mode):
+        """Create or reuse the task's Python environment, install its requirements and take the freeze.
+
+        Returns the freeze, the repository information, the script folder and the environment folder.
+        """
         # if we have no repository and binary not python and no requirements.txt
         # then skip python env creation
         no_requirements = bool(
@@ -3520,172 +3715,11 @@ class Worker(ServiceCommandSection):
 
             script_dir = (directory if isinstance(directory, Path) else Path(directory)
                           ).expanduser().absolute().as_posix()
+        return freeze, repo_info, script_dir, venv_folder
 
-        # run code
-        # print("Running task id [%s]:" % current_task.id)
-        print(self._task_logging_pass_control_message.format(current_task.id))
-
-        is_python_binary, is_bash_binary = check_is_binary_python_or_bash(current_task.script.binary)
-
-        extra = []
-        if is_python_binary:
-            extra = ['-u', ]
-            if optimization:
-                extra.append(
-                    WorkerParams(optimization=optimization).get_optimization_flag()
-                )
-        elif is_bash_binary:
-            # if we needed some arguments for bash, that's where we will add them
-            extra = []
-
-        script_full_path = None
-
-        # check if this is a module load, then load it.
-        # noinspection PyBroadException
-        try:
-            if is_python_binary and execution.entry_point and execution.entry_point.strip().split()[0].strip() == '-m':
-                # do not parse $env when running as user
-                if "$" in execution.entry_point and not ENV_TASK_EXECUTE_AS_USER.get() and is_linux_platform():
-                    print("INFO: parsing environment variables: {}".format(execution.entry_point))
-                    _org_env = copy(os.environ)
-                    os.environ.update(self._get_job_os_envs(current_task, log_level))
-                    os.environ.update(self._get_task_os_env(self._session.config, current_task) or dict())
-                    parsed_cmd = shlex.split(os.path.expandvars(execution.entry_point))
-                    script_full_path = Path(script_dir) / parsed_cmd[0]
-                    extra.extend(parsed_cmd)
-                    # restore (just in case, so we do not interfere with our local execution)
-                    os.environ = _org_env
-                else:
-                    parsed_cmd = shlex.split(execution.entry_point)
-                    script_full_path = Path(script_dir) / parsed_cmd[0]
-                    extra.extend(parsed_cmd)
-            elif (is_python_binary and execution.entry_point and
-                  execution.entry_point.strip().lower().endswith('.ipynb')):
-
-                # now we have to convert the notebook to python
-                convert_extra = copy(extra)
-                convert_extra.extend(["-m", "nbconvert", "--to", "python", execution.entry_point])
-                convert_command = self.package_api.get_python_command(convert_extra)
-
-                exit_code = convert_command.check_call(cwd=script_dir)
-                if exit_code:
-                    raise ValueError("Failed [{}] converting jupyter notebook: {}".format(
-                        exit_code, execution.entry_point))
-
-                converted_script_filename = Path(execution.entry_point).with_suffix(".py").as_posix()
-                script_full_path = Path(script_dir) / converted_script_filename
-
-                extra.append(converted_script_filename)
-            elif is_bash_binary and execution.entry_point and execution.entry_point.strip().split()[0].strip() == '-c':
-                extra.append("-c")
-                extra.append(" ".join(execution.entry_point.strip().split()[1:]))
-            else:
-                if not (Path(script_dir) / Path(execution.entry_point)).exists():
-                    parsed_cmd = shlex.split(execution.entry_point)
-                    script_full_path = Path(script_dir) / parsed_cmd[0]
-                    extra.extend(parsed_cmd)
-                    print("INFO: script entrypoint contains args, "
-                          "parsing and passing directly to execution: {}".format(extra))
-                else:
-                    script_full_path = Path(script_dir) / execution.entry_point
-                    extra.append(execution.entry_point)
-
-        except Exception:
-            script_full_path = Path(script_dir) / execution.entry_point
-            extra.append(execution.entry_point)
-
-        # check if we need to patch entry point script
-        if ENV_AGENT_FORCE_TASK_INIT.get() and script_full_path:
-            patch_add_task_init_call(Path(script_full_path).as_posix())
-
-        if is_python_binary:
-            command = self.package_api.get_python_command(extra)
-        elif is_bash_binary:
-            # TODO: check that the venv we created for the Task is available in the bash when running `python``
-            bash_binary = os.environ.get("SHELL", "/bin/bash" if os.path.exists("/bin/bash") else "/bin/sh")
-            command = Argv(Path(bash_binary), *extra)
-        else:
-            # actually we should not be here because we default to python is we do not recognize the binary
-            raise ValueError("Task execution binary requested {} is not supported!".format(current_task.script.binary))
-
-        print("[{}]$ {}".format(execution.working_dir, command.pretty()))
-
-        if freeze:
-            print("Summary - installed python packages:")
-            print(dump_flat_dict(freeze))
-        else:
-            print("No freeze information available")
-
-        print("Environment setup completed successfully\n")
-
-        # update the jobs global environment variable
-        os.environ.update(self._get_job_os_envs(current_task, log_level))
-
-        if repo_info:
-            self._update_commit_id(current_task.id, execution, repo_info)
-
-        # get Task Environments variables and update the process (if enabled)
-        os.environ.update(self._get_task_os_env(self._session.config, current_task) or dict())
-
-        # Add the script CWD to the python path
-        if repo_info and repo_info.root and self._session.config.get('agent.force_git_root_python_path', None):
-            python_path = get_python_path(repo_info.root, None, self.package_api,
-                                          is_conda_env=self.is_conda or self.uv.enabled)
-        else:
-            python_path = get_python_path(script_dir, execution.entry_point, self.package_api,
-                                          is_conda_env=self.is_conda or self.uv.enabled)
-        if ENV_TASK_EXTRA_PYTHON_PATH.get():
-            python_path = add_python_path(python_path, ENV_TASK_EXTRA_PYTHON_PATH.get())
-        if python_path:
-            os.environ['PYTHONPATH'] = os.pathsep.join(filter(None, (os.environ.get('PYTHONPATH', None), python_path)))
-
-        # check if we want to run as another user, only supported on linux
-        # Note: User execution requires a virtual environment, so it's disabled when 
-        # ENV_AGENT_SKIP_PYTHON_ENV_INSTALL is set
-        if ENV_TASK_EXECUTE_AS_USER.get() and is_linux_platform() and not ENV_AGENT_SKIP_PYTHON_ENV_INSTALL.get():
-            command, script_dir = self._run_as_user_patch(
-                command, self._session.config_file,
-                script_dir, venv_folder,
-                self._session.config.get('sdk.storage.cache.default_base_dir'),
-                ENV_TASK_EXECUTE_AS_USER.get())
-            use_execv = False
-        else:
-            use_execv = is_linux_platform() and not isinstance(self.package_api, (PoetryAPI, UvAPI ,CondaAPI))
-
-        self._session.api_client.tasks.started(
-            task=current_task.id,
-            status_reason="worker starting task execution",
-            status_message=self._task_status_change_message,
-            force=True,
-        )
-
-        stop_signal = None
-        if TaskStopSignal.check_registered_bash_callback():
-            use_execv = False
-            stop_signal = TaskStopSignal(
-                command=self,
-                session=self._session,
-                events_service=self.get_service(Events),
-                task_id=task_id,
-                bash_cwd=script_dir
-            )
-            stop_signal.start_monitor_thread(polling_interval_sec=self._polling_interval)
-
-        # check if we need to add encoding to the subprocess
-        if sys.getfilesystemencoding() == 'ascii' and not os.environ.get("PYTHONIOENCODING"):
-            os.environ["PYTHONIOENCODING"] = "utf-8"
-
-        # remove our internal env
-        os.environ.pop("CAIRNML_APT_INSTALL", None)
-        # remove UV stuff, just in case
-        os.environ.pop("UV_CACHE_DIR", None)
-        os.environ.pop("UV_PYTHON_CACHE_DIR", None)
-        os.environ.pop("UV_PYTHON_INSTALL_DIR", None)
-
-        # if we are using a Command i.e. not execs update command env vars
-        command.update_envs(os.environ)
-
-        print("Starting Task Execution: {}\n".format(current_task.id))
+    def _run_command(self, current_task, task_id, command, script_dir, use_execv, disable_monitoring, log_file,
+                     stop_signal):
+        """Run the task command: exec it when monitoring is off, otherwise run it and store its output."""
         exit_code = -1
         try:
             if disable_monitoring:
@@ -3732,7 +3766,10 @@ class Worker(ServiceCommandSection):
             self.log.warning(str(e))
             self.log_traceback(e)
             exit_code = -1
+        return exit_code
 
+    def _finish_run(self, current_task, exit_code, disable_monitoring, stop_signal):
+        """Stop the helpers of the run, report the task's termination, and return the exit code."""
         # if we have an on_abort callback still running, wait for it
         if stop_signal:
             stop_signal.stop_monitor_thread()
