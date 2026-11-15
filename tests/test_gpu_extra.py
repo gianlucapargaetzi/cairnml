@@ -10,10 +10,10 @@ from cairnml.utilities.resource_monitor import gpu_unavailable_message
 
 def test_the_gpu_reader_uses_the_installed_nvidia_bindings_not_a_copy():
     pytest.importorskip("pynvml", reason="needs the cairnml[gpu] extra")
-    from cairnml.utilities.gpu import gpustat
+    from cairnml.utilities import gpu_query
 
-    module_file = pathlib.Path(gpustat.N.__file__).resolve()
-    assert gpustat.N.__name__ == "pynvml"
+    module_file = pathlib.Path(gpu_query.new_query.__globals__["N"].__file__).resolve()
+    assert gpu_query.new_query.__globals__["N"].__name__ == "pynvml"
     assert pathlib.Path(cairnml.__file__).resolve().parent not in module_file.parents
 
 
