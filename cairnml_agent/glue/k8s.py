@@ -35,7 +35,7 @@ from cairnml_agent.helper.hash import md5
 from cairnml_agent.helper.process import stringify_bash_output
 from cairnml_agent.helper.resource_monitor import ResourceMonitor
 from cairnml_agent.interface.base import ObjectID
-from cairnml_agent.backend_api.session.request import Request
+from cairnml.backend_api.session.request import Request
 from cairnml_agent.glue.definitions import (
     ENV_START_AGENT_SCRIPT_PATH,
     ENV_DEFAULT_EXECUTION_AGENT_ARGS,

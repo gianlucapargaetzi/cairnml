@@ -37,7 +37,7 @@ def test_a_schema_is_compared_by_value_for_every_scalar_type():
 
 
 def test_the_session_response_meta_is_validated_from_the_package():
-    response = importlib.import_module("cairnml_agent.backend_api.session.response")
+    response = importlib.import_module("cairnml.backend_api.session.response")
 
     meta = response.ResponseMeta(
         id="a",

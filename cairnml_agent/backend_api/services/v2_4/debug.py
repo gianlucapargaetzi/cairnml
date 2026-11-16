@@ -3,23 +3,32 @@ debug service
 
 Debugging utilities
 """
+
 import types
 from datetime import datetime
 import enum
 
 from dateutil.parser import parse as parse_datetime
 
-from ....backend_api.session import Request, BatchRequest, Response, DataModel, NonStrictDataModel, CompoundRequest, schema_property, StringEnum
+from cairnml.backend_api.session import (
+    Request,
+    BatchRequest,
+    Response,
+    DataModel,
+    NonStrictDataModel,
+    CompoundRequest,
+    schema_property,
+    StringEnum,
+)
 
 
 class ApiexRequest(Request):
-    """
-    """
+    """ """
 
     _service = "debug"
     _action = "apiex"
     _version = "2.4"
-    _schema = {'definitions': {}, 'properties': {}, 'required': [], 'type': 'object'}
+    _schema = {"definitions": {}, "properties": {}, "required": [], "type": "object"}
 
 
 class ApiexResponse(Response):
@@ -27,11 +36,12 @@ class ApiexResponse(Response):
     Response of debug.apiex endpoint.
 
     """
+
     _service = "debug"
     _action = "apiex"
     _version = "2.4"
 
-    _schema = {'definitions': {}, 'properties': {}, 'type': 'object'}
+    _schema = {"definitions": {}, "properties": {}, "type": "object"}
 
 
 class EchoRequest(Request):
@@ -43,7 +53,7 @@ class EchoRequest(Request):
     _service = "debug"
     _action = "echo"
     _version = "2.4"
-    _schema = {'definitions': {}, 'properties': {}, 'type': 'object'}
+    _schema = {"definitions": {}, "properties": {}, "type": "object"}
 
 
 class EchoResponse(Response):
@@ -51,21 +61,21 @@ class EchoResponse(Response):
     Response of debug.echo endpoint.
 
     """
+
     _service = "debug"
     _action = "echo"
     _version = "2.4"
 
-    _schema = {'definitions': {}, 'properties': {}, 'type': 'object'}
+    _schema = {"definitions": {}, "properties": {}, "type": "object"}
 
 
 class ExRequest(Request):
-    """
-    """
+    """ """
 
     _service = "debug"
     _action = "ex"
     _version = "2.4"
-    _schema = {'definitions': {}, 'properties': {}, 'required': [], 'type': 'object'}
+    _schema = {"definitions": {}, "properties": {}, "required": [], "type": "object"}
 
 
 class ExResponse(Response):
@@ -73,11 +83,12 @@ class ExResponse(Response):
     Response of debug.ex endpoint.
 
     """
+
     _service = "debug"
     _action = "ex"
     _version = "2.4"
 
-    _schema = {'definitions': {}, 'properties': {}, 'type': 'object'}
+    _schema = {"definitions": {}, "properties": {}, "type": "object"}
 
 
 class PingRequest(Request):
@@ -89,7 +100,7 @@ class PingRequest(Request):
     _service = "debug"
     _action = "ping"
     _version = "2.4"
-    _schema = {'definitions': {}, 'properties': {}, 'type': 'object'}
+    _schema = {"definitions": {}, "properties": {}, "type": "object"}
 
 
 class PingResponse(Response):
@@ -99,26 +110,27 @@ class PingResponse(Response):
     :param msg: A friendly message
     :type msg: str
     """
+
     _service = "debug"
     _action = "ping"
     _version = "2.4"
 
     _schema = {
-        'definitions': {},
-        'properties': {
-            'msg': {
-                'description': 'A friendly message',
-                'type': ['string', 'null'],
+        "definitions": {},
+        "properties": {
+            "msg": {
+                "description": "A friendly message",
+                "type": ["string", "null"],
             },
         },
-        'type': 'object',
+        "type": "object",
     }
-    def __init__(
-            self, msg=None, **kwargs):
+
+    def __init__(self, msg=None, **kwargs):
         super(PingResponse, self).__init__(**kwargs)
         self.msg = msg
 
-    @schema_property('msg')
+    @schema_property("msg")
     def msg(self):
         return self._property_msg
 
@@ -141,7 +153,7 @@ class PingAuthRequest(Request):
     _service = "debug"
     _action = "ping_auth"
     _version = "2.4"
-    _schema = {'definitions': {}, 'properties': {}, 'type': 'object'}
+    _schema = {"definitions": {}, "properties": {}, "type": "object"}
 
 
 class PingAuthResponse(Response):
@@ -151,26 +163,27 @@ class PingAuthResponse(Response):
     :param msg: A friendly message
     :type msg: str
     """
+
     _service = "debug"
     _action = "ping_auth"
     _version = "2.4"
 
     _schema = {
-        'definitions': {},
-        'properties': {
-            'msg': {
-                'description': 'A friendly message',
-                'type': ['string', 'null'],
+        "definitions": {},
+        "properties": {
+            "msg": {
+                "description": "A friendly message",
+                "type": ["string", "null"],
             },
         },
-        'type': 'object',
+        "type": "object",
     }
-    def __init__(
-            self, msg=None, **kwargs):
+
+    def __init__(self, msg=None, **kwargs):
         super(PingAuthResponse, self).__init__(**kwargs)
         self.msg = msg
 
-    @schema_property('msg')
+    @schema_property("msg")
     def msg(self):
         return self._property_msg
 

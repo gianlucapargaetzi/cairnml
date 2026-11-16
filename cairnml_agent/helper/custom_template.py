@@ -8,7 +8,7 @@ from string import Template
 from typing import Optional, Callable, Union, List, Tuple, Dict
 
 from cairnml_agent.backend_api.services import queues as queues_api
-from cairnml_agent.backend_api.session.request import Request
+from cairnml.backend_api.session.request import Request
 from pyhocon import ConfigTree
 from cairnml_agent.helper.task_logs import send_logs_to_task
 import yaml

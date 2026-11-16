@@ -3,7 +3,7 @@
 import pytest
 
 from cairnml_agent import definitions
-from cairnml_agent.backend_api.session import defs as session_defs
+from cairnml.backend_api.session import defs as session_defs
 from cairnml_agent.backend_config import defs as config_defs
 
 # (legacy name, the CAIRNML_ name that is left unset, a reader of the setting)
