@@ -4,6 +4,12 @@ from .response import Response
 
 # The generated services under backend_api/services import these names from this package.
 __all__ = [
-    "DataModel", "NonStrictDataModel", "schema_property", "StringEnum",
-    "Request", "BatchRequest", "CompoundRequest", "Response",
+    "DataModel",
+    "NonStrictDataModel",
+    "schema_property",
+    "StringEnum",
+    "Request",
+    "BatchRequest",
+    "CompoundRequest",
+    "Response",
 ]

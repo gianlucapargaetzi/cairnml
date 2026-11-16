@@ -7,7 +7,7 @@ def logger(path=None):
     name = "cairnml"
     if path:
         p = Path(path)
-        module = (p.parent if p.stem.startswith('_') else p).stem
+        module = (p.parent if p.stem.startswith("_") else p).stem
         name = "cairnml.%s" % module
     return logging.getLogger(name)
 

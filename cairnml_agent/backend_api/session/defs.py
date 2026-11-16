@@ -17,10 +17,10 @@ ENV_NO_DEFAULT_SERVER = EnvEntry("CAIRNML_NO_DEFAULT_SERVER", type=bool, default
 ENV_DISABLE_VAULT_SUPPORT = EnvEntry("CAIRNML_DISABLE_VAULT_SUPPORT", type=bool)
 ENV_ENABLE_ENV_CONFIG_SECTION = EnvEntry("CAIRNML_ENABLE_ENV_CONFIG_SECTION", type=bool)
 ENV_ENABLE_FILES_CONFIG_SECTION = EnvEntry("CAIRNML_ENABLE_FILES_CONFIG_SECTION", type=bool)
-ENV_VENV_CONFIGURED = EnvEntry('VIRTUAL_ENV', type=str)
+ENV_VENV_CONFIGURED = EnvEntry("VIRTUAL_ENV", type=str)
 ENV_PROPAGATE_EXITCODE = EnvEntry("CAIRNML_AGENT_PROPAGATE_EXITCODE", type=bool, default=False)
 ENV_INITIAL_CONNECT_RETRY_OVERRIDE = EnvEntry(
-    'CAIRNML_AGENT_INITIAL_CONNECT_RETRY_OVERRIDE', default=True, converter=safe_text_to_bool
+    "CAIRNML_AGENT_INITIAL_CONNECT_RETRY_OVERRIDE", default=True, converter=safe_text_to_bool
 )
 ENV_FORCE_MAX_API_VERSION = EnvEntry("CAIRNML_FORCE_MAX_API_VERSION", type=str)
 # values are 0/None (task per node), 1/2 (multi-node reporting, colored console), -1 (only report rank 0 node)

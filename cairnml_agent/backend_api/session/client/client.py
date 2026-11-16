@@ -84,7 +84,6 @@ class APIError(Exception):
 
 
 class StrictSession(Session):
-
     """
     Session that raises exceptions on errors, and be configured with explicit ``config_file`` path.
     """
@@ -96,9 +95,7 @@ class StrictSession(Session):
         """
 
         def init():
-            super(StrictSession, self).__init__(
-                initialize_logging=initialize_logging, *args, **kwargs
-            )
+            super(StrictSession, self).__init__(initialize_logging=initialize_logging, *args, **kwargs)
 
         if not config_file:
             init()
@@ -124,7 +121,6 @@ class StrictSession(Session):
 
 
 class Response(object):
-
     """
     Proxy object for API result data.
     Exposes "meta" of the original result.
@@ -140,15 +136,15 @@ class Response(object):
         self.response = None
         self._result = result
         response = getattr(result, "response", result)
-        if getattr(response, "_service") == "events" and \
-                getattr(response, "_action") in ("scalar_metrics_iter_histogram",
-                                                 "multi_task_scalar_metrics_iter_histogram",
-                                                 "vector_metrics_iter_histogram",
-                                                 ):
+        if getattr(response, "_service") == "events" and getattr(response, "_action") in (
+            "scalar_metrics_iter_histogram",
+            "multi_task_scalar_metrics_iter_histogram",
+            "vector_metrics_iter_histogram",
+        ):
             # put all the response data under metrics:
             response.metrics = result.response_data
-            if 'metrics' not in response.__class__._get_data_props():
-                response.__class__._data_props_list['metrics'] = 'metrics'
+            if "metrics" not in response.__class__._get_data_props():
+                response.__class__._data_props_list["metrics"] = "metrics"
         if dest:
             response = getattr(response, dest)
         self.response = response
@@ -166,16 +162,11 @@ class Response(object):
         return repr(self.response)
 
     def __dir__(self):
-        fields = [
-            name
-            for name in dir(self.response)
-            if isinstance(getattr(type(self.response), name, None), property)
-        ]
+        fields = [name for name in dir(self.response) if isinstance(getattr(type(self.response), name, None), property)]
         return list(set(chain(super(Response, self).__dir__(), fields)) - {"response"})
 
 
 class TableResponse(Response):
-
     """
     Representation of result containing an array of entities
     """
@@ -186,7 +177,7 @@ class TableResponse(Response):
         entity,  # type: Type[entity]
         fields=None,  # type: Sequence[Text]
         *args,
-        **kwargs
+        **kwargs,
     ):
         """
         :param service: service of entity
@@ -220,9 +211,12 @@ class TableResponse(Response):
 
         fields = fields or self.fields
         from cairnml_agent.helper.base import create_table
+
         return create_table(
             (dict((attr, getter(item, attr)) for attr in fields) for item in self),
-            titles=fields, columns=fields, headers=True,
+            titles=fields,
+            columns=fields,
+            headers=True,
         )
 
     def display(self, fields=None):
@@ -250,10 +244,7 @@ class TableResponse(Response):
                 item
                 for item in self
                 if (not predicate or predicate(item))
-                and all(
-                    compare_enum(getattr(item, key), value)
-                    for key, value in kwargs.items()
-                )
+                and all(compare_enum(getattr(item, key), value) for key, value in kwargs.items())
             ],
         )
 
@@ -268,7 +259,6 @@ class TableResponse(Response):
 
 
 class Entity(object, metaclass=abc.ABCMeta):
-
     """
     Represent a server object.
     Enables calls like:
@@ -385,9 +375,7 @@ def make_action(service, request_cls):
 
         @wrap
         def get(self, *args, **kwargs):
-            return entity(
-                self, self.session.send(request_cls(*args, **kwargs)).response
-            )
+            return entity(self, self.session.send(request_cls(*args, **kwargs)).response)
 
     elif action == "create":
 
@@ -395,9 +383,7 @@ def make_action(service, request_cls):
         def get(self, *args, **kwargs):
             return entity(
                 self,
-                Namespace(
-                    id=self.session.send(request_cls(*args, **kwargs)).response.id
-                ),
+                Namespace(id=self.session.send(request_cls(*args, **kwargs)).response.id),
             )
 
     elif action in ["get_all", "get_all_ex"]:
@@ -422,7 +408,6 @@ def make_action(service, request_cls):
 
 
 class Service(object, metaclass=abc.ABCMeta):
-
     """
     Superclass for action-grouping classes.
     """
@@ -455,10 +440,7 @@ def make_service_class(module):
         ]
     )
     properties.update(
-        (f.__name__, f)
-        for f in (
-            make_action(module, value) for key, value in get_requests(module).items()
-        )
+        (f.__name__, f) for f in (make_action(module, value) for key, value in get_requests(module).items())
     )
     # noinspection PyTypeChecker
     return type(str(module_name(module)), (Service,), properties)
@@ -483,18 +465,15 @@ class Version(Entity):
         except AttributeError:
             published = False
 
-        self.data = self._service.get_versions(
-            dataset=self.dataset, only_published=published, versions=[self.id]
-        )[0].data
+        self.data = self._service.get_versions(dataset=self.dataset, only_published=published, versions=[self.id])[
+            0
+        ].data
 
     def _get_default_kwargs(self):
-        return dict(
-            super(Version, self)._get_default_kwargs(), **{"dataset": self.data.dataset}
-        )
+        return dict(super(Version, self)._get_default_kwargs(), **{"dataset": self.data.dataset})
 
 
 class APIClient(object):
-
     auth = None  # type: Any
     debug = None  # type: Any
     queues = None  # type: Any
@@ -525,14 +504,9 @@ class APIClient(object):
                 if mod
             )
         else:
-            services = OrderedDict(
-                (name, getattr(api_services, name)) for name in api_services.__all__
-            )
+            services = OrderedDict((name, getattr(api_services, name)) for name in api_services.__all__)
         self.__dict__.update(
             dict(
-                {
-                    name: make_service_class(module)(self.session)
-                    for name, module in services.items()
-                },
+                {name: make_service_class(module)(self.session) for name, module in services.items()},
             )
         )

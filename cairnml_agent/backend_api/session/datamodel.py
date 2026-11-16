@@ -8,7 +8,6 @@ import jsonschema
 from enum import Enum
 
 
-
 def format_date(obj):
     if isinstance(obj, datetime):
         return str(obj)
@@ -26,11 +25,13 @@ class SchemaProperty(property):
 def schema_property(name):
     def init(*args, **kwargs):
         return SchemaProperty(name, *args, **kwargs)
+
     return init
 
 
 class DataModel(object):
-    """ Data Model"""
+    """Data Model"""
+
     _schema = None
     _data_props_list = None
 
@@ -40,8 +41,7 @@ class DataModel(object):
         if props is None:
             props = {}
             for c in cls.__mro__:
-                props.update({k: getattr(v, 'name', k) for k, v in vars(c).items()
-                             if isinstance(v, property)})
+                props.update({k: getattr(v, "name", k) for k, v in vars(c).items() if isinstance(v, property)})
             cls._data_props_list = props
         return props.copy()
 
@@ -68,22 +68,24 @@ class DataModel(object):
         validator = jsonschema.validators.validator_for(schema, default=jsonschema.Draft7Validator)
         validator_cls = jsonschema.validators.extend(
             validator=validator,
-            type_checker=validator.TYPE_CHECKER.redefine_many({
-                "array": lambda s, instance: isinstance(instance, (list, tuple)),
-                "integer": lambda s, instance: isinstance(instance, int),
-            }),
+            type_checker=validator.TYPE_CHECKER.redefine_many(
+                {
+                    "array": lambda s, instance: isinstance(instance, (list, tuple)),
+                    "integer": lambda s, instance: isinstance(instance, int),
+                }
+            ),
         )
         jsonschema.validate(self.to_dict(), schema, cls=validator_cls)
 
     def __repr__(self):
-        return '<{}.{}: {}>'.format(
-            self.__module__.split('.')[-1],
+        return "<{}.{}: {}>".format(
+            self.__module__.split(".")[-1],
             type(self).__name__,
             json.dumps(
                 self.to_dict(),
                 indent=4,
                 default=format_date,
-            )
+            ),
         )
 
     @staticmethod
@@ -95,7 +97,8 @@ class DataModel(object):
 
         if not all(isinstance(x, expected) for x in value):
             raise TypeError(
-                "Expected %s of type list[%s], got %s" % (
+                "Expected %s of type list[%s], got %s"
+                % (
                     field_name,
                     expected,
                     ", ".join(set(type(x).__name__ for x in value)),
@@ -105,8 +108,8 @@ class DataModel(object):
     @staticmethod
     def normalize_key(prop_key):
         if keyword.iskeyword(prop_key):
-            prop_key += '_'
-        return prop_key.replace('.', '__')
+            prop_key += "_"
+        return prop_key.replace(".", "__")
 
     @classmethod
     def from_dict(cls, dct, strict=False):
@@ -130,6 +133,7 @@ class NonStrictDataModelMixin(object):
 
     :summary: supplies an __init__ method that warns about unused keywords
     """
+
     def __init__(self, **kwargs):
         # unexpected = [key for key in kwargs if not key.startswith('_')]
         # if unexpected:
@@ -146,6 +150,5 @@ class NonStrictDataModel(DataModel, NonStrictDataModelMixin):
 
 
 class StringEnum(Enum):
-
     def __str__(self):
         return self.value
