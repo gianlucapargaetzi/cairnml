@@ -259,7 +259,7 @@ class Model(NonStrictDataModel):
             self._property_created = None
             return
 
-        self.assert_isinstance(value, "created", str + (datetime,))
+        self.assert_isinstance(value, "created", (str, datetime))
         if not isinstance(value, datetime):
             value = parse_datetime(value)
         self._property_created = value
@@ -2430,7 +2430,7 @@ class UpdateRequest(Request):
             self._property_created = None
             return
 
-        self.assert_isinstance(value, "created", str + (datetime,))
+        self.assert_isinstance(value, "created", (str, datetime))
         if not isinstance(value, datetime):
             value = parse_datetime(value)
         self._property_created = value

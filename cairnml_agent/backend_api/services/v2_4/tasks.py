@@ -881,7 +881,7 @@ class LastMetricsEvent(NonStrictDataModel):
             self._property_value = None
             return
 
-        self.assert_isinstance(value, "value", int + (float,))
+        self.assert_isinstance(value, "value", (int, float))
         self._property_value = value
 
     @schema_property('min_value')
@@ -894,7 +894,7 @@ class LastMetricsEvent(NonStrictDataModel):
             self._property_min_value = None
             return
 
-        self.assert_isinstance(value, "min_value", int + (float,))
+        self.assert_isinstance(value, "min_value", (int, float))
         self._property_min_value = value
 
     @schema_property('max_value')
@@ -907,7 +907,7 @@ class LastMetricsEvent(NonStrictDataModel):
             self._property_max_value = None
             return
 
-        self.assert_isinstance(value, "max_value", int + (float,))
+        self.assert_isinstance(value, "max_value", (int, float))
         self._property_max_value = value
 
 
@@ -1238,7 +1238,7 @@ class Task(NonStrictDataModel):
             self._property_created = None
             return
 
-        self.assert_isinstance(value, "created", str + (datetime,))
+        self.assert_isinstance(value, "created", (str, datetime))
         if not isinstance(value, datetime):
             value = parse_datetime(value)
         self._property_created = value
@@ -1253,7 +1253,7 @@ class Task(NonStrictDataModel):
             self._property_started = None
             return
 
-        self.assert_isinstance(value, "started", str + (datetime,))
+        self.assert_isinstance(value, "started", (str, datetime))
         if not isinstance(value, datetime):
             value = parse_datetime(value)
         self._property_started = value
@@ -1268,7 +1268,7 @@ class Task(NonStrictDataModel):
             self._property_completed = None
             return
 
-        self.assert_isinstance(value, "completed", str + (datetime,))
+        self.assert_isinstance(value, "completed", (str, datetime))
         if not isinstance(value, datetime):
             value = parse_datetime(value)
         self._property_completed = value
@@ -1384,7 +1384,7 @@ class Task(NonStrictDataModel):
             self._property_status_changed = None
             return
 
-        self.assert_isinstance(value, "status_changed", str + (datetime,))
+        self.assert_isinstance(value, "status_changed", (str, datetime))
         if not isinstance(value, datetime):
             value = parse_datetime(value)
         self._property_status_changed = value
@@ -1425,7 +1425,7 @@ class Task(NonStrictDataModel):
             self._property_published = None
             return
 
-        self.assert_isinstance(value, "published", str + (datetime,))
+        self.assert_isinstance(value, "published", (str, datetime))
         if not isinstance(value, datetime):
             value = parse_datetime(value)
         self._property_published = value
@@ -1452,7 +1452,7 @@ class Task(NonStrictDataModel):
             self._property_last_worker_report = None
             return
         
-        self.assert_isinstance(value, "last_worker_report", str + (datetime,))
+        self.assert_isinstance(value, "last_worker_report", (str, datetime))
         if not isinstance(value, datetime):
             value = parse_datetime(value)
         self._property_last_worker_report = value
@@ -1467,7 +1467,7 @@ class Task(NonStrictDataModel):
             self._property_last_update = None
             return
 
-        self.assert_isinstance(value, "last_update", str + (datetime,))
+        self.assert_isinstance(value, "last_update", (str, datetime))
         if not isinstance(value, datetime):
             value = parse_datetime(value)
         self._property_last_update = value
@@ -6102,7 +6102,7 @@ class UpdateRequest(Request):
             self._property_created = None
             return
 
-        self.assert_isinstance(value, "created", str + (datetime,))
+        self.assert_isinstance(value, "created", (str, datetime))
         if not isinstance(value, datetime):
             value = parse_datetime(value)
         self._property_created = value

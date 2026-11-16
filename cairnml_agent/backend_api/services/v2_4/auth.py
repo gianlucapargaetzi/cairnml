@@ -117,7 +117,7 @@ class CredentialKey(NonStrictDataModel):
             self._property_last_used = None
             return
 
-        self.assert_isinstance(value, "last_used", str + (datetime,))
+        self.assert_isinstance(value, "last_used", (str, datetime))
         if not isinstance(value, datetime):
             value = parse_datetime(value)
         self._property_last_used = value
@@ -320,7 +320,7 @@ class EditUserResponse(Response):
             self._property_updated = None
             return
 
-        self.assert_isinstance(value, "updated", int + (float,))
+        self.assert_isinstance(value, "updated", (int, float))
         self._property_updated = value
 
     @schema_property('fields')

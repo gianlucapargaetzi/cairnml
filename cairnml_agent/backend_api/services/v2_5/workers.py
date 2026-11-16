@@ -190,7 +190,7 @@ class AggregationStats(NonStrictDataModel):
 
         self.assert_isinstance(value, "values", (list, tuple))
 
-        self.assert_isinstance(value, "values", int + (float,), is_array=True)
+        self.assert_isinstance(value, "values", (int, float), is_array=True)
         self._property_values = value
 
 
@@ -576,7 +576,7 @@ class Worker(NonStrictDataModel):
             self._property_register_time = None
             return
 
-        self.assert_isinstance(value, "register_time", str + (datetime,))
+        self.assert_isinstance(value, "register_time", (str, datetime))
         if not isinstance(value, datetime):
             value = parse_datetime(value)
         self._property_register_time = value
@@ -591,7 +591,7 @@ class Worker(NonStrictDataModel):
             self._property_last_activity_time = None
             return
 
-        self.assert_isinstance(value, "last_activity_time", str + (datetime,))
+        self.assert_isinstance(value, "last_activity_time", (str, datetime))
         if not isinstance(value, datetime):
             value = parse_datetime(value)
         self._property_last_activity_time = value
@@ -606,7 +606,7 @@ class Worker(NonStrictDataModel):
             self._property_last_report_time = None
             return
 
-        self.assert_isinstance(value, "last_report_time", str + (datetime,))
+        self.assert_isinstance(value, "last_report_time", (str, datetime))
         if not isinstance(value, datetime):
             value = parse_datetime(value)
         self._property_last_report_time = value
@@ -1019,7 +1019,7 @@ class MachineStats(NonStrictDataModel):
 
         self.assert_isinstance(value, "cpu_usage", (list, tuple))
 
-        self.assert_isinstance(value, "cpu_usage", int + (float,), is_array=True)
+        self.assert_isinstance(value, "cpu_usage", (int, float), is_array=True)
         self._property_cpu_usage = value
 
     @schema_property('gpu_usage')
@@ -1034,7 +1034,7 @@ class MachineStats(NonStrictDataModel):
 
         self.assert_isinstance(value, "gpu_usage", (list, tuple))
 
-        self.assert_isinstance(value, "gpu_usage", int + (float,), is_array=True)
+        self.assert_isinstance(value, "gpu_usage", (int, float), is_array=True)
         self._property_gpu_usage = value
 
     @schema_property('memory_used')
@@ -1201,7 +1201,7 @@ class MachineStats(NonStrictDataModel):
 
         self.assert_isinstance(value, "cpu_temperature", (list, tuple))
 
-        self.assert_isinstance(value, "cpu_temperature", int + (float,), is_array=True)
+        self.assert_isinstance(value, "cpu_temperature", (int, float), is_array=True)
         self._property_cpu_temperature = value
 
     @schema_property('gpu_temperature')
@@ -1216,7 +1216,7 @@ class MachineStats(NonStrictDataModel):
 
         self.assert_isinstance(value, "gpu_temperature", (list, tuple))
 
-        self.assert_isinstance(value, "gpu_temperature", int + (float,), is_array=True)
+        self.assert_isinstance(value, "gpu_temperature", (int, float), is_array=True)
         self._property_gpu_temperature = value
 
 
@@ -1273,7 +1273,7 @@ class GetActivityReportRequest(Request):
             self._property_from_date = None
             return
 
-        self.assert_isinstance(value, "from_date", int + (float,))
+        self.assert_isinstance(value, "from_date", (int, float))
         self._property_from_date = value
 
     @schema_property('to_date')
@@ -1286,7 +1286,7 @@ class GetActivityReportRequest(Request):
             self._property_to_date = None
             return
 
-        self.assert_isinstance(value, "to_date", int + (float,))
+        self.assert_isinstance(value, "to_date", (int, float))
         self._property_to_date = value
 
     @schema_property('interval')
@@ -1808,7 +1808,7 @@ class GetStatsRequest(Request):
             self._property_from_date = None
             return
 
-        self.assert_isinstance(value, "from_date", int + (float,))
+        self.assert_isinstance(value, "from_date", (int, float))
         self._property_from_date = value
 
     @schema_property('to_date')
@@ -1821,7 +1821,7 @@ class GetStatsRequest(Request):
             self._property_to_date = None
             return
 
-        self.assert_isinstance(value, "to_date", int + (float,))
+        self.assert_isinstance(value, "to_date", (int, float))
         self._property_to_date = value
 
     @schema_property('interval')

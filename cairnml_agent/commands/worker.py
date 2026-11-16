@@ -5812,6 +5812,9 @@ class Worker(ServiceCommandSection):
                 + "[ ! -z $LOCAL_PYTHON ] || export LOCAL_PYTHON={python} ; "
                 + "$LOCAL_PYTHON -m pip --version > /dev/null || export LOCAL_PYTHON=$(PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin command -v python3) ; "
                 + "$LOCAL_PYTHON -m pip install -U {pip_version} ; "
+                # The job installs the SDK of this machine first, so pip never takes cairnml from PyPI for the
+                # agent's requirement (the agent wheel asks for cairnml<0.1).
+                + "$LOCAL_PYTHON -m pip install -U \"$CAIRNML_AGENT_LOCAL_SDK_WHEEL\" ; "
                 + "$LOCAL_PYTHON -m pip install -U {cairnml_agent_wheel} ; "
             ).format(
                 python_single_digit=run.python_version.split(".")[0],
