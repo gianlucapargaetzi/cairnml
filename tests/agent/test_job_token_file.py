@@ -2,8 +2,8 @@ import os
 import stat
 from unittest import mock
 
-from cairnml_agent.backend_api.session.job_token_file import read_job_token_file
-from cairnml_agent.backend_api.session.session import Session
+from cairnml.backend_api.session.job_token_file import read_job_token_file
+from cairnml.backend_api.session.session import Session
 from cairnml_agent.helper.job_token import TokenRenewer, request_job_token, write_job_token
 
 

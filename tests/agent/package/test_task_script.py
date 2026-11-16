@@ -13,7 +13,7 @@ from typing import Iterator, ContextManager, Sequence, IO, Text  # noqa: F401  #
 from uuid import uuid4
 
 from cairnml_agent.backend_api.services import tasks
-from cairnml_agent.backend_api.session.client.client import APIClient
+from cairnml.backend_api.session.client.client import APIClient
 from pathlib import Path
 import pytest
 from pytest import fixture

@@ -4,7 +4,7 @@ import argparse
 import sys
 import warnings
 
-from cairnml_agent.backend_api.session.datamodel import UnusedKwargsWarning
+from cairnml.backend_api.session.datamodel import UnusedKwargsWarning
 
 from cairnml_agent.config import get_config
 from cairnml_agent.helper.process import ExitStatus

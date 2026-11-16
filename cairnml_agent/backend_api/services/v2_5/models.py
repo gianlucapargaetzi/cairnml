@@ -3,13 +3,23 @@ models service
 
 This service provides a management interface for models (results of training tasks) stored in the system.
 """
+
 import types
 from datetime import datetime
 import enum
 
 from dateutil.parser import parse as parse_datetime
 
-from ....backend_api.session import Request, BatchRequest, Response, DataModel, NonStrictDataModel, CompoundRequest, schema_property, StringEnum
+from cairnml.backend_api.session import (
+    Request,
+    BatchRequest,
+    Response,
+    DataModel,
+    NonStrictDataModel,
+    CompoundRequest,
+    schema_property,
+    StringEnum,
+)
 
 
 class MultiFieldPatternData(NonStrictDataModel):
@@ -19,27 +29,28 @@ class MultiFieldPatternData(NonStrictDataModel):
     :param fields: List of field names
     :type fields: Sequence[str]
     """
+
     _schema = {
-        'properties': {
-            'fields': {
-                'description': 'List of field names',
-                'items': {'type': 'string'},
-                'type': ['array', 'null'],
+        "properties": {
+            "fields": {
+                "description": "List of field names",
+                "items": {"type": "string"},
+                "type": ["array", "null"],
             },
-            'pattern': {
-                'description': 'Pattern string (regex)',
-                'type': ['string', 'null'],
+            "pattern": {
+                "description": "Pattern string (regex)",
+                "type": ["string", "null"],
             },
         },
-        'type': 'object',
+        "type": "object",
     }
-    def __init__(
-            self, pattern=None, fields=None, **kwargs):
+
+    def __init__(self, pattern=None, fields=None, **kwargs):
         super(MultiFieldPatternData, self).__init__(**kwargs)
         self.pattern = pattern
         self.fields = fields
 
-    @schema_property('pattern')
+    @schema_property("pattern")
     def pattern(self):
         return self._property_pattern
 
@@ -52,7 +63,7 @@ class MultiFieldPatternData(NonStrictDataModel):
         self.assert_isinstance(value, "pattern", str)
         self._property_pattern = value
 
-    @schema_property('fields')
+    @schema_property("fields")
     def fields(self):
         return self._property_fields
 
@@ -109,75 +120,96 @@ class Model(NonStrictDataModel):
     :param ui_cache: UI cache for this model
     :type ui_cache: dict
     """
+
     _schema = {
-        'properties': {
-            'comment': {'description': 'Model comment', 'type': ['string', 'null']},
-            'company': {'description': 'Company id', 'type': ['string', 'null']},
-            'created': {
-                'description': 'Model creation time',
-                'format': 'date-time',
-                'type': ['string', 'null'],
+        "properties": {
+            "comment": {"description": "Model comment", "type": ["string", "null"]},
+            "company": {"description": "Company id", "type": ["string", "null"]},
+            "created": {
+                "description": "Model creation time",
+                "format": "date-time",
+                "type": ["string", "null"],
             },
-            'design': {
-                'additionalProperties': True,
-                'description': 'Json object representing the model design. Should be identical to the network design of the task which created the model',
-                'type': ['object', 'null'],
+            "design": {
+                "additionalProperties": True,
+                "description": "Json object representing the model design. Should be identical to the network design of the task which created the model",
+                "type": ["object", "null"],
             },
-            'framework': {
-                'description': 'Framework on which the model is based. Should be identical to the framework of the task which created the model',
-                'type': ['string', 'null'],
+            "framework": {
+                "description": "Framework on which the model is based. Should be identical to the framework of the task which created the model",
+                "type": ["string", "null"],
             },
-            'id': {'description': 'Model id', 'type': ['string', 'null']},
-            'labels': {
-                'additionalProperties': {'type': 'integer'},
-                'description': "Json object representing the ids of the labels in the model. The keys are the layers' names and the values are the ids.",
-                'type': ['object', 'null'],
+            "id": {"description": "Model id", "type": ["string", "null"]},
+            "labels": {
+                "additionalProperties": {"type": "integer"},
+                "description": "Json object representing the ids of the labels in the model. The keys are the layers' names and the values are the ids.",
+                "type": ["object", "null"],
             },
-            'name': {'description': 'Model name', 'type': ['string', 'null']},
-            'parent': {
-                'description': 'Parent model ID',
-                'type': ['string', 'null'],
+            "name": {"description": "Model name", "type": ["string", "null"]},
+            "parent": {
+                "description": "Parent model ID",
+                "type": ["string", "null"],
             },
-            'project': {
-                'description': 'Associated project ID',
-                'type': ['string', 'null'],
+            "project": {
+                "description": "Associated project ID",
+                "type": ["string", "null"],
             },
-            'ready': {
-                'description': 'Indication if the model is final and can be used by other tasks',
-                'type': ['boolean', 'null'],
+            "ready": {
+                "description": "Indication if the model is final and can be used by other tasks",
+                "type": ["boolean", "null"],
             },
-            'system_tags': {
-                'description': "System tags. This field is reserved for system use, please don't use it.",
-                'items': {'type': 'string'},
-                'type': ['array', 'null'],
+            "system_tags": {
+                "description": "System tags. This field is reserved for system use, please don't use it.",
+                "items": {"type": "string"},
+                "type": ["array", "null"],
             },
-            'tags': {
-                'description': 'User-defined tags',
-                'items': {'type': 'string'},
-                'type': ['array', 'null'],
+            "tags": {
+                "description": "User-defined tags",
+                "items": {"type": "string"},
+                "type": ["array", "null"],
             },
-            'task': {
-                'description': 'Task ID of task in which the model was created',
-                'type': ['string', 'null'],
+            "task": {
+                "description": "Task ID of task in which the model was created",
+                "type": ["string", "null"],
             },
-            'ui_cache': {
-                'additionalProperties': True,
-                'description': 'UI cache for this model',
-                'type': ['object', 'null'],
+            "ui_cache": {
+                "additionalProperties": True,
+                "description": "UI cache for this model",
+                "type": ["object", "null"],
             },
-            'uri': {
-                'description': 'URI for the model, pointing to the destination storage.',
-                'type': ['string', 'null'],
+            "uri": {
+                "description": "URI for the model, pointing to the destination storage.",
+                "type": ["string", "null"],
             },
-            'user': {
-                'description': 'Associated user id',
-                'type': ['string', 'null'],
+            "user": {
+                "description": "Associated user id",
+                "type": ["string", "null"],
             },
         },
-        'type': 'object',
+        "type": "object",
     }
+
     def __init__(
-            self, id=None, name=None, user=None, company=None, created=None, task=None, parent=None, project=None, comment=None, tags=None, system_tags=None, framework=None, design=None, labels=None, uri=None, ready=None, ui_cache=None, **kwargs):
+        self,
+        id=None,
+        name=None,
+        user=None,
+        company=None,
+        created=None,
+        task=None,
+        parent=None,
+        project=None,
+        comment=None,
+        tags=None,
+        system_tags=None,
+        framework=None,
+        design=None,
+        labels=None,
+        uri=None,
+        ready=None,
+        ui_cache=None,
+        **kwargs,
+    ):
         super(Model, self).__init__(**kwargs)
         self.id = id
         self.name = name
@@ -197,7 +229,7 @@ class Model(NonStrictDataModel):
         self.ready = ready
         self.ui_cache = ui_cache
 
-    @schema_property('id')
+    @schema_property("id")
     def id(self):
         return self._property_id
 
@@ -210,7 +242,7 @@ class Model(NonStrictDataModel):
         self.assert_isinstance(value, "id", str)
         self._property_id = value
 
-    @schema_property('name')
+    @schema_property("name")
     def name(self):
         return self._property_name
 
@@ -223,7 +255,7 @@ class Model(NonStrictDataModel):
         self.assert_isinstance(value, "name", str)
         self._property_name = value
 
-    @schema_property('user')
+    @schema_property("user")
     def user(self):
         return self._property_user
 
@@ -236,7 +268,7 @@ class Model(NonStrictDataModel):
         self.assert_isinstance(value, "user", str)
         self._property_user = value
 
-    @schema_property('company')
+    @schema_property("company")
     def company(self):
         return self._property_company
 
@@ -249,7 +281,7 @@ class Model(NonStrictDataModel):
         self.assert_isinstance(value, "company", str)
         self._property_company = value
 
-    @schema_property('created')
+    @schema_property("created")
     def created(self):
         return self._property_created
 
@@ -264,7 +296,7 @@ class Model(NonStrictDataModel):
             value = parse_datetime(value)
         self._property_created = value
 
-    @schema_property('task')
+    @schema_property("task")
     def task(self):
         return self._property_task
 
@@ -277,7 +309,7 @@ class Model(NonStrictDataModel):
         self.assert_isinstance(value, "task", str)
         self._property_task = value
 
-    @schema_property('parent')
+    @schema_property("parent")
     def parent(self):
         return self._property_parent
 
@@ -290,7 +322,7 @@ class Model(NonStrictDataModel):
         self.assert_isinstance(value, "parent", str)
         self._property_parent = value
 
-    @schema_property('project')
+    @schema_property("project")
     def project(self):
         return self._property_project
 
@@ -303,7 +335,7 @@ class Model(NonStrictDataModel):
         self.assert_isinstance(value, "project", str)
         self._property_project = value
 
-    @schema_property('comment')
+    @schema_property("comment")
     def comment(self):
         return self._property_comment
 
@@ -316,7 +348,7 @@ class Model(NonStrictDataModel):
         self.assert_isinstance(value, "comment", str)
         self._property_comment = value
 
-    @schema_property('tags')
+    @schema_property("tags")
     def tags(self):
         return self._property_tags
 
@@ -331,7 +363,7 @@ class Model(NonStrictDataModel):
         self.assert_isinstance(value, "tags", str, is_array=True)
         self._property_tags = value
 
-    @schema_property('system_tags')
+    @schema_property("system_tags")
     def system_tags(self):
         return self._property_system_tags
 
@@ -346,7 +378,7 @@ class Model(NonStrictDataModel):
         self.assert_isinstance(value, "system_tags", str, is_array=True)
         self._property_system_tags = value
 
-    @schema_property('framework')
+    @schema_property("framework")
     def framework(self):
         return self._property_framework
 
@@ -359,7 +391,7 @@ class Model(NonStrictDataModel):
         self.assert_isinstance(value, "framework", str)
         self._property_framework = value
 
-    @schema_property('design')
+    @schema_property("design")
     def design(self):
         return self._property_design
 
@@ -372,7 +404,7 @@ class Model(NonStrictDataModel):
         self.assert_isinstance(value, "design", (dict,))
         self._property_design = value
 
-    @schema_property('labels')
+    @schema_property("labels")
     def labels(self):
         return self._property_labels
 
@@ -385,7 +417,7 @@ class Model(NonStrictDataModel):
         self.assert_isinstance(value, "labels", (dict,))
         self._property_labels = value
 
-    @schema_property('uri')
+    @schema_property("uri")
     def uri(self):
         return self._property_uri
 
@@ -398,7 +430,7 @@ class Model(NonStrictDataModel):
         self.assert_isinstance(value, "uri", str)
         self._property_uri = value
 
-    @schema_property('ready')
+    @schema_property("ready")
     def ready(self):
         return self._property_ready
 
@@ -411,7 +443,7 @@ class Model(NonStrictDataModel):
         self.assert_isinstance(value, "ready", (bool,))
         self._property_ready = value
 
-    @schema_property('ui_cache')
+    @schema_property("ui_cache")
     def ui_cache(self):
         return self._property_ui_cache
 
@@ -465,60 +497,76 @@ class CreateRequest(Request):
     _action = "create"
     _version = "2.5"
     _schema = {
-        'definitions': {},
-        'properties': {
-            'comment': {'description': 'Model comment', 'type': 'string'},
-            'design': {
-                'additionalProperties': True,
-                'description': 'Json[d] object representing the model design. Should be identical to the network design of the task which created the model',
-                'type': 'object',
+        "definitions": {},
+        "properties": {
+            "comment": {"description": "Model comment", "type": "string"},
+            "design": {
+                "additionalProperties": True,
+                "description": "Json[d] object representing the model design. Should be identical to the network design of the task which created the model",
+                "type": "object",
             },
-            'framework': {
-                'description': 'Framework on which the model is based. Case insensitive. Should be identical to the framework of the task which created the model.',
-                'type': 'string',
+            "framework": {
+                "description": "Framework on which the model is based. Case insensitive. Should be identical to the framework of the task which created the model.",
+                "type": "string",
             },
-            'labels': {
-                'additionalProperties': {'type': 'integer'},
-                'description': 'Json object',
-                'type': 'object',
+            "labels": {
+                "additionalProperties": {"type": "integer"},
+                "description": "Json object",
+                "type": "object",
             },
-            'name': {
-                'description': 'Model name Unique within the company.',
-                'type': 'string',
+            "name": {
+                "description": "Model name Unique within the company.",
+                "type": "string",
             },
-            'parent': {'description': 'Parent model', 'type': 'string'},
-            'project': {
-                'description': 'Project to which to model belongs',
-                'type': 'string',
+            "parent": {"description": "Parent model", "type": "string"},
+            "project": {
+                "description": "Project to which to model belongs",
+                "type": "string",
             },
-            'public': {
-                'default': False,
-                'description': 'Create a public model Default is false.',
-                'type': 'boolean',
+            "public": {
+                "default": False,
+                "description": "Create a public model Default is false.",
+                "type": "boolean",
             },
-            'ready': {
-                'default': False,
-                'description': 'Indication if the model is final and can be used by other tasks Default is false.',
-                'type': 'boolean',
+            "ready": {
+                "default": False,
+                "description": "Indication if the model is final and can be used by other tasks Default is false.",
+                "type": "boolean",
             },
-            'system_tags': {
-                'description': "System tags list. This field is reserved for system use, please don't use it.",
-                'items': {'type': 'string'},
-                'type': 'array',
+            "system_tags": {
+                "description": "System tags list. This field is reserved for system use, please don't use it.",
+                "items": {"type": "string"},
+                "type": "array",
             },
-            'tags': {
-                'description': 'User-defined tags list',
-                'items': {'type': 'string'},
-                'type': 'array',
+            "tags": {
+                "description": "User-defined tags list",
+                "items": {"type": "string"},
+                "type": "array",
             },
-            'task': {'description': 'Associated task ID', 'type': 'string'},
-            'uri': {'description': 'URI for the model', 'type': 'string'},
+            "task": {"description": "Associated task ID", "type": "string"},
+            "uri": {"description": "URI for the model", "type": "string"},
         },
-        'required': ['uri', 'name', 'labels'],
-        'type': 'object',
+        "required": ["uri", "name", "labels"],
+        "type": "object",
     }
+
     def __init__(
-            self, uri, name, labels, comment=None, tags=None, system_tags=None, framework=None, design=None, ready=False, public=False, project=None, parent=None, task=None, **kwargs):
+        self,
+        uri,
+        name,
+        labels,
+        comment=None,
+        tags=None,
+        system_tags=None,
+        framework=None,
+        design=None,
+        ready=False,
+        public=False,
+        project=None,
+        parent=None,
+        task=None,
+        **kwargs,
+    ):
         super(CreateRequest, self).__init__(**kwargs)
         self.uri = uri
         self.name = name
@@ -534,7 +582,7 @@ class CreateRequest(Request):
         self.parent = parent
         self.task = task
 
-    @schema_property('uri')
+    @schema_property("uri")
     def uri(self):
         return self._property_uri
 
@@ -547,7 +595,7 @@ class CreateRequest(Request):
         self.assert_isinstance(value, "uri", str)
         self._property_uri = value
 
-    @schema_property('name')
+    @schema_property("name")
     def name(self):
         return self._property_name
 
@@ -560,7 +608,7 @@ class CreateRequest(Request):
         self.assert_isinstance(value, "name", str)
         self._property_name = value
 
-    @schema_property('comment')
+    @schema_property("comment")
     def comment(self):
         return self._property_comment
 
@@ -573,7 +621,7 @@ class CreateRequest(Request):
         self.assert_isinstance(value, "comment", str)
         self._property_comment = value
 
-    @schema_property('tags')
+    @schema_property("tags")
     def tags(self):
         return self._property_tags
 
@@ -588,7 +636,7 @@ class CreateRequest(Request):
         self.assert_isinstance(value, "tags", str, is_array=True)
         self._property_tags = value
 
-    @schema_property('system_tags')
+    @schema_property("system_tags")
     def system_tags(self):
         return self._property_system_tags
 
@@ -603,7 +651,7 @@ class CreateRequest(Request):
         self.assert_isinstance(value, "system_tags", str, is_array=True)
         self._property_system_tags = value
 
-    @schema_property('framework')
+    @schema_property("framework")
     def framework(self):
         return self._property_framework
 
@@ -616,7 +664,7 @@ class CreateRequest(Request):
         self.assert_isinstance(value, "framework", str)
         self._property_framework = value
 
-    @schema_property('design')
+    @schema_property("design")
     def design(self):
         return self._property_design
 
@@ -629,7 +677,7 @@ class CreateRequest(Request):
         self.assert_isinstance(value, "design", (dict,))
         self._property_design = value
 
-    @schema_property('labels')
+    @schema_property("labels")
     def labels(self):
         return self._property_labels
 
@@ -642,7 +690,7 @@ class CreateRequest(Request):
         self.assert_isinstance(value, "labels", (dict,))
         self._property_labels = value
 
-    @schema_property('ready')
+    @schema_property("ready")
     def ready(self):
         return self._property_ready
 
@@ -655,7 +703,7 @@ class CreateRequest(Request):
         self.assert_isinstance(value, "ready", (bool,))
         self._property_ready = value
 
-    @schema_property('public')
+    @schema_property("public")
     def public(self):
         return self._property_public
 
@@ -668,7 +716,7 @@ class CreateRequest(Request):
         self.assert_isinstance(value, "public", (bool,))
         self._property_public = value
 
-    @schema_property('project')
+    @schema_property("project")
     def project(self):
         return self._property_project
 
@@ -681,7 +729,7 @@ class CreateRequest(Request):
         self.assert_isinstance(value, "project", str)
         self._property_project = value
 
-    @schema_property('parent')
+    @schema_property("parent")
     def parent(self):
         return self._property_parent
 
@@ -694,7 +742,7 @@ class CreateRequest(Request):
         self.assert_isinstance(value, "parent", str)
         self._property_parent = value
 
-    @schema_property('task')
+    @schema_property("task")
     def task(self):
         return self._property_task
 
@@ -717,28 +765,29 @@ class CreateResponse(Response):
     :param created: Was the model created
     :type created: bool
     """
+
     _service = "models"
     _action = "create"
     _version = "2.5"
 
     _schema = {
-        'definitions': {},
-        'properties': {
-            'created': {
-                'description': 'Was the model created',
-                'type': ['boolean', 'null'],
+        "definitions": {},
+        "properties": {
+            "created": {
+                "description": "Was the model created",
+                "type": ["boolean", "null"],
             },
-            'id': {'description': 'ID of the model', 'type': ['string', 'null']},
+            "id": {"description": "ID of the model", "type": ["string", "null"]},
         },
-        'type': 'object',
+        "type": "object",
     }
-    def __init__(
-            self, id=None, created=None, **kwargs):
+
+    def __init__(self, id=None, created=None, **kwargs):
         super(CreateResponse, self).__init__(**kwargs)
         self.id = id
         self.created = created
 
-    @schema_property('id')
+    @schema_property("id")
     def id(self):
         return self._property_id
 
@@ -751,7 +800,7 @@ class CreateResponse(Response):
         self.assert_isinstance(value, "id", str)
         self._property_id = value
 
-    @schema_property('created')
+    @schema_property("created")
     def created(self):
         return self._property_created
 
@@ -780,24 +829,24 @@ class DeleteRequest(Request):
     _action = "delete"
     _version = "2.5"
     _schema = {
-        'definitions': {},
-        'properties': {
-            'force': {
-                'description': "Force. Required if there are tasks that use the model as an execution model, or if the model's creating task is published.\n                        ",
-                'type': 'boolean',
+        "definitions": {},
+        "properties": {
+            "force": {
+                "description": "Force. Required if there are tasks that use the model as an execution model, or if the model's creating task is published.\n                        ",
+                "type": "boolean",
             },
-            'model': {'description': 'Model ID', 'type': 'string'},
+            "model": {"description": "Model ID", "type": "string"},
         },
-        'required': ['model'],
-        'type': 'object',
+        "required": ["model"],
+        "type": "object",
     }
-    def __init__(
-            self, model, force=None, **kwargs):
+
+    def __init__(self, model, force=None, **kwargs):
         super(DeleteRequest, self).__init__(**kwargs)
         self.model = model
         self.force = force
 
-    @schema_property('model')
+    @schema_property("model")
     def model(self):
         return self._property_model
 
@@ -810,7 +859,7 @@ class DeleteRequest(Request):
         self.assert_isinstance(value, "model", str)
         self._property_model = value
 
-    @schema_property('force')
+    @schema_property("force")
     def force(self):
         return self._property_force
 
@@ -831,26 +880,27 @@ class DeleteResponse(Response):
     :param deleted: Indicates whether the model was deleted
     :type deleted: bool
     """
+
     _service = "models"
     _action = "delete"
     _version = "2.5"
 
     _schema = {
-        'definitions': {},
-        'properties': {
-            'deleted': {
-                'description': 'Indicates whether the model was deleted',
-                'type': ['boolean', 'null'],
+        "definitions": {},
+        "properties": {
+            "deleted": {
+                "description": "Indicates whether the model was deleted",
+                "type": ["boolean", "null"],
             },
         },
-        'type': 'object',
+        "type": "object",
     }
-    def __init__(
-            self, deleted=None, **kwargs):
+
+    def __init__(self, deleted=None, **kwargs):
         super(DeleteResponse, self).__init__(**kwargs)
         self.deleted = deleted
 
-    @schema_property('deleted')
+    @schema_property("deleted")
     def deleted(self):
         return self._property_deleted
 
@@ -905,59 +955,76 @@ class EditRequest(Request):
     _action = "edit"
     _version = "2.5"
     _schema = {
-        'definitions': {},
-        'properties': {
-            'comment': {'description': 'Model comment', 'type': 'string'},
-            'design': {
-                'additionalProperties': True,
-                'description': 'Json[d] object representing the model design. Should be identical to the network design of the task which created the model',
-                'type': 'object',
+        "definitions": {},
+        "properties": {
+            "comment": {"description": "Model comment", "type": "string"},
+            "design": {
+                "additionalProperties": True,
+                "description": "Json[d] object representing the model design. Should be identical to the network design of the task which created the model",
+                "type": "object",
             },
-            'framework': {
-                'description': 'Framework on which the model is based. Case insensitive. Should be identical to the framework of the task which created the model.',
-                'type': 'string',
+            "framework": {
+                "description": "Framework on which the model is based. Case insensitive. Should be identical to the framework of the task which created the model.",
+                "type": "string",
             },
-            'iteration': {
-                'description': 'Iteration (used to update task statistics)',
-                'type': 'integer',
+            "iteration": {
+                "description": "Iteration (used to update task statistics)",
+                "type": "integer",
             },
-            'labels': {
-                'additionalProperties': {'type': 'integer'},
-                'description': 'Json object',
-                'type': 'object',
+            "labels": {
+                "additionalProperties": {"type": "integer"},
+                "description": "Json object",
+                "type": "object",
             },
-            'model': {'description': 'Model ID', 'type': 'string'},
-            'name': {
-                'description': 'Model name Unique within the company.',
-                'type': 'string',
+            "model": {"description": "Model ID", "type": "string"},
+            "name": {
+                "description": "Model name Unique within the company.",
+                "type": "string",
             },
-            'parent': {'description': 'Parent model', 'type': 'string'},
-            'project': {
-                'description': 'Project to which to model belongs',
-                'type': 'string',
+            "parent": {"description": "Parent model", "type": "string"},
+            "project": {
+                "description": "Project to which to model belongs",
+                "type": "string",
             },
-            'ready': {
-                'description': 'Indication if the model is final and can be used by other tasks',
-                'type': 'boolean',
+            "ready": {
+                "description": "Indication if the model is final and can be used by other tasks",
+                "type": "boolean",
             },
-            'system_tags': {
-                'description': "System tags list. This field is reserved for system use, please don't use it.",
-                'items': {'type': 'string'},
-                'type': 'array',
+            "system_tags": {
+                "description": "System tags list. This field is reserved for system use, please don't use it.",
+                "items": {"type": "string"},
+                "type": "array",
             },
-            'tags': {
-                'description': 'User-defined tags list',
-                'items': {'type': 'string'},
-                'type': 'array',
+            "tags": {
+                "description": "User-defined tags list",
+                "items": {"type": "string"},
+                "type": "array",
             },
-            'task': {'description': 'Associated task ID', 'type': 'string'},
-            'uri': {'description': 'URI for the model', 'type': 'string'},
+            "task": {"description": "Associated task ID", "type": "string"},
+            "uri": {"description": "URI for the model", "type": "string"},
         },
-        'required': ['model'],
-        'type': 'object',
+        "required": ["model"],
+        "type": "object",
     }
+
     def __init__(
-            self, model, uri=None, name=None, comment=None, tags=None, system_tags=None, framework=None, design=None, labels=None, ready=None, project=None, parent=None, task=None, iteration=None, **kwargs):
+        self,
+        model,
+        uri=None,
+        name=None,
+        comment=None,
+        tags=None,
+        system_tags=None,
+        framework=None,
+        design=None,
+        labels=None,
+        ready=None,
+        project=None,
+        parent=None,
+        task=None,
+        iteration=None,
+        **kwargs,
+    ):
         super(EditRequest, self).__init__(**kwargs)
         self.model = model
         self.uri = uri
@@ -974,7 +1041,7 @@ class EditRequest(Request):
         self.task = task
         self.iteration = iteration
 
-    @schema_property('model')
+    @schema_property("model")
     def model(self):
         return self._property_model
 
@@ -987,7 +1054,7 @@ class EditRequest(Request):
         self.assert_isinstance(value, "model", str)
         self._property_model = value
 
-    @schema_property('uri')
+    @schema_property("uri")
     def uri(self):
         return self._property_uri
 
@@ -1000,7 +1067,7 @@ class EditRequest(Request):
         self.assert_isinstance(value, "uri", str)
         self._property_uri = value
 
-    @schema_property('name')
+    @schema_property("name")
     def name(self):
         return self._property_name
 
@@ -1013,7 +1080,7 @@ class EditRequest(Request):
         self.assert_isinstance(value, "name", str)
         self._property_name = value
 
-    @schema_property('comment')
+    @schema_property("comment")
     def comment(self):
         return self._property_comment
 
@@ -1026,7 +1093,7 @@ class EditRequest(Request):
         self.assert_isinstance(value, "comment", str)
         self._property_comment = value
 
-    @schema_property('tags')
+    @schema_property("tags")
     def tags(self):
         return self._property_tags
 
@@ -1041,7 +1108,7 @@ class EditRequest(Request):
         self.assert_isinstance(value, "tags", str, is_array=True)
         self._property_tags = value
 
-    @schema_property('system_tags')
+    @schema_property("system_tags")
     def system_tags(self):
         return self._property_system_tags
 
@@ -1056,7 +1123,7 @@ class EditRequest(Request):
         self.assert_isinstance(value, "system_tags", str, is_array=True)
         self._property_system_tags = value
 
-    @schema_property('framework')
+    @schema_property("framework")
     def framework(self):
         return self._property_framework
 
@@ -1069,7 +1136,7 @@ class EditRequest(Request):
         self.assert_isinstance(value, "framework", str)
         self._property_framework = value
 
-    @schema_property('design')
+    @schema_property("design")
     def design(self):
         return self._property_design
 
@@ -1082,7 +1149,7 @@ class EditRequest(Request):
         self.assert_isinstance(value, "design", (dict,))
         self._property_design = value
 
-    @schema_property('labels')
+    @schema_property("labels")
     def labels(self):
         return self._property_labels
 
@@ -1095,7 +1162,7 @@ class EditRequest(Request):
         self.assert_isinstance(value, "labels", (dict,))
         self._property_labels = value
 
-    @schema_property('ready')
+    @schema_property("ready")
     def ready(self):
         return self._property_ready
 
@@ -1108,7 +1175,7 @@ class EditRequest(Request):
         self.assert_isinstance(value, "ready", (bool,))
         self._property_ready = value
 
-    @schema_property('project')
+    @schema_property("project")
     def project(self):
         return self._property_project
 
@@ -1121,7 +1188,7 @@ class EditRequest(Request):
         self.assert_isinstance(value, "project", str)
         self._property_project = value
 
-    @schema_property('parent')
+    @schema_property("parent")
     def parent(self):
         return self._property_parent
 
@@ -1134,7 +1201,7 @@ class EditRequest(Request):
         self.assert_isinstance(value, "parent", str)
         self._property_parent = value
 
-    @schema_property('task')
+    @schema_property("task")
     def task(self):
         return self._property_task
 
@@ -1147,7 +1214,7 @@ class EditRequest(Request):
         self.assert_isinstance(value, "task", str)
         self._property_task = value
 
-    @schema_property('iteration')
+    @schema_property("iteration")
     def iteration(self):
         return self._property_iteration
 
@@ -1172,33 +1239,34 @@ class EditResponse(Response):
     :param fields: Updated fields names and values
     :type fields: dict
     """
+
     _service = "models"
     _action = "edit"
     _version = "2.5"
 
     _schema = {
-        'definitions': {},
-        'properties': {
-            'fields': {
-                'additionalProperties': True,
-                'description': 'Updated fields names and values',
-                'type': ['object', 'null'],
+        "definitions": {},
+        "properties": {
+            "fields": {
+                "additionalProperties": True,
+                "description": "Updated fields names and values",
+                "type": ["object", "null"],
             },
-            'updated': {
-                'description': 'Number of models updated (0 or 1)',
-                'enum': [0, 1],
-                'type': ['integer', 'null'],
+            "updated": {
+                "description": "Number of models updated (0 or 1)",
+                "enum": [0, 1],
+                "type": ["integer", "null"],
             },
         },
-        'type': 'object',
+        "type": "object",
     }
-    def __init__(
-            self, updated=None, fields=None, **kwargs):
+
+    def __init__(self, updated=None, fields=None, **kwargs):
         super(EditResponse, self).__init__(**kwargs)
         self.updated = updated
         self.fields = fields
 
-    @schema_property('updated')
+    @schema_property("updated")
     def updated(self):
         return self._property_updated
 
@@ -1213,7 +1281,7 @@ class EditResponse(Response):
         self.assert_isinstance(value, "updated", int)
         self._property_updated = value
 
-    @schema_property('fields')
+    @schema_property("fields")
     def fields(self):
         return self._property_fields
 
@@ -1280,110 +1348,129 @@ class GetAllRequest(Request):
     _action = "get_all"
     _version = "2.5"
     _schema = {
-        'definitions': {
-            'multi_field_pattern_data': {
-                'properties': {
-                    'fields': {
-                        'description': 'List of field names',
-                        'items': {'type': 'string'},
-                        'type': ['array', 'null'],
+        "definitions": {
+            "multi_field_pattern_data": {
+                "properties": {
+                    "fields": {
+                        "description": "List of field names",
+                        "items": {"type": "string"},
+                        "type": ["array", "null"],
                     },
-                    'pattern': {
-                        'description': 'Pattern string (regex)',
-                        'type': ['string', 'null'],
+                    "pattern": {
+                        "description": "Pattern string (regex)",
+                        "type": ["string", "null"],
                     },
                 },
-                'type': 'object',
+                "type": "object",
             },
         },
-        'dependencies': {'page': ['page_size']},
-        'properties': {
-            '_all_': {
-                'description': 'Multi-field pattern condition (all fields match pattern)',
-                'oneOf': [
-                    {'$ref': '#/definitions/multi_field_pattern_data'},
-                    {'type': 'null'},
+        "dependencies": {"page": ["page_size"]},
+        "properties": {
+            "_all_": {
+                "description": "Multi-field pattern condition (all fields match pattern)",
+                "oneOf": [
+                    {"$ref": "#/definitions/multi_field_pattern_data"},
+                    {"type": "null"},
                 ],
             },
-            '_any_': {
-                'description': 'Multi-field pattern condition (any field matches pattern)',
-                'oneOf': [
-                    {'$ref': '#/definitions/multi_field_pattern_data'},
-                    {'type': 'null'},
+            "_any_": {
+                "description": "Multi-field pattern condition (any field matches pattern)",
+                "oneOf": [
+                    {"$ref": "#/definitions/multi_field_pattern_data"},
+                    {"type": "null"},
                 ],
             },
-            'framework': {
-                'description': 'List of frameworks',
-                'items': {'type': 'string'},
-                'type': ['array', 'null'],
+            "framework": {
+                "description": "List of frameworks",
+                "items": {"type": "string"},
+                "type": ["array", "null"],
             },
-            'id': {
-                'description': 'List of model IDs',
-                'items': {'type': 'string'},
-                'type': ['array', 'null'],
+            "id": {
+                "description": "List of model IDs",
+                "items": {"type": "string"},
+                "type": ["array", "null"],
             },
-            'name': {
-                'description': 'Get only models whose name matches this pattern (python regular expression syntax)',
-                'type': ['string', 'null'],
+            "name": {
+                "description": "Get only models whose name matches this pattern (python regular expression syntax)",
+                "type": ["string", "null"],
             },
-            'only_fields': {
-                'description': "List of model field names (if applicable, nesting is supported using '.'). If provided, this list defines the query's projection (only these fields will be returned for each result entry)",
-                'items': {'type': 'string'},
-                'type': ['array', 'null'],
+            "only_fields": {
+                "description": "List of model field names (if applicable, nesting is supported using '.'). If provided, this list defines the query's projection (only these fields will be returned for each result entry)",
+                "items": {"type": "string"},
+                "type": ["array", "null"],
             },
-            'order_by': {
-                'description': "List of field names to order by. When search_text is used, '@text_score' can be used as a field representing the text score of returned documents. Use '-' prefix to specify descending order. Optional, recommended when using page",
-                'items': {'type': 'string'},
-                'type': ['array', 'null'],
+            "order_by": {
+                "description": "List of field names to order by. When search_text is used, '@text_score' can be used as a field representing the text score of returned documents. Use '-' prefix to specify descending order. Optional, recommended when using page",
+                "items": {"type": "string"},
+                "type": ["array", "null"],
             },
-            'page': {
-                'description': 'Page number, returns a specific page out of the resulting list of models',
-                'minimum': 0,
-                'type': ['integer', 'null'],
+            "page": {
+                "description": "Page number, returns a specific page out of the resulting list of models",
+                "minimum": 0,
+                "type": ["integer", "null"],
             },
-            'page_size': {
-                'description': 'Page size, specifies the number of results returned in each page (last page may contain fewer results)',
-                'minimum': 1,
-                'type': ['integer', 'null'],
+            "page_size": {
+                "description": "Page size, specifies the number of results returned in each page (last page may contain fewer results)",
+                "minimum": 1,
+                "type": ["integer", "null"],
             },
-            'project': {
-                'description': 'List of associated project IDs',
-                'items': {'type': 'string'},
-                'type': ['array', 'null'],
+            "project": {
+                "description": "List of associated project IDs",
+                "items": {"type": "string"},
+                "type": ["array", "null"],
             },
-            'ready': {
-                'description': 'Indication whether to retrieve only models that are marked ready If not supplied returns both ready and not-ready projects.',
-                'type': ['boolean', 'null'],
+            "ready": {
+                "description": "Indication whether to retrieve only models that are marked ready If not supplied returns both ready and not-ready projects.",
+                "type": ["boolean", "null"],
             },
-            'search_text': {
-                'description': 'Free text search query',
-                'type': ['string', 'null'],
+            "search_text": {
+                "description": "Free text search query",
+                "type": ["string", "null"],
             },
-            'system_tags': {
-                'description': "System tags list used to filter results. Prepend '-' to system tag name to indicate exclusion",
-                'items': {'type': 'string'},
-                'type': ['array', 'null'],
+            "system_tags": {
+                "description": "System tags list used to filter results. Prepend '-' to system tag name to indicate exclusion",
+                "items": {"type": "string"},
+                "type": ["array", "null"],
             },
-            'tags': {
-                'description': "User-defined tags list used to filter results. Prepend '-' to tag name to indicate exclusion",
-                'items': {'type': 'string'},
-                'type': ['array', 'null'],
+            "tags": {
+                "description": "User-defined tags list used to filter results. Prepend '-' to tag name to indicate exclusion",
+                "items": {"type": "string"},
+                "type": ["array", "null"],
             },
-            'task': {
-                'description': 'List of associated task IDs',
-                'items': {'type': 'string'},
-                'type': ['array', 'null'],
+            "task": {
+                "description": "List of associated task IDs",
+                "items": {"type": "string"},
+                "type": ["array", "null"],
             },
-            'uri': {
-                'description': 'List of model URIs',
-                'items': {'type': 'string'},
-                'type': ['array', 'null'],
+            "uri": {
+                "description": "List of model URIs",
+                "items": {"type": "string"},
+                "type": ["array", "null"],
             },
         },
-        'type': 'object',
+        "type": "object",
     }
+
     def __init__(
-            self, name=None, ready=None, tags=None, system_tags=None, only_fields=None, page=None, page_size=None, project=None, order_by=None, task=None, id=None, search_text=None, framework=None, uri=None, _all_=None, _any_=None, **kwargs):
+        self,
+        name=None,
+        ready=None,
+        tags=None,
+        system_tags=None,
+        only_fields=None,
+        page=None,
+        page_size=None,
+        project=None,
+        order_by=None,
+        task=None,
+        id=None,
+        search_text=None,
+        framework=None,
+        uri=None,
+        _all_=None,
+        _any_=None,
+        **kwargs,
+    ):
         super(GetAllRequest, self).__init__(**kwargs)
         self.name = name
         self.ready = ready
@@ -1402,7 +1489,7 @@ class GetAllRequest(Request):
         self._all_ = _all_
         self._any_ = _any_
 
-    @schema_property('name')
+    @schema_property("name")
     def name(self):
         return self._property_name
 
@@ -1415,7 +1502,7 @@ class GetAllRequest(Request):
         self.assert_isinstance(value, "name", str)
         self._property_name = value
 
-    @schema_property('ready')
+    @schema_property("ready")
     def ready(self):
         return self._property_ready
 
@@ -1428,7 +1515,7 @@ class GetAllRequest(Request):
         self.assert_isinstance(value, "ready", (bool,))
         self._property_ready = value
 
-    @schema_property('tags')
+    @schema_property("tags")
     def tags(self):
         return self._property_tags
 
@@ -1443,7 +1530,7 @@ class GetAllRequest(Request):
         self.assert_isinstance(value, "tags", str, is_array=True)
         self._property_tags = value
 
-    @schema_property('system_tags')
+    @schema_property("system_tags")
     def system_tags(self):
         return self._property_system_tags
 
@@ -1458,7 +1545,7 @@ class GetAllRequest(Request):
         self.assert_isinstance(value, "system_tags", str, is_array=True)
         self._property_system_tags = value
 
-    @schema_property('only_fields')
+    @schema_property("only_fields")
     def only_fields(self):
         return self._property_only_fields
 
@@ -1473,7 +1560,7 @@ class GetAllRequest(Request):
         self.assert_isinstance(value, "only_fields", str, is_array=True)
         self._property_only_fields = value
 
-    @schema_property('page')
+    @schema_property("page")
     def page(self):
         return self._property_page
 
@@ -1488,7 +1575,7 @@ class GetAllRequest(Request):
         self.assert_isinstance(value, "page", int)
         self._property_page = value
 
-    @schema_property('page_size')
+    @schema_property("page_size")
     def page_size(self):
         return self._property_page_size
 
@@ -1503,7 +1590,7 @@ class GetAllRequest(Request):
         self.assert_isinstance(value, "page_size", int)
         self._property_page_size = value
 
-    @schema_property('project')
+    @schema_property("project")
     def project(self):
         return self._property_project
 
@@ -1518,7 +1605,7 @@ class GetAllRequest(Request):
         self.assert_isinstance(value, "project", str, is_array=True)
         self._property_project = value
 
-    @schema_property('order_by')
+    @schema_property("order_by")
     def order_by(self):
         return self._property_order_by
 
@@ -1533,7 +1620,7 @@ class GetAllRequest(Request):
         self.assert_isinstance(value, "order_by", str, is_array=True)
         self._property_order_by = value
 
-    @schema_property('task')
+    @schema_property("task")
     def task(self):
         return self._property_task
 
@@ -1548,7 +1635,7 @@ class GetAllRequest(Request):
         self.assert_isinstance(value, "task", str, is_array=True)
         self._property_task = value
 
-    @schema_property('id')
+    @schema_property("id")
     def id(self):
         return self._property_id
 
@@ -1563,7 +1650,7 @@ class GetAllRequest(Request):
         self.assert_isinstance(value, "id", str, is_array=True)
         self._property_id = value
 
-    @schema_property('search_text')
+    @schema_property("search_text")
     def search_text(self):
         return self._property_search_text
 
@@ -1576,7 +1663,7 @@ class GetAllRequest(Request):
         self.assert_isinstance(value, "search_text", str)
         self._property_search_text = value
 
-    @schema_property('framework')
+    @schema_property("framework")
     def framework(self):
         return self._property_framework
 
@@ -1591,7 +1678,7 @@ class GetAllRequest(Request):
         self.assert_isinstance(value, "framework", str, is_array=True)
         self._property_framework = value
 
-    @schema_property('uri')
+    @schema_property("uri")
     def uri(self):
         return self._property_uri
 
@@ -1606,7 +1693,7 @@ class GetAllRequest(Request):
         self.assert_isinstance(value, "uri", str, is_array=True)
         self._property_uri = value
 
-    @schema_property('_all_')
+    @schema_property("_all_")
     def _all_(self):
         return self._property__all_
 
@@ -1621,7 +1708,7 @@ class GetAllRequest(Request):
             self.assert_isinstance(value, "_all_", MultiFieldPatternData)
         self._property__all_ = value
 
-    @schema_property('_any_')
+    @schema_property("_any_")
     def _any_(self):
         return self._property__any_
 
@@ -1644,104 +1731,105 @@ class GetAllResponse(Response):
     :param models: Models list
     :type models: Sequence[Model]
     """
+
     _service = "models"
     _action = "get_all"
     _version = "2.5"
 
     _schema = {
-        'definitions': {
-            'model': {
-                'properties': {
-                    'comment': {
-                        'description': 'Model comment',
-                        'type': ['string', 'null'],
+        "definitions": {
+            "model": {
+                "properties": {
+                    "comment": {
+                        "description": "Model comment",
+                        "type": ["string", "null"],
                     },
-                    'company': {
-                        'description': 'Company id',
-                        'type': ['string', 'null'],
+                    "company": {
+                        "description": "Company id",
+                        "type": ["string", "null"],
                     },
-                    'created': {
-                        'description': 'Model creation time',
-                        'format': 'date-time',
-                        'type': ['string', 'null'],
+                    "created": {
+                        "description": "Model creation time",
+                        "format": "date-time",
+                        "type": ["string", "null"],
                     },
-                    'design': {
-                        'additionalProperties': True,
-                        'description': 'Json object representing the model design. Should be identical to the network design of the task which created the model',
-                        'type': ['object', 'null'],
+                    "design": {
+                        "additionalProperties": True,
+                        "description": "Json object representing the model design. Should be identical to the network design of the task which created the model",
+                        "type": ["object", "null"],
                     },
-                    'framework': {
-                        'description': 'Framework on which the model is based. Should be identical to the framework of the task which created the model',
-                        'type': ['string', 'null'],
+                    "framework": {
+                        "description": "Framework on which the model is based. Should be identical to the framework of the task which created the model",
+                        "type": ["string", "null"],
                     },
-                    'id': {'description': 'Model id', 'type': ['string', 'null']},
-                    'labels': {
-                        'additionalProperties': {'type': 'integer'},
-                        'description': "Json object representing the ids of the labels in the model. The keys are the layers' names and the values are the ids.",
-                        'type': ['object', 'null'],
+                    "id": {"description": "Model id", "type": ["string", "null"]},
+                    "labels": {
+                        "additionalProperties": {"type": "integer"},
+                        "description": "Json object representing the ids of the labels in the model. The keys are the layers' names and the values are the ids.",
+                        "type": ["object", "null"],
                     },
-                    'name': {
-                        'description': 'Model name',
-                        'type': ['string', 'null'],
+                    "name": {
+                        "description": "Model name",
+                        "type": ["string", "null"],
                     },
-                    'parent': {
-                        'description': 'Parent model ID',
-                        'type': ['string', 'null'],
+                    "parent": {
+                        "description": "Parent model ID",
+                        "type": ["string", "null"],
                     },
-                    'project': {
-                        'description': 'Associated project ID',
-                        'type': ['string', 'null'],
+                    "project": {
+                        "description": "Associated project ID",
+                        "type": ["string", "null"],
                     },
-                    'ready': {
-                        'description': 'Indication if the model is final and can be used by other tasks',
-                        'type': ['boolean', 'null'],
+                    "ready": {
+                        "description": "Indication if the model is final and can be used by other tasks",
+                        "type": ["boolean", "null"],
                     },
-                    'system_tags': {
-                        'description': "System tags. This field is reserved for system use, please don't use it.",
-                        'items': {'type': 'string'},
-                        'type': ['array', 'null'],
+                    "system_tags": {
+                        "description": "System tags. This field is reserved for system use, please don't use it.",
+                        "items": {"type": "string"},
+                        "type": ["array", "null"],
                     },
-                    'tags': {
-                        'description': 'User-defined tags',
-                        'items': {'type': 'string'},
-                        'type': ['array', 'null'],
+                    "tags": {
+                        "description": "User-defined tags",
+                        "items": {"type": "string"},
+                        "type": ["array", "null"],
                     },
-                    'task': {
-                        'description': 'Task ID of task in which the model was created',
-                        'type': ['string', 'null'],
+                    "task": {
+                        "description": "Task ID of task in which the model was created",
+                        "type": ["string", "null"],
                     },
-                    'ui_cache': {
-                        'additionalProperties': True,
-                        'description': 'UI cache for this model',
-                        'type': ['object', 'null'],
+                    "ui_cache": {
+                        "additionalProperties": True,
+                        "description": "UI cache for this model",
+                        "type": ["object", "null"],
                     },
-                    'uri': {
-                        'description': 'URI for the model, pointing to the destination storage.',
-                        'type': ['string', 'null'],
+                    "uri": {
+                        "description": "URI for the model, pointing to the destination storage.",
+                        "type": ["string", "null"],
                     },
-                    'user': {
-                        'description': 'Associated user id',
-                        'type': ['string', 'null'],
+                    "user": {
+                        "description": "Associated user id",
+                        "type": ["string", "null"],
                     },
                 },
-                'type': 'object',
+                "type": "object",
             },
         },
-        'properties': {
-            'models': {
-                'description': 'Models list',
-                'items': {'$ref': '#/definitions/model'},
-                'type': ['array', 'null'],
+        "properties": {
+            "models": {
+                "description": "Models list",
+                "items": {"$ref": "#/definitions/model"},
+                "type": ["array", "null"],
             },
         },
-        'type': 'object',
+        "type": "object",
     }
-    def __init__(
-            self, models=None, **kwargs):
+
+    def __init__(self, models=None, **kwargs):
         super(GetAllResponse, self).__init__(**kwargs)
         self.models = models
 
-    @schema_property('models')
+    @schema_property("models")
     def models(self):
         return self._property_models
 
@@ -1771,17 +1859,17 @@ class GetByIdRequest(Request):
     _action = "get_by_id"
     _version = "2.5"
     _schema = {
-        'definitions': {},
-        'properties': {'model': {'description': 'Model id', 'type': 'string'}},
-        'required': ['model'],
-        'type': 'object',
+        "definitions": {},
+        "properties": {"model": {"description": "Model id", "type": "string"}},
+        "required": ["model"],
+        "type": "object",
     }
-    def __init__(
-            self, model, **kwargs):
+
+    def __init__(self, model, **kwargs):
         super(GetByIdRequest, self).__init__(**kwargs)
         self.model = model
 
-    @schema_property('model')
+    @schema_property("model")
     def model(self):
         return self._property_model
 
@@ -1802,103 +1890,104 @@ class GetByIdResponse(Response):
     :param model: Model info
     :type model: Model
     """
+
     _service = "models"
     _action = "get_by_id"
     _version = "2.5"
 
     _schema = {
-        'definitions': {
-            'model': {
-                'properties': {
-                    'comment': {
-                        'description': 'Model comment',
-                        'type': ['string', 'null'],
+        "definitions": {
+            "model": {
+                "properties": {
+                    "comment": {
+                        "description": "Model comment",
+                        "type": ["string", "null"],
                     },
-                    'company': {
-                        'description': 'Company id',
-                        'type': ['string', 'null'],
+                    "company": {
+                        "description": "Company id",
+                        "type": ["string", "null"],
                     },
-                    'created': {
-                        'description': 'Model creation time',
-                        'format': 'date-time',
-                        'type': ['string', 'null'],
+                    "created": {
+                        "description": "Model creation time",
+                        "format": "date-time",
+                        "type": ["string", "null"],
                     },
-                    'design': {
-                        'additionalProperties': True,
-                        'description': 'Json object representing the model design. Should be identical to the network design of the task which created the model',
-                        'type': ['object', 'null'],
+                    "design": {
+                        "additionalProperties": True,
+                        "description": "Json object representing the model design. Should be identical to the network design of the task which created the model",
+                        "type": ["object", "null"],
                     },
-                    'framework': {
-                        'description': 'Framework on which the model is based. Should be identical to the framework of the task which created the model',
-                        'type': ['string', 'null'],
+                    "framework": {
+                        "description": "Framework on which the model is based. Should be identical to the framework of the task which created the model",
+                        "type": ["string", "null"],
                     },
-                    'id': {'description': 'Model id', 'type': ['string', 'null']},
-                    'labels': {
-                        'additionalProperties': {'type': 'integer'},
-                        'description': "Json object representing the ids of the labels in the model. The keys are the layers' names and the values are the ids.",
-                        'type': ['object', 'null'],
+                    "id": {"description": "Model id", "type": ["string", "null"]},
+                    "labels": {
+                        "additionalProperties": {"type": "integer"},
+                        "description": "Json object representing the ids of the labels in the model. The keys are the layers' names and the values are the ids.",
+                        "type": ["object", "null"],
                     },
-                    'name': {
-                        'description': 'Model name',
-                        'type': ['string', 'null'],
+                    "name": {
+                        "description": "Model name",
+                        "type": ["string", "null"],
                     },
-                    'parent': {
-                        'description': 'Parent model ID',
-                        'type': ['string', 'null'],
+                    "parent": {
+                        "description": "Parent model ID",
+                        "type": ["string", "null"],
                     },
-                    'project': {
-                        'description': 'Associated project ID',
-                        'type': ['string', 'null'],
+                    "project": {
+                        "description": "Associated project ID",
+                        "type": ["string", "null"],
                     },
-                    'ready': {
-                        'description': 'Indication if the model is final and can be used by other tasks',
-                        'type': ['boolean', 'null'],
+                    "ready": {
+                        "description": "Indication if the model is final and can be used by other tasks",
+                        "type": ["boolean", "null"],
                     },
-                    'system_tags': {
-                        'description': "System tags. This field is reserved for system use, please don't use it.",
-                        'items': {'type': 'string'},
-                        'type': ['array', 'null'],
+                    "system_tags": {
+                        "description": "System tags. This field is reserved for system use, please don't use it.",
+                        "items": {"type": "string"},
+                        "type": ["array", "null"],
                     },
-                    'tags': {
-                        'description': 'User-defined tags',
-                        'items': {'type': 'string'},
-                        'type': ['array', 'null'],
+                    "tags": {
+                        "description": "User-defined tags",
+                        "items": {"type": "string"},
+                        "type": ["array", "null"],
                     },
-                    'task': {
-                        'description': 'Task ID of task in which the model was created',
-                        'type': ['string', 'null'],
+                    "task": {
+                        "description": "Task ID of task in which the model was created",
+                        "type": ["string", "null"],
                     },
-                    'ui_cache': {
-                        'additionalProperties': True,
-                        'description': 'UI cache for this model',
-                        'type': ['object', 'null'],
+                    "ui_cache": {
+                        "additionalProperties": True,
+                        "description": "UI cache for this model",
+                        "type": ["object", "null"],
                     },
-                    'uri': {
-                        'description': 'URI for the model, pointing to the destination storage.',
-                        'type': ['string', 'null'],
+                    "uri": {
+                        "description": "URI for the model, pointing to the destination storage.",
+                        "type": ["string", "null"],
                     },
-                    'user': {
-                        'description': 'Associated user id',
-                        'type': ['string', 'null'],
+                    "user": {
+                        "description": "Associated user id",
+                        "type": ["string", "null"],
                     },
                 },
-                'type': 'object',
+                "type": "object",
             },
         },
-        'properties': {
-            'model': {
-                'description': 'Model info',
-                'oneOf': [{'$ref': '#/definitions/model'}, {'type': 'null'}],
+        "properties": {
+            "model": {
+                "description": "Model info",
+                "oneOf": [{"$ref": "#/definitions/model"}, {"type": "null"}],
             },
         },
-        'type': 'object',
+        "type": "object",
     }
-    def __init__(
-            self, model=None, **kwargs):
+
+    def __init__(self, model=None, **kwargs):
         super(GetByIdResponse, self).__init__(**kwargs)
         self.model = model
 
-    @schema_property('model')
+    @schema_property("model")
     def model(self):
         return self._property_model
 
@@ -1926,18 +2015,18 @@ class GetByTaskIdRequest(Request):
     _action = "get_by_task_id"
     _version = "2.5"
     _schema = {
-        'definitions': {},
-        'properties': {
-            'task': {'description': 'Task id', 'type': ['string', 'null']},
+        "definitions": {},
+        "properties": {
+            "task": {"description": "Task id", "type": ["string", "null"]},
         },
-        'type': 'object',
+        "type": "object",
     }
-    def __init__(
-            self, task=None, **kwargs):
+
+    def __init__(self, task=None, **kwargs):
         super(GetByTaskIdRequest, self).__init__(**kwargs)
         self.task = task
 
-    @schema_property('task')
+    @schema_property("task")
     def task(self):
         return self._property_task
 
@@ -1958,103 +2047,104 @@ class GetByTaskIdResponse(Response):
     :param model: Model info
     :type model: Model
     """
+
     _service = "models"
     _action = "get_by_task_id"
     _version = "2.5"
 
     _schema = {
-        'definitions': {
-            'model': {
-                'properties': {
-                    'comment': {
-                        'description': 'Model comment',
-                        'type': ['string', 'null'],
+        "definitions": {
+            "model": {
+                "properties": {
+                    "comment": {
+                        "description": "Model comment",
+                        "type": ["string", "null"],
                     },
-                    'company': {
-                        'description': 'Company id',
-                        'type': ['string', 'null'],
+                    "company": {
+                        "description": "Company id",
+                        "type": ["string", "null"],
                     },
-                    'created': {
-                        'description': 'Model creation time',
-                        'format': 'date-time',
-                        'type': ['string', 'null'],
+                    "created": {
+                        "description": "Model creation time",
+                        "format": "date-time",
+                        "type": ["string", "null"],
                     },
-                    'design': {
-                        'additionalProperties': True,
-                        'description': 'Json object representing the model design. Should be identical to the network design of the task which created the model',
-                        'type': ['object', 'null'],
+                    "design": {
+                        "additionalProperties": True,
+                        "description": "Json object representing the model design. Should be identical to the network design of the task which created the model",
+                        "type": ["object", "null"],
                     },
-                    'framework': {
-                        'description': 'Framework on which the model is based. Should be identical to the framework of the task which created the model',
-                        'type': ['string', 'null'],
+                    "framework": {
+                        "description": "Framework on which the model is based. Should be identical to the framework of the task which created the model",
+                        "type": ["string", "null"],
                     },
-                    'id': {'description': 'Model id', 'type': ['string', 'null']},
-                    'labels': {
-                        'additionalProperties': {'type': 'integer'},
-                        'description': "Json object representing the ids of the labels in the model. The keys are the layers' names and the values are the ids.",
-                        'type': ['object', 'null'],
+                    "id": {"description": "Model id", "type": ["string", "null"]},
+                    "labels": {
+                        "additionalProperties": {"type": "integer"},
+                        "description": "Json object representing the ids of the labels in the model. The keys are the layers' names and the values are the ids.",
+                        "type": ["object", "null"],
                     },
-                    'name': {
-                        'description': 'Model name',
-                        'type': ['string', 'null'],
+                    "name": {
+                        "description": "Model name",
+                        "type": ["string", "null"],
                     },
-                    'parent': {
-                        'description': 'Parent model ID',
-                        'type': ['string', 'null'],
+                    "parent": {
+                        "description": "Parent model ID",
+                        "type": ["string", "null"],
                     },
-                    'project': {
-                        'description': 'Associated project ID',
-                        'type': ['string', 'null'],
+                    "project": {
+                        "description": "Associated project ID",
+                        "type": ["string", "null"],
                     },
-                    'ready': {
-                        'description': 'Indication if the model is final and can be used by other tasks',
-                        'type': ['boolean', 'null'],
+                    "ready": {
+                        "description": "Indication if the model is final and can be used by other tasks",
+                        "type": ["boolean", "null"],
                     },
-                    'system_tags': {
-                        'description': "System tags. This field is reserved for system use, please don't use it.",
-                        'items': {'type': 'string'},
-                        'type': ['array', 'null'],
+                    "system_tags": {
+                        "description": "System tags. This field is reserved for system use, please don't use it.",
+                        "items": {"type": "string"},
+                        "type": ["array", "null"],
                     },
-                    'tags': {
-                        'description': 'User-defined tags',
-                        'items': {'type': 'string'},
-                        'type': ['array', 'null'],
+                    "tags": {
+                        "description": "User-defined tags",
+                        "items": {"type": "string"},
+                        "type": ["array", "null"],
                     },
-                    'task': {
-                        'description': 'Task ID of task in which the model was created',
-                        'type': ['string', 'null'],
+                    "task": {
+                        "description": "Task ID of task in which the model was created",
+                        "type": ["string", "null"],
                     },
-                    'ui_cache': {
-                        'additionalProperties': True,
-                        'description': 'UI cache for this model',
-                        'type': ['object', 'null'],
+                    "ui_cache": {
+                        "additionalProperties": True,
+                        "description": "UI cache for this model",
+                        "type": ["object", "null"],
                     },
-                    'uri': {
-                        'description': 'URI for the model, pointing to the destination storage.',
-                        'type': ['string', 'null'],
+                    "uri": {
+                        "description": "URI for the model, pointing to the destination storage.",
+                        "type": ["string", "null"],
                     },
-                    'user': {
-                        'description': 'Associated user id',
-                        'type': ['string', 'null'],
+                    "user": {
+                        "description": "Associated user id",
+                        "type": ["string", "null"],
                     },
                 },
-                'type': 'object',
+                "type": "object",
             },
         },
-        'properties': {
-            'model': {
-                'description': 'Model info',
-                'oneOf': [{'$ref': '#/definitions/model'}, {'type': 'null'}],
+        "properties": {
+            "model": {
+                "description": "Model info",
+                "oneOf": [{"$ref": "#/definitions/model"}, {"type": "null"}],
             },
         },
-        'type': 'object',
+        "type": "object",
     }
-    def __init__(
-            self, model=None, **kwargs):
+
+    def __init__(self, model=None, **kwargs):
         super(GetByTaskIdResponse, self).__init__(**kwargs)
         self.model = model
 
-    @schema_property('model')
+    @schema_property("model")
     def model(self):
         return self._property_model
 
@@ -2088,29 +2178,29 @@ class SetReadyRequest(Request):
     _action = "set_ready"
     _version = "2.5"
     _schema = {
-        'definitions': {},
-        'properties': {
-            'force_publish_task': {
-                'description': "Publish the associated task (if exists) even if it is not in the 'stopped' state. Optional, the default value is False.",
-                'type': 'boolean',
+        "definitions": {},
+        "properties": {
+            "force_publish_task": {
+                "description": "Publish the associated task (if exists) even if it is not in the 'stopped' state. Optional, the default value is False.",
+                "type": "boolean",
             },
-            'model': {'description': 'Model id', 'type': 'string'},
-            'publish_task': {
-                'description': 'Indicates that the associated task (if exists) should be published. Optional, the default value is True.',
-                'type': 'boolean',
+            "model": {"description": "Model id", "type": "string"},
+            "publish_task": {
+                "description": "Indicates that the associated task (if exists) should be published. Optional, the default value is True.",
+                "type": "boolean",
             },
         },
-        'required': ['model'],
-        'type': 'object',
+        "required": ["model"],
+        "type": "object",
     }
-    def __init__(
-            self, model, force_publish_task=None, publish_task=None, **kwargs):
+
+    def __init__(self, model, force_publish_task=None, publish_task=None, **kwargs):
         super(SetReadyRequest, self).__init__(**kwargs)
         self.model = model
         self.force_publish_task = force_publish_task
         self.publish_task = publish_task
 
-    @schema_property('model')
+    @schema_property("model")
     def model(self):
         return self._property_model
 
@@ -2123,7 +2213,7 @@ class SetReadyRequest(Request):
         self.assert_isinstance(value, "model", str)
         self._property_model = value
 
-    @schema_property('force_publish_task')
+    @schema_property("force_publish_task")
     def force_publish_task(self):
         return self._property_force_publish_task
 
@@ -2136,7 +2226,7 @@ class SetReadyRequest(Request):
         self.assert_isinstance(value, "force_publish_task", (bool,))
         self._property_force_publish_task = value
 
-    @schema_property('publish_task')
+    @schema_property("publish_task")
     def publish_task(self):
         return self._property_publish_task
 
@@ -2161,59 +2251,60 @@ class SetReadyResponse(Response):
         model publishing.
     :type published_task: dict
     """
+
     _service = "models"
     _action = "set_ready"
     _version = "2.5"
 
     _schema = {
-        'definitions': {},
-        'properties': {
-            'published_task': {
-                'description': "Result of publishing of the model's associated task (if exists). Returned only if the task was published successfully as part of the model publishing.",
-                'properties': {
-                    'data': {
-                        'description': 'Data returned from the task publishing operation.',
-                        'properties': {
-                            'committed_versions_results': {
-                                'description': 'Committed versions results',
-                                'items': {
-                                    'additionalProperties': True,
-                                    'type': 'object',
+        "definitions": {},
+        "properties": {
+            "published_task": {
+                "description": "Result of publishing of the model's associated task (if exists). Returned only if the task was published successfully as part of the model publishing.",
+                "properties": {
+                    "data": {
+                        "description": "Data returned from the task publishing operation.",
+                        "properties": {
+                            "committed_versions_results": {
+                                "description": "Committed versions results",
+                                "items": {
+                                    "additionalProperties": True,
+                                    "type": "object",
                                 },
-                                'type': 'array',
+                                "type": "array",
                             },
-                            'fields': {
-                                'additionalProperties': True,
-                                'description': 'Updated fields names and values',
-                                'type': 'object',
+                            "fields": {
+                                "additionalProperties": True,
+                                "description": "Updated fields names and values",
+                                "type": "object",
                             },
-                            'updated': {
-                                'description': 'Number of tasks updated (0 or 1)',
-                                'enum': [0, 1],
-                                'type': 'integer',
+                            "updated": {
+                                "description": "Number of tasks updated (0 or 1)",
+                                "enum": [0, 1],
+                                "type": "integer",
                             },
                         },
-                        'type': 'object',
+                        "type": "object",
                     },
-                    'id': {'description': 'Task id', 'type': 'string'},
+                    "id": {"description": "Task id", "type": "string"},
                 },
-                'type': ['object', 'null'],
+                "type": ["object", "null"],
             },
-            'updated': {
-                'description': 'Number of models updated (0 or 1)',
-                'enum': [0, 1],
-                'type': ['integer', 'null'],
+            "updated": {
+                "description": "Number of models updated (0 or 1)",
+                "enum": [0, 1],
+                "type": ["integer", "null"],
             },
         },
-        'type': 'object',
+        "type": "object",
     }
-    def __init__(
-            self, updated=None, published_task=None, **kwargs):
+
+    def __init__(self, updated=None, published_task=None, **kwargs):
         super(SetReadyResponse, self).__init__(**kwargs)
         self.updated = updated
         self.published_task = published_task
 
-    @schema_property('updated')
+    @schema_property("updated")
     def updated(self):
         return self._property_updated
 
@@ -2228,7 +2319,7 @@ class SetReadyResponse(Response):
         self.assert_isinstance(value, "updated", int)
         self._property_updated = value
 
-    @schema_property('published_task')
+    @schema_property("published_task")
     def published_task(self):
         return self._property_published_task
 
@@ -2277,54 +2368,68 @@ class UpdateRequest(Request):
     _action = "update"
     _version = "2.5"
     _schema = {
-        'definitions': {},
-        'properties': {
-            'comment': {'description': 'Model comment', 'type': 'string'},
-            'created': {
-                'description': 'Model creation time (UTC) ',
-                'format': 'date-time',
-                'type': 'string',
+        "definitions": {},
+        "properties": {
+            "comment": {"description": "Model comment", "type": "string"},
+            "created": {
+                "description": "Model creation time (UTC) ",
+                "format": "date-time",
+                "type": "string",
             },
-            'iteration': {
-                'description': 'Iteration (used to update task statistics if an associated task is reported)',
-                'type': 'integer',
+            "iteration": {
+                "description": "Iteration (used to update task statistics if an associated task is reported)",
+                "type": "integer",
             },
-            'model': {'description': 'Model id', 'type': 'string'},
-            'name': {
-                'description': 'Model name Unique within the company.',
-                'type': 'string',
+            "model": {"description": "Model id", "type": "string"},
+            "name": {
+                "description": "Model name Unique within the company.",
+                "type": "string",
             },
-            'project': {
-                'description': 'Project to which to model belongs',
-                'type': 'string',
+            "project": {
+                "description": "Project to which to model belongs",
+                "type": "string",
             },
-            'ready': {
-                'default': False,
-                'description': 'Indication if the model is final and can be used by other tasks Default is false.',
-                'type': 'boolean',
+            "ready": {
+                "default": False,
+                "description": "Indication if the model is final and can be used by other tasks Default is false.",
+                "type": "boolean",
             },
-            'system_tags': {
-                'description': "System tags list. This field is reserved for system use, please don't use it.",
-                'items': {'type': 'string'},
-                'type': 'array',
+            "system_tags": {
+                "description": "System tags list. This field is reserved for system use, please don't use it.",
+                "items": {"type": "string"},
+                "type": "array",
             },
-            'tags': {
-                'description': 'User-defined tags list',
-                'items': {'type': 'string'},
-                'type': 'array',
+            "tags": {
+                "description": "User-defined tags list",
+                "items": {"type": "string"},
+                "type": "array",
             },
-            'task': {'description': 'Associated task ID', 'type': 'string'},
-            'ui_cache': {
-                'additionalProperties': True,
-                'description': 'UI cache for this model',
-                'type': 'object',
+            "task": {"description": "Associated task ID", "type": "string"},
+            "ui_cache": {
+                "additionalProperties": True,
+                "description": "UI cache for this model",
+                "type": "object",
             },
         },
-        'required': ['model'],
-        'type': 'object',
+        "required": ["model"],
+        "type": "object",
     }
+
     def __init__(
-            self, model, name=None, comment=None, tags=None, system_tags=None, ready=False, created=None, ui_cache=None, project=None, task=None, iteration=None, **kwargs):
+        self,
+        model,
+        name=None,
+        comment=None,
+        tags=None,
+        system_tags=None,
+        ready=False,
+        created=None,
+        ui_cache=None,
+        project=None,
+        task=None,
+        iteration=None,
+        **kwargs,
+    ):
         super(UpdateRequest, self).__init__(**kwargs)
         self.model = model
         self.name = name
@@ -2338,7 +2443,7 @@ class UpdateRequest(Request):
         self.task = task
         self.iteration = iteration
 
-    @schema_property('model')
+    @schema_property("model")
     def model(self):
         return self._property_model
 
@@ -2351,7 +2456,7 @@ class UpdateRequest(Request):
         self.assert_isinstance(value, "model", str)
         self._property_model = value
 
-    @schema_property('name')
+    @schema_property("name")
     def name(self):
         return self._property_name
 
@@ -2364,7 +2469,7 @@ class UpdateRequest(Request):
         self.assert_isinstance(value, "name", str)
         self._property_name = value
 
-    @schema_property('comment')
+    @schema_property("comment")
     def comment(self):
         return self._property_comment
 
@@ -2377,7 +2482,7 @@ class UpdateRequest(Request):
         self.assert_isinstance(value, "comment", str)
         self._property_comment = value
 
-    @schema_property('tags')
+    @schema_property("tags")
     def tags(self):
         return self._property_tags
 
@@ -2392,7 +2497,7 @@ class UpdateRequest(Request):
         self.assert_isinstance(value, "tags", str, is_array=True)
         self._property_tags = value
 
-    @schema_property('system_tags')
+    @schema_property("system_tags")
     def system_tags(self):
         return self._property_system_tags
 
@@ -2407,7 +2512,7 @@ class UpdateRequest(Request):
         self.assert_isinstance(value, "system_tags", str, is_array=True)
         self._property_system_tags = value
 
-    @schema_property('ready')
+    @schema_property("ready")
     def ready(self):
         return self._property_ready
 
@@ -2420,7 +2525,7 @@ class UpdateRequest(Request):
         self.assert_isinstance(value, "ready", (bool,))
         self._property_ready = value
 
-    @schema_property('created')
+    @schema_property("created")
     def created(self):
         return self._property_created
 
@@ -2435,7 +2540,7 @@ class UpdateRequest(Request):
             value = parse_datetime(value)
         self._property_created = value
 
-    @schema_property('ui_cache')
+    @schema_property("ui_cache")
     def ui_cache(self):
         return self._property_ui_cache
 
@@ -2448,7 +2553,7 @@ class UpdateRequest(Request):
         self.assert_isinstance(value, "ui_cache", (dict,))
         self._property_ui_cache = value
 
-    @schema_property('project')
+    @schema_property("project")
     def project(self):
         return self._property_project
 
@@ -2461,7 +2566,7 @@ class UpdateRequest(Request):
         self.assert_isinstance(value, "project", str)
         self._property_project = value
 
-    @schema_property('task')
+    @schema_property("task")
     def task(self):
         return self._property_task
 
@@ -2474,7 +2579,7 @@ class UpdateRequest(Request):
         self.assert_isinstance(value, "task", str)
         self._property_task = value
 
-    @schema_property('iteration')
+    @schema_property("iteration")
     def iteration(self):
         return self._property_iteration
 
@@ -2499,33 +2604,34 @@ class UpdateResponse(Response):
     :param fields: Updated fields names and values
     :type fields: dict
     """
+
     _service = "models"
     _action = "update"
     _version = "2.5"
 
     _schema = {
-        'definitions': {},
-        'properties': {
-            'fields': {
-                'additionalProperties': True,
-                'description': 'Updated fields names and values',
-                'type': ['object', 'null'],
+        "definitions": {},
+        "properties": {
+            "fields": {
+                "additionalProperties": True,
+                "description": "Updated fields names and values",
+                "type": ["object", "null"],
             },
-            'updated': {
-                'description': 'Number of models updated (0 or 1)',
-                'enum': [0, 1],
-                'type': ['integer', 'null'],
+            "updated": {
+                "description": "Number of models updated (0 or 1)",
+                "enum": [0, 1],
+                "type": ["integer", "null"],
             },
         },
-        'type': 'object',
+        "type": "object",
     }
-    def __init__(
-            self, updated=None, fields=None, **kwargs):
+
+    def __init__(self, updated=None, fields=None, **kwargs):
         super(UpdateResponse, self).__init__(**kwargs)
         self.updated = updated
         self.fields = fields
 
-    @schema_property('updated')
+    @schema_property("updated")
     def updated(self):
         return self._property_updated
 
@@ -2540,7 +2646,7 @@ class UpdateResponse(Response):
         self.assert_isinstance(value, "updated", int)
         self._property_updated = value
 
-    @schema_property('fields')
+    @schema_property("fields")
     def fields(self):
         return self._property_fields
 
@@ -2582,39 +2688,50 @@ class UpdateForTaskRequest(Request):
     _action = "update_for_task"
     _version = "2.5"
     _schema = {
-        'definitions': {},
-        'properties': {
-            'comment': {'description': 'Model comment', 'type': 'string'},
-            'iteration': {
-                'description': 'Iteration (used to update task statistics)',
-                'type': 'integer',
+        "definitions": {},
+        "properties": {
+            "comment": {"description": "Model comment", "type": "string"},
+            "iteration": {
+                "description": "Iteration (used to update task statistics)",
+                "type": "integer",
             },
-            'name': {
-                'description': 'Model name Unique within the company.',
-                'type': 'string',
+            "name": {
+                "description": "Model name Unique within the company.",
+                "type": "string",
             },
-            'override_model_id': {
-                'description': 'Override model ID. If provided, this model is updated in the task.',
-                'type': 'string',
+            "override_model_id": {
+                "description": "Override model ID. If provided, this model is updated in the task.",
+                "type": "string",
             },
-            'system_tags': {
-                'description': "System tags list. This field is reserved for system use, please don't use it.",
-                'items': {'type': 'string'},
-                'type': 'array',
+            "system_tags": {
+                "description": "System tags list. This field is reserved for system use, please don't use it.",
+                "items": {"type": "string"},
+                "type": "array",
             },
-            'tags': {
-                'description': 'User-defined tags list',
-                'items': {'type': 'string'},
-                'type': 'array',
+            "tags": {
+                "description": "User-defined tags list",
+                "items": {"type": "string"},
+                "type": "array",
             },
-            'task': {'description': 'Task id', 'type': 'string'},
-            'uri': {'description': 'URI for the model', 'type': 'string'},
+            "task": {"description": "Task id", "type": "string"},
+            "uri": {"description": "URI for the model", "type": "string"},
         },
-        'required': ['task'],
-        'type': 'object',
+        "required": ["task"],
+        "type": "object",
     }
+
     def __init__(
-            self, task, uri=None, name=None, comment=None, tags=None, system_tags=None, override_model_id=None, iteration=None, **kwargs):
+        self,
+        task,
+        uri=None,
+        name=None,
+        comment=None,
+        tags=None,
+        system_tags=None,
+        override_model_id=None,
+        iteration=None,
+        **kwargs,
+    ):
         super(UpdateForTaskRequest, self).__init__(**kwargs)
         self.task = task
         self.uri = uri
@@ -2625,7 +2742,7 @@ class UpdateForTaskRequest(Request):
         self.override_model_id = override_model_id
         self.iteration = iteration
 
-    @schema_property('task')
+    @schema_property("task")
     def task(self):
         return self._property_task
 
@@ -2638,7 +2755,7 @@ class UpdateForTaskRequest(Request):
         self.assert_isinstance(value, "task", str)
         self._property_task = value
 
-    @schema_property('uri')
+    @schema_property("uri")
     def uri(self):
         return self._property_uri
 
@@ -2651,7 +2768,7 @@ class UpdateForTaskRequest(Request):
         self.assert_isinstance(value, "uri", str)
         self._property_uri = value
 
-    @schema_property('name')
+    @schema_property("name")
     def name(self):
         return self._property_name
 
@@ -2664,7 +2781,7 @@ class UpdateForTaskRequest(Request):
         self.assert_isinstance(value, "name", str)
         self._property_name = value
 
-    @schema_property('comment')
+    @schema_property("comment")
     def comment(self):
         return self._property_comment
 
@@ -2677,7 +2794,7 @@ class UpdateForTaskRequest(Request):
         self.assert_isinstance(value, "comment", str)
         self._property_comment = value
 
-    @schema_property('tags')
+    @schema_property("tags")
     def tags(self):
         return self._property_tags
 
@@ -2692,7 +2809,7 @@ class UpdateForTaskRequest(Request):
         self.assert_isinstance(value, "tags", str, is_array=True)
         self._property_tags = value
 
-    @schema_property('system_tags')
+    @schema_property("system_tags")
     def system_tags(self):
         return self._property_system_tags
 
@@ -2707,7 +2824,7 @@ class UpdateForTaskRequest(Request):
         self.assert_isinstance(value, "system_tags", str, is_array=True)
         self._property_system_tags = value
 
-    @schema_property('override_model_id')
+    @schema_property("override_model_id")
     def override_model_id(self):
         return self._property_override_model_id
 
@@ -2720,7 +2837,7 @@ class UpdateForTaskRequest(Request):
         self.assert_isinstance(value, "override_model_id", str)
         self._property_override_model_id = value
 
-    @schema_property('iteration')
+    @schema_property("iteration")
     def iteration(self):
         return self._property_iteration
 
@@ -2749,39 +2866,40 @@ class UpdateForTaskResponse(Response):
     :param fields: Updated fields names and values
     :type fields: dict
     """
+
     _service = "models"
     _action = "update_for_task"
     _version = "2.5"
 
     _schema = {
-        'definitions': {},
-        'properties': {
-            'created': {
-                'description': 'Was the model created',
-                'type': ['boolean', 'null'],
+        "definitions": {},
+        "properties": {
+            "created": {
+                "description": "Was the model created",
+                "type": ["boolean", "null"],
             },
-            'fields': {
-                'additionalProperties': True,
-                'description': 'Updated fields names and values',
-                'type': ['object', 'null'],
+            "fields": {
+                "additionalProperties": True,
+                "description": "Updated fields names and values",
+                "type": ["object", "null"],
             },
-            'id': {'description': 'ID of the model', 'type': ['string', 'null']},
-            'updated': {
-                'description': 'Number of models updated (0 or 1)',
-                'type': ['integer', 'null'],
+            "id": {"description": "ID of the model", "type": ["string", "null"]},
+            "updated": {
+                "description": "Number of models updated (0 or 1)",
+                "type": ["integer", "null"],
             },
         },
-        'type': 'object',
+        "type": "object",
     }
-    def __init__(
-            self, id=None, created=None, updated=None, fields=None, **kwargs):
+
+    def __init__(self, id=None, created=None, updated=None, fields=None, **kwargs):
         super(UpdateForTaskResponse, self).__init__(**kwargs)
         self.id = id
         self.created = created
         self.updated = updated
         self.fields = fields
 
-    @schema_property('id')
+    @schema_property("id")
     def id(self):
         return self._property_id
 
@@ -2794,7 +2912,7 @@ class UpdateForTaskResponse(Response):
         self.assert_isinstance(value, "id", str)
         self._property_id = value
 
-    @schema_property('created')
+    @schema_property("created")
     def created(self):
         return self._property_created
 
@@ -2807,7 +2925,7 @@ class UpdateForTaskResponse(Response):
         self.assert_isinstance(value, "created", (bool,))
         self._property_created = value
 
-    @schema_property('updated')
+    @schema_property("updated")
     def updated(self):
         return self._property_updated
 
@@ -2822,7 +2940,7 @@ class UpdateForTaskResponse(Response):
         self.assert_isinstance(value, "updated", int)
         self._property_updated = value
 
-    @schema_property('fields')
+    @schema_property("fields")
     def fields(self):
         return self._property_fields
 

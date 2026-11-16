@@ -37,11 +37,13 @@ from cairnml_agent.backend_api.services import auth as auth_api
 from cairnml_agent.backend_api.services import queues as queues_api
 from cairnml_agent.backend_api.services import tasks as tasks_api
 from cairnml_agent.backend_api.services import workers as workers_api
-from cairnml_agent.backend_api.session.callresult import CallResult
-from cairnml_agent.backend_api.session.request import Request
-from cairnml_agent.backend_api.session.defs import (
+from cairnml.backend_api.session.callresult import CallResult
+from cairnml.backend_api.session.request import Request
+from cairnml.backend_api.session.defs import (
     ENV_ENABLE_ENV_CONFIG_SECTION,
     ENV_ENABLE_FILES_CONFIG_SECTION,
+)
+from cairnml_agent.session_env import (
     ENV_VENV_CONFIGURED,
     ENV_PROPAGATE_EXITCODE,
     ENV_MULTI_NODE_SINGLE_TASK,

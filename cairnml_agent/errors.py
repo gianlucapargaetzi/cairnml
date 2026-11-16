@@ -1,6 +1,6 @@
-from .backend_api.session.callresult import CallResult
-from .backend_api.session.client.client import APIError as ClientAPIError
-from .backend_api.session.response import ResponseMeta
+from cairnml.backend_api.session.callresult import CallResult
+from cairnml.backend_api.session.client.client import APIError as ClientAPIError
+from cairnml.backend_api.session.response import ResponseMeta
 from typing import Union, Optional, Text  # noqa: F401  # named by type comments
 import requests  # noqa: F401  # named by type comments
 

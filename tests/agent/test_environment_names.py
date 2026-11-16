@@ -8,7 +8,7 @@ import cairnml
 
 import pytest
 
-from cairnml_agent.backend_api.session import defs as session_defs
+from cairnml.backend_api.session import defs as session_defs
 from cairnml_agent.backend_config import defs as config_defs
 from cairnml_agent.backend_config import environment
 

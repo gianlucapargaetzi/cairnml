@@ -1,6 +1,6 @@
 import re
 
-from cairnml_agent.backend_api.session.request import Request
+from cairnml.backend_api.session.request import Request
 from cairnml_agent.helper.package.requirements import (
     RequirementsManager,
     MarkerRequirement,

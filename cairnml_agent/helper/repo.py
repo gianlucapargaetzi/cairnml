@@ -27,7 +27,7 @@ from cairnml_agent.definitions import (
     ENV_SSH_URL_REPLACEMENT_SCHEME,
 )
 from cairnml_agent.helper.console import ensure_text, ensure_binary
-from cairnml_agent.backend_api.session.request import Request
+from cairnml.backend_api.session.request import Request
 from cairnml_agent.errors import CommandFailedError
 from cairnml_agent.helper.base import (
     select_for_platform,
