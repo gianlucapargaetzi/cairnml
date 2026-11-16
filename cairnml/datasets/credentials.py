@@ -242,7 +242,9 @@ def fetch_repository_list(session=None) -> list:
     read-only) and ``access``: how you read it now. The server answers from its own records. Raises DatasetError when the server
     cannot be asked, for instance when there is no CairnML login."""
     try:
-        response = _session(session).send_request(service="repositories", action="get_all", version=API_VERSION, json={})
+        response = _session(session).send_request(
+            service="repositories", action="get_all", version=API_VERSION, json={}
+        )
         if not response.ok:
             raise DatasetError(f"the server refused the repository list: {_reason(response)}")
         return (response.json().get("data") or {}).get("repositories") or []

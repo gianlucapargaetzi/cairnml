@@ -35,12 +35,14 @@ def test_the_request_names_the_repository_and_the_level_at_version_2_41():
 
     keys = fetch_storage_keys(repository="acme/cars", level="read", session=session)
 
-    assert session.calls == [{
-        "service": "datachunks",
-        "action": "dataset_credentials",
-        "version": "2.41",
-        "json": {"repository": "acme/cars", "level": "read"},
-    }]
+    assert session.calls == [
+        {
+            "service": "datachunks",
+            "action": "dataset_credentials",
+            "version": "2.41",
+            "json": {"repository": "acme/cars", "level": "read"},
+        }
+    ]
     assert keys.prefix == "dataset/c1/acme/cars"
 
 

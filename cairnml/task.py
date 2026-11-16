@@ -2402,9 +2402,7 @@ class Task(_Task):
             )
             return configuration
         else:
-            configuration_text = (
-                self._get_configuration_text(name=name)
-            )
+            configuration_text = self._get_configuration_text(name=name)
             if configuration_text is None:
                 LoggerRoot.get_base_logger().warning(
                     f"Could not retrieve remote configuration named '{name}'\n"
