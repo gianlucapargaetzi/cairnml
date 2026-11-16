@@ -35,7 +35,7 @@ def test_the_agent_asks_for_the_job_token_of_the_task_with_its_own_session():
     session = FakeSession(Reply(True, {"data": {"access_token": "job-1", "expires_in": 3600}}))
     assert Worker._get_job_token(agent_worker(session), "task-1") == ("job-1", 3600)
     call = session.calls[0]
-    assert (call["service"], call["action"], call["version"]) == ("devices", "job_token", "2.8")
+    assert (call["service"], call["action"], call["version"]) == ("devices", "job_token", "2.41")
     assert call["json"] == {"task": "task-1"}
 
 

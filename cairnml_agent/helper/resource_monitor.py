@@ -14,6 +14,8 @@ import attr
 import psutil
 from pathlib import Path
 
+from cairnml_agent.backend_api.endpoints import endpoint
+from cairnml.backend_api.services import workers as workers_api
 from cairnml_agent.definitions import ENV_WORKER_TAGS, ENV_GPU_FRACTIONS
 from cairnml_agent.session import Session
 from cairnml_agent.version import __version__
@@ -186,7 +188,7 @@ class ResourceMonitor(object):
 
         # noinspection PyBroadException
         try:
-            self.session.get(service="workers", action="status_report", **report)
+            self.session.get(**endpoint(workers_api.StatusReportRequest), **report)
         except Exception:
             log.warning("Failed sending report: %s", report)
             return False

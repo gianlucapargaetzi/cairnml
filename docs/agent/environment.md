@@ -6,7 +6,7 @@ The agent reads its settings from the environment. Every variable has one name, 
 
 The tests in `tests/test_environment_names.py` check that this table lists exactly the `CAIRNML_` names the code reads, and that no `TRAINS_` name is left.
 
-The five settings that were also named `CAIRNML_AGENT_*` are read under their SDK names only: `CAIRNML_CONFIG_VERBOSE`, `CAIRNML_DISABLE_VAULT_SUPPORT`, `CAIRNML_ENABLE_ENV_CONFIG_SECTION`, `CAIRNML_ENABLE_FILES_CONFIG_SECTION` and `CAIRNML_FORCE_MAX_API_VERSION`. The `CAIRNML_AGENT_` forms are not read.
+The four settings that were also named `CAIRNML_AGENT_*` are read under their SDK names only: `CAIRNML_CONFIG_VERBOSE`, `CAIRNML_DISABLE_VAULT_SUPPORT`, `CAIRNML_ENABLE_ENV_CONFIG_SECTION` and `CAIRNML_ENABLE_FILES_CONFIG_SECTION`. The `CAIRNML_AGENT_` forms are not read.
 
 ## Server connection and sign-in
 
@@ -19,7 +19,6 @@ The five settings that were also named `CAIRNML_AGENT_*` are read under their SD
 | `CAIRNML_API_DEFAULT_REQ_METHOD` | `GET` | HTTP method for API requests. Experimental: `POST` for a proxy that blocks GET with a body. |
 | `CAIRNML_AUTH_TOKEN` | unset | An access token to use instead of signing in. |
 | `CAIRNML_NO_DEFAULT_SERVER` | `true` | Do not fall back to a default server address when none is configured. |
-| `CAIRNML_FORCE_MAX_API_VERSION` | unset | The highest API version to use, instead of the one the server reports. |
 | `CAIRNML_AGENT_INITIAL_CONNECT_RETRY_OVERRIDE` | `true` | Override the retry behaviour of the first connection to the server. |
 | `CAIRNML_AGENT_URLLIB3_CONNECT_LEVEL` | `WARNING` | Minimum log level of urllib3 messages during the first connection to the server. |
 | `CAIRNML_LOGIN_PORT` | `8765` | Local port that receives the browser sign-in reply. |

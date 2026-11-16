@@ -33,10 +33,11 @@ from pathlib import Path
 from urllib.parse import quote  # noqa
 
 from pyhocon import ConfigTree, ConfigFactory
-from cairnml_agent.backend_api.services import auth as auth_api
-from cairnml_agent.backend_api.services import queues as queues_api
-from cairnml_agent.backend_api.services import tasks as tasks_api
-from cairnml_agent.backend_api.services import workers as workers_api
+from cairnml_agent.backend_api.endpoints import endpoint
+from cairnml.backend_api.services import auth as auth_api
+from cairnml.backend_api.services import queues as queues_api
+from cairnml.backend_api.services import tasks as tasks_api
+from cairnml.backend_api.services import workers as workers_api
 from cairnml.backend_api.session.callresult import CallResult
 from cairnml.backend_api.session.request import Request
 from cairnml.backend_api.session.defs import (
@@ -481,9 +482,7 @@ def get_task(session, task_id, **kwargs):
     """Use manual api call so that we can pass 'search_hidden' param from api v2.14"""
     # return session.api_client.tasks.get_all(id=[task_id], **kwargs)[0]
     res = session.send_request(
-        service="tasks",
-        action="get_all",
-        version="2.14",
+        **endpoint(tasks_api.GetAllRequest),
         json={"id": [task_id], "search_hidden": True, **kwargs},
         method=Request.def_method,
         async_enable=False,
@@ -492,8 +491,7 @@ def get_task(session, task_id, **kwargs):
         res=res,
         request_cls=tasks_api.GetAllRequest,
         logger=session._logger,
-        service="tasks",
-        action="get_all",
+        **endpoint(tasks_api.GetAllRequest),
         session=session,
     )
     if not result.ok():
@@ -516,9 +514,7 @@ def get_next_task(session, queue, get_task_info=False):
     if debug:
         print(f"debug> get_next_task: {Request.def_method} payload {request}")
     result = session.send_request(
-        service="queues",
-        action="get_next_task",
-        version="2.14",
+        **endpoint(queues_api.GetNextTaskRequest),
         json=request,
         method=Request.def_method,
         async_enable=False,
@@ -538,8 +534,7 @@ def get_task_fields(session, task_id, fields: list, log=None) -> dict:
     Returns dict with Task docker container setup {container: '', arguments: '', setup_shell_script: ''}
     """
     result = session.send_request(
-        service="tasks",
-        action="get_all",
+        **endpoint(tasks_api.GetAllRequest),
         json={"id": [task_id], "only_fields": list(fields), "search_hidden": True},
         method=Request.def_method,
         async_enable=False,
@@ -569,43 +564,24 @@ def get_task_container(session, task_id, ignore_match_rules=False, allow_force_c
     Returns dict with Task docker container setup {container: '', arguments: '', setup_shell_script: ''}
     """
     raw_container = {}
-    if session.check_min_api_version("2.13"):
-        result = session.send_request(
-            service="tasks",
-            action="get_all",
-            version="2.14",
-            json={"id": [task_id], "only_fields": ["container"], "search_hidden": True},
-            method=Request.def_method,
-            async_enable=False,
-        )
-        try:
-            container = result.json()["data"]["tasks"][0]["container"] if result.ok else {}
-            raw_container = copy(container or {})
-            if container.get("arguments"):
-                container["arguments"] = shlex.split(str(container.get("arguments")).strip())
-            if container.get("image"):
-                container["image"] = container.get("image").strip()
-        except (ValueError, TypeError):
-            container = {}
-    else:
-        response = get_task(session, task_id, only_fields=["execution.docker_cmd"])
+    result = session.send_request(
+        **endpoint(tasks_api.GetAllRequest),
+        json={"id": [task_id], "only_fields": ["container"], "search_hidden": True},
+        method=Request.def_method,
+        async_enable=False,
+    )
+    try:
+        container = result.json()["data"]["tasks"][0]["container"] if result.ok else {}
+        raw_container = copy(container or {})
+        if container.get("arguments"):
+            container["arguments"] = shlex.split(str(container.get("arguments")).strip())
+        if container.get("image"):
+            container["image"] = container.get("image").strip()
+    except (ValueError, TypeError):
         container = {}
-        if response.execution:
-            task_docker_cmd_parts = shlex.split(str(response.execution.docker_cmd or "").strip())
-            if task_docker_cmd_parts:
-                try:
-                    container = dict(
-                        image=task_docker_cmd_parts[0],
-                        arguments=task_docker_cmd_parts[1:] if len(task_docker_cmd_parts[0]) > 1 else "",
-                    )
-                except (ValueError, TypeError):
-                    pass
-            raw_container = copy(container or {})
-            if raw_container.get("arguments"):
-                raw_container["arguments"] = " ".join(shlex.quote(x) for x in raw_container["arguments"])
 
     no_default_container = not container or not container.get("image")
-    if no_default_container or allow_force_container_rules and session.check_min_api_version("2.13"):
+    if no_default_container or allow_force_container_rules:
         original_container = copy(container or {})
         updated_container, entry = resolve_default_container(
             session=session,
@@ -635,15 +611,13 @@ def get_task_container(session, task_id, ignore_match_rules=False, allow_force_c
             update_back_task = container.pop("update_back_task", None) or updated_container.pop(
                 "update_back_task", None
             )
-            if update_back_task and container != original_container and session.check_min_api_version("2.13"):
+            if update_back_task and container != original_container:
                 # update back the task
                 print("INFO: Updating the Task with the selected container with rule")
                 try:
                     res = session.send_request(
-                        service="tasks",
-                        action="edit",
+                        **endpoint(tasks_api.EditRequest),
                         method=Request.def_method,
-                        version="2.13",
                         json={
                             "task": task_id,
                             "force": True,
@@ -676,33 +650,18 @@ def set_task_container(session, task_id, docker_image=None, docker_arguments=Non
     if docker_arguments and isinstance(docker_arguments, str):
         docker_arguments = [docker_arguments]
 
-    if session.check_min_api_version("2.13"):
-        container = dict(
-            image=docker_image or "",
-            arguments=" ".join(docker_arguments) if docker_arguments else "",
-            setup_shell_script=docker_bash_script or "",
-        )
-        result = session.send_request(
-            service="tasks",
-            action="edit",
-            version="2.13",
-            json={"task": task_id, "container": container, "force": True},
-            method=Request.def_method,
-            async_enable=False,
-        )
-        return result.ok
-    else:
-        return session.send_api(
-            tasks_api.EditRequest(
-                task_id,
-                force=True,
-                execution=dict(  # noqa
-                    docker_cmd=" ".join([docker_image] + docker_arguments)
-                    if docker_arguments
-                    else str(docker_image or "")
-                ),
-            )
-        )
+    container = dict(
+        image=docker_image or "",
+        arguments=" ".join(docker_arguments) if docker_arguments else "",
+        setup_shell_script=docker_bash_script or "",
+    )
+    result = session.send_request(
+        **endpoint(tasks_api.EditRequest),
+        json={"task": task_id, "container": container, "force": True},
+        method=Request.def_method,
+        async_enable=False,
+    )
+    return result.ok
 
 
 class TaskStopSignal(object):
@@ -740,7 +699,6 @@ class TaskStopSignal(object):
         self.worker_id = command.worker_id
         self._task_reset_state_counter = 0
         self.task_id = task_id
-        self._support_callback = None
         self._active_callback_timestamp = None
         self._active_callback_timeout = None
         self._abort_callback_max_timeout = float(self.session.config.get("agent.abort_callback_max_timeout", 1800))
@@ -778,15 +736,13 @@ class TaskStopSignal(object):
         # update the task runtime properties
         try:
             task_info = self.session.get(
-                service="tasks", action="get_all", version="2.13", id=[self.task_id], only_fields=["runtime"]
+                **endpoint(tasks_api.GetAllRequest), id=[self.task_id], only_fields=["runtime"]
             )["tasks"][0]
             runtime_properties = task_info.get("runtime") or {}
             runtime_properties[self.property_abort_callback_timeout] = str(self._bash_callback_timeout)
             runtime_properties[self.property_abort_poll_freq] = str(10)
             self.session.post(
-                service="tasks",
-                action="edit",
-                version="2.13",
+                **endpoint(tasks_api.EditRequest),
                 task=self.task_id,
                 runtime=runtime_properties,
                 force=True,
@@ -846,14 +802,12 @@ class TaskStopSignal(object):
         # update the task runtime properties
         try:
             task_info = self.session.get(
-                service="tasks", action="get_all", version="2.13", id=[self.task_id], only_fields=["runtime"]
+                **endpoint(tasks_api.GetAllRequest), id=[self.task_id], only_fields=["runtime"]
             )["tasks"][0]
             runtime_properties = task_info.get("runtime") or {}
             runtime_properties[self.property_abort_callback_completed] = str(1)
             self.session.post(
-                service="tasks",
-                action="edit",
-                version="2.13",
+                **endpoint(tasks_api.EditRequest),
                 task=self.task_id,
                 runtime=runtime_properties,
                 force=True,
@@ -882,9 +836,6 @@ class TaskStopSignal(object):
             return TaskStopSignal.default
 
     def _wait_for_abort_callback(self):
-        if not self._support_callback:
-            return None
-
         if self._active_callback_timestamp:
             if time() - self._active_callback_timestamp < self._active_callback_timeout:
                 # print("waiting for callback to complete")
@@ -893,9 +844,7 @@ class TaskStopSignal(object):
                 cb_completed = None
                 try:
                     task_info = self.session.get(
-                        service="tasks",
-                        action="get_all",
-                        version="2.13",
+                        **endpoint(tasks_api.GetAllRequest),
                         id=[self.task_id],
                         only_fields=[
                             "status",
@@ -955,9 +904,7 @@ class TaskStopSignal(object):
         # TODO: add retries on network error with timeout
         try:
             task_info = self.session.get(
-                service="tasks",
-                action="get_all",
-                version="2.13",
+                **endpoint(tasks_api.GetAllRequest),
                 id=[self.task_id],
                 only_fields=[
                     "status",
@@ -978,9 +925,6 @@ class TaskStopSignal(object):
         return abort_timeout, poll_timeout, cb_completed
 
     def was_abort_function_called(self, process_error_code=None):
-        if not self._support_callback:
-            return False
-
         if self._active_callback_timestamp:
             return True
 
@@ -999,10 +943,6 @@ class TaskStopSignal(object):
         """
         "Unsafe" version of test()
         """
-        if self._support_callback is None:
-            # test if backend support callback
-            self._support_callback = self.session.check_min_api_version("2.13")
-
         task_info = get_task(self.session, self.task_id, only_fields=["status", "status_message"])
         status = task_info.status
         message = task_info.status_message
@@ -1273,8 +1213,7 @@ class Worker(ServiceCommandSection):
         path, _, expected_value = selector.partition("=")
 
         result = task_session.send_request(
-            service="tasks",
-            action="get_all",
+            **endpoint(tasks_api.GetAllRequest),
             json={"id": [task_id], "only_fields": [path], "search_hidden": True},
             method=Request.def_method,
         )
@@ -1328,9 +1267,7 @@ class Worker(ServiceCommandSection):
         # noinspection PyBroadException
         try:
             result = task_session.send_request(
-                service="tasks",
-                action="get_all",
-                version="2.15",
+                **endpoint(tasks_api.GetAllRequest),
                 method=Request.def_method,
                 json={"id": [task_id], "only_fields": ["runtime"], "search_hidden": True},
             )
@@ -1339,8 +1276,7 @@ class Worker(ServiceCommandSection):
             runtime[self.hostname_task_runtime_prop] = socket.gethostname()
 
             res = task_session.send_request(
-                service="tasks",
-                action="edit",
+                **endpoint(tasks_api.EditRequest),
                 method=Request.def_method,
                 json={"task": task_id, "force": True, "runtime": runtime},
             )
@@ -1490,7 +1426,6 @@ class Worker(ServiceCommandSection):
             if (
                 self._session.config.get("agent.docker_apply_environment_from_vault")
                 and self._impersonate_as_task_owner
-                and task_session.check_min_api_version("2.20")
             ):
                 vault_env_args = self._load_vault_env_as_docker_args(task_session)
                 if vault_env_args:
@@ -2105,10 +2040,6 @@ class Worker(ServiceCommandSection):
             if self._runtime_props_support == self._session.api_version:
                 # tested against latest api_version, not supported
                 return None
-            if not self._session.check_min_api_version(UptimeConf.min_api_version):
-                # not supported due to insufficient api_version
-                self._runtime_props_support = self._session.api_version
-                return None
         try:
             res = self.get("get_runtime_properties", worker=self.worker_id)["runtime_properties"]
             # definitely supported
@@ -2123,10 +2054,6 @@ class Worker(ServiceCommandSection):
             # either not supported or never tested
             if self._runtime_props_support == self._session.api_version:
                 # tested against latest api_version, not supported
-                return False
-            if not self._session.check_min_api_version(UptimeConf.min_api_version):
-                # not supported due to insufficient api_version
-                self._runtime_props_support = self._session.api_version
                 return False
 
         # noinspection PyBroadException
@@ -3446,8 +3373,7 @@ class Worker(ServiceCommandSection):
             # noinspection PyBroadException
             try:
                 res = self._session.send_request(
-                    service="tasks",
-                    action="dequeue",
+                    **endpoint(tasks_api.DequeueRequest),
                     method=Request.def_method,
                     json={"task": current_task.id, "new_status": "in_progress"},
                 )
@@ -3928,11 +3854,9 @@ class Worker(ServiceCommandSection):
     def _get_task_os_env(self, config, current_task):
         if not config.get("agent.enable_task_env", None):
             return None
-        if not self._session.check_min_api_version("2.9"):
-            return None
         # noinspection PyBroadException
         try:
-            hyper_params = self._session.get(service="tasks", action="get_hyper_params", tasks=[current_task.id])
+            hyper_params = self._session.get(**endpoint(tasks_api.GetHyperParamsRequest), tasks=[current_task.id])
             hyper_params = {
                 str(p["name"]): str(p["value"])
                 for p in hyper_params["params"][0]["hyperparams"]
@@ -6103,8 +6027,6 @@ class Worker(ServiceCommandSection):
     def _use_owner_token(self, use_owner_token=False):
         self._impersonate_as_task_owner = use_owner_token
         if self._impersonate_as_task_owner:
-            if not self._session.check_min_api_version("2.14"):
-                raise ValueError("Server does not support --use-owner-token option (incompatible API version)")
             if self._session.feature_set == "basic":
                 raise ValueError("Server does not support --use-owner-token option")
 

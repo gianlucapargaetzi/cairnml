@@ -11,13 +11,18 @@ from time import time
 
 from cairnml_agent.helper.console import ListFormatter
 
-from cairnml_agent.backend_api import services
+from importlib import import_module
 
 from cairnml_agent.errors import APIError, CommandFailedError
 from cairnml_agent.helper.base import Singleton, return_list, print_parameters, dump_yaml, load_yaml, error, warning
 from cairnml_agent.interface.base import ObjectID
 from cairnml_agent.session import Session
 from typing import Text  # noqa: F401  # named by type comments
+
+
+def _service(name: str):
+    """The generated module of a service of the SDK."""
+    return import_module(f"cairnml.backend_api.services.{name}")
 
 
 class NameResolutionError(CommandFailedError):
@@ -294,7 +299,7 @@ class ServiceCommandSection(BaseCommandSection, metaclass=Singleton):
     @resolve_names
     def remove(self, ids, **kwargs):
         return self._apply_command(
-            request_cls=getattr(services, self.service).DeleteRequest,
+            request_cls=_service(self.service).DeleteRequest,
             object_ids=ids,
             response_validation_field="deleted",
             **kwargs,
@@ -349,7 +354,7 @@ class ServiceCommandSection(BaseCommandSection, metaclass=Singleton):
             return name
 
         try:
-            request_cls = getattr(services, service).GetAllRequest
+            request_cls = _service(service).GetAllRequest
         except AttributeError:
             raise NameResolutionError("Name resolution unavailable for {}".format(service)) from None
 
@@ -419,7 +424,7 @@ class ServiceCommandSection(BaseCommandSection, metaclass=Singleton):
                 return cache_entry["name"]
 
         try:
-            request_cls = getattr(services, service).GetAllRequest
+            request_cls = _service(service).GetAllRequest
         except AttributeError:
             raise NameResolutionError("Name resolution unavailable for {}".format(service)) from None
 
