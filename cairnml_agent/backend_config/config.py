@@ -75,16 +75,7 @@ class Config(object):
         "CAIRNML_AGENT" + extra_config_values_env_key_sep,
     ]
 
-    def __init__(
-        self,
-        config_folder=None,
-        env=None,
-        verbose=True,
-        relative_to=None,
-        app=None,
-        is_server=False,
-        **_
-    ):
+    def __init__(self, config_folder=None, env=None, verbose=True, relative_to=None, app=None, is_server=False, **_):
         self._app = app
         self._verbose = verbose
         self._folder_name = config_folder or DEFAULT_CONFIG_FOLDER
@@ -99,9 +90,7 @@ class Config(object):
             print("Config env:%s" % str(self._env))
 
         if not self._env:
-            raise ValueError(
-                "Missing environment in either init of environment variable"
-            )
+            raise ValueError("Missing environment in either init of environment variable")
         if self._env not in get_options(Environment):
             raise ValueError("Invalid environment %s" % env)
 
@@ -189,9 +178,7 @@ class Config(object):
                 config,
             )
 
-        config = ConfigTree.merge_configs(
-            config, self._read_extra_env_config_values(), copy_trees=True
-        )
+        config = ConfigTree.merge_configs(config, self._read_extra_env_config_values(), copy_trees=True)
 
         config = self.resolve_override_configs(config)
 
@@ -208,17 +195,13 @@ class Config(object):
         )
 
     def _read_extra_env_config_values(self) -> ConfigTree:
-        """ Loads extra configuration from environment-injected values """
+        """Loads extra configuration from environment-injected values"""
         result = ConfigTree()
 
         for prefix in self.extra_config_values_env_key_prefix:
             keys = sorted(k for k in os.environ if k.startswith(prefix))
             for key in keys:
-                path = (
-                    key[len(prefix) :]
-                    .replace(self.extra_config_values_env_key_sep, ".")
-                    .lower()
-                )
+                path = key[len(prefix) :].replace(self.extra_config_values_env_key_sep, ".").lower()
                 result = ConfigTree.merge_configs(
                     result, ConfigFactory.parse_string("{}: {}".format(path, os.environ[key]))
                 )
@@ -253,13 +236,11 @@ class Config(object):
 
         # remove dependency in deleted handlers
         root_logger = logging_config.get("root", None)
-        loggers = list(logging_config.get("loggers", {}).values()) + (
-            [root_logger] if root_logger else []
-        )
+        loggers = list(logging_config.get("loggers", {}).values()) + ([root_logger] if root_logger else [])
         for logger_config in loggers:
             handlers = logger_config.get("handlers", None)
             if debug:
-                logger_config['level'] = 'DEBUG'
+                logger_config["level"] = "DEBUG"
             if not handlers:
                 continue
             logger_config["handlers"] = [h for h in handlers if h not in deleted]
@@ -277,8 +258,8 @@ class Config(object):
             return None
 
     def __getattr__(self, key):
-        c = self.__getattribute__('_config')
-        if key.split('.')[0] in c:
+        c = self.__getattribute__("_config")
+        if key.split(".")[0] in c:
             try:
                 return c[key]
             except Exception:
@@ -288,11 +269,7 @@ class Config(object):
     def get(self, key, default=_MISSING):
         value = self._config.get(key, default)
         if value is self._MISSING and not default:
-            raise KeyError(
-                "Unable to find value for key '{}' and default value was not provided.".format(
-                    key
-                )
-            )
+            raise KeyError("Unable to find value for key '{}' and default value was not provided.".format(key))
         return value
 
     def put(self, key, value):
@@ -310,9 +287,7 @@ class Config(object):
     def _read_recursive_for_env(self, root_path_str, env, verbose=True):
         root_path = Path(root_path_str)
         if root_path.exists():
-            default_config = self._read_recursive(
-                root_path / Environment.default, verbose=verbose
-            )
+            default_config = self._read_recursive(root_path / Environment.default, verbose=verbose)
             if (root_path / env) != (root_path / Environment.default):
                 env_config = self._read_recursive(
                     root_path / env, verbose=verbose
@@ -339,7 +314,6 @@ class Config(object):
         if verbose:
             print("Loading config from %s" % str(conf_root))
         for root, dirs, files in os.walk(str(conf_root)):
-
             rel_dir = str(Path(root).relative_to(conf_root))
             if rel_dir == ".":
                 rel_dir = ""
@@ -376,16 +350,14 @@ class Config(object):
             )
             raise ConfigurationError(msg, file_path=file_path).with_traceback(sys.exc_info()[2]) from ex
         except (ParseException, ParseFatalException, RecursiveGrammarException) as ex:
-            msg = "Failed parsing {0} ({1.__class__.__name__}): {1}".format(
-                file_path, ex
-            )
+            msg = "Failed parsing {0} ({1.__class__.__name__}): {1}".format(file_path, ex)
             raise ConfigurationError(msg).with_traceback(sys.exc_info()[2]) from ex
         except Exception as ex:
             print("Failed loading %s: %s" % (file_path, ex))
             raise
 
     def set_overrides(self, *dicts):
-        """ Set several override dictionaries or ConfigTree objects which should be merged onto the configuration """
+        """Set several override dictionaries or ConfigTree objects which should be merged onto the configuration"""
         self._overrides_configs = [
             d if isinstance(d, ConfigTree) else pyhocon.ConfigFactory.from_dict(d) for d in dicts
         ]
