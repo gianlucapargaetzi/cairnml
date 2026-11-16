@@ -10,7 +10,7 @@ import time
 
 import requests
 
-from .browser_login import LoginFailed, LoginPortBusy, browser_login, pkce_pair
+from cairnml.idp.browser_login import LoginFailed, LoginPortBusy, browser_login, pkce_pair
 
 DEVICE_GRANT = "urn:ietf:params:oauth:grant-type:device_code"
 

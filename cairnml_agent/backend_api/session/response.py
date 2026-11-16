@@ -2,7 +2,7 @@ import requests
 
 
 from jsonmodels import fields, models
-from .apimodel import ApiModel
+from cairnml.backend_api.session.apimodel import ApiModel
 from .datamodel import NonStrictDataModelMixin
 
 
