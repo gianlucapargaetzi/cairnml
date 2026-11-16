@@ -264,3 +264,37 @@ def test_closing_a_bar_at_its_total_stays_idle(tracker):
     tracker.update(bar, 10)
     tracker.end(bar)
     assert tracker.state() == IDLE
+
+
+class _Warnings:
+    def __init__(self):
+        self.messages = []
+
+    def warning(self, message, *args, **kwargs):
+        self.messages.append(message)
+
+
+@pytest.fixture
+def warnings_of_the_run(monkeypatch):
+    from cairnml.debugging.log import LoggerRoot
+
+    recorded = _Warnings()
+    monkeypatch.setattr(LoggerRoot, "get_base_logger", classmethod(lambda cls, *a, **k: recorded))
+    return recorded
+
+
+def test_a_pinned_bar_that_never_starts_is_warned_about_when_the_run_is_local(
+    tracker, monkeypatch, warnings_of_the_run
+):
+    monkeypatch.setattr(progress, "_handed_over", False)
+    tracker.set_pinned("epochs")
+    progress.detach()
+    assert any("No progress bar named 'epochs' was started" in m for m in warnings_of_the_run.messages)
+
+
+def test_no_warning_when_the_run_was_queued_for_an_agent(tracker, monkeypatch, warnings_of_the_run):
+    monkeypatch.setattr(progress, "_handed_over", False)
+    tracker.set_pinned("epochs")
+    progress.hand_over()
+    progress.detach()
+    assert not any("No progress bar" in m for m in warnings_of_the_run.messages)
