@@ -13,8 +13,35 @@ from cairnml.backend_api.session import (
     Response,
     NonStrictDataModel,
     BatchRequest,
+    StringEnum,
     schema_property,
 )
+
+
+class ScalarKeyEnum(StringEnum):
+    iter = "iter"
+    timestamp = "timestamp"
+    iso_time = "iso_time"
+
+
+class LogLevelEnum(StringEnum):
+    notset = "notset"
+    debug = "debug"
+    verbose = "verbose"
+    info = "info"
+    warn = "warn"
+    warning = "warning"
+    error = "error"
+    fatal = "fatal"
+    critical = "critical"
+
+
+class EventTypeEnum(StringEnum):
+    training_stats_scalar = "training_stats_scalar"
+    training_stats_vector = "training_stats_vector"
+    training_debug_image = "training_debug_image"
+    plot = "plot"
+    log = "log"
 
 
 class DebugImageSampleResponse(NonStrictDataModel):

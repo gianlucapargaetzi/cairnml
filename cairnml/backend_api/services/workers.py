@@ -12,8 +12,15 @@ from cairnml.backend_api.session import (
     Request,
     Response,
     NonStrictDataModel,
+    StringEnum,
     schema_property,
 )
+
+
+class AggregationType(StringEnum):
+    avg = "avg"
+    min = "min"
+    max = "max"
 
 
 class ActivitySeries(NonStrictDataModel):

@@ -13,8 +13,52 @@ from cairnml.backend_api.session import (
     Response,
     NonStrictDataModel,
     BatchRequest,
+    StringEnum,
     schema_property,
 )
+
+
+class TaskStatusEnum(StringEnum):
+    created = "created"
+    queued = "queued"
+    in_progress = "in_progress"
+    stopped = "stopped"
+    published = "published"
+    publishing = "publishing"
+    closed = "closed"
+    failed = "failed"
+    completed = "completed"
+    unknown = "unknown"
+
+
+class TaskTypeEnum(StringEnum):
+    training = "training"
+    testing = "testing"
+    inference = "inference"
+    data_processing = "data_processing"
+    application = "application"
+    monitor = "monitor"
+    controller = "controller"
+    optimizer = "optimizer"
+    service = "service"
+    qc = "qc"
+    custom = "custom"
+
+
+class ModelTypeEnum(StringEnum):
+    input = "input"
+    output = "output"
+
+
+class ArtifactModeEnum(StringEnum):
+    input = "input"
+    output = "output"
+
+
+class ReplaceHyperparamsEnum(StringEnum):
+    none = "none"
+    section = "section"
+    all = "all"
 
 
 class Artifact(NonStrictDataModel):
