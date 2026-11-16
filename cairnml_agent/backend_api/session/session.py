@@ -11,9 +11,18 @@ import requests
 from pyhocon import ConfigTree, ConfigFactory
 from .callresult import CallResult
 from .defs import (
-    ENV_VERBOSE, ENV_HOST, ENV_WEB_HOST, ENV_AUTH_TOKEN, ENV_JOB_TOKEN, ENV_JOB_TOKEN_FILE,
-    ENV_NO_DEFAULT_SERVER, ENV_DISABLE_VAULT_SUPPORT, ENV_INITIAL_CONNECT_RETRY_OVERRIDE, ENV_API_DEFAULT_REQ_METHOD,
-    ENV_FORCE_MAX_API_VERSION, ENV_URLLIB3_CONNECT_LEVEL
+    ENV_VERBOSE,
+    ENV_HOST,
+    ENV_WEB_HOST,
+    ENV_AUTH_TOKEN,
+    ENV_JOB_TOKEN,
+    ENV_JOB_TOKEN_FILE,
+    ENV_NO_DEFAULT_SERVER,
+    ENV_DISABLE_VAULT_SUPPORT,
+    ENV_INITIAL_CONNECT_RETRY_OVERRIDE,
+    ENV_API_DEFAULT_REQ_METHOD,
+    ENV_FORCE_MAX_API_VERSION,
+    ENV_URLLIB3_CONNECT_LEVEL,
 )
 from .job_token_file import read_job_token_file
 from .request import Request, BatchRequest
@@ -36,24 +45,33 @@ class MaxRequestSizeError(Exception):
 
 
 class Session(TokenManager):
-    """ CairnML API Session class. """
+    """CairnML API Session class."""
 
     _AUTHORIZATION_HEADER = "Authorization"
-    _WORKER_HEADER = ("X-CairnML-Worker", "X-Trains-Worker", )
-    _ASYNC_HEADER = ("X-CairnML-Async", "X-Trains-Async", )
-    _CLIENT_HEADER = ("X-CairnML-Agent", "X-Trains-Agent", )
+    _WORKER_HEADER = (
+        "X-CairnML-Worker",
+        "X-Trains-Worker",
+    )
+    _ASYNC_HEADER = (
+        "X-CairnML-Async",
+        "X-Trains-Async",
+    )
+    _CLIENT_HEADER = (
+        "X-CairnML-Agent",
+        "X-Trains-Agent",
+    )
 
     _async_status_code = 202
     _session_requests = 0
-    _session_initial_timeout = (3.0, 10.)
-    _session_timeout = (10.0, 30.)
+    _session_initial_timeout = (3.0, 10.0)
+    _session_timeout = (10.0, 30.0)
     _session_initial_retry_connect_override = 4
     _write_session_data_size = 15000
-    _write_session_timeout = (30.0, 30.)
+    _write_session_timeout = (30.0, 30.0)
     _request_exception_retry_timeout = (2.0, 3.0)
 
-    api_version = '2.1'
-    feature_set = 'basic'
+    api_version = "2.1"
+    feature_set = "basic"
     default_host = "http://localhost/cairnml/api"
     default_web = "http://localhost/cairnml"
     force_max_api_version = ENV_FORCE_MAX_API_VERSION.get()
@@ -91,9 +109,9 @@ class Session(TokenManager):
         config=None,
         http_retries_config=None,
         custom_default_config_paths=None,
-        **kwargs
+        **kwargs,
     ):
-        self._debug = kwargs.get('debug', False)
+        self._debug = kwargs.get("debug", False)
         if config is not None:
             self.config = config
         else:
@@ -118,9 +136,7 @@ class Session(TokenManager):
         ):
             self.set_auth_token(ENV_AUTH_TOKEN.get())
         elif not (self.__device_id or self.__job_token):
-            raise ValueError(
-                "This machine is not enrolled: run cairnml-agent init, or set CAIRNML_AUTH_TOKEN."
-            )
+            raise ValueError("This machine is not enrolled: run cairnml-agent init, or set CAIRNML_AUTH_TOKEN.")
 
         host = host or self.get_api_server_host(config=self.config)
         if not host:
@@ -145,7 +161,7 @@ class Session(TokenManager):
         _, self.__http_session = self._setup_session(
             http_retries_config,
             initial_session=True,
-            default_initial_connect_override=(False if kwargs.get("command") == "execute" else None)
+            default_initial_connect_override=(False if kwargs.get("command") == "execute" else None),
         )
         # try to connect with the server
         orig_urllib3_log_level = self._set_initial_urllib3_log_level()
@@ -161,13 +177,13 @@ class Session(TokenManager):
         # update api version from server response
         try:
             token_dict = TokenManager.get_decoded_token(self.token, verify=False)
-            api_version = token_dict.get('api_version')
+            api_version = token_dict.get("api_version")
             if not api_version:
-                api_version = '2.2' if token_dict.get('env', '') == 'prod' else Session.api_version
+                api_version = "2.2" if token_dict.get("env", "") == "prod" else Session.api_version
 
             Session.api_version = str(api_version)
-            Session.feature_set = str(token_dict.get('feature_set', self.feature_set) or "basic")
-            Session.server_version = token_dict.get('server_version', self.server_version)
+            Session.feature_set = str(token_dict.get("feature_set", self.feature_set) or "basic")
+            Session.server_version = token_dict.get("server_version", self.server_version)
             Session.user_id = (token_dict.get("identity") or {}).get("user") or ""
         except (jwt.DecodeError, ValueError):
             pass
@@ -175,7 +191,7 @@ class Session(TokenManager):
         # now setup the session reporting, so one consecutive retries will show warning
         # we do that here, so if we have problems authenticating, we see them immediately
         # notice: this is across the board warning omission
-        urllib_log_warning_setup(total_retries=http_retries_config.get('total', 0), display_warning_after=3)
+        urllib_log_warning_setup(total_retries=http_retries_config.get("total", 0), display_warning_after=3)
 
         if self.force_max_api_version and self.check_min_api_version(self.force_max_api_version):
             print("Using forced API version {}".format(self.force_max_api_version))
@@ -208,15 +224,13 @@ class Session(TokenManager):
 
     def _setup_session(self, http_retries_config, initial_session=False, default_initial_connect_override=None):
         # type: (dict, bool, Optional[bool]) -> (dict, requests.Session)
-        http_retries_config = http_retries_config or self.config.get(
-            "api.http.retries", ConfigTree()
-        ).as_plain_ordered_dict()
+        http_retries_config = (
+            http_retries_config or self.config.get("api.http.retries", ConfigTree()).as_plain_ordered_dict()
+        )
         http_retries_config["status_forcelist"] = self._retry_codes
 
         if initial_session:
-            kwargs = {} if default_initial_connect_override is None else {
-                "default": default_initial_connect_override
-            }
+            kwargs = {} if default_initial_connect_override is None else {"default": default_initial_connect_override}
             if ENV_INITIAL_CONNECT_RETRY_OVERRIDE.get(**kwargs):
                 connect_retries = self._session_initial_retry_connect_override
                 try:
@@ -227,7 +241,7 @@ class Session(TokenManager):
                     pass
 
                 http_retries_config = dict(**http_retries_config)
-                http_retries_config['connect'] = connect_retries
+                http_retries_config["connect"] = connect_retries
 
         return http_retries_config, get_http_session_with_retry(config=self.config or None, **http_retries_config)
 
@@ -257,10 +271,12 @@ class Session(TokenManager):
         def parse(vault):
             # noinspection PyBroadException
             try:
-                print("Loaded {} vault{}: {}".format(
-                    vault.get("scope", ""),
-                    "" if not self.user_id else " for user {}".format(self.user_id),
-                    (vault.get("description", None) or "")[:50] or vault.get("id", ""))
+                print(
+                    "Loaded {} vault{}: {}".format(
+                        vault.get("scope", ""),
+                        "" if not self.user_id else " for user {}".format(self.user_id),
+                        (vault.get("description", None) or "")[:50] or vault.get("id", ""),
+                    )
                 )
                 d = vault.get("data", None)
                 if d:
@@ -292,7 +308,7 @@ class Session(TokenManager):
         if isinstance(feature_set, str):
             feature_set = [feature_set]
         if self.feature_set not in feature_set:
-            raise ValueError('CairnML-server does not support requested feature set {}'.format(feature_set))
+            raise ValueError("CairnML-server does not support requested feature set {}".format(feature_set))
 
     def _send_request(
         self,
@@ -307,14 +323,14 @@ class Session(TokenManager):
         refresh_token_if_unauthorized=True,
         params=None,
     ):
-        """ Internal implementation for making a raw API request.
-            - Constructs the api endpoint name
-            - Injects the worker id into the headers
-            - Allows custom authorization using a requests auth object
-            - Intercepts `Unauthorized` responses and automatically attempts to refresh the session token once in this
-              case (only once). This is done since permissions are embedded in the token, and addresses a case where
-              server-side permissions have changed but are not reflected in the current token. Refreshing the token will
-              generate a token with the updated permissions.
+        """Internal implementation for making a raw API request.
+        - Constructs the api endpoint name
+        - Injects the worker id into the headers
+        - Allows custom authorization using a requests auth object
+        - Intercepts `Unauthorized` responses and automatically attempts to refresh the session token once in this
+          case (only once). This is done since permissions are embedded in the token, and addresses a case where
+          server-side permissions have changed but are not reflected in the current token. Refreshing the token will
+          generate a token with the updated permissions.
         """
         host = self.host
         headers = headers.copy() if headers else {}
@@ -324,11 +340,7 @@ class Session(TokenManager):
             headers[h] = self.client
 
         token_refreshed_on_error = False
-        url = (
-            "{host}/v{version}/{service}.{action}"
-            if version
-            else "{host}/{service}.{action}"
-        ).format(**locals())
+        url = ("{host}/v{version}/{service}.{action}" if version else "{host}/{service}.{action}").format(**locals())
         res = None
 
         while True:
@@ -341,7 +353,8 @@ class Session(TokenManager):
 
             try:
                 res = self.__http_session.request(
-                    method, url, headers=headers, auth=auth, data=data, json=json, timeout=timeout, params=params)
+                    method, url, headers=headers, auth=auth, data=data, json=json, timeout=timeout, params=params
+                )
             except Exception as ex:
                 if self._propagate_exceptions_on_send:
                     raise
@@ -366,16 +379,11 @@ class Session(TokenManager):
                 token_refreshed_on_error = True
                 # try again
                 continue
-            if (
-                res.status_code == requests.codes.service_unavailable
-                and self.config.get("api.http.wait_on_maintenance_forever", True)
+            if res.status_code == requests.codes.service_unavailable and self.config.get(
+                "api.http.wait_on_maintenance_forever", True
             ):
                 if self._logger:
-                    self._logger.warning(
-                        "Service unavailable: {} is undergoing maintenance, retrying...".format(
-                            host
-                        )
-                    )
+                    self._logger.warning("Service unavailable: {} is undergoing maintenance, retrying...".format(host))
                 continue
             break
         self._session_requests += 1
@@ -414,9 +422,7 @@ class Session(TokenManager):
         :param params: additional query parameters
         :return: requests Response instance
         """
-        headers = self.add_auth_headers(
-            headers.copy() if headers else {}
-        )
+        headers = self.add_auth_headers(headers.copy() if headers else {})
         if async_enable:
             for h in self._ASYNC_HEADER:
                 headers[h] = "1"
@@ -454,16 +460,11 @@ class Session(TokenManager):
         :param method: HTTP method
         :return: requests Response instance
         """
-        if not all(
-            isinstance(x, (list, tuple, type(None), types.GeneratorType))
-            for x in (data, json)
-        ):
+        if not all(isinstance(x, (list, tuple, type(None), types.GeneratorType)) for x in (data, json)):
             raise ValueError("Expecting list, tuple or generator in 'data' or 'json'")
 
         if not data and not json:
-            raise ValueError(
-                "Missing data (data or json), batch requests are meaningless without it."
-            )
+            raise ValueError("Missing data (data or json), batch requests are meaningless without it.")
 
         headers = headers.copy() if headers else {}
         headers["Content-Type"] = "application/json-lines"
@@ -477,7 +478,7 @@ class Session(TokenManager):
         results = []
         while True:
             size = self.__max_req_size
-            slice = req_data[cur: cur + size]
+            slice = req_data[cur : cur + size]
             if not slice:
                 break
             if len(slice) < size:
@@ -487,10 +488,13 @@ class Session(TokenManager):
                 # search for the last newline in order to send a coherent request
                 size = slice.rfind("\n") + 1
                 # readjust the slice
-                slice = req_data[cur: cur + size]
+                slice = req_data[cur : cur + size]
                 if not slice:
-                    raise MaxRequestSizeError('Error: {}.{} request exceeds limit {} > {} bytes'.format(
-                        service, action, len(req_data), self.__max_req_size))
+                    raise MaxRequestSizeError(
+                        "Error: {}.{} request exceeds limit {} > {} bytes".format(
+                            service, action, len(req_data), self.__max_req_size
+                        )
+                    )
             res = self.send_request(
                 method=method,
                 service=service,
@@ -506,16 +510,14 @@ class Session(TokenManager):
         return results
 
     def validate_request(self, req_obj):
-        """ Validate an API request against the current version and the request's schema """
+        """Validate an API request against the current version and the request's schema"""
 
         try:
             # make sure we're using a compatible version for this request
             # validate the request (checks required fields and specific field version restrictions)
             validate = req_obj.validate
         except AttributeError:
-            raise TypeError(
-                '"req_obj" parameter must be an backend_api.session.Request object'
-            ) from None
+            raise TypeError('"req_obj" parameter must be an backend_api.session.Request object') from None
 
         validate()
 
@@ -542,9 +544,7 @@ class Session(TokenManager):
         if isinstance(req_obj, BatchRequest):
             # TODO: support async for batch requests as well
             if async_enable:
-                raise NotImplementedError(
-                    "Async behavior is currently not implemented for batch requests"
-                )
+                raise NotImplementedError("Async behavior is currently not implemented for batch requests")
 
             json_data = req_obj.get_json()
             res = self.send_request_batch(
@@ -610,16 +610,16 @@ class Session(TokenManager):
             return cls.default_web
 
         # compose ourselves
-        if '://demoapi.' in host:
-            return host.replace('://demoapi.', '://demoapp.', 1)
-        if '://api.' in host:
-            return host.replace('://api.', '://app.', 1)
+        if "://demoapi." in host:
+            return host.replace("://demoapi.", "://demoapp.", 1)
+        if "://api." in host:
+            return host.replace("://api.", "://app.", 1)
 
         # the web app is the address the API is under: <address>/cairnml/api -> <address>/cairnml
-        if host.rstrip('/').endswith('/api'):
-            return host.rstrip('/')[:-len('/api')]
+        if host.rstrip("/").endswith("/api"):
+            return host.rstrip("/")[: -len("/api")]
 
-        raise ValueError('Could not detect CairnML web application server')
+        raise ValueError("Could not detect CairnML web application server")
 
     @classmethod
     def check_min_api_version(cls, min_api_version):
@@ -636,7 +636,7 @@ class Session(TokenManager):
         return version_tuple(cls.server_version) >= version_tuple(str(min_server_version))
 
     def _do_refresh_token(self, current_token, exp=None):
-        """ TokenManager abstract method implementation: obtains a token for this session. """
+        """TokenManager abstract method implementation: obtains a token for this session."""
         token_from_file = read_job_token_file(self.__job_token_file)
         if token_from_file:
             # The agent renews the job's token in this file, so a refresh takes the newest one.
@@ -651,7 +651,7 @@ class Session(TokenManager):
         raise LoginError("This machine has no device key or token: run cairnml-agent init to enrol it")
 
     def _exchange_device_assertion(self):
-        """ Sign an assertion with this device's key and exchange it for a short-lived token. """
+        """Sign an assertion with this device's key and exchange it for a short-lived token."""
         try:
             assertion = device_assertion(self.__device_id, self.host)
         except FileNotFoundError:

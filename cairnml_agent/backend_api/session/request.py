@@ -20,7 +20,7 @@ class Request(ApiModel):
     def __init__(self, **kwargs):
         allow_extra_fields = kwargs.pop("_allow_extra_fields_", False)
         if not allow_extra_fields and kwargs:
-            raise ValueError('Unsupported keyword arguments: %s' % ', '.join(kwargs.keys()))
+            raise ValueError("Unsupported keyword arguments: %s" % ", ".join(kwargs.keys()))
         elif allow_extra_fields and kwargs:
             self._extra_fields = kwargs
         else:
@@ -34,11 +34,14 @@ class Request(ApiModel):
 
 
 class BatchRequest(Request, metaclass=abc.ABCMeta):
-
     _batched_request_cls = abc.abstractproperty()
 
-    _schema_errors = (jsonschema.SchemaError, jsonschema.ValidationError, jsonschema.FormatError,
-                      jsonschema.RefResolutionError)
+    _schema_errors = (
+        jsonschema.SchemaError,
+        jsonschema.ValidationError,
+        jsonschema.FormatError,
+        jsonschema.RefResolutionError,
+    )
 
     def __init__(self, requests, validate_requests=False, allow_raw_requests=True, **kwargs):
         super(BatchRequest, self).__init__(**kwargs)
@@ -68,21 +71,25 @@ class BatchRequest(Request, metaclass=abc.ABCMeta):
         for i, req in enumerate(self.requests):
             try:
                 req.validate()
-            except (jsonschema.SchemaError, jsonschema.ValidationError,
-                    jsonschema.FormatError, jsonschema.RefResolutionError) as e:
-                raise Exception('Validation error in batch item #%d: %s' % (i, str(e))) from None
+            except (
+                jsonschema.SchemaError,
+                jsonschema.ValidationError,
+                jsonschema.FormatError,
+                jsonschema.RefResolutionError,
+            ) as e:
+                raise Exception("Validation error in batch item #%d: %s" % (i, str(e))) from None
 
     def get_json(self):
         return [r if isinstance(r, dict) else r.to_dict() for r in self.requests]
 
 
 class CompoundRequest(Request):
-    _item_prop_name = 'item'
+    _item_prop_name = "item"
 
     def _get_item(self):
         item = getattr(self, self._item_prop_name, None)
         if item is None:
-            raise ValueError('Item property is empty or missing')
+            raise ValueError("Item property is empty or missing")
         assert isinstance(item, DataModel)
         return item
 

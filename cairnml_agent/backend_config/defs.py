@@ -3,16 +3,15 @@ from pathlib import Path
 
 from ..backend_config.environment import EnvEntry
 
-ENV_VAR = 'CAIRNML_ENV'
+ENV_VAR = "CAIRNML_ENV"
 """ Name of system environment variable that can be used to specify the config environment name """
 
 
-DEFAULT_CONFIG_FOLDER = 'config'
+DEFAULT_CONFIG_FOLDER = "config"
 """ Default config folder to search for when loading relative to a given path """
 
 
-ENV_CONFIG_PATHS = [
-]
+ENV_CONFIG_PATHS = []
 
 
 """ Environment-related config paths """
@@ -26,18 +25,20 @@ LOCAL_CONFIG_PATHS = [
 
 
 LOCAL_CONFIG_FILES = [
-    expanduser('~/trains.conf'),    # used for workstation configuration (end-users, workers)
-    expanduser('~/cairnml-agent.conf'),    # the earlier location, still read so that existing installs keep working
-    expanduser('~/.cairnml/agent/cairnml-agent.conf'),    # written by cairnml-agent init, next to the device key (last = preferred)
+    expanduser("~/trains.conf"),  # used for workstation configuration (end-users, workers)
+    expanduser("~/cairnml-agent.conf"),  # the earlier location, still read so that existing installs keep working
+    expanduser(
+        "~/.cairnml/agent/cairnml-agent.conf"
+    ),  # written by cairnml-agent init, next to the device key (last = preferred)
 ]
 """ Local config files (not paths). The agent does not read the CairnML SDK's ~/cairnml.conf """
 
 
-LOCAL_CONFIG_FILE_OVERRIDE_VAR = EnvEntry('CAIRNML_CONFIG_FILE')
+LOCAL_CONFIG_FILE_OVERRIDE_VAR = EnvEntry("CAIRNML_CONFIG_FILE")
 """ Local config file override environment variable. If this is set, no other local config files will be used. """
 
 
-ENV_CONFIG_PATH_OVERRIDE_VAR = EnvEntry('CAIRNML_CONFIG_PATH')
+ENV_CONFIG_PATH_OVERRIDE_VAR = EnvEntry("CAIRNML_CONFIG_PATH")
 """ 
 Environment-related config path override environment variable. If this is set, no other env config path will be used. 
 """
@@ -46,10 +47,11 @@ ENV_CONFIG_VERBOSE = EnvEntry("CAIRNML_CONFIG_VERBOSE", default=False, converter
 
 
 class Environment(object):
-    """ Supported environment names """
-    default = 'default'
-    demo = 'demo'
-    local = 'local'
+    """Supported environment names"""
+
+    default = "default"
+    demo = "demo"
+    local = "local"
 
 
 class UptimeConf(object):
@@ -61,7 +63,7 @@ class UptimeConf(object):
     worker_value_on = ["on"]
 
 
-CONFIG_FILE_EXTENSION = '.conf'
+CONFIG_FILE_EXTENSION = ".conf"
 
 
 def is_config_file(path):

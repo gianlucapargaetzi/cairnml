@@ -20,7 +20,7 @@ class TokenManager(object, metaclass=ABCMeta):
 
     @property
     def req_token_expiration_sec(self):
-        """ Token expiration sec requested when refreshing token """
+        """Token expiration sec requested when refreshing token"""
         return self.__req_token_expiration_sec
 
     @req_token_expiration_sec.setter
@@ -47,7 +47,7 @@ class TokenManager(object, metaclass=ABCMeta):
         token_history=None,
         token_expiration_threshold_sec=None,
         config=None,
-        **kwargs
+        **kwargs,
     ):
         super(TokenManager, self).__init__()
         assert isinstance(token_history, (type(None), dict))
@@ -55,16 +55,11 @@ class TokenManager(object, metaclass=ABCMeta):
             req_token_expiration_sec = req_token_expiration_sec or config.get(
                 "api.auth.request_token_expiration_sec", None
             )
-            token_expiration_threshold_sec = (
-                token_expiration_threshold_sec
-                or config.get("api.auth.token_expiration_threshold_sec", None)
+            token_expiration_threshold_sec = token_expiration_threshold_sec or config.get(
+                "api.auth.token_expiration_threshold_sec", None
             )
-        self.token_expiration_threshold_sec = (
-            token_expiration_threshold_sec or self._default_token_exp_threshold_sec
-        )
-        self.req_token_expiration_sec = (
-            req_token_expiration_sec or self._default_req_token_expiration_sec
-        )
+        self.token_expiration_threshold_sec = token_expiration_threshold_sec or self._default_token_exp_threshold_sec
+        self.req_token_expiration_sec = req_token_expiration_sec or self._default_req_token_expiration_sec
         self._set_token(token)
 
     def _calc_token_valid_period_sec(self, token, exp=None, at_least_sec=None):
@@ -72,9 +67,7 @@ class TokenManager(object, metaclass=ABCMeta):
             try:
                 exp = exp or self._get_token_exp(token)
                 if at_least_sec:
-                    at_least_sec = max(
-                        at_least_sec, self.token_expiration_threshold_sec
-                    )
+                    at_least_sec = max(at_least_sec, self.token_expiration_threshold_sec)
                 else:
                     at_least_sec = self.token_expiration_threshold_sec
                 return max(0, (exp - time() - at_least_sec))
@@ -84,7 +77,7 @@ class TokenManager(object, metaclass=ABCMeta):
 
     @classmethod
     def get_decoded_token(cls, token, verify=False):
-        """ Get token expiration time. If not present, assume forever """
+        """Get token expiration time. If not present, assume forever"""
         return jwt.decode(
             token,
             options=dict(verify_signature=verify),
@@ -93,7 +86,7 @@ class TokenManager(object, metaclass=ABCMeta):
 
     @classmethod
     def _get_token_exp(cls, token):
-        """ Get token expiration time. If not present, assume forever """
+        """Get token expiration time. If not present, assume forever"""
         return cls.get_decoded_token(token).get("exp", sys.maxsize)
 
     def _set_token(self, token):
@@ -105,9 +98,7 @@ class TokenManager(object, metaclass=ABCMeta):
             self.__token_expiration_sec = 0
 
     def get_token_valid_period_sec(self):
-        return self._calc_token_valid_period_sec(
-            self.__token, self.token_expiration_sec
-        )
+        return self._calc_token_valid_period_sec(self.__token, self.token_expiration_sec)
 
     def _get_token(self):
         if self.get_token_valid_period_sec() <= 0:
@@ -119,6 +110,4 @@ class TokenManager(object, metaclass=ABCMeta):
         pass
 
     def refresh_token(self):
-        self._set_token(
-            self._do_refresh_token(self.__token, exp=self.req_token_expiration_sec)
-        )
+        self._set_token(self._do_refresh_token(self.__token, exp=self.req_token_expiration_sec))
