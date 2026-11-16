@@ -50,7 +50,7 @@ from cairnml_agent.session_env import (
 )
 from cairnml_agent.backend_config.config import Config
 from cairnml_agent.backend_config.defs import UptimeConf
-from cairnml_agent.backend_config.utils import apply_environment, apply_files
+from cairnml.backend_config.utils import apply_environment, apply_files
 from cairnml_agent.helper.environment.converters import text_to_int
 from cairnml_agent.commands.base import resolve_names, ServiceCommandSection
 from cairnml_agent.commands.resolver import resolve_default_container

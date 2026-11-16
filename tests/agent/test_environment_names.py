@@ -10,7 +10,7 @@ import pytest
 
 from cairnml.backend_api.session import defs as session_defs
 from cairnml_agent.backend_config import defs as config_defs
-from cairnml_agent.backend_config import environment
+from cairnml.backend_config import environment
 
 ROOT = Path(__file__).resolve().parent.parent
 PACKAGE = ROOT / "cairnml_agent"
