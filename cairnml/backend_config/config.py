@@ -154,10 +154,7 @@ class Config:
                 config,
             )
 
-        local_config_files = LOCAL_CONFIG_FILES
-        local_config_override = LOCAL_CONFIG_FILE_OVERRIDE_VAR.get()
-        if local_config_override:
-            local_config_files = [expanduser(local_config_override)]
+        local_config_files = self.local_config_files()
 
         # merge configuration from local configuration files
         for file_path in local_config_files:
@@ -173,6 +170,11 @@ class Config:
                 config,
             )
 
+        # merge configuration from environment variables that an application defines (none for the SDK)
+        env_values = self.extra_env_config_values()
+        if env_values:
+            config = ConfigTree.merge_configs(config, env_values, copy_trees=True)
+
         if self._overrides_configs:
             config = functools.reduce(
                 lambda cfg, override: ConfigTree.merge_configs(cfg, override, copy_trees=True),
@@ -182,6 +184,17 @@ class Config:
 
         config["env"] = env
         return config
+
+    def local_config_files(self) -> List[str]:
+        """The local configuration files read, in order. An application that keeps its files elsewhere overrides this."""
+        local_config_override = LOCAL_CONFIG_FILE_OVERRIDE_VAR.get()
+        if local_config_override:
+            return [expanduser(local_config_override)]
+        return list(LOCAL_CONFIG_FILES)
+
+    def extra_env_config_values(self) -> Optional[ConfigTree]:
+        """Configuration values from environment variables that an application defines. None for the SDK."""
+        return None
 
     def replace(self, config: ConfigTree) -> None:
         self._config = config
