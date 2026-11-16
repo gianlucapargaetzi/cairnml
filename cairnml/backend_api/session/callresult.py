@@ -1,6 +1,4 @@
 import logging
-import sys
-import time
 from typing import Optional, Dict, Type, Any
 
 import requests
@@ -8,7 +6,6 @@ import requests
 from ...backend_api.utils import get_response_cls
 
 from .response import ResponseMeta, Response
-from .errors import ResultNotReadyError, TimeoutExpiredError
 
 
 class CallResult:
@@ -23,10 +20,6 @@ class CallResult:
     @property
     def response_data(self) -> Optional[Dict[str, Any]]:
         return self.__response_data
-
-    @property
-    def async_accepted(self) -> bool:
-        return self.meta.result_code == 202
 
     @property
     def request_cls(self) -> Optional[Type[Any]]:
@@ -50,7 +43,6 @@ class CallResult:
         self.__response = response
         self.__request_cls = request_cls
         self.__session = session
-        self.__async_result = None
 
         if response_data is not None:
             self.__response_data = response_data
@@ -139,56 +131,6 @@ class CallResult:
     def ok(self) -> bool:
         return self.meta.result_code == 200
 
-    def ready(self) -> bool:
-        if not self.async_accepted:
-            return True
-        session = self.__session
-        res = session.send_request(
-            service="async",
-            action="result",
-            json=dict(id=self.meta.id),
-            async_enable=False,
-        )
-        if res.status_code != session._async_status_code:
-            self.__async_result = CallResult.from_result(res=res, request_cls=self.request_cls, logger=session._logger)
-            return True
-
-    def result(self) -> "CallResult":
-        if not self.async_accepted:
-            return self
-        if self.__async_result is None:
-            raise ResultNotReadyError(self._format_msg("Timeout expired"), call_id=self.meta.id)
-        return self.__async_result
-
-    def wait(
-        self,
-        timeout: Optional[int] = None,
-        poll_interval: int = 5,
-        verbose: bool = False,
-    ) -> "CallResult":
-        if not self.async_accepted:
-            return self
-        session = self.__session
-        poll_interval = max(1, poll_interval)
-        remaining = max(0, timeout) if timeout else sys.maxsize
-        while remaining > 0:
-            if not self.ready():
-                # Still pending, log and continue
-                if verbose and session._logger:
-                    progress = (
-                        "waiting forever"
-                        if timeout is False
-                        else f"{remaining:.1f}/{float(timeout or 0):.1f} seconds remaining"
-                    )
-                    session._logger.info(f"Waiting for asynchronous call {self.request_cls.__name__} ({progress})")
-                time.sleep(poll_interval)
-                remaining -= poll_interval
-                continue
-            # We've got something (good or bad, we don't know), create a call result and return
-            return self.result()
-
-        # Timeout expired, return the asynchronous call's result (we've got nothing better to report)
-        raise TimeoutExpiredError(self._format_msg("Timeout expired"), call_id=self.meta.id)
-
-    def _format_msg(self, msg: str) -> str:
-        return f"{msg} for call {self.request_cls.__name__} ({self.meta.id})"
+    def wait(self) -> "CallResult":
+        """The server answers every call when it returns, so there is nothing to wait for: the result is this one."""
+        return self

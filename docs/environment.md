@@ -19,7 +19,6 @@ Columns: **Name** is the variable; **Read in** is the module that reads it; **De
 | `CAIRNML_API_VERBOSE` | `backend_api/session/defs.py` | `False` | Log every API request and response. |
 | `CAIRNML_API_DEFAULT_REQ_METHOD` | `backend_api/session/defs.py` | | HTTP method used for API requests. |
 | `CAIRNML_API_EXTRA_RETRY_CODES` | `backend_api/session/defs.py` | | Extra HTTP status codes that are retried. |
-| `CAIRNML_FORCE_MAX_API_VERSION` | `backend_api/session/defs.py` | | Use this API version as the highest one, instead of the server's. |
 | `CAIRNML_OFFLINE_MODE` | `backend_api/session/defs.py` | | Run without a server: nothing is sent. |
 | `CAIRNML_NO_DEFAULT_SERVER` | `backend_api/session/defs.py` | `True` | Do not fall back to a default server address. |
 | `CAIRNML_DEFERRED_TASK_INIT` | `backend_api/session/defs.py` | | Delay the task's initialisation until its first use. |

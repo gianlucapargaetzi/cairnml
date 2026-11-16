@@ -528,7 +528,7 @@ class AddOrUpdateMetadataRequest(Request):
 
     _service = "queues"
     _action = "add_or_update_metadata"
-    _version = "2.13"
+    _version = "2.41"
     _schema = {
         "definitions": {
             "metadata_item": {
@@ -626,7 +626,7 @@ class AddOrUpdateMetadataResponse(Response):
 
     _service = "queues"
     _action = "add_or_update_metadata"
-    _version = "2.13"
+    _version = "2.41"
     _schema = {
         "definitions": {},
         "properties": {
@@ -672,7 +672,7 @@ class AddTaskRequest(Request):
 
     _service = "queues"
     _action = "add_task"
-    _version = "2.31"
+    _version = "2.41"
     _schema = {
         "definitions": {},
         "properties": {
@@ -747,7 +747,7 @@ class AddTaskResponse(Response):
 
     _service = "queues"
     _action = "add_task"
-    _version = "2.31"
+    _version = "2.41"
     _schema = {
         "definitions": {},
         "properties": {
@@ -791,7 +791,7 @@ class AddUserRequest(Request):
 
     _service = "queues"
     _action = "add_user"
-    _version = "2.38"
+    _version = "2.41"
     _schema = {
         "definitions": {},
         "properties": {
@@ -842,7 +842,7 @@ class AddUserResponse(Response):
 
     _service = "queues"
     _action = "add_user"
-    _version = "2.38"
+    _version = "2.41"
     _schema = {
         "definitions": {},
         "properties": {
@@ -884,7 +884,7 @@ class ClearQueueRequest(Request):
 
     _service = "queues"
     _action = "clear_queue"
-    _version = "2.31"
+    _version = "2.41"
     _schema = {
         "definitions": {},
         "properties": {"queue": {"description": "Queue id", "type": "string"}},
@@ -919,7 +919,7 @@ class ClearQueueResponse(Response):
 
     _service = "queues"
     _action = "clear_queue"
-    _version = "2.31"
+    _version = "2.41"
     _schema = {
         "definitions": {},
         "properties": {
@@ -962,7 +962,7 @@ class DeleteRequest(Request):
 
     _service = "queues"
     _action = "delete"
-    _version = "2.4"
+    _version = "2.41"
     _schema = {
         "definitions": {},
         "properties": {
@@ -1017,7 +1017,7 @@ class DeleteResponse(Response):
 
     _service = "queues"
     _action = "delete"
-    _version = "2.4"
+    _version = "2.41"
     _schema = {
         "definitions": {},
         "properties": {
@@ -1061,7 +1061,7 @@ class DeleteMetadataRequest(Request):
 
     _service = "queues"
     _action = "delete_metadata"
-    _version = "2.13"
+    _version = "2.41"
     _schema = {
         "definitions": {},
         "properties": {
@@ -1117,7 +1117,7 @@ class DeleteMetadataResponse(Response):
 
     _service = "queues"
     _action = "delete_metadata"
-    _version = "2.13"
+    _version = "2.41"
     _schema = {
         "definitions": {},
         "properties": {
@@ -1185,7 +1185,7 @@ class GetAllRequest(Request):
 
     _service = "queues"
     _action = "get_all"
-    _version = "2.21"
+    _version = "2.41"
     _schema = {
         "definitions": {},
         "properties": {
@@ -1483,7 +1483,7 @@ class GetAllResponse(Response):
 
     _service = "queues"
     _action = "get_all"
-    _version = "2.21"
+    _version = "2.41"
     _schema = {
         "definitions": {
             "entry": {
@@ -1647,7 +1647,7 @@ class GetAllExRequest(Request):
 
     _service = "queues"
     _action = "get_all_ex"
-    _version = "2.35"
+    _version = "2.41"
     _schema = {
         "definitions": {},
         "properties": {
@@ -2009,7 +2009,7 @@ class GetAllExResponse(Response):
 
     _service = "queues"
     _action = "get_all_ex"
-    _version = "2.35"
+    _version = "2.41"
     _schema = {
         "definitions": {
             "entry": {
@@ -2145,7 +2145,7 @@ class GetByIdRequest(Request):
 
     _service = "queues"
     _action = "get_by_id"
-    _version = "2.20"
+    _version = "2.41"
     _schema = {
         "definitions": {},
         "properties": {
@@ -2201,7 +2201,7 @@ class GetByIdResponse(Response):
 
     _service = "queues"
     _action = "get_by_id"
-    _version = "2.20"
+    _version = "2.41"
     _schema = {
         "definitions": {
             "entry": {
@@ -2306,7 +2306,7 @@ class GetDefaultRequest(Request):
 
     _service = "queues"
     _action = "get_default"
-    _version = "2.4"
+    _version = "2.41"
     _schema = {"additionalProperties": False, "definitions": {}, "properties": {}, "type": "object"}
 
     def __init__(self, **kwargs: Any) -> None:
@@ -2325,7 +2325,7 @@ class GetDefaultResponse(Response):
 
     _service = "queues"
     _action = "get_default"
-    _version = "2.4"
+    _version = "2.41"
     _schema = {
         "definitions": {},
         "properties": {
@@ -2379,7 +2379,7 @@ class GetNextTaskRequest(Request):
 
     _service = "queues"
     _action = "get_next_task"
-    _version = "2.21"
+    _version = "2.41"
     _schema = {
         "definitions": {},
         "properties": {
@@ -2456,7 +2456,7 @@ class GetNextTaskResponse(Response):
 
     _service = "queues"
     _action = "get_next_task"
-    _version = "2.21"
+    _version = "2.41"
     _schema = {
         "definitions": {
             "entry": {
@@ -2534,7 +2534,7 @@ class GetNumEntriesRequest(Request):
 
     _service = "queues"
     _action = "get_num_entries"
-    _version = "2.15"
+    _version = "2.41"
     _schema = {
         "definitions": {},
         "properties": {"queue": {"description": "ID of the queue", "type": "string"}},
@@ -2569,7 +2569,7 @@ class GetNumEntriesResponse(Response):
 
     _service = "queues"
     _action = "get_num_entries"
-    _version = "2.15"
+    _version = "2.41"
     _schema = {
         "definitions": {},
         "properties": {"num": {"description": "Number of entries", "type": ["integer", "null"]}},
@@ -2605,7 +2605,7 @@ class GetProjectsRequest(Request):
 
     _service = "queues"
     _action = "get_projects"
-    _version = "2.4"
+    _version = "2.41"
     _schema = {
         "definitions": {},
         "properties": {"queue": {"description": "Queue ID", "type": "string"}},
@@ -2640,7 +2640,7 @@ class GetProjectsResponse(Response):
 
     _service = "queues"
     _action = "get_projects"
-    _version = "2.4"
+    _version = "2.41"
     _schema = {
         "definitions": {},
         "properties": {
@@ -2695,7 +2695,7 @@ class GetQueueMetricsRequest(Request):
 
     _service = "queues"
     _action = "get_queue_metrics"
-    _version = "2.20"
+    _version = "2.41"
     _schema = {
         "definitions": {},
         "properties": {
@@ -2816,7 +2816,7 @@ class GetQueueMetricsResponse(Response):
 
     _service = "queues"
     _action = "get_queue_metrics"
-    _version = "2.20"
+    _version = "2.41"
     _schema = {
         "definitions": {
             "queue_metrics": {
@@ -2882,7 +2882,7 @@ class GetUsersRequest(Request):
 
     _service = "queues"
     _action = "get_users"
-    _version = "2.38"
+    _version = "2.41"
     _schema = {
         "definitions": {},
         "properties": {"queue": {"description": "Queue id", "type": "string"}},
@@ -2917,7 +2917,7 @@ class GetUsersResponse(Response):
 
     _service = "queues"
     _action = "get_users"
-    _version = "2.38"
+    _version = "2.41"
     _schema = {
         "definitions": {},
         "properties": {
@@ -2974,7 +2974,7 @@ class MoveTaskBackwardRequest(Request):
 
     _service = "queues"
     _action = "move_task_backward"
-    _version = "2.4"
+    _version = "2.41"
     _schema = {
         "definitions": {},
         "properties": {
@@ -3044,7 +3044,7 @@ class MoveTaskBackwardResponse(Response):
 
     _service = "queues"
     _action = "move_task_backward"
-    _version = "2.4"
+    _version = "2.41"
     _schema = {
         "definitions": {},
         "properties": {
@@ -3089,7 +3089,7 @@ class MoveTaskForwardRequest(Request):
 
     _service = "queues"
     _action = "move_task_forward"
-    _version = "2.4"
+    _version = "2.41"
     _schema = {
         "definitions": {},
         "properties": {
@@ -3159,7 +3159,7 @@ class MoveTaskForwardResponse(Response):
 
     _service = "queues"
     _action = "move_task_forward"
-    _version = "2.4"
+    _version = "2.41"
     _schema = {
         "definitions": {},
         "properties": {
@@ -3200,7 +3200,7 @@ class MoveTaskToBackRequest(Request):
 
     _service = "queues"
     _action = "move_task_to_back"
-    _version = "2.4"
+    _version = "2.41"
     _schema = {
         "definitions": {},
         "properties": {
@@ -3251,7 +3251,7 @@ class MoveTaskToBackResponse(Response):
 
     _service = "queues"
     _action = "move_task_to_back"
-    _version = "2.4"
+    _version = "2.41"
     _schema = {
         "definitions": {},
         "properties": {
@@ -3292,7 +3292,7 @@ class MoveTaskToFrontRequest(Request):
 
     _service = "queues"
     _action = "move_task_to_front"
-    _version = "2.4"
+    _version = "2.41"
     _schema = {
         "definitions": {},
         "properties": {
@@ -3343,7 +3343,7 @@ class MoveTaskToFrontResponse(Response):
 
     _service = "queues"
     _action = "move_task_to_front"
-    _version = "2.4"
+    _version = "2.41"
     _schema = {
         "definitions": {},
         "properties": {
@@ -3390,7 +3390,7 @@ class MoveTaskToQueueRequest(Request):
 
     _service = "queues"
     _action = "move_task_to_queue"
-    _version = "2.35"
+    _version = "2.41"
     _schema = {
         "definitions": {},
         "properties": {
@@ -3480,7 +3480,7 @@ class MoveTaskToQueueResponse(Response):
 
     _service = "queues"
     _action = "move_task_to_queue"
-    _version = "2.35"
+    _version = "2.41"
     _schema = {
         "definitions": {},
         "properties": {
@@ -3522,7 +3522,7 @@ class PeekTaskRequest(Request):
 
     _service = "queues"
     _action = "peek_task"
-    _version = "2.15"
+    _version = "2.41"
     _schema = {
         "definitions": {},
         "properties": {"queue": {"description": "ID of the queue", "type": "string"}},
@@ -3557,7 +3557,7 @@ class PeekTaskResponse(Response):
 
     _service = "queues"
     _action = "peek_task"
-    _version = "2.15"
+    _version = "2.41"
     _schema = {
         "definitions": {},
         "properties": {"task": {"description": "Task ID", "type": ["string", "null"]}},
@@ -3595,7 +3595,7 @@ class RemoveTaskRequest(Request):
 
     _service = "queues"
     _action = "remove_task"
-    _version = "2.31"
+    _version = "2.41"
     _schema = {
         "definitions": {},
         "properties": {
@@ -3670,7 +3670,7 @@ class RemoveTaskResponse(Response):
 
     _service = "queues"
     _action = "remove_task"
-    _version = "2.31"
+    _version = "2.41"
     _schema = {
         "definitions": {},
         "properties": {
@@ -3714,7 +3714,7 @@ class RemoveUserRequest(Request):
 
     _service = "queues"
     _action = "remove_user"
-    _version = "2.38"
+    _version = "2.41"
     _schema = {
         "definitions": {},
         "properties": {
@@ -3765,7 +3765,7 @@ class RemoveUserResponse(Response):
 
     _service = "queues"
     _action = "remove_user"
-    _version = "2.38"
+    _version = "2.41"
     _schema = {
         "definitions": {},
         "properties": {
@@ -3819,7 +3819,7 @@ class UpdateRequest(Request):
 
     _service = "queues"
     _action = "update"
-    _version = "2.38"
+    _version = "2.41"
     _schema = {
         "definitions": {
             "metadata_item": {
@@ -3984,7 +3984,7 @@ class UpdateResponse(Response):
 
     _service = "queues"
     _action = "update"
-    _version = "2.38"
+    _version = "2.41"
     _schema = {
         "definitions": {},
         "properties": {

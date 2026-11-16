@@ -79,7 +79,7 @@ class Model(IdObjectBase, AsyncManagerMixin, _StorageUriMixin):
         self.reload()
 
     def archive(self) -> None:
-        if Session.check_min_api_server_version("2.13", raise_error=True):
+        if Session.check_min_api_server_version("2.13"):
             self.send(models.ArchiveManyRequest(ids=[self.id]))
             self.reload()
         else:
@@ -94,7 +94,7 @@ class Model(IdObjectBase, AsyncManagerMixin, _StorageUriMixin):
             )
 
     def unarchive(self) -> None:
-        if Session.check_min_api_server_version("2.13", raise_error=True):
+        if Session.check_min_api_server_version("2.13"):
             self.send(models.UnarchiveManyRequest(ids=[self.id]))
             self.reload()
         else:
@@ -454,21 +454,8 @@ class Model(IdObjectBase, AsyncManagerMixin, _StorageUriMixin):
         type_: str = "output",
         iteration: int = None,
     ) -> None:
-        if Session.check_min_api_version("2.13"):
-            req = tasks.AddOrUpdateModelRequest(
-                task=task_id, name=name, type=type_, model=model_id, iteration=iteration
-            )
-        elif type_ == "output":
-            # backwards compatibility
-            req = models.UpdateForTaskRequest(task=task_id, override_model_id=model_id)
-        elif type_ == "input":
-            # backwards compatibility, None
-            req = None
-        else:
-            raise ValueError(f"Type '{type_}' unsupported (use either 'input' or 'output')")
-
-        if req:
-            self.send(req)
+        req = tasks.AddOrUpdateModelRequest(task=task_id, name=name, type=type_, model=model_id, iteration=iteration)
+        self.send(req)
 
         self.reload()
 

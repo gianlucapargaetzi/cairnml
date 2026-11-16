@@ -2317,15 +2317,12 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
             last (most updated) console output
         :return: A list of strings, each entry corresponds to one report.
         """
-        if Session.check_min_api_version("2.9"):
-            request = events.GetTaskLogRequest(
-                task=self.id,
-                order="asc",
-                navigate_earlier=True,
-                batch_size=number_of_reports,
-            )
-        else:
-            request = events.GetTaskLogRequest(task=self.id, order="asc", from_="tail", batch_size=number_of_reports)
+        request = events.GetTaskLogRequest(
+            task=self.id,
+            order="asc",
+            navigate_earlier=True,
+            batch_size=number_of_reports,
+        )
         res = self.send(request)
         response = res.wait()
         if not response.ok() or not response.response_data.get("events"):
@@ -3025,7 +3022,6 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         req = tasks.CreateRequest(
             name=name or task.name,
             type=task.type,
-            input=task.input if hasattr(task, "input") else {"view": {}},
             tags=tags,
             comment=comment if comment is not None else task.comment,
             parent=parent,

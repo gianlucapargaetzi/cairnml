@@ -1967,7 +1967,7 @@ class Task(_Task):
 
         :return: The number of tasks enqueued in the given queue
         """
-        if not Session.check_min_api_server_version("2.20", raise_error=True):
+        if not Session.check_min_api_server_version("2.20"):
             raise ValueError("You version of cairnml-server does not support the 'queues.get_num_entries' endpoint")
         mutually_exclusive(queue_name=queue_name, queue_id=queue_id)
         session = cls._get_default_session()

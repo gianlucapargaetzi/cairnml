@@ -200,7 +200,7 @@ def test_a_failing_session_does_not_stop_the_run_and_is_given_up_on(tracker):
 
 
 def test_the_response_of_the_request_is_registered():
-    from cairnml.backend_api.services.v2_23 import tasks
+    from cairnml.backend_api.services import tasks
     from cairnml.backend_api.utils import get_response_cls
 
     assert get_response_cls(tasks.UpdateProgressRequest) is tasks.UpdateProgressResponse

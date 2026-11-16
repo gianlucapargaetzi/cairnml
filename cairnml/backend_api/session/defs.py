@@ -55,7 +55,8 @@ for a very long time for a non-responding or mis-configured server
 """
 ENV_API_EXTRA_RETRY_CODES = EnvEntry("CAIRNML_API_EXTRA_RETRY_CODES")
 
-ENV_FORCE_MAX_API_VERSION = EnvEntry("CAIRNML_FORCE_MAX_API_VERSION", type=str)
+# The one API version the SDK speaks. The generated services in cairnml.backend_api.services are generated for it.
+API_VERSION = "2.41"
 
 
 class MissingConfigError(ValueError):

@@ -47,7 +47,7 @@ def test_import_cairnml_loads_no_hyperdataset_module():
 def test_the_service_proxies_name_no_dataset_service():
     from cairnml.backend_api import services
 
-    named = [name for name in ("datasets", "dataviews", "frames") if name in services.__all__ or hasattr(services, name)]
+    named = [name for name in ("datasets", "dataviews", "frames") if hasattr(services, name)]
     assert named == []
 
 
@@ -65,7 +65,7 @@ def test_the_default_configuration_has_no_dataview_setting():
 
 
 def test_a_cleared_task_sends_no_empty_dataviews_list(monkeypatch):
-    from cairnml.backend_api.services.v2_23 import tasks as generated_tasks
+    from cairnml.backend_api.services import tasks as generated_tasks
     from cairnml.backend_interface.task import task as task_module
 
     monkeypatch.setattr(task_module, "tasks", generated_tasks)
