@@ -61,19 +61,17 @@ jobs:
           xargs -a all.txt -r ruff format --check --isolated --line-length 120
 
   # The generated API client (cairnml/backend_api/services/<service>.py) must equal what the server's generator writes
-  # from the schema at the commit in scripts/api-schema-ref, and the hand-written callers must only use actions, request
-  # fields and versions that schema has. To refresh: scripts/regenerate-api.sh <server-commit>.
+  # from the schema on the server's main, and the hand-written callers must only use actions, request fields and
+  # versions that schema has. Red here means "the server changed, update the SDK": run scripts/regenerate-api.sh.
   api-contract:
     name: api contract
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - id: pin
-        run: echo "ref=$(tr -d '[:space:]' < scripts/api-schema-ref)" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           repository: gianlucapargaetzi/cairnml-server
-          ref: ${{ steps.pin.outputs.ref }}
+          ref: main
           path: server
           sparse-checkout: |
             apiserver/__init__.py

@@ -23,18 +23,16 @@ jobs:
         with:
           python-version: "3.12"
       - run: python -m pip install build twine pyhocon jinja2
-      # Release gate: the server schema this client was generated from (scripts/api-schema-ref) must be part of a
-      # released server, and the committed client must equal what that schema generates. Nothing is uploaded when
-      # this fails. Release order: server first, then the SDK, then the agent.
-      - name: The client matches a released server
+      # Release gate: the committed client must equal what the newest released server generates. Nothing is uploaded
+      # when this fails. Release order: server first, then the SDK, then the agent.
+      - name: The client matches the latest released server
         if: github.event_name == 'release' || inputs.target == 'pypi'
         run: |
-          REF="$(tr -d '[:space:]' < scripts/api-schema-ref)"
           git clone -q --filter=blob:none --no-checkout https://github.com/gianlucapargaetzi/cairnml-server.git /tmp/server
-          git -C /tmp/server checkout -q "$REF"
-          TAGS="$(git -C /tmp/server tag --contains "$REF" | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' || true)"
-          test -n "$TAGS" || { echo "server commit $REF is in no server release: release the server first"; exit 1; }
-          echo "server commit $REF is in: $TAGS"
+          TAG="$(git -C /tmp/server tag | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1)"
+          test -n "$TAG" || { echo "the server has no release"; exit 1; }
+          echo "latest released server: $TAG"
+          git -C /tmp/server checkout -q "$TAG"
           PYTHONPATH=/tmp/server python -m apiserver.client_generator generate --target sdk --out cairnml/backend_api/services --check
       - name: The release tag matches the package version
         if: github.event_name == 'release'

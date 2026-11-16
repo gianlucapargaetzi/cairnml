@@ -59,8 +59,8 @@ Before you submit a new PR:
 
 `cairnml/backend_api/services/<service>.py` for the services listed in the server's generator (today `queues`) is generated
 from the server's schema and must not be edited by hand; the `api contract` CI job fails on any difference. To change it,
-change the schema in cairnml-server, then run `scripts/regenerate-api.sh <server-commit>` (needs `pip install pyhocon jinja2`),
-which also moves the pin in `scripts/api-schema-ref`. Hand-written calls to the API are checked against the same schema;
+change the schema in cairnml-server, then run `scripts/regenerate-api.sh` (needs `pip install pyhocon jinja2`); it generates from the
+server's main. Hand-written calls to the API are checked against the same schema;
 the exceptions are in `scripts/api-allow.txt`, each with a reason.
 
 In your PR include:
