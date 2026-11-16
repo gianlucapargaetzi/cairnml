@@ -30,7 +30,7 @@ from .defs import (
 )
 from .defs import is_config_file
 from .entry import Entry, NotSet
-from .errors import ConfigurationError
+from cairnml.backend_config.errors import ConfigurationError
 from .log import initialize as initialize_log, logger
 from .utils import get_options
 

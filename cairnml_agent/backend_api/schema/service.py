@@ -5,7 +5,7 @@ import attr
 
 import pyhocon
 
-from .action import Action
+from cairnml.backend_api.schema.action import Action
 
 
 class Service(object):
