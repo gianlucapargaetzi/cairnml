@@ -34,7 +34,6 @@ from urllib.parse import quote  # noqa
 
 from pyhocon import ConfigTree, ConfigFactory
 from cairnml_agent.backend_api.endpoints import endpoint
-from cairnml.backend_api.services import auth as auth_api
 from cairnml.backend_api.services import queues as queues_api
 from cairnml.backend_api.services import tasks as tasks_api
 from cairnml.backend_api.services import workers as workers_api
@@ -215,17 +214,14 @@ def check_job_mounts(host_paths) -> None:
             )
 
 
-def job_environment(base_env, impersonated_token=None, job_token=None, job_token_file=None) -> dict:
+def job_environment(base_env, job_token=None, job_token_file=None) -> dict:
     """The environment of a job started on this host. The agent's own auth token is never passed on: the job gets
-    the task owner's token when impersonating, otherwise its own job token."""
+    its own job token."""
     env = dict(base_env)
     for name in ENV_AGENT_AUTH_TOKEN.vars:
         env.pop(name, None)
-    if impersonated_token:
-        env[ENV_AGENT_AUTH_TOKEN.vars[0]] = impersonated_token
-    else:
-        env["CAIRNML_JOB_TOKEN"] = job_token
-        env["CAIRNML_JOB_TOKEN_FILE"] = str(job_token_file)
+    env["CAIRNML_JOB_TOKEN"] = job_token
+    env["CAIRNML_JOB_TOKEN_FILE"] = str(job_token_file)
     return env
 
 
@@ -503,14 +499,12 @@ def get_task(session, task_id, **kwargs):
     return result.response.tasks[0]
 
 
-def get_next_task(session, queue, get_task_info=False):
+def get_next_task(session, queue):
     """
-    Returns dict that contains next task and its additional info (company, user)
+    Returns dict of the next task in the queue
     """
     debug = ENV_AGENT_DEBUG_GET_NEXT_TASK.get()
     request = {"queue": queue}
-    if get_task_info:
-        request["get_task_info"] = True
     if debug:
         print(f"debug> get_next_task: {Request.def_method} payload {request}")
     result = session.send_request(
@@ -1108,7 +1102,6 @@ class Worker(ServiceCommandSection):
         self._daemon_foreground = None
         self._standalone_mode = None
         self._services_mode = None
-        self._impersonate_as_task_owner = None
         self._worker_tags = None
         self._dynamic_gpus = None  # valid options, True/False, "fractional"
         self._force_current_version = None
@@ -1366,11 +1359,8 @@ class Worker(ServiceCommandSection):
                 docker_bash_setup_script=docker_setup_script,
                 restart=self._get_docker_restart_value(task_session, task_id),
             )
-            if self._impersonate_as_task_owner:
-                docker_params["auth_token"] = task_session.token
-            else:
-                docker_params["auth_token"] = job_token
-                docker_params["job_token_dir"] = str(job_token_dir)
+            docker_params["auth_token"] = job_token
+            docker_params["job_token_dir"] = str(job_token_dir)
             if self._worker_tags:
                 docker_params["worker_tags"] = self._worker_tags
             if self._services_mode:
@@ -1418,18 +1408,6 @@ class Worker(ServiceCommandSection):
                     full_docker_cmd=docker_params["docker_arguments"]
                 )
 
-            # Inject the task owner's vault `environment` section as host-side `-e KEY=VAL`
-            # args so they are visible to the docker container (entrypoint, init bash
-            # scripts, etc.) before cairnml-agent boots inside it. Only relevant when
-            # impersonating the task owner — the agent's own vault is handled by
-            # _apply_extra_configuration(), so we only inject the owner's vault here.
-            if (
-                self._session.config.get("agent.docker_apply_environment_from_vault")
-                and self._impersonate_as_task_owner
-            ):
-                vault_env_args = self._load_vault_env_as_docker_args(task_session)
-                if vault_env_args:
-                    docker_params["extra_docker_arguments"] = list(self._extra_docker_arguments or []) + vault_env_args
 
             full_docker_cmd = self.docker_image_func(env_task_id=task_id, **docker_params)
 
@@ -1516,22 +1494,19 @@ class Worker(ServiceCommandSection):
 
             env = job_environment(
                 os.environ,
-                impersonated_token=task_session.token if self._impersonate_as_task_owner else None,
                 job_token=job_token,
                 job_token_file=job_token_file,
             )
             if self._worker_tags:
                 env[ENV_WORKER_TAGS.vars[0]] = " ".join(shlex.quote(t) for t in self._worker_tags)
 
-            if not self._impersonate_as_task_owner:
-                # keep the job's token current for as long as the job runs
-                renewer = TokenRenewer(
-                    job_token_file,
-                    lambda: request_job_token(self._session, task_id),
-                    job_token_lifetime,
-                    label=task_id,
-                )
-                renewer.start()
+            renewer = TokenRenewer(
+                job_token_file,
+                lambda: request_job_token(self._session, task_id),
+                job_token_lifetime,
+                label=task_id,
+            )
+            renewer.start()
             status, stop_signal_status = self._log_command_output(
                 task_id=task_id,
                 cmd=cmd,
@@ -1576,42 +1551,6 @@ class Worker(ServiceCommandSection):
 
         return status
 
-    @staticmethod
-    def get_task_session(user, company, main_session):
-        """
-        Get task session for the user by cloning the agent session
-        and replacing the session credentials with the task owner auth token
-        In case the task is not from the user company proceed with another login
-        to get the auth token for the tenant and return the session for it
-        Requires that agent session credentials will allow impersonation as task user
-        """
-
-        def get_new_session(session, headers):
-            result = session.send(
-                auth_api.LoginRequest(expiration_sec=session.req_token_expiration_sec), headers=headers
-            )
-            if not (result.ok() and result.response):
-                try:
-                    main_session.log.debug("Failed creating task session: %s", result.response)
-                except Exception:
-                    pass
-                return
-            new_session = copy(session)
-            new_session.config = deepcopy(session.config)
-            new_session.api_client = None
-            new_session.set_auth_token(result.response.token)
-            return new_session
-
-        task_session = get_new_session(main_session, headers={"X-Cairnml-Impersonate-As": user})
-        if not task_session:
-            return
-
-        token = task_session.get_decoded_token(task_session.token)
-        if token.get("tenant") == company:
-            return task_session
-
-        return get_new_session(task_session, headers={"X-Cairnml-Tenant": company})
-
     def run_tasks_loop(self, queues, worker_params, priority_order=True, gpu_indexes=None, gpu_queues=None):
         """
         :summary: Pull and run tasks from queues.
@@ -1651,10 +1590,8 @@ class Worker(ServiceCommandSection):
             # multi instance support
             self._services_mode = True
         else:
-            # Send a partial cluster report
             if not self.monitor:
                 self.new_monitor()
-            self.monitor.setup_daemon_cluster_report(worker_id=self.worker_id, max_workers=1)
 
         # last 64 tasks
         dict_task_gpus_ids = {}  # {str(gpu_indexes): task_id}
@@ -1731,9 +1668,7 @@ class Worker(ServiceCommandSection):
 
                     # get next task in queue
                     try:
-                        response = get_next_task(
-                            self._session, queue=queue, get_task_info=self._impersonate_as_task_owner
-                        )
+                        response = get_next_task(self._session, queue=queue)
                     except Exception as e:
                         print("Warning: Could not access task queue [{}], error: {}".format(queue, e))
                         continue
@@ -1773,25 +1708,7 @@ class Worker(ServiceCommandSection):
                                     )
                                 )
 
-                        # check if we need to impersonate
                         task_session = None
-                        if self._impersonate_as_task_owner:
-                            try:
-                                task_user = response["task_info"]["user"]
-                                task_company = response["task_info"]["company"]
-                            except (KeyError, TypeError, AttributeError):
-                                print("Error: cannot retrieve owner user for the task '{}', skipping".format(task_id))
-                                continue
-
-                            task_session = self.get_task_session(task_user, task_company, self._session)
-                            if not task_session:
-                                print(
-                                    "Error: Could not login as the user '{}' for the task '{}', skipping".format(
-                                        task_user, task_id
-                                    )
-                                )
-                                continue
-
                         self.report_monitor(ResourceMonitor.StatusReport(queues=queues, queue=queue, task=task_id))
 
                         org_gpus = Session.get_nvidia_visible_env()
@@ -2016,12 +1933,6 @@ class Worker(ServiceCommandSection):
         ):
             raise ValueError("Dynamic GPU allocation is not supported by your CairnML-server")
 
-        # because it sets the MAX not the actual available (i.e. free) GPUS
-        if not self.monitor:
-            self.new_monitor()
-        self.monitor.setup_dynamic_gpu_cluster_report(
-            worker_id=self.worker_id, available_gpus=gpu_indexes, gpu_queues=gpu_queues
-        )
 
         return available_gpus, gpu_queues
 
@@ -2125,7 +2036,7 @@ class Worker(ServiceCommandSection):
         else:
             if reloaded:
                 self.log('Config file change detected, reloading and updating "{.temp_config_path}"'.format(self))
-                self.dump_config(self.temp_config_path, clean_api_credentials=self._impersonate_as_task_owner)
+                self.dump_config(self.temp_config_path)
 
     def check(self, **_):
         try:
@@ -2190,7 +2101,6 @@ class Worker(ServiceCommandSection):
 
         self._worker_tags = kwargs.get("child_report_tags", None)
 
-        self._use_owner_token(kwargs.get("use_owner_token", False))
 
         self._standalone_mode = kwargs.get("standalone_mode", False)
         self._polling_interval = ENV_QUEUE_POLL_FREQ_SEC.get() or max(kwargs.get("polling_interval", 5), 5)
@@ -2283,9 +2193,9 @@ class Worker(ServiceCommandSection):
         # print docker image
         if use_docker:
             self._force_current_version = kwargs.get("force_current_version", False)
-            self.set_docker_variables(docker, clean_api_credentials=self._impersonate_as_task_owner)
+            self.set_docker_variables(docker)
         else:
-            self.dump_config(self.temp_config_path, clean_api_credentials=self._impersonate_as_task_owner)
+            self.dump_config(self.temp_config_path)
             # only in none docker we have to make sure we have CUDA setup
 
             # make sure we have CUDA set if we have --gpus
@@ -2451,13 +2361,6 @@ class Worker(ServiceCommandSection):
             self.monitor.set_report(report)
         self.monitor.send_report()
 
-    def cluster_report_monitor(self, available_gpus, gpu_queues):
-        if not self.monitor:
-            self.new_monitor()
-        self.monitor.setup_dynamic_gpu_cluster_report(
-            worker_id=self.worker_id, available_gpus=available_gpus, gpu_queues=gpu_queues
-        )
-
     def stop_monitor(self):
         if self.monitor:
             self.monitor.stop()
@@ -2478,7 +2381,7 @@ class Worker(ServiceCommandSection):
         self.monitor.start()
         return self.monitor
 
-    def dump_config(self, filename, config=None, clean_api_credentials=False):
+    def dump_config(self, filename, config=None):
         # noinspection PyBroadException
         try:
             current_content = Path(filename).read_text()
@@ -2494,9 +2397,6 @@ class Worker(ServiceCommandSection):
             if api:
                 # the job signs in with its own token, never with the agent's device
                 api.pop("idp", None)
-            if clean_api_credentials:
-                if api:
-                    api.pop("credentials", None)
 
             new_content = str(json.dumps(config_data, cls=HOCONEncoder, indent=4))
             # Overwrite file only if the content is different, because we are mounting the same file  into
@@ -3867,9 +3767,9 @@ class Worker(ServiceCommandSection):
         except Exception:
             return None
 
-    def set_docker_variables(self, docker, clean_api_credentials=False):
-        temp_config, docker_image_func = self.get_docker_config_cmd(docker, clean_api_credentials=clean_api_credentials)
-        self.dump_config(self.temp_config_path, config=temp_config, clean_api_credentials=clean_api_credentials)
+    def set_docker_variables(self, docker):
+        temp_config, docker_image_func = self.get_docker_config_cmd(docker)
+        self.dump_config(self.temp_config_path, config=temp_config)
         self.docker_image_func = docker_image_func
 
     def get_execution_info(self, current_task):
@@ -4965,7 +4865,7 @@ class Worker(ServiceCommandSection):
             return
         config.pop("agent.package_manager.pip_version")  # removed due to a breaking change in v1.5.1
 
-    def get_docker_config_cmd(self, docker_args, clean_api_credentials=False):
+    def get_docker_config_cmd(self, docker_args):
         docker_image = (
             str(ENV_DOCKER_IMAGE.get() or self._session.config.get("agent.default_docker.image", "nvidia/cuda"))
             if not docker_args
@@ -5060,10 +4960,10 @@ class Worker(ServiceCommandSection):
             self._temp_cleanup_list.append(self._host_ssh_cache)
 
         return temp_config, partial(
-            self._get_docker_config_cmd, temp_config=temp_config, clean_api_credentials=clean_api_credentials
+            self._get_docker_config_cmd, temp_config=temp_config
         )
 
-    def _get_docker_config_cmd(self, temp_config, clean_api_credentials=False, **kwargs):
+    def _get_docker_config_cmd(self, temp_config, **kwargs):
         self.debug("Setting up docker config command")
 
         def load_path(field, default=None):
@@ -5186,7 +5086,7 @@ class Worker(ServiceCommandSection):
         mount_poetry_cache = temp_config.get("agent.docker_internal_mounts.poetry_cache", None)
 
         # Make sure we have created the configuration file for the executor
-        if not self.dump_config(self.temp_config_path, config=temp_config, clean_api_credentials=clean_api_credentials):
+        if not self.dump_config(self.temp_config_path, config=temp_config):
             self.log.warning("Could not update docker configuration file {}".format(self.temp_config_path))
 
         docker_cmd = dict(
@@ -5356,44 +5256,6 @@ class Worker(ServiceCommandSection):
             elif cmd.startswith("-"):
                 skip_arg = True
 
-        return args
-
-    def _load_vault_env_as_docker_args(self, task_session):
-        # type: (Session) -> List[str]
-        """
-        Load the owner's vault (via task_session) and return its `environment` section
-        formatted as docker `-e KEY=VALUE` argument pairs. Returns [] if the resolved
-        configuration is empty, fails to load, or (after all vaults are merged) has
-        `apply_environment: false`. Vaults are an enterprise-only feature, so task_session
-        must have the `advanced` feature set.
-        """
-        try:
-            task_session.verify_feature_set("advanced")
-        except ValueError:
-            return []
-
-        try:
-            task_session.load_vaults()
-            vault_config = task_session.config.resolve_override_configs() or {}
-        except Exception as ex:
-            self.log.warning("Failed loading vaults for docker env injection: {}".format(ex))
-            return []
-
-        if not vault_config.get("apply_environment", True):
-            return []
-
-        env_vars = vault_config.get("environment", None) or {}
-        if isinstance(env_vars, (list, tuple)):
-            env_vars = dict(env_vars)
-
-        args = []
-        for key, value in env_vars.items():
-            if not key:
-                self.log.warning(
-                    f"Skipping vault environment entry with empty key for docker env injection (value={value})"
-                )
-                continue
-            args += ["-e", "{}={}".format(key, "" if value is None else value)]
         return args
 
     def _get_docker_cmd(self, run):
@@ -6023,24 +5885,6 @@ class Worker(ServiceCommandSection):
     def _valid_docker_container_name(name):
         # type: (str) -> bool
         return re.fullmatch(r"^[a-zA-Z0-9][a-zA-Z0-9_.-]+$", name) is not None
-
-    def _use_owner_token(self, use_owner_token=False):
-        self._impersonate_as_task_owner = use_owner_token
-        if self._impersonate_as_task_owner:
-            if self._session.feature_set == "basic":
-                raise ValueError("Server does not support --use-owner-token option")
-
-            identity = self._session.get_decoded_token(self._session.token).get("identity", {})
-            role = identity.get("role", None)
-            try:
-                service_account_type = int(identity.get("service_account_type", 0))
-            except ValueError:
-                service_account_type = 0
-            if role and (role not in ["admin", "root", "system"] and service_account_type < 2):
-                raise ValueError(
-                    "User role not suitable for --use-owner-token option (requires at least admin or service account,"
-                    " found {})".format(role)
-                )
 
     @staticmethod
     def _get_path(d, *path, default=None):

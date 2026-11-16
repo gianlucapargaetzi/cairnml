@@ -114,14 +114,6 @@ def parse_args():
         default=False,
         help="False when running tasks in containers (default: %(default)s)",
     )
-    parser.add_argument(
-        "--use-owner-token",
-        action="store_true",
-        default=False,
-        help="Run tasks under the identity of each task's owner: all calls made by the task code during execution will "
-        "use the owner's credentials instead of the agent's. This features requires the agent to use a CairnML "
-        "Enterprise Server.",
-    )
     return parser.parse_args()
 
 
@@ -167,7 +159,7 @@ def main():
     )
     queue = [q.strip() for q in args.queue.split(",") if q.strip()] if args.queue else None
 
-    k8s.k8s_daemon(queue, use_owner_token=args.use_owner_token)
+    k8s.k8s_daemon(queue)
 
 
 if __name__ == "__main__":

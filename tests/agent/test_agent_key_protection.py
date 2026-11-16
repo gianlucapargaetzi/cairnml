@@ -74,9 +74,3 @@ def test_the_job_gets_its_own_token_and_never_the_agents_auth_token():
     assert env["CAIRNML_JOB_TOKEN_FILE"] == "/tmp/job_token"
     assert env["PATH"] == "/usr/bin"
     assert base["CAIRNML_AUTH_TOKEN"] == "agent-admin-token", "the agent's own environment is not changed"
-
-
-def test_an_impersonated_job_gets_the_task_owners_token():
-    env = job_environment({"CAIRNML_AUTH_TOKEN": "agent-admin-token"}, impersonated_token="owner-token")
-    assert env["CAIRNML_AUTH_TOKEN"] == "owner-token"
-    assert "CAIRNML_JOB_TOKEN" not in env

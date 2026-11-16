@@ -389,9 +389,7 @@ class TemplateResolver:
     @property
     def task_session(self):
         if not self._task_session:
-            raise Exception(
-                "Task session was not provided, probably due to the agent running with no use-owner-token option"
-            )
+            raise Exception("Task session was not provided")
         return self._task_session
 
     def _error(self, err):

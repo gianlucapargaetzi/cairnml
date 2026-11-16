@@ -159,12 +159,6 @@ DAEMON_ARGS = dict(
             "latest released version and print a warning if not. Has no effect if bootstrap is not detected.",
             "action": "store_true",
         },
-        "--use-owner-token": {
-            "help": "Run tasks under the identity of each task's owner: all calls made by the task code during execution "
-            "will use the owner's credentials instead of the agent's. This feature requires the agent to use a "
-            "CairnML Enterprise Server.",
-            "action": "store_true",
-        },
     },
     **WORKER_ARGS,
 )

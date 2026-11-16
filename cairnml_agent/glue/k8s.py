@@ -1377,7 +1377,7 @@ class K8sIntegration(Worker):
                 # get next task in queue
                 try:
                     # print(f"debug> getting tasks for queue {queue}")
-                    response = self._get_next_task(queue=queue, get_task_info=self._impersonate_as_task_owner)
+                    response = self._get_next_task(queue=queue)
                 except Exception as e:
                     print("Warning: Could not access task queue [{}], error: {}".format(queue, e))
                     continue
@@ -1393,22 +1393,6 @@ class K8sIntegration(Worker):
                     print("Received task {} from queue {}".format(task_id, queue))
 
                     task_session = None
-                    if self._impersonate_as_task_owner:
-                        try:
-                            task_user = response["task_info"]["user"]
-                            task_company = response["task_info"]["company"]
-                        except (KeyError, TypeError, AttributeError):
-                            print("Error: cannot retrieve owner user for the task '{}', skipping".format(task_id))
-                            continue
-
-                        task_session = self.get_task_session(task_user, task_company, self._session)
-                        if not task_session:
-                            print(
-                                "Error: Could not login as the user '{}' for the task '{}', skipping".format(
-                                    task_user, task_id
-                                )
-                            )
-                            continue
 
                     events_service.send_log_events(
                         self.worker_id,
@@ -1458,8 +1442,8 @@ class K8sIntegration(Worker):
             **kwargs,
         )
 
-    def _get_next_task(self, queue, get_task_info):
-        return get_next_task(self._session, queue=queue, get_task_info=get_task_info)
+    def _get_next_task(self, queue):
+        return get_next_task(self._session, queue=queue)
 
     def _re_enqueue_task(self, queue, task_id):
         request = {"queue": queue, "task": task_id}
