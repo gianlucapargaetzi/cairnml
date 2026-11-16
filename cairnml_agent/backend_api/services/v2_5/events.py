@@ -75,7 +75,7 @@ class MetricsScalarEvent(NonStrictDataModel):
             self._property_timestamp = None
             return
 
-        self.assert_isinstance(value, "timestamp", int + (float,))
+        self.assert_isinstance(value, "timestamp", (int, float))
         self._property_timestamp = value
 
     @schema_property('type')
@@ -146,7 +146,7 @@ class MetricsScalarEvent(NonStrictDataModel):
             self._property_value = None
             return
 
-        self.assert_isinstance(value, "value", int + (float,))
+        self.assert_isinstance(value, "value", (int, float))
         self._property_value = value
 
 
@@ -217,7 +217,7 @@ class MetricsVectorEvent(NonStrictDataModel):
             self._property_timestamp = None
             return
 
-        self.assert_isinstance(value, "timestamp", int + (float,))
+        self.assert_isinstance(value, "timestamp", (int, float))
         self._property_timestamp = value
 
     @schema_property('type')
@@ -290,7 +290,7 @@ class MetricsVectorEvent(NonStrictDataModel):
 
         self.assert_isinstance(value, "values", (list, tuple))
 
-        self.assert_isinstance(value, "values", int + (float,), is_array=True)
+        self.assert_isinstance(value, "values", (int, float), is_array=True)
         self._property_values = value
 
 
@@ -358,7 +358,7 @@ class MetricsImageEvent(NonStrictDataModel):
             self._property_timestamp = None
             return
 
-        self.assert_isinstance(value, "timestamp", int + (float,))
+        self.assert_isinstance(value, "timestamp", (int, float))
         self._property_timestamp = value
 
     @schema_property('type')
@@ -511,7 +511,7 @@ class MetricsPlotEvent(NonStrictDataModel):
             self._property_timestamp = None
             return
 
-        self.assert_isinstance(value, "timestamp", int + (float,))
+        self.assert_isinstance(value, "timestamp", (int, float))
         self._property_timestamp = value
 
     @schema_property('type')
@@ -660,7 +660,7 @@ class TaskLogEvent(NonStrictDataModel):
             self._property_timestamp = None
             return
 
-        self.assert_isinstance(value, "timestamp", int + (float,))
+        self.assert_isinstance(value, "timestamp", (int, float))
         self._property_timestamp = value
 
     @schema_property('type')
@@ -1185,7 +1185,7 @@ class DebugImagesResponse(Response):
             self._property_total = None
             return
 
-        self.assert_isinstance(value, "total", int + (float,))
+        self.assert_isinstance(value, "total", (int, float))
         self._property_total = value
 
     @schema_property('scroll_id')
@@ -1564,7 +1564,7 @@ class GetMultiTaskPlotsResponse(Response):
             self._property_total = None
             return
 
-        self.assert_isinstance(value, "total", int + (float,))
+        self.assert_isinstance(value, "total", (int, float))
         self._property_total = value
 
     @schema_property('scroll_id')
@@ -2023,7 +2023,7 @@ class GetTaskEventsResponse(Response):
             self._property_total = None
             return
 
-        self.assert_isinstance(value, "total", int + (float,))
+        self.assert_isinstance(value, "total", (int, float))
         self._property_total = value
 
     @schema_property('scroll_id')
@@ -2349,7 +2349,7 @@ class GetTaskLogResponse(Response):
             self._property_total = None
             return
 
-        self.assert_isinstance(value, "total", int + (float,))
+        self.assert_isinstance(value, "total", (int, float))
         self._property_total = value
 
     @schema_property('scroll_id')
@@ -2534,7 +2534,7 @@ class GetTaskPlotsResponse(Response):
             self._property_total = None
             return
 
-        self.assert_isinstance(value, "total", int + (float,))
+        self.assert_isinstance(value, "total", (int, float))
         self._property_total = value
 
     @schema_property('scroll_id')

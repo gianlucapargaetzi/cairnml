@@ -100,7 +100,7 @@ class QueueMetrics(NonStrictDataModel):
 
         self.assert_isinstance(value, "avg_waiting_times", (list, tuple))
 
-        self.assert_isinstance(value, "avg_waiting_times", int + (float,), is_array=True)
+        self.assert_isinstance(value, "avg_waiting_times", (int, float), is_array=True)
         self._property_avg_waiting_times = value
 
     @schema_property('queue_lengths')
@@ -167,7 +167,7 @@ class Entry(NonStrictDataModel):
             self._property_added = None
             return
 
-        self.assert_isinstance(value, "added", str + (datetime,))
+        self.assert_isinstance(value, "added", (str, datetime))
         if not isinstance(value, datetime):
             value = parse_datetime(value)
         self._property_added = value
@@ -299,7 +299,7 @@ class Queue(NonStrictDataModel):
             self._property_created = None
             return
 
-        self.assert_isinstance(value, "created", str + (datetime,))
+        self.assert_isinstance(value, "created", (str, datetime))
         if not isinstance(value, datetime):
             value = parse_datetime(value)
         self._property_created = value
@@ -1361,7 +1361,7 @@ class GetQueueMetricsRequest(Request):
             self._property_from_date = None
             return
 
-        self.assert_isinstance(value, "from_date", int + (float,))
+        self.assert_isinstance(value, "from_date", (int, float))
         self._property_from_date = value
 
     @schema_property('to_date')
@@ -1374,7 +1374,7 @@ class GetQueueMetricsRequest(Request):
             self._property_to_date = None
             return
 
-        self.assert_isinstance(value, "to_date", int + (float,))
+        self.assert_isinstance(value, "to_date", (int, float))
         self._property_to_date = value
 
     @schema_property('interval')
