@@ -36,7 +36,6 @@ from pyhocon import ConfigTree, ConfigFactory
 from cairnml_agent.backend_api.endpoints import endpoint
 from cairnml.backend_api.services import queues as queues_api
 from cairnml.backend_api.services import tasks as tasks_api
-from cairnml.backend_api.services import workers as workers_api
 from cairnml.backend_api.session.callresult import CallResult
 from cairnml.backend_api.session.request import Request
 from cairnml.backend_api.session.defs import (
@@ -49,7 +48,6 @@ from cairnml_agent.session_env import (
     ENV_MULTI_NODE_SINGLE_TASK,
 )
 from cairnml_agent.backend_config.config import Config
-from cairnml_agent.backend_config.defs import UptimeConf
 from cairnml.backend_config.utils import apply_environment, apply_files
 from cairnml_agent.helper.environment.converters import text_to_int
 from cairnml_agent.commands.base import resolve_names, ServiceCommandSection
@@ -181,7 +179,6 @@ from cairnml_agent.helper.repo import (
     VCS,  # noqa: F401  # used in type comments
 )
 from cairnml_agent.helper.resource_monitor import ResourceMonitor
-from cairnml_agent.helper.runtime_verification import check_runtime, print_uptime_properties
 from cairnml_agent.helper.singleton import Singleton
 from cairnml_agent.helper.docker_args import DockerArgsSanitizer, DockerArgsTemplateResolver
 from cairnml_agent.idp.device import DEVICE_KEY_PATH, exposes_device_key, secure_folder
@@ -1088,7 +1085,6 @@ class Worker(ServiceCommandSection):
         self.poetry = PoetryConfig(self._session)
         self.uv = UvConfig(self._session)
         self.docker_image_func = None
-        self._patch_docker_cmd_func = None
         self._docker_image = None
         self._docker_arguments = None
         # if True, docker default passed on command line, which means we ignore the default docker match rules
@@ -1103,11 +1099,8 @@ class Worker(ServiceCommandSection):
         self._standalone_mode = None
         self._services_mode = None
         self._worker_tags = None
-        self._dynamic_gpus = None  # valid options, True/False, "fractional"
         self._force_current_version = None
         self._redirected_stdout_file_no = None
-        self._uptime_config = self._session.config.get("agent.uptime", None)
-        self._downtime_config = self._session.config.get("agent.downtime", None)
         self._suppress_cr = self._session.config.get("agent.suppress_carriage_return", True)
         self._host_ssh_cache = None
         self._truncate_task_output_files = bool(self._session.config.get("agent.truncate_task_output_files", False))
@@ -1117,7 +1110,6 @@ class Worker(ServiceCommandSection):
         # True - supported
         # None - not initialized
         # str - not supported, version string indicates last server version
-        self._runtime_props_support = None
 
         # allow docker sanitization, needs backend support
         if ENV_DOCKER_ARGS_FILTERS.get():
@@ -1312,7 +1304,7 @@ class Worker(ServiceCommandSection):
         docker_image = None
         worker_id = (
             "{}:service:{}".format(self.worker_id, task_id)
-            if self._services_mode and not self._dynamic_gpus
+            if self._services_mode
             else self.worker_id
         )
 
@@ -1451,10 +1443,6 @@ class Worker(ServiceCommandSection):
                 session=task_session,
             )
 
-            # patch the full docker cmd if needed, notice this is done post reporting
-            if self._patch_docker_cmd_func:
-                full_docker_cmd = self._patch_docker_cmd_func(full_docker_cmd)
-
             cmd = Argv(*full_docker_cmd, display_argv=display_docker_command)
 
             print("Running Docker:\n{}\n".format(str(cmd)))
@@ -1551,7 +1539,7 @@ class Worker(ServiceCommandSection):
 
         return status
 
-    def run_tasks_loop(self, queues, worker_params, priority_order=True, gpu_indexes=None, gpu_queues=None):
+    def run_tasks_loop(self, queues, worker_params, priority_order=True):
         """
         :summary: Pull and run tasks from queues.
         :description: 1. Go through ``queues`` by order.
@@ -1561,111 +1549,20 @@ class Worker(ServiceCommandSection):
         :param worker_params worker_params: Worker command line arguments
         :param bool priority_order: If True pull order in priority manner. always from the first
             If False, pull from each queue once in a round robin manner
-        :param list gpu_indexes: list of gpu_indexes. Needs special backend support
-        :param list gpu_queues: list of pairs (queue_id, num_gpus). Needs special backend support
         """
 
         if not self._daemon_foreground:
             print("Starting infinite task polling loop...")
 
-        if self._services_mode:
-            try:
-                max_num_instances = int(self._services_mode) if not isinstance(self._services_mode, bool) else -1
-            except (ValueError, TypeError):
-                max_num_instances = -1
-        else:
-            max_num_instances = None
+        if not self.monitor:
+            self.new_monitor()
 
-        # store in runtime configuration,
-        if max_num_instances and not self.set_runtime_properties(key="max_num_instances", value=max_num_instances):
-            warning("Maximum number of service instance not supported, removing limit.")
-            max_num_instances = -1
-
-        # get current running instances
-        available_gpus = None
-        allocated_gpus = {}
-        dynamic_gpus_worker_id = None
-        if gpu_indexes and gpu_queues:
-            available_gpus, gpu_queues = self._setup_dynamic_gpus(gpu_queues, gpu_indexes)
-            # multi instance support
-            self._services_mode = True
-        else:
-            if not self.monitor:
-                self.new_monitor()
-
-        # last 64 tasks
-        dict_task_gpus_ids = {}  # {str(gpu_indexes): task_id}
+        # set when a task is pulled: the worker is then unregistered when the loop ends
+        pulled_task = False
         try:
             while True:
-                queue_tags = None
-                runtime_props = None
-
-                if max_num_instances and max_num_instances > 0:
-                    # make sure we do not have too many instances to run
-                    if self.docker_image_func:
-                        running_count = self._get_child_agents_count_for_worker()
-                    else:
-                        running_count = len(Singleton.get_running_pids())
-                    if running_count >= max_num_instances:
-                        if self._daemon_foreground or worker_params.debug:
-                            print(
-                                "Reached max number of services {}, sleeping for {:.1f} seconds".format(
-                                    max_num_instances, self._polling_interval
-                                )
-                            )
-                        sleep(self._polling_interval)
-                        continue
-
-                # update available gpus
-                if gpu_queues:
-                    available_gpus, allocated_gpus = self._dynamic_gpu_get_available(gpu_indexes)
-                    # if something went wrong, or we have no free gpus
-                    # start over from the highest priority queue
-                    if not available_gpus:
-                        if self._daemon_foreground or worker_params.debug:
-                            print("All GPUs allocated, sleeping for {:.1f} seconds".format(self._polling_interval))
-                        sleep(self._polling_interval)
-                        continue
-
                 # iterate over queues (priority style, queues[0] is highest)
                 for queue in queues:
-                    if queue_tags is None or runtime_props is None:
-                        queue_tags, runtime_props = self.get_worker_properties(queues)
-
-                    if not self.should_be_currently_active(queue_tags[queue], runtime_props):
-                        continue
-
-                    if gpu_queues:
-                        # peek into queue
-                        # get next task in queue
-                        try:
-                            response = self._session.send_api(queues_api.GetByIdRequest(queue=queue))
-                        except Exception:
-                            # if something went wrong start over from the highest priority queue
-                            break
-                        if not len(response.queue.entries):
-                            continue
-                        # check if we do not have enough available gpus
-                        # Notice that gpu_queues[queue] is (min_gpu, max_gpu) that we should allocate
-                        # for a Task pulled from that queue, this means
-                        # gpu_queues[queue][0] is the minimum number of GPUs we need
-                        # and min_available_fract_gpu is the maximum number of fraction of GPU
-                        # and max_available_gpus is the maximum number of full GPUs we have
-                        min_available_fract_gpu = max([v for v in available_gpus.values()])
-                        max_available_gpus = sum([v for v in available_gpus.values() if v >= 1])
-                        if gpu_queues[queue][0] > max(float(max_available_gpus), min_available_fract_gpu):
-                            # not enough available_gpus, we should sleep and start over
-                            if self._daemon_foreground or worker_params.debug:
-                                print(
-                                    "Not enough free GPUs {}/{}, sleeping for {:.1f} seconds".format(
-                                        max(float(max_available_gpus), min_available_fract_gpu),
-                                        gpu_queues[queue][0],
-                                        self._polling_interval,
-                                    )
-                                )
-                            sleep(self._polling_interval)
-                            break
-
                     # get next task in queue
                     try:
                         response = get_next_task(self._session, queue=queue)
@@ -1679,6 +1576,8 @@ class Worker(ServiceCommandSection):
                             if self._daemon_foreground or worker_params.debug:
                                 print("No tasks in queue {}".format(queue))
                             continue
+
+                        pulled_task = True
 
                         # clear output log if we start a new Task
                         if (
@@ -1711,100 +1610,6 @@ class Worker(ServiceCommandSection):
                         task_session = None
                         self.report_monitor(ResourceMonitor.StatusReport(queues=queues, queue=queue, task=task_id))
 
-                        org_gpus = Session.get_nvidia_visible_env()
-                        dynamic_gpus_worker_id = self.worker_id
-                        # the following is only executed in dynamic gpus mode
-                        if gpu_queues and gpu_queues.get(queue):
-                            gpus = []
-                            fractions = []
-                            # pick the first available GPUs
-                            # gpu_queues[queue] = (min_gpus, max_gpus)
-                            # first check if the max_gpus is larger equal to 1 (if so, allocate full GPUs)
-                            if float(gpu_queues.get(queue)[1]) >= 1:
-                                gpus = [g for g, v in available_gpus.items() if v >= 1]
-                                if gpus:
-                                    # get as many gpus as possible with max_gpus as limit, the min is covered before
-                                    gpus = gpus[: int(gpu_queues.get(queue)[1])]
-                                    fractions = [1] * len(gpus)
-                                    # update available gpus
-                                    available_gpus = {g: v for g, v in available_gpus.items() if g not in gpus}
-                                else:
-                                    # we assume the minimum was < 1 GPU, otherwise why are we here
-                                    pass
-
-                            # if this is under 1 GPU
-                            if not gpus:
-                                # find the GPU with availability that covers the minimum
-                                _max_req_gpu = min(float(gpu_queues.get(queue)[1]), 1.0)
-                                _min_req_gpu = float(gpu_queues.get(queue)[0])
-                                _potential_gpus = {
-                                    g: (v - float(_max_req_gpu))
-                                    for g, v in available_gpus.items()
-                                    if v >= float(_min_req_gpu)
-                                }
-                                # sort based on the least available that can fit the maximum
-                                # find the first instance that is positive or 0
-                                _potential_gpus = sorted(_potential_gpus.items(), key=lambda a: a[1])
-                                gpus = [(g, v) for g, v in _potential_gpus if v >= 0]
-                                if gpus:
-                                    available_gpus[gpus[0][0]] -= _max_req_gpu
-                                    gpus = [gpus[0][0]]
-                                    fractions = [_max_req_gpu]
-                                else:
-                                    gpus = [_potential_gpus[-1][0]]
-                                    # this is where we need to decide on the actual granularity
-                                    # now it is hardcoded to 1/8th
-                                    _base_fract = 8
-                                    avail_fract = int(float(available_gpus[_potential_gpus[-1][0]]) * _base_fract)
-                                    fractions = [avail_fract / float(avail_fract)]
-                                    available_gpus[_potential_gpus[-1][0]] -= fractions[0]
-
-                                try:
-                                    from cairnml_agent_fractional_gpu import patch_docker_cmd_gpu_fraction  # noqa
-
-                                    # new docker image func
-                                    self._patch_docker_cmd_func = lambda docker_cmd, fractions=fractions: (
-                                        patch_docker_cmd_gpu_fraction(docker_cmd, gpu_fraction=fractions[0])
-                                    )
-                                except Exception:
-                                    print(
-                                        "Error! could not load cairnml_agent_fractional_gpu module! "
-                                        "failed configuring fractional GPU support"
-                                    )
-                                    raise
-
-                            self.set_runtime_properties(
-                                key="available_gpus",
-                                value=",".join("{}_{}".format(g, str(f)[2:]) for g, f in available_gpus.items()),
-                            )
-
-                            # this is where we set the fractions as well as gpus
-                            Session.set_nvidia_visible_env(gpus)
-
-                            if fractions and min(fractions) < 1:
-                                # we assume a single gpu in the list
-                                gpu_idx_fract = ["{}.{}".format(g, str(f)[2:]) for g, f in zip(gpus, fractions)]
-                                # check a new available unique name (id) for us
-                                from string import ascii_lowercase
-
-                                for x in ascii_lowercase:
-                                    if gpu_idx_fract[0] + x not in allocated_gpus:
-                                        gpu_idx_fract[0] = gpu_idx_fract[0] + x
-                                        break
-
-                                # add the new task
-                                allocated_gpus[gpu_idx_fract[0]] = fractions[0]
-                                dict_task_gpus_ids.update({str(g): task_id for g in gpu_idx_fract})
-                                self.worker_id = ":".join(
-                                    self.worker_id.split(":")[:-1] + ["gpu" + ",".join(str(g) for g in gpu_idx_fract)]
-                                )
-                            else:
-                                # update the task list
-                                dict_task_gpus_ids.update({str(g): task_id for g in gpus})
-                                self.worker_id = ":".join(
-                                    self.worker_id.split(":")[:-1] + ["gpu" + ",".join(str(g) for g in gpus)]
-                                )
-
                         self.send_logs(
                             task_id=task_id,
                             lines=["task {} pulled from {} by worker {}\n".format(task_id, queue, self.worker_id)],
@@ -1814,18 +1619,7 @@ class Worker(ServiceCommandSection):
 
                         self.run_one_task(queue, task_id, worker_params, task_session=task_session)
 
-                        # restore back worker_id / GPUs
-                        if gpu_queues:
-                            self.worker_id = dynamic_gpus_worker_id
-                            Session.set_nvidia_visible_env(org_gpus)
-
-                        # clear docker patching function (if exists
-                        self._patch_docker_cmd_func = None
-
                         self.report_monitor(ResourceMonitor.StatusReport(queues=self.queues))
-
-                        queue_tags = None
-                        runtime_props = None
 
                         # if we are using priority start pulling from the first always,
                         # if we are doing roundrobin, pull from the next one
@@ -1840,192 +1634,17 @@ class Worker(ServiceCommandSection):
                 if self._session.config.get("agent.reload_config", False):
                     self.reload_config()
         finally:
-            # if we are in dynamic gpus mode, shutdown all active runs
-            if self.docker_image_func:
-                for t_id in set(dict_task_gpus_ids.values()):
-                    if shutdown_docker_process(docker_cmd_contains="--id {}'\"".format(t_id)):
-                        self.handle_task_termination(task_id=t_id, exit_code=0, stop_reason=TaskStopReason.stopped)
-            else:
-                # if we are in dynamic gpus / services mode,
-                # we should send termination signal to all child processes
+            if not self.docker_image_func:
+                # if we are in services mode, we should send termination signal to all child processes
                 if self._services_mode:
                     terminate_all_child_processes(timeout=20, include_parent=False)
 
                 # if we are here, just kill all sub processes
                 kill_all_child_processes(debug=self._session.debug_mode if self._session else False)
 
-            # unregister dynamic GPU worker, if we were terminated while setting up a Task
-            if dynamic_gpus_worker_id:
-                self.worker_id = dynamic_gpus_worker_id
+            # unregister the worker, if we were terminated after pulling a Task
+            if pulled_task:
                 self._unregister()
-
-    def _dynamic_gpu_get_available(self, gpu_indexes):
-        # key: cast to string, value: 1 (i.e. gull GPU)
-        gpu_indexes = {str(g): 1 for g in gpu_indexes}
-        worker_name = self._session.config.get("agent.worker_name", "") + ":gpu"
-
-        # only return "Our" workers (requires server API +2, otherwise the selecort pattern is ignored)
-        # noinspection PyBroadException
-        try:
-            response = self._session.send_api(
-                workers_api.GetAllRequest(
-                    last_seen=600, worker_pattern="{}*".format(worker_name), _allow_extra_fields_=True
-                )
-            )
-        except Exception:
-            return None
-
-        # filter only our workers, in case the selector pattern above was ignored due to lower version API server
-        our_workers = [w.id for w in response.workers if w.id.startswith(worker_name) and w.id != self.worker_id]
-        gpus = {}
-        allocated_gpus = {}
-        gpu_pattern = re.compile(r"\d+[.]?\d*[a-z]?")
-        fract_gpu_pattern = re.compile(r"\d+[.]?\d*[a-z]+")
-        for w in our_workers:
-            for g in w.split(":")[-1].lower().replace("gpu", "").split(","):
-                try:
-                    # verify pattern "int.int" or "int.int[a-z]"
-                    gpu_idx_name = g.strip()
-                    if gpu_pattern.fullmatch(gpu_idx_name):
-                        # check if this is a fraction
-                        if fract_gpu_pattern.fullmatch(gpu_idx_name):
-                            gpu_idx = gpu_idx_name.split(".")[0]
-                            gpu_fract = float("0.{}".format(gpu_idx_name.split(".")[-1][:-1]))
-                            # the entire gpu
-                            gpus[gpu_idx] = gpus.get(gpu_idx, 0) + gpu_fract
-                            # the gpu fraction uid eg 0.25a
-                            allocated_gpus[gpu_idx_name] = gpu_fract
-                        else:
-                            # or a static MIG slice
-                            gpus[gpu_idx_name] = 1
-                            allocated_gpus[gpu_idx_name] = 1
-                    else:
-                        print("INFO: failed parsing fractional GPU '{}' - skipping".format(g))
-                except (ValueError, TypeError):
-                    print("INFO: failed parsing GPU int('{}') - skipping".format(g))
-
-        # remove the GPUs we have workers running on
-        available_gpus = {g: (v - gpus.get(g, 0)) for g, v in gpu_indexes.items() if (v - gpus.get(g, 0)) > 0}
-        return available_gpus, allocated_gpus
-
-    def _setup_dynamic_gpus(self, gpu_queues, gpu_indexes):
-        available_gpus = self.get_runtime_properties()
-        if available_gpus is None:
-            raise ValueError("Dynamic GPU allocation is not supported by your CairnML-server")
-        available_gpus = [prop["value"] for prop in available_gpus if prop["key"] == "available_gpus"]
-        if available_gpus:
-            gpus = {}
-            for g_v in available_gpus[-1].split(","):
-                g, v = g_v.split("_")
-                try:
-                    # verify "int.int_float"
-                    if float(g.strip()) >= 0:
-                        gpus[g.strip()] = float("0." + v)
-                except (ValueError, TypeError):
-                    print("INFO: failed parsing GPU int('{}') - skipping".format(g))
-            available_gpus = gpus
-
-        if not isinstance(gpu_queues, dict):
-            gpu_queues = dict(gpu_queues)
-
-        if not self.set_runtime_properties(
-            key="available_gpus", value=",".join("{}_{}".format(g, str(v)[2:]) for g, v in available_gpus.items())
-        ):
-            raise ValueError("Dynamic GPU allocation is not supported by your CairnML-server")
-
-
-        return available_gpus, gpu_queues
-
-    def get_worker_properties(self, queue_ids):
-        queue_tags = {
-            q.id: {"name": q.name, "tags": q.tags}
-            for q in self._session.send_api(queues_api.GetAllRequest(id=queue_ids, only_fields=["id", "tags"])).queues
-        }
-        runtime_props = self.get_runtime_properties()
-        return queue_tags, runtime_props
-
-    def get_runtime_properties(self):
-        # TODO: refactor to use the Session env State
-        if self._runtime_props_support is not True:
-            # either not supported or never tested
-            if self._runtime_props_support == self._session.api_version:
-                # tested against latest api_version, not supported
-                return None
-        try:
-            res = self.get("get_runtime_properties", worker=self.worker_id)["runtime_properties"]
-            # definitely supported
-            self._runtime_props_support = True
-            return res
-        except APIError:
-            self._runtime_props_support = self._session.api_version
-        return None
-
-    def set_runtime_properties(self, key, value):
-        if self._runtime_props_support is not True:
-            # either not supported or never tested
-            if self._runtime_props_support == self._session.api_version:
-                # tested against latest api_version, not supported
-                return False
-
-        # noinspection PyBroadException
-        try:
-            self.post(
-                "set_runtime_properties",
-                json={"runtime_properties": [{"key": key, "value": str(value)}], "worker": self.worker_id},
-            )
-            # definitely supported
-            self._runtime_props_support = True
-            return True
-        except APIError:
-            self._runtime_props_support = self._session.api_version
-        except Exception:
-            # not sure what happened
-            pass
-
-        return False
-
-    def should_be_currently_active(self, current_queue, runtime_properties):
-        """
-        Checks if a worker is active according to queue tags, worker's runtime properties and uptime schedule.
-        """
-        runtime_properties = runtime_properties or []
-        if UptimeConf.queue_tag_off in current_queue["tags"]:
-            self.log.debug(
-                "Queue {} is tagged '{}', worker will not pull tasks".format(
-                    current_queue["name"], UptimeConf.queue_tag_off
-                )
-            )
-            return False
-        if UptimeConf.queue_tag_on in current_queue["tags"]:
-            self.log.debug(
-                "Queue {} is tagged '{}', worker will pull tasks".format(current_queue["name"], UptimeConf.queue_tag_on)
-            )
-            return True
-        force_flag = next((prop for prop in runtime_properties if prop["key"] == UptimeConf.worker_key), None)
-        if force_flag:
-            if force_flag["value"].lower() in UptimeConf.worker_value_off:
-                self.log.debug(
-                    "worker has the following runtime property: '{}'. worker will not pull tasks".format(force_flag)
-                )
-                return False
-            elif force_flag["value"].lower() in UptimeConf.worker_value_on:
-                self.log.debug(
-                    "worker has the following runtime property: '{}'. worker will pull tasks".format(force_flag)
-                )
-                return True
-            else:
-                print(
-                    "Warning: invalid runtime_property '{}: {}' supported values are: '{}/{}', ignoring".format(
-                        force_flag["key"], force_flag["value"], UptimeConf.worker_value_on, UptimeConf.worker_value_off
-                    )
-                )
-        if self._uptime_config:
-            self.log.debug("following uptime configurations")
-            return check_runtime(self._uptime_config)
-        if self._downtime_config:
-            self.log.debug("following downtime configurations")
-            return check_runtime(self._downtime_config, is_uptime=False)
-        return True
 
     def reload_config(self):
         try:
@@ -2108,32 +1727,12 @@ class Worker(ServiceCommandSection):
         # must have docker in services_mode
         if self._services_mode:
             kwargs = self._verify_command_states(kwargs)
-        self._uptime_config = kwargs.get("uptime", None) or self._uptime_config
-        self._downtime_config = kwargs.get("downtime", None) or self._downtime_config
-        if self._uptime_config and self._downtime_config:
-            self.log.error(
-                "Both uptime and downtime were specified when only one of them could be used. Both will be ignored."
-            )
-            self._uptime_config = None
-            self._downtime_config = None
-
-        # support --dynamic-gpus
-        dynamic_gpus, gpu_indexes, queues = self._parse_dynamic_gpus(kwargs, queues)
-
-        if self._services_mode and dynamic_gpus:
-            raise ValueError("Combining --dynamic-gpus and --services-mode is not supported")
-
-        if self._dynamic_gpus == "fractional" and not use_docker:
-            raise ValueError(
-                "Fractional GPUs are only supported in docker-mode, add --docker to allow docker-mode operation"
-            )
-
         # We are not running a daemon we are killing one.
         # find the pid send termination signal and leave
         if kwargs.get("stop", False) is not False:
             return_code = 0
             for worker_id in kwargs.get("stop") or [None]:
-                if not self._kill_daemon(dynamic_gpus=dynamic_gpus, worker_id=worker_id):
+                if not self._kill_daemon(worker_id=worker_id):
                     return_code = 1
             return return_code
 
@@ -2143,20 +1742,9 @@ class Worker(ServiceCommandSection):
 
         queues_info = [q.to_dict() for q in self._session.send_api(queues_api.GetAllRequest(id=queues)).queues]
 
-        if kwargs.get("status", False):
-            runtime_properties = self.get_runtime_properties()
-            if self._downtime_config:
-                print_uptime_properties(self._downtime_config, queues_info, runtime_properties, is_uptime=False)
-            else:
-                print_uptime_properties(self._uptime_config, queues_info, runtime_properties)
-            return 1
-
         # make sure we only have a single instance,
         # also make sure we set worker_id properly and cache folders
-        self._singleton(dynamic_gpus=bool(dynamic_gpus))
-
-        if dynamic_gpus:
-            self._register_dynamic_gpus(gpu_indexes)
+        self._singleton()
 
         # check if we have bootstrap package installed
         if bootstrap.check_bootstrap_package_install(config=self._session.config):
@@ -2178,10 +1766,6 @@ class Worker(ServiceCommandSection):
 
         columns = ("id", "name", "tags")
         print("Listening to queues:")
-        if dynamic_gpus:
-            columns = ("id", "name", "tags", "gpus (min, max)")
-            for q in queues_info:
-                q["gpus"] = str(dict(dynamic_gpus).get(q["id"]) or "")
         print_table(queues_info, columns=columns, titles=columns)
 
         # register worker
@@ -2262,8 +1846,6 @@ class Worker(ServiceCommandSection):
                             trace=self._session.trace,
                         ),
                         priority_order=not order_fairness,
-                        gpu_indexes=gpu_indexes,
-                        gpu_queues=dynamic_gpus,
                     )
                 except Exception as e:
                     tb = str(traceback.format_exc())
@@ -2285,74 +1867,6 @@ class Worker(ServiceCommandSection):
         finally:
             self._unregister(queues)
             safe_remove_file(self.temp_config_path)
-
-    def _parse_dynamic_gpus(self, kwargs, queues):
-        dynamic_gpus = kwargs.get("dynamic_gpus", None)
-        if not dynamic_gpus:
-            return None, None, queues
-
-        has_fractional = False
-        queue_names = [q.name for q in queues]
-        if not all("=" in q for q in queue_names):
-            raise ValueError(
-                "using --dynamic-gpus, --queue [{}], queue must be in format <queue_name>=<num_gpus>".format(
-                    queue_names
-                )
-            )
-
-        gpu_indexes = kwargs.get("gpus")
-
-        # test gpus were passed correctly
-        if not gpu_indexes or len(gpu_indexes.split("-")) > 2 or ("," in gpu_indexes and "-" in gpu_indexes):
-            raise ValueError("--gpus must be provided, in one of two ways: comma separated '0,1,2,3' or range '0-3'")
-        try:
-            if "-" in gpu_indexes:
-                gpu_indexes = list(range(int(gpu_indexes.split("-")[0]), 1 + int(gpu_indexes.split("-")[1])))
-            else:
-                gpu_indexes = [str(g).replace(":", ".").strip() for g in gpu_indexes.split(",")]
-            # verify (basically numbers with single "." dot)
-            gpu_indexes = [str(g) for g in gpu_indexes if float(g) >= 0]
-        except Exception as ex:
-            raise ValueError(
-                'Failed parsing --gpus "{}". '
-                "--dynamic_gpus must be use with "
-                'specific gpus for example "0-7" or "0,1,2,3" or "0:0,0:1,1:0,1:1"'.format(kwargs.get("gpus"))
-            ) from ex
-
-        dynamic_gpus = []
-        for s in queue_names:
-            s_p = s.split("=")
-            name = s[: -1 - len(s_p[-1])]
-            min_max_g = float(s_p[-1].split("-")[0] or 1), float(s_p[-1].split("-")[-1])
-            if min(min_max_g) <= 0:
-                raise ValueError('Parsing min/max number of gpus <= 0 is not allowed: "{}"'.format(s))
-            if any(g for g in min_max_g if 1 < g != int(g)):
-                raise ValueError('Parsing min/max number of gpus, fractional gpu cannot be > 1: "{}"'.format(s))
-            has_fractional = min(min_max_g) < 1
-            dynamic_gpus.append(
-                (
-                    name,
-                    min_max_g,
-                )
-            )
-        queue_names = [q for q, _ in dynamic_gpus]
-        # resolve queue ids
-        dynamic_gpus_q = self._resolve_queue_names(queue_names)
-        dynamic_gpus = list(zip(dynamic_gpus_q, [i for _, i in dynamic_gpus]))
-        # maintain original priority order
-        queues = [q for q, _ in dynamic_gpus]
-
-        self._dynamic_gpus = "fractional" if has_fractional else True
-
-        return dynamic_gpus, gpu_indexes, queues
-
-    def _register_dynamic_gpus(self, gpu_indexes):
-        # test server support
-        available_gpus, allocated_gpus = self._dynamic_gpu_get_available(gpu_indexes)
-        if not self.set_runtime_properties(
-            key="available_gpus", value=",".join("{}_{}".format(g, str(v)[2:]) for g, v in available_gpus.items())
-        ):
-            raise ValueError("Dynamic GPU allocation is not supported by your CairnML-server")
 
     def report_monitor(self, report):
         if not self.monitor:
@@ -5793,9 +5307,9 @@ class Worker(ServiceCommandSection):
 
         return command, script_dir
 
-    def _kill_daemon(self, dynamic_gpus=False, worker_id=None):
+    def _kill_daemon(self, worker_id=None):
         if not worker_id:
-            worker_id, worker_name = self._generate_worker_id_name(dynamic_gpus=dynamic_gpus)
+            worker_id, worker_name = self._generate_worker_id_name()
         else:
             worker_name = worker_id
 
@@ -5803,13 +5317,6 @@ class Worker(ServiceCommandSection):
         for pid, uid, slot, file in sorted(Singleton.get_running_pids(), key=lambda x: x[1] or ""):
             if pid < 0 or uid is None:
                 continue
-
-            # if dynamic gpus kill all children
-            if dynamic_gpus and uid == worker_id:
-                print("Terminating cairnml-agent worker_id={} pid={}".format(uid, pid))
-                if not terminate_process(pid, timeout=120):
-                    warning("Could not terminate process pid={}".format(pid))
-                return True
 
             # either we have a match for the worker_id or we just pick the first one, and kill it.
             if (worker_id and uid == worker_id) or (not worker_id and uid.startswith("{}:".format(worker_name))):
@@ -5827,9 +5334,9 @@ class Worker(ServiceCommandSection):
         )
         return False
 
-    def _singleton(self, dynamic_gpus=False):
+    def _singleton(self):
         # ensure singleton
-        worker_id, worker_name = self._generate_worker_id_name(dynamic_gpus=dynamic_gpus)
+        worker_id, worker_name = self._generate_worker_id_name()
 
         # if we are running in services mode, we allow double register since
         # docker-compose will kill instances before they cleanup
@@ -5849,13 +5356,13 @@ class Worker(ServiceCommandSection):
         # update folders based on free slot
         self._session.create_cache_folders(slot_index=worker_slot)
 
-    def _generate_worker_id_name(self, dynamic_gpus=False):
+    def _generate_worker_id_name(self):
         worker_id = self._session.config["agent.worker_id"]
         worker_name = self._session.config["agent.worker_name"]
         if not worker_id and Session.get_nvidia_visible_env() is not None:
             nvidia_visible_devices = Session.get_nvidia_visible_env()
             if nvidia_visible_devices and nvidia_visible_devices.lower() != "none":
-                worker_id = "{}:{}gpu{}".format(worker_name, "d" if dynamic_gpus else "", nvidia_visible_devices)
+                worker_id = "{}:gpu{}".format(worker_name, nvidia_visible_devices)
             elif nvidia_visible_devices == "":
                 pass
             else:

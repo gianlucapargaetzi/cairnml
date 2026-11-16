@@ -309,7 +309,6 @@ class K8sIntegration(Worker):
                 ],
             )
             # definitely supported
-            self._runtime_props_support = True
         except APIError as error:
             if error.code == 404:
                 self._edit_hyperparams_support = self._session.api_version

@@ -23,11 +23,3 @@ LOCAL_CONFIG_FILES = [
     ),  # written by cairnml-agent init, next to the device key (last = preferred)
 ]
 """ Local config files of the agent (not paths). The agent does not read the CairnML SDK's ~/cairnml.conf """
-
-
-class UptimeConf(object):
-    queue_tag_on = "force_workers:on"
-    queue_tag_off = "force_workers:off"
-    worker_key = "force"
-    worker_value_off = ["off"]
-    worker_value_on = ["on"]

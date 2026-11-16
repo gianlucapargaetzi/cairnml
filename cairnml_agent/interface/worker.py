@@ -126,34 +126,6 @@ DAEMON_ARGS = dict(
             "nargs": "*",
             "default": False,
         },
-        "--dynamic-gpus": {
-            "help": "Allow to dynamically allocate gpus based on queue properties, "
-            "configure with '--queue <queue_name>=<num_gpus>'."
-            " Example: '--dynamic-gpus --gpus 0-3 --queue dual_gpus=2 single_gpu=1'."
-            " Example Opportunistic: '--dynamic-gpus --gpus 0-3 --queue dual_gpus=2 max_quad_gpus=1-4'."
-            " Note that the queue list order determines priority, with the first listed queue having the"
-            " highest priority. To change this behavior, use --order-fairness to pull from each queue in a"
-            " round-robin order",
-            "action": "store_true",
-        },
-        "--uptime": {
-            "help": 'Specify uptime for cairnml-agent in "<hours> <days>" format. for example, use "17-20 TUE" to set '
-            "Tuesday's uptime to 17-20"
-            "Note: Make sure to have only one of uptime/downtime configuration and not both.",
-            "nargs": "*",
-            "default": None,
-        },
-        "--downtime": {
-            "help": 'Specify downtime for cairnml-agent in "<hours> <days>" format. for example, use "09-13 TUE" to set '
-            "Tuesday's downtime to 09-13"
-            "Note: Make sure to have only on of uptime/downtime configuration and not both.",
-            "nargs": "*",
-            "default": None,
-        },
-        "--status": {
-            "help": "Print the worker's schedule (uptime properties, server's runtime properties and listening queues)",
-            "action": "store_true",
-        },
         "--check-bootstrap": {
             "help": "On daemon startup, check whether the installed cairnml-agent-bootstrap package is the "
             "latest released version and print a warning if not. Has no effect if bootstrap is not detected.",
