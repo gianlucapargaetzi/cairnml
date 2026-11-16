@@ -300,10 +300,19 @@ def attach(task: "Task", pinned: Optional[str] = None) -> None:
     _reporter.start()
 
 
+_handed_over = False
+
+
+def hand_over() -> None:
+    """This process queues its run and leaves: no bar is expected to start here"""
+    global _handed_over
+    _handed_over = True
+
+
 def detach() -> None:
     """Send the last state and stop; warn if the bar that was asked for never started"""
     global _reporter
-    if tracker.pinned and not tracker.pinned_seen:
+    if tracker.pinned and not tracker.pinned_seen and not _handed_over:
         from ..debugging.log import LoggerRoot
 
         LoggerRoot.get_base_logger().warning(

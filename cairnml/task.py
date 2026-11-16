@@ -3707,6 +3707,7 @@ class Task(_Task):
             LoggerRoot.get_base_logger().warning(
                 "CairnML Terminating local execution process - continuing execution remotely"
             )
+            _progress.hand_over()
             leave_process(0)
 
         return task
