@@ -15,5 +15,5 @@ def _requirements():
 def test_the_agent_requires_the_sdk():
     sdk = [r for r in _requirements() if r.name == "cairnml"]
     assert len(sdk) == 1, "requirements.txt must hold exactly one cairnml requirement"
-    assert sdk[0].specifier.contains("0.0.5")
+    assert sdk[0].specifier.contains("0.0.6")
     assert not sdk[0].specifier.contains("0.1.0")
