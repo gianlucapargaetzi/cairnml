@@ -16,7 +16,6 @@ from pathlib2 import Path
 from threading import Thread
 
 from .util import get_command_output, remove_user_pass_from_url
-from ....backend_api import Session
 from ....config import deferred_config, VCS_WORK_DIR, VCS_ENTRY_POINT, VCS_DIFF
 from ....debugging import get_logger
 from ....debugging.ignored import log_ignored
@@ -571,7 +570,7 @@ class _JupyterObserver:
                     conda_requirements = ""
                     # parse jupyter python script and prepare pip requirements (pigar)
                     # if backend supports requirements
-                    if file_import_modules and Session.check_min_api_version("2.2"):
+                    if file_import_modules:
                         if fmodules is None:
                             fmodules, _ = file_import_modules(
                                 notebook.parts[-1] if notebook else "notebook",
@@ -1208,7 +1207,7 @@ class ScriptInfo:
         conda_requirements = ""
         # create requirements if backend supports requirements
         # if jupyter is present, requirements will be created in the background, when saving a snapshot
-        if not jupyter_filepath and Session.check_min_api_version("2.2"):
+        if not jupyter_filepath:
             script_requirements = ScriptRequirements(
                 Path(repo_root).as_posix() if repo_info.url else script_path.as_posix()
             )

@@ -1753,8 +1753,6 @@ class Task(_Task):
 
         :return: The artifacts.
         """
-        if not Session.check_min_api_version("2.3"):
-            return ReadOnlyDict()
         artifacts_pairs = []
         if self.data.execution and self.data.execution.artifacts:
             artifacts_pairs = [(a.key, Artifact(a)) for a in self.data.execution.artifacts]
@@ -1836,10 +1834,6 @@ class Task(_Task):
         :rtype: Task
         """
         assert isinstance(source_task, (str, Task))
-        if not Session.check_min_api_version("2.4"):
-            raise ValueError(
-                "CairnML-server does not support DevOps features, upgrade cairnml-server to 0.12.0 or above"
-            )
 
         task_id = source_task if isinstance(source_task, str) else source_task.id
         if not parent:
@@ -1909,10 +1903,6 @@ class Task(_Task):
 
         """
         assert isinstance(task, (str, Task))
-        if not Session.check_min_api_version("2.4"):
-            raise ValueError(
-                "CairnML-server does not support DevOps features, upgrade cairnml-server to 0.12.0 or above"
-            )
 
         # make sure we have wither name ot id
         mutually_exclusive(queue_name=queue_name, queue_id=queue_id)
@@ -1927,7 +1917,7 @@ class Task(_Task):
                 raise ValueError(unknown_queue_message(queue_name, session))
 
         # the server answers queue_watched (servers from API 2.22) when no worker listens to the queue
-        watch_kwargs = {"verify_watched_queue": True} if Session.check_min_api_version("2.22") else {}
+        watch_kwargs = {"verify_watched_queue": True}
         req = tasks.EnqueueRequest(task=task_id, queue=queue_id, **watch_kwargs)
         exception = None
         res = None
@@ -1967,8 +1957,6 @@ class Task(_Task):
 
         :return: The number of tasks enqueued in the given queue
         """
-        if not Session.check_min_api_server_version("2.20"):
-            raise ValueError("You version of cairnml-server does not support the 'queues.get_num_entries' endpoint")
         mutually_exclusive(queue_name=queue_name, queue_id=queue_id)
         session = cls._get_default_session()
         if not queue_id:
@@ -2018,10 +2006,6 @@ class Task(_Task):
 
         """
         assert isinstance(task, (str, Task))
-        if not Session.check_min_api_version("2.4"):
-            raise ValueError(
-                "CairnML-server does not support DevOps features, upgrade cairnml-server to 0.12.0 or above"
-            )
 
         task_id = task if isinstance(task, str) else task.id
         session = cls._get_default_session()
@@ -2162,15 +2146,8 @@ class Task(_Task):
             (object, self._connect_object),
         )
 
-        multi_config_support = Session.check_min_api_version("2.9")
-        if multi_config_support and not name and not isinstance(mutable, (OutputModel, InputModel)):
+        if not name and not isinstance(mutable, (OutputModel, InputModel)):
             name = self._default_configuration_section_name
-
-        if not multi_config_support and name and name != self._default_configuration_section_name:
-            raise ValueError(
-                "Multiple configurations is not supported with the current 'cairnml-server', "
-                "please upgrade to the latest version"
-            )
 
         for mutable_type, method in dispatch:
             if isinstance(mutable, mutable_type):
@@ -2326,15 +2303,8 @@ class Task(_Task):
         if pathlib_Path and isinstance(configuration, pathlib_Path):
             cast_Path = pathlib_Path
 
-        multi_config_support = Session.check_min_api_version("2.9")
-        if multi_config_support and not name:
+        if not name:
             name = self._default_configuration_section_name
-
-        if not multi_config_support and name and name != self._default_configuration_section_name:
-            raise ValueError(
-                "Multiple configurations is not supported with the current 'cairnml-server', "
-                "please upgrade to the latest version"
-            )
 
         # parameter dictionary
         if isinstance(
@@ -2346,28 +2316,20 @@ class Task(_Task):
         ):
 
             def _update_config_dict(task, config_dict):
-                if multi_config_support:
-                    # noinspection PyProtectedMember
-                    task._set_configuration(
-                        name=name,
-                        description=description,
-                        config_type="dictionary",
-                        config_dict=config_dict,
-                    )
-                else:
-                    # noinspection PyProtectedMember
-                    task._set_model_config(config_dict=config_dict)
+                task._set_configuration(
+                    name=name,
+                    description=description,
+                    config_type="dictionary",
+                    config_dict=config_dict,
+                )
 
             def get_dev_config(configuration_: Union[dict, list, Path, str]) -> Union[dict, ProxyDictPostWrite]:
-                if multi_config_support:
-                    self._set_configuration(
-                        name=name,
-                        description=description,
-                        config_type="dictionary",
-                        config_dict=configuration_,
-                    )
-                else:
-                    self._set_model_config(config_dict=configuration)
+                self._set_configuration(
+                    name=name,
+                    description=description,
+                    config_type="dictionary",
+                    config_dict=configuration_,
+                )
                 if isinstance(configuration_, dict):
                     configuration_ = ProxyDictPostWrite(self, _update_config_dict, configuration_)
                 return configuration_
@@ -2381,11 +2343,7 @@ class Task(_Task):
             else:
                 # noinspection PyBroadException
                 try:
-                    remote_configuration = (
-                        self._get_configuration_dict(name=name)
-                        if multi_config_support
-                        else self._get_model_config_dict()
-                    )
+                    remote_configuration = self._get_configuration_dict(name=name)
                 except Exception:
                     remote_configuration = None
 
@@ -2395,13 +2353,12 @@ class Task(_Task):
                         f"Using default configuration: {configuration}"
                     )
                     # update back configuration section
-                    if multi_config_support:
-                        self._set_configuration(
-                            name=name,
-                            description=description,
-                            config_type="dictionary",
-                            config_dict=configuration,
-                        )
+                    self._set_configuration(
+                        name=name,
+                        description=description,
+                        config_type="dictionary",
+                        config_dict=configuration,
+                    )
                     return configuration
 
                 if not remote_configuration:
@@ -2433,23 +2390,20 @@ class Task(_Task):
                 raise ValueError(
                     f"Could not connect configuration file {configuration_path.as_posix()}, file could not be read"
                 ) from err
-            if multi_config_support:
-                self._set_configuration(
-                    name=name,
-                    description=description,
-                    config_type=(
-                        configuration_path.suffixes[-1].lstrip(".")
-                        if configuration_path.suffixes and configuration_path.suffixes[-1]
-                        else "file"
-                    ),
-                    config_text=configuration_text,
-                )
-            else:
-                self._set_model_config(config_text=configuration_text)
+            self._set_configuration(
+                name=name,
+                description=description,
+                config_type=(
+                    configuration_path.suffixes[-1].lstrip(".")
+                    if configuration_path.suffixes and configuration_path.suffixes[-1]
+                    else "file"
+                ),
+                config_text=configuration_text,
+            )
             return configuration
         else:
             configuration_text = (
-                self._get_configuration_text(name=name) if multi_config_support else self._get_model_config_text()
+                self._get_configuration_text(name=name)
             )
             if configuration_text is None:
                 LoggerRoot.get_base_logger().warning(
@@ -2457,22 +2411,21 @@ class Task(_Task):
                     f"Using default configuration: {configuration}"
                 )
                 # update back configuration section
-                if multi_config_support:
-                    configuration_path = cast_Path(configuration)
-                    if configuration_path.is_file():
-                        with open(configuration_path.as_posix(), "rt") as f:
-                            configuration_text = f.read()
+                configuration_path = cast_Path(configuration)
+                if configuration_path.is_file():
+                    with open(configuration_path.as_posix(), "rt") as f:
+                        configuration_text = f.read()
 
-                        self._set_configuration(
-                            name=name,
-                            description=description,
-                            config_type=(
-                                configuration_path.suffixes[-1].lstrip(".")
-                                if configuration_path.suffixes and configuration_path.suffixes[-1]
-                                else "file"
-                            ),
-                            config_text=configuration_text,
-                        )
+                    self._set_configuration(
+                        name=name,
+                        description=description,
+                        config_type=(
+                            configuration_path.suffixes[-1].lstrip(".")
+                            if configuration_path.suffixes and configuration_path.suffixes[-1]
+                            else "file"
+                        ),
+                        config_text=configuration_text,
+                    )
                 return configuration
 
             configuration_path = cast_Path(configuration)
@@ -3349,9 +3302,6 @@ class Task(_Task):
 
         :param value_only: If ``True``, returned user property details will be a string representing the property value.
         """
-        if not Session.check_min_api_version("2.9"):
-            self.log.info("User properties are not supported by the server")
-            return {}
 
         section = "properties"
 
@@ -3431,9 +3381,6 @@ class Task(_Task):
                   }
 
         """
-        if not Session.check_min_api_version("2.9"):
-            self.log.info("User properties are not supported by the server")
-            return False
 
         return self._hyper_params_manager.edit_hyper_params(
             iterables=list(properties.items())
@@ -3531,9 +3478,6 @@ class Task(_Task):
             * A dictionary with 'section' and 'name' keys
             * An iterable (e.g. tuple, list etc.) whose first two items denote 'section' and 'name'
         """
-        if not Session.check_min_api_version("2.9"):
-            self.log.info("User properties are not supported by the server")
-            return False
 
         return self._hyper_params_manager.delete_hyper_params(*iterables)
 
@@ -3679,10 +3623,7 @@ class Task(_Task):
         else:
             task = self
             # check if the server supports enqueueing aborted/stopped Tasks
-            if Session.check_min_api_server_version("2.13"):
-                self.mark_stopped(force=True)
-            else:
-                self.reset()
+            self.mark_stopped(force=True)
 
         # enqueue ourselves
         if queue_name:
@@ -3760,8 +3701,6 @@ class Task(_Task):
             raise ValueError("Only the main Task object can call create_function_task()")
         if not callable(func):
             raise ValueError("func must be callable")
-        if not Session.check_min_api_version("2.9"):
-            raise ValueError("Remote function execution is not supported, please upgrade to the latest server version")
 
         func_name = str(func_name or func.__name__).strip()
         if func_name in self._remote_functions_generated:
@@ -5566,18 +5505,6 @@ class Task(_Task):
                     project_name = project.name
             except Exception:
                 pass
-
-        if (
-            task_data.get("type")
-            and task_data.get("type") not in (cls.TaskTypes.training, cls.TaskTypes.testing)
-            and not Session.check_min_api_version(2.8)
-        ):
-            print(
-                f'WARNING: Changing task type to "{cls.TaskTypes.training}" : '
-                f'cairnml-server does not support task type "{task_data["type"].value}", '
-                "please upgrade cairnml-server."
-            )
-            task_data["type"] = cls.TaskTypes.training
 
         compares = (
             (task.name, "name"),

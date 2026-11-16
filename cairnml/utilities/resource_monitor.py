@@ -202,14 +202,13 @@ class ResourceMonitor(BackgroundMonitor):
                 pass
 
         # add Task runtime_properties with the machine spec
-        if Session.check_min_api_version("2.13"):
-            try:
-                machine_spec = self._get_machine_specs()
-                if machine_spec:
-                    # noinspection PyProtectedMember
-                    self._task._set_runtime_properties(runtime_properties=machine_spec)
-            except Exception as ex:
-                logging.getLogger("cairnml.resource_monitor").debug(f"Failed logging machine specification: {ex}")
+        try:
+            machine_spec = self._get_machine_specs()
+            if machine_spec:
+                # noinspection PyProtectedMember
+                self._task._set_runtime_properties(runtime_properties=machine_spec)
+        except Exception as ex:
+            logging.getLogger("cairnml.resource_monitor").debug(f"Failed logging machine specification: {ex}")
 
         # last_iteration_interval = None
         # last_iteration_ts = 0

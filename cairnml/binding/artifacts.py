@@ -19,7 +19,6 @@ from pathlib2 import Path
 from six.moves.urllib.parse import quote
 from six.moves.urllib.parse import urlparse
 
-from ..backend_api import Session
 from ..backend_api.services import tasks
 from ..backend_interface.metrics.events import UploadEvent
 from ..config import deferred_config, config
@@ -505,11 +504,6 @@ class Artifacts:
         serialization_function: Optional[Callable[[Any], Union[bytes, bytearray]]] = None,
         sort_keys: bool = True,
     ) -> bool:
-        if not Session.check_min_api_version("2.3"):
-            LoggerRoot.get_base_logger().warning(
-                "Artifacts not supported by your CairnML-server version, please upgrade to the latest server version"
-            )
-            return False
 
         if name in self._artifacts_container:
             raise ValueError(f"Artifact by the name of {name} is already registered, use register_artifact")
@@ -1028,7 +1022,6 @@ class Artifacts:
             self._task._add_artifacts(self._task_artifact_list)
 
     def _upload_data_audit_artifacts(self, name: str) -> None:
-        logger = self._task.get_logger()
         pd_artifact = self._artifacts_container.get(name)
         pd_metadata = self._artifacts_container.get_metadata(name)
 
@@ -1062,16 +1055,6 @@ class Artifacts:
         self._last_artifacts_upload[name] = current_sha2
 
         # If old cairnml-server, upload as debug image
-        if not Session.check_min_api_version("2.3"):
-            logger.report_image(
-                title="artifacts",
-                series=name,
-                local_path=local_csv.as_posix(),
-                delete_after_upload=True,
-                iteration=self._task.get_last_iteration(),
-                max_image_history=2,
-            )
-            return
 
         # Find our artifact
         artifact = None

@@ -17,7 +17,6 @@ from copy import copy
 
 from typing import Tuple, Type, Union, List, Optional, Dict, Any
 
-from ...backend_api import Session
 from ...binding.args import call_original_argparser
 from ...utilities.proxy_object import get_type_from_basic_type_str
 
@@ -88,7 +87,7 @@ class _Arguments:
         self._exclude_parser_args = excluded_args or {}
 
     def set_defaults(self, *dicts: Any, **kwargs: Any) -> None:
-        prefix = self._prefix_args if Session.check_min_api_version("2.9") else None
+        prefix = self._prefix_args
         # noinspection PyProtectedMember
         self._task._set_parameters(*dicts, __parameters_prefix=prefix, **kwargs)
 
@@ -102,8 +101,7 @@ class _Arguments:
         if not option_strings:
             raise Exception("Expected at least one argument name (option string)")
         name = option_strings[0].strip("- \t") if isinstance(option_strings, list) else option_strings.strip("- \t")
-        if Session.check_min_api_version("2.9"):
-            name = self._prefix_args + name
+        name = self._prefix_args + name
         self._task.set_parameter(name=name, value=default, description=help, value_type=type)
 
     def connect(self, parser: argparse.ArgumentParser) -> None:
@@ -230,31 +228,28 @@ class _Arguments:
                 del task_defaults[k]
 
         # Skip excluded arguments, Add prefix.
-        if Session.check_min_api_version("2.9"):
-            include_all = self._exclude_parser_args.get("*", True)
-            task_defaults = dict(
-                [
-                    (self._prefix_args + k, v)
-                    for k, v in task_defaults.items()
-                    if self._exclude_parser_args.get(k, include_all)
-                ]
-            )
-            task_defaults_descriptions = dict(
-                [
-                    (self._prefix_args + k, v)
-                    for k, v in task_defaults_descriptions.items()
-                    if self._exclude_parser_args.get(k, include_all)
-                ]
-            )
-            task_defaults_types = dict(
-                [
-                    (self._prefix_args + k, v)
-                    for k, v in task_defaults_types.items()
-                    if self._exclude_parser_args.get(k, include_all)
-                ]
-            )
-        else:
-            task_defaults = dict([(k, v) for k, v in task_defaults.items() if self._exclude_parser_args.get(k, True)])
+        include_all = self._exclude_parser_args.get("*", True)
+        task_defaults = dict(
+            [
+                (self._prefix_args + k, v)
+                for k, v in task_defaults.items()
+                if self._exclude_parser_args.get(k, include_all)
+            ]
+        )
+        task_defaults_descriptions = dict(
+            [
+                (self._prefix_args + k, v)
+                for k, v in task_defaults_descriptions.items()
+                if self._exclude_parser_args.get(k, include_all)
+            ]
+        )
+        task_defaults_types = dict(
+            [
+                (self._prefix_args + k, v)
+                for k, v in task_defaults_types.items()
+                if self._exclude_parser_args.get(k, include_all)
+            ]
+        )
 
         return task_defaults, task_defaults_descriptions, task_defaults_types
 
@@ -308,7 +303,7 @@ class _Arguments:
                     return None
 
         # Change to argparse prefix only
-        prefix = self._prefix_args if Session.check_min_api_version("2.9") else ""
+        prefix = self._prefix_args
         task_arguments = dict(
             [
                 (k[len(prefix) :], v)
@@ -514,7 +509,7 @@ class _Arguments:
         self._remove_req_flag_from_mutex_groups(parser)
 
         # if API supports sections, we can update back the Args section with all the missing default
-        if Session.check_min_api_version("2.9") and not self._exclude_parser_args.get("*", None):
+        if not self._exclude_parser_args.get("*", None):
             # noinspection PyBroadException
             try:
                 (

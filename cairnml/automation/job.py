@@ -13,7 +13,6 @@ from typing import Optional, Mapping, Sequence, Callable, Union, Tuple, List, An
 from pathlib2 import Path
 
 from cairnml.utilities.hashing import md5_safe_hash
-from ..backend_api import Session
 from ..backend_api.services import tasks as tasks_service
 from ..backend_interface.util import get_or_create_project, exact_match_regex
 from ..storage.hashing import hash_dict
@@ -440,7 +439,7 @@ class BaseJob:
             if explicit_docker_image:
                 docker["image"] = explicit_docker_image
 
-        hash_func = "md5" if Session.check_min_api_version("2.13") else "crc32"
+        hash_func = "md5"
 
         # make sure that if we only have docker args/bash,
         # we use encode it, otherwise we revert to the original encoding (excluding docker altogether)
@@ -463,28 +462,15 @@ class BaseJob:
         """
         if not task_hash:
             return None
-        if Session.check_min_api_version("2.13"):
-            # noinspection PyProtectedMember
-            potential_tasks = Task._query_tasks(
-                status=["completed", "published"],
-                system_tags=[f"-{Task.archived_tag}"],
-                _all_=dict(
-                    fields=[f"runtime.{cls._job_hash_property}"],
-                    pattern=exact_match_regex(task_hash),
-                ),
-                only_fields=["id"],
-            )
-        else:
-            # noinspection PyProtectedMember
-            potential_tasks = Task._query_tasks(
-                status=["completed", "published"],
-                system_tags=[f"-{Task.archived_tag}"],
-                _all_=dict(
-                    fields=["comment"],
-                    pattern=cls._job_hash_description.format(task_hash),
-                ),
-                only_fields=["id"],
-            )
+        potential_tasks = Task._query_tasks(
+            status=["completed", "published"],
+            system_tags=[f"-{Task.archived_tag}"],
+            _all_=dict(
+                fields=[f"runtime.{cls._job_hash_property}"],
+                pattern=exact_match_regex(task_hash),
+            ),
+            only_fields=["id"],
+        )
         for obj in potential_tasks:
             task = Task.get_task(task_id=obj.id)
             return task
@@ -501,16 +487,7 @@ class BaseJob:
             return
         if not task_hash:
             task_hash = cls._create_task_hash(task=task)
-        if Session.check_min_api_version("2.13"):
-            # noinspection PyProtectedMember
-            task._set_runtime_properties(runtime_properties={cls._job_hash_property: str(task_hash)})
-        else:
-            hash_comment = f"{cls._job_hash_description.format(task_hash)}\n"
-            task.set_comment(
-                f"{task.comment}\n{hash_comment}"  # ruff-format-hint
-                if task.comment
-                else hash_comment
-            )
+        task._set_runtime_properties(runtime_properties={cls._job_hash_property: str(task_hash)})
 
 
 class CairnmlJob(BaseJob):

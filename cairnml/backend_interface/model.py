@@ -79,34 +79,12 @@ class Model(IdObjectBase, AsyncManagerMixin, _StorageUriMixin):
         self.reload()
 
     def archive(self) -> None:
-        if Session.check_min_api_server_version("2.13"):
-            self.send(models.ArchiveManyRequest(ids=[self.id]))
-            self.reload()
-        else:
-            from ..model import BaseModel
-
-            # edit will reload
-            self._edit(
-                system_tags=list(
-                    set((self.data.system_tags or []) if hasattr(self.data, "system_tags") else [])
-                    | {BaseModel._archived_tag}
-                )
-            )
+        self.send(models.ArchiveManyRequest(ids=[self.id]))
+        self.reload()
 
     def unarchive(self) -> None:
-        if Session.check_min_api_server_version("2.13"):
-            self.send(models.UnarchiveManyRequest(ids=[self.id]))
-            self.reload()
-        else:
-            from ..model import BaseModel
-
-            # edit will reload
-            self._edit(
-                system_tags=list(
-                    set((self.data.system_tags or []) if hasattr(self.data, "system_tags") else [])
-                    - {BaseModel._archived_tag}
-                )
-            )
+        self.send(models.UnarchiveManyRequest(ids=[self.id]))
+        self.reload()
 
     def _reload(self) -> Optional["models.Model"]:
         """Reload the model object"""
@@ -267,8 +245,7 @@ class Model(IdObjectBase, AsyncManagerMixin, _StorageUriMixin):
         project = project_id or self.data.project
         parent = parent_id or self.data.parent
         tags = tags or self.data.tags
-        if Session.check_min_api_version("2.3"):
-            system_tags = system_tags or self.data.system_tags
+        system_tags = system_tags or self.data.system_tags
 
         self._edit(
             uri=uri,
@@ -340,16 +317,10 @@ class Model(IdObjectBase, AsyncManagerMixin, _StorageUriMixin):
                 **extra,
             )
 
-        if Session.check_min_api_version("2.3"):
-            if tags is not None:
-                extra.update({"tags": tags})
-            if system_tags is not None:
-                extra.update({"system_tags": system_tags})
-        elif tags is not None or system_tags is not None:
-            if tags and system_tags:
-                system_tags = system_tags[:]
-                system_tags += [t for t in tags if t not in system_tags]
-            extra.update({"system_tags": system_tags or tags or self.data.system_tags})
+        if tags is not None:
+            extra.update({"tags": tags})
+        if system_tags is not None:
+            extra.update({"system_tags": system_tags})
 
         self.send(
             models.EditRequest(
@@ -630,11 +601,7 @@ class Model(IdObjectBase, AsyncManagerMixin, _StorageUriMixin):
         data = self.data
         assert isinstance(data, models.Model)
         parent = self.id if child else None
-        extra = (
-            {"system_tags": tags or data.system_tags}
-            if Session.check_min_api_version("2.3")
-            else {"tags": tags or data.tags}
-        )
+        extra = {"system_tags": tags or data.system_tags}
         req = models.CreateRequest(
             uri=data.uri,
             name=name,

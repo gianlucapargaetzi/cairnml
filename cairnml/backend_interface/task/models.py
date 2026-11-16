@@ -14,7 +14,6 @@ try:
 except ImportError:
     UserDict = dict
 
-from cairnml.backend_api import Session
 from cairnml.backend_api.services import models
 
 if typing.TYPE_CHECKING:
@@ -63,15 +62,7 @@ class TaskModels(UserDict):
     def _get_input_models(self, task: "Task") -> ModelsList:
         # noqa: F821
 
-        if Session.check_min_api_version("2.13"):
-            parsed_ids = list(task.input_models_id.values())
-        else:
-            # since we'll fall back to the new task.models.input if no parsed IDs are found, only
-            #  extend this with the input model in case we're using 2.13 and have any parsed IDs or if we're using
-            #  a lower API version.
-            parsed_ids = [i[-1] for i in self._input_models_re.findall(task.comment)]
-            # get the last one on the Task
-            parsed_ids.extend(list(task.input_models_id.values()))
+        parsed_ids = list(task.input_models_id.values())
 
         from cairnml.model import Model
 
@@ -87,9 +78,7 @@ class TaskModels(UserDict):
                 pass
 
         # noinspection PyProtectedMember
-        if Session.check_min_api_version("2.13") and task._get_task_property(
-            "models.input", raise_on_error=False, log_on_error=False
-        ):
+        if task._get_task_property("models.input", raise_on_error=False, log_on_error=False):
             input_models = OrderedDict((x.name, get_model(x.model)) for x in task.data.models.input)
         else:
             # remove duplicates and preserve order
@@ -109,7 +98,7 @@ class TaskModels(UserDict):
         # remove duplicates and preserve order
         ids = list(OrderedDict.fromkeys(ids))
 
-        id_to_name = {x.model: x.name for x in task.data.models.output} if Session.check_min_api_version("2.13") else {}
+        id_to_name = {x.model: x.name for x in task.data.models.output}
 
         def resolve_name(index: int, model_id: str) -> str:
             return id_to_name.get(model_id, f"Output Model #{index}")

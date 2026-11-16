@@ -16,7 +16,6 @@ from cairnml.binding.matplotlib_bind import PatchedMatplotlib  # noqa: E402
 
 @pytest.fixture(autouse=True)
 def _reset_renderer(monkeypatch):
-    monkeypatch.setattr(PatchedMatplotlib, "_support_image_plot", True)
     monkeypatch.setattr(PatchedMatplotlib, "_matplotlylib", None)
     monkeypatch.setattr(PatchedMatplotlib, "_plotly_renderer", None)
     monkeypatch.setattr(PatchedMatplotlib, "_plotly_missing_reported", False)

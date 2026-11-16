@@ -290,9 +290,7 @@ def attach(task: "Task", pinned: Optional[str] = None) -> None:
     if _reporter is not None or task is None:
         return
     try:
-        from ..backend_api import Session
-
-        if task.is_offline() or not Session.check_min_api_version("2.23"):
+        if task.is_offline():
             return
     except Exception:  # noqa
         return

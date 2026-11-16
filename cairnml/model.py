@@ -25,7 +25,6 @@ try:
 except ImportError:
     pd = None
 
-from .backend_api import Session
 from .backend_api.services import models, projects
 from pathlib2 import Path
 
@@ -268,7 +267,7 @@ class BaseModel(ABC):
         :return: The list of tags.
         """
         data = self._get_model_data()
-        return data.system_tags if Session.check_min_api_version("2.3") else data.tags
+        return data.system_tags
 
     @system_tags.setter
     def system_tags(self, value: List[str]) -> None:
@@ -1708,11 +1707,7 @@ class InputModel(Model):
         # convert local to file to remote one
         weights_url = CacheManager.get_remote_url(weights_url)
 
-        extra = (
-            {"system_tags": ["-" + cls._archived_tag]}
-            if Session.check_min_api_version("2.3")
-            else {"tags": ["-" + cls._archived_tag]}
-        )
+        extra = {"system_tags": ["-" + cls._archived_tag]}
         # noinspection PyProtectedMember
         result = _Model._get_default_session().send(
             models.GetAllRequest(uri=[weights_url], only_fields=["id", "name", "created"], **extra)
@@ -1811,11 +1806,7 @@ class InputModel(Model):
 
         if not load_archived:
             # noinspection PyTypeChecker
-            extra = (
-                {"system_tags": ["-" + _Task.archived_tag]}
-                if Session.check_min_api_version("2.3")
-                else {"tags": ["-" + cls._archived_tag]}
-            )
+            extra = {"system_tags": ["-" + _Task.archived_tag]}
         else:
             extra = {}
 
