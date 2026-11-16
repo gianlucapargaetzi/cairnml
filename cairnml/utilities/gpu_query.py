@@ -184,3 +184,20 @@ def _amd_processes(processes: Any) -> List[Dict[str, Any]]:
             }
         )
     return rows
+
+
+_rocm_env_cache: Optional[bool] = None
+
+
+def detect_rocm_env() -> bool:
+    """True when this host has an AMD ROCm GPU and no NVIDIA GPU: the ROCm kernel driver is there, the NVIDIA one is not."""
+    global _rocm_env_cache
+    if _rocm_env_cache is not None:
+        return _rocm_env_cache
+    try:
+        has_amd = os.path.exists("/dev/kfd")
+        has_nvidia = os.path.exists("/dev/nvidia0") or os.path.exists("/proc/driver/nvidia")
+        _rocm_env_cache = bool(has_amd and not has_nvidia)
+    except Exception:
+        _rocm_env_cache = False
+    return _rocm_env_cache
