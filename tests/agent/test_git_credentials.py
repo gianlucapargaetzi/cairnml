@@ -99,7 +99,7 @@ def test_a_non_github_https_repository_gets_the_stored_credential_of_the_task():
     credential = select_git_credential(session, "https://gitlab.example.com/team/repo.git", "task-1")
     assert credential == ("oauth2", TOKEN)
     assert calls == [
-        dict(service="devices", action="git_token", version="2.8", method=calls[0]["method"], json={"task": "task-1"})
+        dict(service="devices", action="git_token", version="2.41", method=calls[0]["method"], json={"task": "task-1"})
     ]
 
 

@@ -33,10 +33,9 @@ from pathlib import Path
 from urllib.parse import quote  # noqa
 
 from pyhocon import ConfigTree, ConfigFactory
-from cairnml_agent.backend_api.services import auth as auth_api
-from cairnml_agent.backend_api.services import queues as queues_api
-from cairnml_agent.backend_api.services import tasks as tasks_api
-from cairnml_agent.backend_api.services import workers as workers_api
+from cairnml_agent.backend_api.endpoints import endpoint
+from cairnml.backend_api.services import queues as queues_api
+from cairnml.backend_api.services import tasks as tasks_api
 from cairnml.backend_api.session.callresult import CallResult
 from cairnml.backend_api.session.request import Request
 from cairnml.backend_api.session.defs import (
@@ -49,7 +48,6 @@ from cairnml_agent.session_env import (
     ENV_MULTI_NODE_SINGLE_TASK,
 )
 from cairnml_agent.backend_config.config import Config
-from cairnml_agent.backend_config.defs import UptimeConf
 from cairnml.backend_config.utils import apply_environment, apply_files
 from cairnml_agent.helper.environment.converters import text_to_int
 from cairnml_agent.commands.base import resolve_names, ServiceCommandSection
@@ -181,7 +179,6 @@ from cairnml_agent.helper.repo import (
     VCS,  # noqa: F401  # used in type comments
 )
 from cairnml_agent.helper.resource_monitor import ResourceMonitor
-from cairnml_agent.helper.runtime_verification import check_runtime, print_uptime_properties
 from cairnml_agent.helper.singleton import Singleton
 from cairnml_agent.helper.docker_args import DockerArgsSanitizer, DockerArgsTemplateResolver
 from cairnml_agent.idp.device import DEVICE_KEY_PATH, exposes_device_key, secure_folder
@@ -191,6 +188,8 @@ from cairnml_agent.commands import bootstrap
 
 DOCKER_ROOT_CONF_FILE = "/tmp/cairnml.conf"  # assuming we can always access/mount this file
 DOCKER_DEFAULT_CONF_FILE = "~/default_cairnml.conf"
+# a queue with this tag is not pulled from by the worker (the queue is switched off for workers)
+QUEUE_TAG_OFF = "force_workers:off"
 
 
 sys_random = random.SystemRandom()
@@ -214,17 +213,14 @@ def check_job_mounts(host_paths) -> None:
             )
 
 
-def job_environment(base_env, impersonated_token=None, job_token=None, job_token_file=None) -> dict:
+def job_environment(base_env, job_token=None, job_token_file=None) -> dict:
     """The environment of a job started on this host. The agent's own auth token is never passed on: the job gets
-    the task owner's token when impersonating, otherwise its own job token."""
+    its own job token."""
     env = dict(base_env)
     for name in ENV_AGENT_AUTH_TOKEN.vars:
         env.pop(name, None)
-    if impersonated_token:
-        env[ENV_AGENT_AUTH_TOKEN.vars[0]] = impersonated_token
-    else:
-        env["CAIRNML_JOB_TOKEN"] = job_token
-        env["CAIRNML_JOB_TOKEN_FILE"] = str(job_token_file)
+    env["CAIRNML_JOB_TOKEN"] = job_token
+    env["CAIRNML_JOB_TOKEN_FILE"] = str(job_token_file)
     return env
 
 
@@ -481,9 +477,7 @@ def get_task(session, task_id, **kwargs):
     """Use manual api call so that we can pass 'search_hidden' param from api v2.14"""
     # return session.api_client.tasks.get_all(id=[task_id], **kwargs)[0]
     res = session.send_request(
-        service="tasks",
-        action="get_all",
-        version="2.14",
+        **endpoint(tasks_api.GetAllRequest),
         json={"id": [task_id], "search_hidden": True, **kwargs},
         method=Request.def_method,
         async_enable=False,
@@ -492,8 +486,7 @@ def get_task(session, task_id, **kwargs):
         res=res,
         request_cls=tasks_api.GetAllRequest,
         logger=session._logger,
-        service="tasks",
-        action="get_all",
+        **endpoint(tasks_api.GetAllRequest),
         session=session,
     )
     if not result.ok():
@@ -505,20 +498,16 @@ def get_task(session, task_id, **kwargs):
     return result.response.tasks[0]
 
 
-def get_next_task(session, queue, get_task_info=False):
+def get_next_task(session, queue):
     """
-    Returns dict that contains next task and its additional info (company, user)
+    Returns dict of the next task in the queue
     """
     debug = ENV_AGENT_DEBUG_GET_NEXT_TASK.get()
     request = {"queue": queue}
-    if get_task_info:
-        request["get_task_info"] = True
     if debug:
         print(f"debug> get_next_task: {Request.def_method} payload {request}")
     result = session.send_request(
-        service="queues",
-        action="get_next_task",
-        version="2.14",
+        **endpoint(queues_api.GetNextTaskRequest),
         json=request,
         method=Request.def_method,
         async_enable=False,
@@ -538,8 +527,7 @@ def get_task_fields(session, task_id, fields: list, log=None) -> dict:
     Returns dict with Task docker container setup {container: '', arguments: '', setup_shell_script: ''}
     """
     result = session.send_request(
-        service="tasks",
-        action="get_all",
+        **endpoint(tasks_api.GetAllRequest),
         json={"id": [task_id], "only_fields": list(fields), "search_hidden": True},
         method=Request.def_method,
         async_enable=False,
@@ -569,43 +557,24 @@ def get_task_container(session, task_id, ignore_match_rules=False, allow_force_c
     Returns dict with Task docker container setup {container: '', arguments: '', setup_shell_script: ''}
     """
     raw_container = {}
-    if session.check_min_api_version("2.13"):
-        result = session.send_request(
-            service="tasks",
-            action="get_all",
-            version="2.14",
-            json={"id": [task_id], "only_fields": ["container"], "search_hidden": True},
-            method=Request.def_method,
-            async_enable=False,
-        )
-        try:
-            container = result.json()["data"]["tasks"][0]["container"] if result.ok else {}
-            raw_container = copy(container or {})
-            if container.get("arguments"):
-                container["arguments"] = shlex.split(str(container.get("arguments")).strip())
-            if container.get("image"):
-                container["image"] = container.get("image").strip()
-        except (ValueError, TypeError):
-            container = {}
-    else:
-        response = get_task(session, task_id, only_fields=["execution.docker_cmd"])
+    result = session.send_request(
+        **endpoint(tasks_api.GetAllRequest),
+        json={"id": [task_id], "only_fields": ["container"], "search_hidden": True},
+        method=Request.def_method,
+        async_enable=False,
+    )
+    try:
+        container = result.json()["data"]["tasks"][0]["container"] if result.ok else {}
+        raw_container = copy(container or {})
+        if container.get("arguments"):
+            container["arguments"] = shlex.split(str(container.get("arguments")).strip())
+        if container.get("image"):
+            container["image"] = container.get("image").strip()
+    except (ValueError, TypeError):
         container = {}
-        if response.execution:
-            task_docker_cmd_parts = shlex.split(str(response.execution.docker_cmd or "").strip())
-            if task_docker_cmd_parts:
-                try:
-                    container = dict(
-                        image=task_docker_cmd_parts[0],
-                        arguments=task_docker_cmd_parts[1:] if len(task_docker_cmd_parts[0]) > 1 else "",
-                    )
-                except (ValueError, TypeError):
-                    pass
-            raw_container = copy(container or {})
-            if raw_container.get("arguments"):
-                raw_container["arguments"] = " ".join(shlex.quote(x) for x in raw_container["arguments"])
 
     no_default_container = not container or not container.get("image")
-    if no_default_container or allow_force_container_rules and session.check_min_api_version("2.13"):
+    if no_default_container or allow_force_container_rules:
         original_container = copy(container or {})
         updated_container, entry = resolve_default_container(
             session=session,
@@ -635,15 +604,13 @@ def get_task_container(session, task_id, ignore_match_rules=False, allow_force_c
             update_back_task = container.pop("update_back_task", None) or updated_container.pop(
                 "update_back_task", None
             )
-            if update_back_task and container != original_container and session.check_min_api_version("2.13"):
+            if update_back_task and container != original_container:
                 # update back the task
                 print("INFO: Updating the Task with the selected container with rule")
                 try:
                     res = session.send_request(
-                        service="tasks",
-                        action="edit",
+                        **endpoint(tasks_api.EditRequest),
                         method=Request.def_method,
-                        version="2.13",
                         json={
                             "task": task_id,
                             "force": True,
@@ -676,33 +643,18 @@ def set_task_container(session, task_id, docker_image=None, docker_arguments=Non
     if docker_arguments and isinstance(docker_arguments, str):
         docker_arguments = [docker_arguments]
 
-    if session.check_min_api_version("2.13"):
-        container = dict(
-            image=docker_image or "",
-            arguments=" ".join(docker_arguments) if docker_arguments else "",
-            setup_shell_script=docker_bash_script or "",
-        )
-        result = session.send_request(
-            service="tasks",
-            action="edit",
-            version="2.13",
-            json={"task": task_id, "container": container, "force": True},
-            method=Request.def_method,
-            async_enable=False,
-        )
-        return result.ok
-    else:
-        return session.send_api(
-            tasks_api.EditRequest(
-                task_id,
-                force=True,
-                execution=dict(  # noqa
-                    docker_cmd=" ".join([docker_image] + docker_arguments)
-                    if docker_arguments
-                    else str(docker_image or "")
-                ),
-            )
-        )
+    container = dict(
+        image=docker_image or "",
+        arguments=" ".join(docker_arguments) if docker_arguments else "",
+        setup_shell_script=docker_bash_script or "",
+    )
+    result = session.send_request(
+        **endpoint(tasks_api.EditRequest),
+        json={"task": task_id, "container": container, "force": True},
+        method=Request.def_method,
+        async_enable=False,
+    )
+    return result.ok
 
 
 class TaskStopSignal(object):
@@ -740,7 +692,6 @@ class TaskStopSignal(object):
         self.worker_id = command.worker_id
         self._task_reset_state_counter = 0
         self.task_id = task_id
-        self._support_callback = None
         self._active_callback_timestamp = None
         self._active_callback_timeout = None
         self._abort_callback_max_timeout = float(self.session.config.get("agent.abort_callback_max_timeout", 1800))
@@ -778,15 +729,13 @@ class TaskStopSignal(object):
         # update the task runtime properties
         try:
             task_info = self.session.get(
-                service="tasks", action="get_all", version="2.13", id=[self.task_id], only_fields=["runtime"]
+                **endpoint(tasks_api.GetAllRequest), id=[self.task_id], only_fields=["runtime"]
             )["tasks"][0]
             runtime_properties = task_info.get("runtime") or {}
             runtime_properties[self.property_abort_callback_timeout] = str(self._bash_callback_timeout)
             runtime_properties[self.property_abort_poll_freq] = str(10)
             self.session.post(
-                service="tasks",
-                action="edit",
-                version="2.13",
+                **endpoint(tasks_api.EditRequest),
                 task=self.task_id,
                 runtime=runtime_properties,
                 force=True,
@@ -846,14 +795,12 @@ class TaskStopSignal(object):
         # update the task runtime properties
         try:
             task_info = self.session.get(
-                service="tasks", action="get_all", version="2.13", id=[self.task_id], only_fields=["runtime"]
+                **endpoint(tasks_api.GetAllRequest), id=[self.task_id], only_fields=["runtime"]
             )["tasks"][0]
             runtime_properties = task_info.get("runtime") or {}
             runtime_properties[self.property_abort_callback_completed] = str(1)
             self.session.post(
-                service="tasks",
-                action="edit",
-                version="2.13",
+                **endpoint(tasks_api.EditRequest),
                 task=self.task_id,
                 runtime=runtime_properties,
                 force=True,
@@ -882,9 +829,6 @@ class TaskStopSignal(object):
             return TaskStopSignal.default
 
     def _wait_for_abort_callback(self):
-        if not self._support_callback:
-            return None
-
         if self._active_callback_timestamp:
             if time() - self._active_callback_timestamp < self._active_callback_timeout:
                 # print("waiting for callback to complete")
@@ -893,9 +837,7 @@ class TaskStopSignal(object):
                 cb_completed = None
                 try:
                     task_info = self.session.get(
-                        service="tasks",
-                        action="get_all",
-                        version="2.13",
+                        **endpoint(tasks_api.GetAllRequest),
                         id=[self.task_id],
                         only_fields=[
                             "status",
@@ -955,9 +897,7 @@ class TaskStopSignal(object):
         # TODO: add retries on network error with timeout
         try:
             task_info = self.session.get(
-                service="tasks",
-                action="get_all",
-                version="2.13",
+                **endpoint(tasks_api.GetAllRequest),
                 id=[self.task_id],
                 only_fields=[
                     "status",
@@ -978,9 +918,6 @@ class TaskStopSignal(object):
         return abort_timeout, poll_timeout, cb_completed
 
     def was_abort_function_called(self, process_error_code=None):
-        if not self._support_callback:
-            return False
-
         if self._active_callback_timestamp:
             return True
 
@@ -999,10 +936,6 @@ class TaskStopSignal(object):
         """
         "Unsafe" version of test()
         """
-        if self._support_callback is None:
-            # test if backend support callback
-            self._support_callback = self.session.check_min_api_version("2.13")
-
         task_info = get_task(self.session, self.task_id, only_fields=["status", "status_message"])
         status = task_info.status
         message = task_info.status_message
@@ -1154,7 +1087,6 @@ class Worker(ServiceCommandSection):
         self.poetry = PoetryConfig(self._session)
         self.uv = UvConfig(self._session)
         self.docker_image_func = None
-        self._patch_docker_cmd_func = None
         self._docker_image = None
         self._docker_arguments = None
         # if True, docker default passed on command line, which means we ignore the default docker match rules
@@ -1168,13 +1100,9 @@ class Worker(ServiceCommandSection):
         self._daemon_foreground = None
         self._standalone_mode = None
         self._services_mode = None
-        self._impersonate_as_task_owner = None
         self._worker_tags = None
-        self._dynamic_gpus = None  # valid options, True/False, "fractional"
         self._force_current_version = None
         self._redirected_stdout_file_no = None
-        self._uptime_config = self._session.config.get("agent.uptime", None)
-        self._downtime_config = self._session.config.get("agent.downtime", None)
         self._suppress_cr = self._session.config.get("agent.suppress_carriage_return", True)
         self._host_ssh_cache = None
         self._truncate_task_output_files = bool(self._session.config.get("agent.truncate_task_output_files", False))
@@ -1184,7 +1112,6 @@ class Worker(ServiceCommandSection):
         # True - supported
         # None - not initialized
         # str - not supported, version string indicates last server version
-        self._runtime_props_support = None
 
         # allow docker sanitization, needs backend support
         if ENV_DOCKER_ARGS_FILTERS.get():
@@ -1273,8 +1200,7 @@ class Worker(ServiceCommandSection):
         path, _, expected_value = selector.partition("=")
 
         result = task_session.send_request(
-            service="tasks",
-            action="get_all",
+            **endpoint(tasks_api.GetAllRequest),
             json={"id": [task_id], "only_fields": [path], "search_hidden": True},
             method=Request.def_method,
         )
@@ -1328,9 +1254,7 @@ class Worker(ServiceCommandSection):
         # noinspection PyBroadException
         try:
             result = task_session.send_request(
-                service="tasks",
-                action="get_all",
-                version="2.15",
+                **endpoint(tasks_api.GetAllRequest),
                 method=Request.def_method,
                 json={"id": [task_id], "only_fields": ["runtime"], "search_hidden": True},
             )
@@ -1339,8 +1263,7 @@ class Worker(ServiceCommandSection):
             runtime[self.hostname_task_runtime_prop] = socket.gethostname()
 
             res = task_session.send_request(
-                service="tasks",
-                action="edit",
+                **endpoint(tasks_api.EditRequest),
                 method=Request.def_method,
                 json={"task": task_id, "force": True, "runtime": runtime},
             )
@@ -1383,7 +1306,7 @@ class Worker(ServiceCommandSection):
         docker_image = None
         worker_id = (
             "{}:service:{}".format(self.worker_id, task_id)
-            if self._services_mode and not self._dynamic_gpus
+            if self._services_mode
             else self.worker_id
         )
 
@@ -1430,11 +1353,8 @@ class Worker(ServiceCommandSection):
                 docker_bash_setup_script=docker_setup_script,
                 restart=self._get_docker_restart_value(task_session, task_id),
             )
-            if self._impersonate_as_task_owner:
-                docker_params["auth_token"] = task_session.token
-            else:
-                docker_params["auth_token"] = job_token
-                docker_params["job_token_dir"] = str(job_token_dir)
+            docker_params["auth_token"] = job_token
+            docker_params["job_token_dir"] = str(job_token_dir)
             if self._worker_tags:
                 docker_params["worker_tags"] = self._worker_tags
             if self._services_mode:
@@ -1482,19 +1402,6 @@ class Worker(ServiceCommandSection):
                     full_docker_cmd=docker_params["docker_arguments"]
                 )
 
-            # Inject the task owner's vault `environment` section as host-side `-e KEY=VAL`
-            # args so they are visible to the docker container (entrypoint, init bash
-            # scripts, etc.) before cairnml-agent boots inside it. Only relevant when
-            # impersonating the task owner — the agent's own vault is handled by
-            # _apply_extra_configuration(), so we only inject the owner's vault here.
-            if (
-                self._session.config.get("agent.docker_apply_environment_from_vault")
-                and self._impersonate_as_task_owner
-                and task_session.check_min_api_version("2.20")
-            ):
-                vault_env_args = self._load_vault_env_as_docker_args(task_session)
-                if vault_env_args:
-                    docker_params["extra_docker_arguments"] = list(self._extra_docker_arguments or []) + vault_env_args
 
             full_docker_cmd = self.docker_image_func(env_task_id=task_id, **docker_params)
 
@@ -1538,10 +1445,6 @@ class Worker(ServiceCommandSection):
                 session=task_session,
             )
 
-            # patch the full docker cmd if needed, notice this is done post reporting
-            if self._patch_docker_cmd_func:
-                full_docker_cmd = self._patch_docker_cmd_func(full_docker_cmd)
-
             cmd = Argv(*full_docker_cmd, display_argv=display_docker_command)
 
             print("Running Docker:\n{}\n".format(str(cmd)))
@@ -1581,22 +1484,19 @@ class Worker(ServiceCommandSection):
 
             env = job_environment(
                 os.environ,
-                impersonated_token=task_session.token if self._impersonate_as_task_owner else None,
                 job_token=job_token,
                 job_token_file=job_token_file,
             )
             if self._worker_tags:
                 env[ENV_WORKER_TAGS.vars[0]] = " ".join(shlex.quote(t) for t in self._worker_tags)
 
-            if not self._impersonate_as_task_owner:
-                # keep the job's token current for as long as the job runs
-                renewer = TokenRenewer(
-                    job_token_file,
-                    lambda: request_job_token(self._session, task_id),
-                    job_token_lifetime,
-                    label=task_id,
-                )
-                renewer.start()
+            renewer = TokenRenewer(
+                job_token_file,
+                lambda: request_job_token(self._session, task_id),
+                job_token_lifetime,
+                label=task_id,
+            )
+            renewer.start()
             status, stop_signal_status = self._log_command_output(
                 task_id=task_id,
                 cmd=cmd,
@@ -1642,42 +1542,17 @@ class Worker(ServiceCommandSection):
         return status
 
     @staticmethod
-    def get_task_session(user, company, main_session):
-        """
-        Get task session for the user by cloning the agent session
-        and replacing the session credentials with the task owner auth token
-        In case the task is not from the user company proceed with another login
-        to get the auth token for the tenant and return the session for it
-        Requires that agent session credentials will allow impersonation as task user
-        """
+    def _queue_is_pulled_from(queue):
+        """A queue tagged force_workers:off is not pulled from by this worker; any other queue is."""
+        return QUEUE_TAG_OFF not in queue["tags"]
 
-        def get_new_session(session, headers):
-            result = session.send(
-                auth_api.LoginRequest(expiration_sec=session.req_token_expiration_sec), headers=headers
-            )
-            if not (result.ok() and result.response):
-                try:
-                    main_session.log.debug("Failed creating task session: %s", result.response)
-                except Exception:
-                    pass
-                return
-            new_session = copy(session)
-            new_session.config = deepcopy(session.config)
-            new_session.api_client = None
-            new_session.set_auth_token(result.response.token)
-            return new_session
+    def _get_queue_tags(self, queue_ids):
+        return {
+            q.id: {"name": q.name, "tags": q.tags}
+            for q in self._session.send_api(queues_api.GetAllRequest(id=queue_ids, only_fields=["id", "tags"])).queues
+        }
 
-        task_session = get_new_session(main_session, headers={"X-Cairnml-Impersonate-As": user})
-        if not task_session:
-            return
-
-        token = task_session.get_decoded_token(task_session.token)
-        if token.get("tenant") == company:
-            return task_session
-
-        return get_new_session(task_session, headers={"X-Cairnml-Tenant": company})
-
-    def run_tasks_loop(self, queues, worker_params, priority_order=True, gpu_indexes=None, gpu_queues=None):
+    def run_tasks_loop(self, queues, worker_params, priority_order=True):
         """
         :summary: Pull and run tasks from queues.
         :description: 1. Go through ``queues`` by order.
@@ -1687,118 +1562,27 @@ class Worker(ServiceCommandSection):
         :param worker_params worker_params: Worker command line arguments
         :param bool priority_order: If True pull order in priority manner. always from the first
             If False, pull from each queue once in a round robin manner
-        :param list gpu_indexes: list of gpu_indexes. Needs special backend support
-        :param list gpu_queues: list of pairs (queue_id, num_gpus). Needs special backend support
         """
 
         if not self._daemon_foreground:
             print("Starting infinite task polling loop...")
 
-        if self._services_mode:
-            try:
-                max_num_instances = int(self._services_mode) if not isinstance(self._services_mode, bool) else -1
-            except (ValueError, TypeError):
-                max_num_instances = -1
-        else:
-            max_num_instances = None
+        if not self.monitor:
+            self.new_monitor()
 
-        # store in runtime configuration,
-        if max_num_instances and not self.set_runtime_properties(key="max_num_instances", value=max_num_instances):
-            warning("Maximum number of service instance not supported, removing limit.")
-            max_num_instances = -1
-
-        # get current running instances
-        available_gpus = None
-        allocated_gpus = {}
-        dynamic_gpus_worker_id = None
-        if gpu_indexes and gpu_queues:
-            available_gpus, gpu_queues = self._setup_dynamic_gpus(gpu_queues, gpu_indexes)
-            # multi instance support
-            self._services_mode = True
-        else:
-            # Send a partial cluster report
-            if not self.monitor:
-                self.new_monitor()
-            self.monitor.setup_daemon_cluster_report(worker_id=self.worker_id, max_workers=1)
-
-        # last 64 tasks
-        dict_task_gpus_ids = {}  # {str(gpu_indexes): task_id}
+        # set when a task is pulled: the worker is then unregistered when the loop ends
+        pulled_task = False
         try:
             while True:
-                queue_tags = None
-                runtime_props = None
-
-                if max_num_instances and max_num_instances > 0:
-                    # make sure we do not have too many instances to run
-                    if self.docker_image_func:
-                        running_count = self._get_child_agents_count_for_worker()
-                    else:
-                        running_count = len(Singleton.get_running_pids())
-                    if running_count >= max_num_instances:
-                        if self._daemon_foreground or worker_params.debug:
-                            print(
-                                "Reached max number of services {}, sleeping for {:.1f} seconds".format(
-                                    max_num_instances, self._polling_interval
-                                )
-                            )
-                        sleep(self._polling_interval)
-                        continue
-
-                # update available gpus
-                if gpu_queues:
-                    available_gpus, allocated_gpus = self._dynamic_gpu_get_available(gpu_indexes)
-                    # if something went wrong, or we have no free gpus
-                    # start over from the highest priority queue
-                    if not available_gpus:
-                        if self._daemon_foreground or worker_params.debug:
-                            print("All GPUs allocated, sleeping for {:.1f} seconds".format(self._polling_interval))
-                        sleep(self._polling_interval)
-                        continue
-
                 # iterate over queues (priority style, queues[0] is highest)
+                queue_tags = self._get_queue_tags(queues)
                 for queue in queues:
-                    if queue_tags is None or runtime_props is None:
-                        queue_tags, runtime_props = self.get_worker_properties(queues)
-
-                    if not self.should_be_currently_active(queue_tags[queue], runtime_props):
+                    if not self._queue_is_pulled_from(queue_tags[queue]):
                         continue
-
-                    if gpu_queues:
-                        # peek into queue
-                        # get next task in queue
-                        try:
-                            response = self._session.send_api(queues_api.GetByIdRequest(queue=queue))
-                        except Exception:
-                            # if something went wrong start over from the highest priority queue
-                            break
-                        if not len(response.queue.entries):
-                            continue
-                        # check if we do not have enough available gpus
-                        # Notice that gpu_queues[queue] is (min_gpu, max_gpu) that we should allocate
-                        # for a Task pulled from that queue, this means
-                        # gpu_queues[queue][0] is the minimum number of GPUs we need
-                        # and min_available_fract_gpu is the maximum number of fraction of GPU
-                        # and max_available_gpus is the maximum number of full GPUs we have
-                        min_available_fract_gpu = max([v for v in available_gpus.values()])
-                        max_available_gpus = sum([v for v in available_gpus.values() if v >= 1])
-                        if gpu_queues[queue][0] > max(float(max_available_gpus), min_available_fract_gpu):
-                            # not enough available_gpus, we should sleep and start over
-                            if self._daemon_foreground or worker_params.debug:
-                                print(
-                                    "Not enough free GPUs {}/{}, sleeping for {:.1f} seconds".format(
-                                        max(float(max_available_gpus), min_available_fract_gpu),
-                                        gpu_queues[queue][0],
-                                        self._polling_interval,
-                                    )
-                                )
-                            sleep(self._polling_interval)
-                            break
 
                     # get next task in queue
                     try:
-                        response = get_next_task(
-                            self._session, queue=queue, get_task_info=self._impersonate_as_task_owner
-                        )
+                        response = get_next_task(self._session, queue=queue)
                     except Exception as e:
                         print("Warning: Could not access task queue [{}], error: {}".format(queue, e))
                         continue
@@ -1809,6 +1593,8 @@ class Worker(ServiceCommandSection):
                             if self._daemon_foreground or worker_params.debug:
                                 print("No tasks in queue {}".format(queue))
                             continue
+
+                        pulled_task = True
 
                         # clear output log if we start a new Task
                         if (
@@ -1838,120 +1624,8 @@ class Worker(ServiceCommandSection):
                                     )
                                 )
 
-                        # check if we need to impersonate
                         task_session = None
-                        if self._impersonate_as_task_owner:
-                            try:
-                                task_user = response["task_info"]["user"]
-                                task_company = response["task_info"]["company"]
-                            except (KeyError, TypeError, AttributeError):
-                                print("Error: cannot retrieve owner user for the task '{}', skipping".format(task_id))
-                                continue
-
-                            task_session = self.get_task_session(task_user, task_company, self._session)
-                            if not task_session:
-                                print(
-                                    "Error: Could not login as the user '{}' for the task '{}', skipping".format(
-                                        task_user, task_id
-                                    )
-                                )
-                                continue
-
                         self.report_monitor(ResourceMonitor.StatusReport(queues=queues, queue=queue, task=task_id))
-
-                        org_gpus = Session.get_nvidia_visible_env()
-                        dynamic_gpus_worker_id = self.worker_id
-                        # the following is only executed in dynamic gpus mode
-                        if gpu_queues and gpu_queues.get(queue):
-                            gpus = []
-                            fractions = []
-                            # pick the first available GPUs
-                            # gpu_queues[queue] = (min_gpus, max_gpus)
-                            # first check if the max_gpus is larger equal to 1 (if so, allocate full GPUs)
-                            if float(gpu_queues.get(queue)[1]) >= 1:
-                                gpus = [g for g, v in available_gpus.items() if v >= 1]
-                                if gpus:
-                                    # get as many gpus as possible with max_gpus as limit, the min is covered before
-                                    gpus = gpus[: int(gpu_queues.get(queue)[1])]
-                                    fractions = [1] * len(gpus)
-                                    # update available gpus
-                                    available_gpus = {g: v for g, v in available_gpus.items() if g not in gpus}
-                                else:
-                                    # we assume the minimum was < 1 GPU, otherwise why are we here
-                                    pass
-
-                            # if this is under 1 GPU
-                            if not gpus:
-                                # find the GPU with availability that covers the minimum
-                                _max_req_gpu = min(float(gpu_queues.get(queue)[1]), 1.0)
-                                _min_req_gpu = float(gpu_queues.get(queue)[0])
-                                _potential_gpus = {
-                                    g: (v - float(_max_req_gpu))
-                                    for g, v in available_gpus.items()
-                                    if v >= float(_min_req_gpu)
-                                }
-                                # sort based on the least available that can fit the maximum
-                                # find the first instance that is positive or 0
-                                _potential_gpus = sorted(_potential_gpus.items(), key=lambda a: a[1])
-                                gpus = [(g, v) for g, v in _potential_gpus if v >= 0]
-                                if gpus:
-                                    available_gpus[gpus[0][0]] -= _max_req_gpu
-                                    gpus = [gpus[0][0]]
-                                    fractions = [_max_req_gpu]
-                                else:
-                                    gpus = [_potential_gpus[-1][0]]
-                                    # this is where we need to decide on the actual granularity
-                                    # now it is hardcoded to 1/8th
-                                    _base_fract = 8
-                                    avail_fract = int(float(available_gpus[_potential_gpus[-1][0]]) * _base_fract)
-                                    fractions = [avail_fract / float(avail_fract)]
-                                    available_gpus[_potential_gpus[-1][0]] -= fractions[0]
-
-                                try:
-                                    from cairnml_agent_fractional_gpu import patch_docker_cmd_gpu_fraction  # noqa
-
-                                    # new docker image func
-                                    self._patch_docker_cmd_func = lambda docker_cmd, fractions=fractions: (
-                                        patch_docker_cmd_gpu_fraction(docker_cmd, gpu_fraction=fractions[0])
-                                    )
-                                except Exception:
-                                    print(
-                                        "Error! could not load cairnml_agent_fractional_gpu module! "
-                                        "failed configuring fractional GPU support"
-                                    )
-                                    raise
-
-                            self.set_runtime_properties(
-                                key="available_gpus",
-                                value=",".join("{}_{}".format(g, str(f)[2:]) for g, f in available_gpus.items()),
-                            )
-
-                            # this is where we set the fractions as well as gpus
-                            Session.set_nvidia_visible_env(gpus)
-
-                            if fractions and min(fractions) < 1:
-                                # we assume a single gpu in the list
-                                gpu_idx_fract = ["{}.{}".format(g, str(f)[2:]) for g, f in zip(gpus, fractions)]
-                                # check a new available unique name (id) for us
-                                from string import ascii_lowercase
-
-                                for x in ascii_lowercase:
-                                    if gpu_idx_fract[0] + x not in allocated_gpus:
-                                        gpu_idx_fract[0] = gpu_idx_fract[0] + x
-                                        break
-
-                                # add the new task
-                                allocated_gpus[gpu_idx_fract[0]] = fractions[0]
-                                dict_task_gpus_ids.update({str(g): task_id for g in gpu_idx_fract})
-                                self.worker_id = ":".join(
-                                    self.worker_id.split(":")[:-1] + ["gpu" + ",".join(str(g) for g in gpu_idx_fract)]
-                                )
-                            else:
-                                # update the task list
-                                dict_task_gpus_ids.update({str(g): task_id for g in gpus})
-                                self.worker_id = ":".join(
-                                    self.worker_id.split(":")[:-1] + ["gpu" + ",".join(str(g) for g in gpus)]
-                                )
 
                         self.send_logs(
                             task_id=task_id,
@@ -1962,18 +1636,7 @@ class Worker(ServiceCommandSection):
 
                         self.run_one_task(queue, task_id, worker_params, task_session=task_session)
 
-                        # restore back worker_id / GPUs
-                        if gpu_queues:
-                            self.worker_id = dynamic_gpus_worker_id
-                            Session.set_nvidia_visible_env(org_gpus)
-
-                        # clear docker patching function (if exists
-                        self._patch_docker_cmd_func = None
-
                         self.report_monitor(ResourceMonitor.StatusReport(queues=self.queues))
-
-                        queue_tags = None
-                        runtime_props = None
 
                         # if we are using priority start pulling from the first always,
                         # if we are doing roundrobin, pull from the next one
@@ -1988,206 +1651,17 @@ class Worker(ServiceCommandSection):
                 if self._session.config.get("agent.reload_config", False):
                     self.reload_config()
         finally:
-            # if we are in dynamic gpus mode, shutdown all active runs
-            if self.docker_image_func:
-                for t_id in set(dict_task_gpus_ids.values()):
-                    if shutdown_docker_process(docker_cmd_contains="--id {}'\"".format(t_id)):
-                        self.handle_task_termination(task_id=t_id, exit_code=0, stop_reason=TaskStopReason.stopped)
-            else:
-                # if we are in dynamic gpus / services mode,
-                # we should send termination signal to all child processes
+            if not self.docker_image_func:
+                # if we are in services mode, we should send termination signal to all child processes
                 if self._services_mode:
                     terminate_all_child_processes(timeout=20, include_parent=False)
 
                 # if we are here, just kill all sub processes
                 kill_all_child_processes(debug=self._session.debug_mode if self._session else False)
 
-            # unregister dynamic GPU worker, if we were terminated while setting up a Task
-            if dynamic_gpus_worker_id:
-                self.worker_id = dynamic_gpus_worker_id
+            # unregister the worker, if we were terminated after pulling a Task
+            if pulled_task:
                 self._unregister()
-
-    def _dynamic_gpu_get_available(self, gpu_indexes):
-        # key: cast to string, value: 1 (i.e. gull GPU)
-        gpu_indexes = {str(g): 1 for g in gpu_indexes}
-        worker_name = self._session.config.get("agent.worker_name", "") + ":gpu"
-
-        # only return "Our" workers (requires server API +2, otherwise the selecort pattern is ignored)
-        # noinspection PyBroadException
-        try:
-            response = self._session.send_api(
-                workers_api.GetAllRequest(
-                    last_seen=600, worker_pattern="{}*".format(worker_name), _allow_extra_fields_=True
-                )
-            )
-        except Exception:
-            return None
-
-        # filter only our workers, in case the selector pattern above was ignored due to lower version API server
-        our_workers = [w.id for w in response.workers if w.id.startswith(worker_name) and w.id != self.worker_id]
-        gpus = {}
-        allocated_gpus = {}
-        gpu_pattern = re.compile(r"\d+[.]?\d*[a-z]?")
-        fract_gpu_pattern = re.compile(r"\d+[.]?\d*[a-z]+")
-        for w in our_workers:
-            for g in w.split(":")[-1].lower().replace("gpu", "").split(","):
-                try:
-                    # verify pattern "int.int" or "int.int[a-z]"
-                    gpu_idx_name = g.strip()
-                    if gpu_pattern.fullmatch(gpu_idx_name):
-                        # check if this is a fraction
-                        if fract_gpu_pattern.fullmatch(gpu_idx_name):
-                            gpu_idx = gpu_idx_name.split(".")[0]
-                            gpu_fract = float("0.{}".format(gpu_idx_name.split(".")[-1][:-1]))
-                            # the entire gpu
-                            gpus[gpu_idx] = gpus.get(gpu_idx, 0) + gpu_fract
-                            # the gpu fraction uid eg 0.25a
-                            allocated_gpus[gpu_idx_name] = gpu_fract
-                        else:
-                            # or a static MIG slice
-                            gpus[gpu_idx_name] = 1
-                            allocated_gpus[gpu_idx_name] = 1
-                    else:
-                        print("INFO: failed parsing fractional GPU '{}' - skipping".format(g))
-                except (ValueError, TypeError):
-                    print("INFO: failed parsing GPU int('{}') - skipping".format(g))
-
-        # remove the GPUs we have workers running on
-        available_gpus = {g: (v - gpus.get(g, 0)) for g, v in gpu_indexes.items() if (v - gpus.get(g, 0)) > 0}
-        return available_gpus, allocated_gpus
-
-    def _setup_dynamic_gpus(self, gpu_queues, gpu_indexes):
-        available_gpus = self.get_runtime_properties()
-        if available_gpus is None:
-            raise ValueError("Dynamic GPU allocation is not supported by your CairnML-server")
-        available_gpus = [prop["value"] for prop in available_gpus if prop["key"] == "available_gpus"]
-        if available_gpus:
-            gpus = {}
-            for g_v in available_gpus[-1].split(","):
-                g, v = g_v.split("_")
-                try:
-                    # verify "int.int_float"
-                    if float(g.strip()) >= 0:
-                        gpus[g.strip()] = float("0." + v)
-                except (ValueError, TypeError):
-                    print("INFO: failed parsing GPU int('{}') - skipping".format(g))
-            available_gpus = gpus
-
-        if not isinstance(gpu_queues, dict):
-            gpu_queues = dict(gpu_queues)
-
-        if not self.set_runtime_properties(
-            key="available_gpus", value=",".join("{}_{}".format(g, str(v)[2:]) for g, v in available_gpus.items())
-        ):
-            raise ValueError("Dynamic GPU allocation is not supported by your CairnML-server")
-
-        # because it sets the MAX not the actual available (i.e. free) GPUS
-        if not self.monitor:
-            self.new_monitor()
-        self.monitor.setup_dynamic_gpu_cluster_report(
-            worker_id=self.worker_id, available_gpus=gpu_indexes, gpu_queues=gpu_queues
-        )
-
-        return available_gpus, gpu_queues
-
-    def get_worker_properties(self, queue_ids):
-        queue_tags = {
-            q.id: {"name": q.name, "tags": q.tags}
-            for q in self._session.send_api(queues_api.GetAllRequest(id=queue_ids, only_fields=["id", "tags"])).queues
-        }
-        runtime_props = self.get_runtime_properties()
-        return queue_tags, runtime_props
-
-    def get_runtime_properties(self):
-        # TODO: refactor to use the Session env State
-        if self._runtime_props_support is not True:
-            # either not supported or never tested
-            if self._runtime_props_support == self._session.api_version:
-                # tested against latest api_version, not supported
-                return None
-            if not self._session.check_min_api_version(UptimeConf.min_api_version):
-                # not supported due to insufficient api_version
-                self._runtime_props_support = self._session.api_version
-                return None
-        try:
-            res = self.get("get_runtime_properties", worker=self.worker_id)["runtime_properties"]
-            # definitely supported
-            self._runtime_props_support = True
-            return res
-        except APIError:
-            self._runtime_props_support = self._session.api_version
-        return None
-
-    def set_runtime_properties(self, key, value):
-        if self._runtime_props_support is not True:
-            # either not supported or never tested
-            if self._runtime_props_support == self._session.api_version:
-                # tested against latest api_version, not supported
-                return False
-            if not self._session.check_min_api_version(UptimeConf.min_api_version):
-                # not supported due to insufficient api_version
-                self._runtime_props_support = self._session.api_version
-                return False
-
-        # noinspection PyBroadException
-        try:
-            self.post(
-                "set_runtime_properties",
-                json={"runtime_properties": [{"key": key, "value": str(value)}], "worker": self.worker_id},
-            )
-            # definitely supported
-            self._runtime_props_support = True
-            return True
-        except APIError:
-            self._runtime_props_support = self._session.api_version
-        except Exception:
-            # not sure what happened
-            pass
-
-        return False
-
-    def should_be_currently_active(self, current_queue, runtime_properties):
-        """
-        Checks if a worker is active according to queue tags, worker's runtime properties and uptime schedule.
-        """
-        runtime_properties = runtime_properties or []
-        if UptimeConf.queue_tag_off in current_queue["tags"]:
-            self.log.debug(
-                "Queue {} is tagged '{}', worker will not pull tasks".format(
-                    current_queue["name"], UptimeConf.queue_tag_off
-                )
-            )
-            return False
-        if UptimeConf.queue_tag_on in current_queue["tags"]:
-            self.log.debug(
-                "Queue {} is tagged '{}', worker will pull tasks".format(current_queue["name"], UptimeConf.queue_tag_on)
-            )
-            return True
-        force_flag = next((prop for prop in runtime_properties if prop["key"] == UptimeConf.worker_key), None)
-        if force_flag:
-            if force_flag["value"].lower() in UptimeConf.worker_value_off:
-                self.log.debug(
-                    "worker has the following runtime property: '{}'. worker will not pull tasks".format(force_flag)
-                )
-                return False
-            elif force_flag["value"].lower() in UptimeConf.worker_value_on:
-                self.log.debug(
-                    "worker has the following runtime property: '{}'. worker will pull tasks".format(force_flag)
-                )
-                return True
-            else:
-                print(
-                    "Warning: invalid runtime_property '{}: {}' supported values are: '{}/{}', ignoring".format(
-                        force_flag["key"], force_flag["value"], UptimeConf.worker_value_on, UptimeConf.worker_value_off
-                    )
-                )
-        if self._uptime_config:
-            self.log.debug("following uptime configurations")
-            return check_runtime(self._uptime_config)
-        if self._downtime_config:
-            self.log.debug("following downtime configurations")
-            return check_runtime(self._downtime_config, is_uptime=False)
-        return True
 
     def reload_config(self):
         try:
@@ -2198,7 +1672,7 @@ class Worker(ServiceCommandSection):
         else:
             if reloaded:
                 self.log('Config file change detected, reloading and updating "{.temp_config_path}"'.format(self))
-                self.dump_config(self.temp_config_path, clean_api_credentials=self._impersonate_as_task_owner)
+                self.dump_config(self.temp_config_path)
 
     def check(self, **_):
         try:
@@ -2263,7 +1737,6 @@ class Worker(ServiceCommandSection):
 
         self._worker_tags = kwargs.get("child_report_tags", None)
 
-        self._use_owner_token(kwargs.get("use_owner_token", False))
 
         self._standalone_mode = kwargs.get("standalone_mode", False)
         self._polling_interval = ENV_QUEUE_POLL_FREQ_SEC.get() or max(kwargs.get("polling_interval", 5), 5)
@@ -2271,32 +1744,12 @@ class Worker(ServiceCommandSection):
         # must have docker in services_mode
         if self._services_mode:
             kwargs = self._verify_command_states(kwargs)
-        self._uptime_config = kwargs.get("uptime", None) or self._uptime_config
-        self._downtime_config = kwargs.get("downtime", None) or self._downtime_config
-        if self._uptime_config and self._downtime_config:
-            self.log.error(
-                "Both uptime and downtime were specified when only one of them could be used. Both will be ignored."
-            )
-            self._uptime_config = None
-            self._downtime_config = None
-
-        # support --dynamic-gpus
-        dynamic_gpus, gpu_indexes, queues = self._parse_dynamic_gpus(kwargs, queues)
-
-        if self._services_mode and dynamic_gpus:
-            raise ValueError("Combining --dynamic-gpus and --services-mode is not supported")
-
-        if self._dynamic_gpus == "fractional" and not use_docker:
-            raise ValueError(
-                "Fractional GPUs are only supported in docker-mode, add --docker to allow docker-mode operation"
-            )
-
         # We are not running a daemon we are killing one.
         # find the pid send termination signal and leave
         if kwargs.get("stop", False) is not False:
             return_code = 0
             for worker_id in kwargs.get("stop") or [None]:
-                if not self._kill_daemon(dynamic_gpus=dynamic_gpus, worker_id=worker_id):
+                if not self._kill_daemon(worker_id=worker_id):
                     return_code = 1
             return return_code
 
@@ -2306,20 +1759,9 @@ class Worker(ServiceCommandSection):
 
         queues_info = [q.to_dict() for q in self._session.send_api(queues_api.GetAllRequest(id=queues)).queues]
 
-        if kwargs.get("status", False):
-            runtime_properties = self.get_runtime_properties()
-            if self._downtime_config:
-                print_uptime_properties(self._downtime_config, queues_info, runtime_properties, is_uptime=False)
-            else:
-                print_uptime_properties(self._uptime_config, queues_info, runtime_properties)
-            return 1
-
         # make sure we only have a single instance,
         # also make sure we set worker_id properly and cache folders
-        self._singleton(dynamic_gpus=bool(dynamic_gpus))
-
-        if dynamic_gpus:
-            self._register_dynamic_gpus(gpu_indexes)
+        self._singleton()
 
         # check if we have bootstrap package installed
         if bootstrap.check_bootstrap_package_install(config=self._session.config):
@@ -2341,10 +1783,6 @@ class Worker(ServiceCommandSection):
 
         columns = ("id", "name", "tags")
         print("Listening to queues:")
-        if dynamic_gpus:
-            columns = ("id", "name", "tags", "gpus (min, max)")
-            for q in queues_info:
-                q["gpus"] = str(dict(dynamic_gpus).get(q["id"]) or "")
         print_table(queues_info, columns=columns, titles=columns)
 
         # register worker
@@ -2356,9 +1794,9 @@ class Worker(ServiceCommandSection):
         # print docker image
         if use_docker:
             self._force_current_version = kwargs.get("force_current_version", False)
-            self.set_docker_variables(docker, clean_api_credentials=self._impersonate_as_task_owner)
+            self.set_docker_variables(docker)
         else:
-            self.dump_config(self.temp_config_path, clean_api_credentials=self._impersonate_as_task_owner)
+            self.dump_config(self.temp_config_path)
             # only in none docker we have to make sure we have CUDA setup
 
             # make sure we have CUDA set if we have --gpus
@@ -2425,8 +1863,6 @@ class Worker(ServiceCommandSection):
                             trace=self._session.trace,
                         ),
                         priority_order=not order_fairness,
-                        gpu_indexes=gpu_indexes,
-                        gpu_queues=dynamic_gpus,
                     )
                 except Exception as e:
                     tb = str(traceback.format_exc())
@@ -2449,87 +1885,12 @@ class Worker(ServiceCommandSection):
             self._unregister(queues)
             safe_remove_file(self.temp_config_path)
 
-    def _parse_dynamic_gpus(self, kwargs, queues):
-        dynamic_gpus = kwargs.get("dynamic_gpus", None)
-        if not dynamic_gpus:
-            return None, None, queues
-
-        has_fractional = False
-        queue_names = [q.name for q in queues]
-        if not all("=" in q for q in queue_names):
-            raise ValueError(
-                "using --dynamic-gpus, --queue [{}], queue must be in format <queue_name>=<num_gpus>".format(
-                    queue_names
-                )
-            )
-
-        gpu_indexes = kwargs.get("gpus")
-
-        # test gpus were passed correctly
-        if not gpu_indexes or len(gpu_indexes.split("-")) > 2 or ("," in gpu_indexes and "-" in gpu_indexes):
-            raise ValueError("--gpus must be provided, in one of two ways: comma separated '0,1,2,3' or range '0-3'")
-        try:
-            if "-" in gpu_indexes:
-                gpu_indexes = list(range(int(gpu_indexes.split("-")[0]), 1 + int(gpu_indexes.split("-")[1])))
-            else:
-                gpu_indexes = [str(g).replace(":", ".").strip() for g in gpu_indexes.split(",")]
-            # verify (basically numbers with single "." dot)
-            gpu_indexes = [str(g) for g in gpu_indexes if float(g) >= 0]
-        except Exception as ex:
-            raise ValueError(
-                'Failed parsing --gpus "{}". '
-                "--dynamic_gpus must be use with "
-                'specific gpus for example "0-7" or "0,1,2,3" or "0:0,0:1,1:0,1:1"'.format(kwargs.get("gpus"))
-            ) from ex
-
-        dynamic_gpus = []
-        for s in queue_names:
-            s_p = s.split("=")
-            name = s[: -1 - len(s_p[-1])]
-            min_max_g = float(s_p[-1].split("-")[0] or 1), float(s_p[-1].split("-")[-1])
-            if min(min_max_g) <= 0:
-                raise ValueError('Parsing min/max number of gpus <= 0 is not allowed: "{}"'.format(s))
-            if any(g for g in min_max_g if 1 < g != int(g)):
-                raise ValueError('Parsing min/max number of gpus, fractional gpu cannot be > 1: "{}"'.format(s))
-            has_fractional = min(min_max_g) < 1
-            dynamic_gpus.append(
-                (
-                    name,
-                    min_max_g,
-                )
-            )
-        queue_names = [q for q, _ in dynamic_gpus]
-        # resolve queue ids
-        dynamic_gpus_q = self._resolve_queue_names(queue_names)
-        dynamic_gpus = list(zip(dynamic_gpus_q, [i for _, i in dynamic_gpus]))
-        # maintain original priority order
-        queues = [q for q, _ in dynamic_gpus]
-
-        self._dynamic_gpus = "fractional" if has_fractional else True
-
-        return dynamic_gpus, gpu_indexes, queues
-
-    def _register_dynamic_gpus(self, gpu_indexes):
-        # test server support
-        available_gpus, allocated_gpus = self._dynamic_gpu_get_available(gpu_indexes)
-        if not self.set_runtime_properties(
-            key="available_gpus", value=",".join("{}_{}".format(g, str(v)[2:]) for g, v in available_gpus.items())
-        ):
-            raise ValueError("Dynamic GPU allocation is not supported by your CairnML-server")
-
     def report_monitor(self, report):
         if not self.monitor:
             self.new_monitor(report=report)
         else:
             self.monitor.set_report(report)
         self.monitor.send_report()
-
-    def cluster_report_monitor(self, available_gpus, gpu_queues):
-        if not self.monitor:
-            self.new_monitor()
-        self.monitor.setup_dynamic_gpu_cluster_report(
-            worker_id=self.worker_id, available_gpus=available_gpus, gpu_queues=gpu_queues
-        )
 
     def stop_monitor(self):
         if self.monitor:
@@ -2551,7 +1912,7 @@ class Worker(ServiceCommandSection):
         self.monitor.start()
         return self.monitor
 
-    def dump_config(self, filename, config=None, clean_api_credentials=False):
+    def dump_config(self, filename, config=None):
         # noinspection PyBroadException
         try:
             current_content = Path(filename).read_text()
@@ -2567,9 +1928,6 @@ class Worker(ServiceCommandSection):
             if api:
                 # the job signs in with its own token, never with the agent's device
                 api.pop("idp", None)
-            if clean_api_credentials:
-                if api:
-                    api.pop("credentials", None)
 
             new_content = str(json.dumps(config_data, cls=HOCONEncoder, indent=4))
             # Overwrite file only if the content is different, because we are mounting the same file  into
@@ -3446,8 +2804,7 @@ class Worker(ServiceCommandSection):
             # noinspection PyBroadException
             try:
                 res = self._session.send_request(
-                    service="tasks",
-                    action="dequeue",
+                    **endpoint(tasks_api.DequeueRequest),
                     method=Request.def_method,
                     json={"task": current_task.id, "new_status": "in_progress"},
                 )
@@ -3928,11 +3285,9 @@ class Worker(ServiceCommandSection):
     def _get_task_os_env(self, config, current_task):
         if not config.get("agent.enable_task_env", None):
             return None
-        if not self._session.check_min_api_version("2.9"):
-            return None
         # noinspection PyBroadException
         try:
-            hyper_params = self._session.get(service="tasks", action="get_hyper_params", tasks=[current_task.id])
+            hyper_params = self._session.get(**endpoint(tasks_api.GetHyperParamsRequest), tasks=[current_task.id])
             hyper_params = {
                 str(p["name"]): str(p["value"])
                 for p in hyper_params["params"][0]["hyperparams"]
@@ -3943,9 +3298,9 @@ class Worker(ServiceCommandSection):
         except Exception:
             return None
 
-    def set_docker_variables(self, docker, clean_api_credentials=False):
-        temp_config, docker_image_func = self.get_docker_config_cmd(docker, clean_api_credentials=clean_api_credentials)
-        self.dump_config(self.temp_config_path, config=temp_config, clean_api_credentials=clean_api_credentials)
+    def set_docker_variables(self, docker):
+        temp_config, docker_image_func = self.get_docker_config_cmd(docker)
+        self.dump_config(self.temp_config_path, config=temp_config)
         self.docker_image_func = docker_image_func
 
     def get_execution_info(self, current_task):
@@ -5041,7 +4396,7 @@ class Worker(ServiceCommandSection):
             return
         config.pop("agent.package_manager.pip_version")  # removed due to a breaking change in v1.5.1
 
-    def get_docker_config_cmd(self, docker_args, clean_api_credentials=False):
+    def get_docker_config_cmd(self, docker_args):
         docker_image = (
             str(ENV_DOCKER_IMAGE.get() or self._session.config.get("agent.default_docker.image", "nvidia/cuda"))
             if not docker_args
@@ -5136,10 +4491,10 @@ class Worker(ServiceCommandSection):
             self._temp_cleanup_list.append(self._host_ssh_cache)
 
         return temp_config, partial(
-            self._get_docker_config_cmd, temp_config=temp_config, clean_api_credentials=clean_api_credentials
+            self._get_docker_config_cmd, temp_config=temp_config
         )
 
-    def _get_docker_config_cmd(self, temp_config, clean_api_credentials=False, **kwargs):
+    def _get_docker_config_cmd(self, temp_config, **kwargs):
         self.debug("Setting up docker config command")
 
         def load_path(field, default=None):
@@ -5262,7 +4617,7 @@ class Worker(ServiceCommandSection):
         mount_poetry_cache = temp_config.get("agent.docker_internal_mounts.poetry_cache", None)
 
         # Make sure we have created the configuration file for the executor
-        if not self.dump_config(self.temp_config_path, config=temp_config, clean_api_credentials=clean_api_credentials):
+        if not self.dump_config(self.temp_config_path, config=temp_config):
             self.log.warning("Could not update docker configuration file {}".format(self.temp_config_path))
 
         docker_cmd = dict(
@@ -5432,44 +4787,6 @@ class Worker(ServiceCommandSection):
             elif cmd.startswith("-"):
                 skip_arg = True
 
-        return args
-
-    def _load_vault_env_as_docker_args(self, task_session):
-        # type: (Session) -> List[str]
-        """
-        Load the owner's vault (via task_session) and return its `environment` section
-        formatted as docker `-e KEY=VALUE` argument pairs. Returns [] if the resolved
-        configuration is empty, fails to load, or (after all vaults are merged) has
-        `apply_environment: false`. Vaults are an enterprise-only feature, so task_session
-        must have the `advanced` feature set.
-        """
-        try:
-            task_session.verify_feature_set("advanced")
-        except ValueError:
-            return []
-
-        try:
-            task_session.load_vaults()
-            vault_config = task_session.config.resolve_override_configs() or {}
-        except Exception as ex:
-            self.log.warning("Failed loading vaults for docker env injection: {}".format(ex))
-            return []
-
-        if not vault_config.get("apply_environment", True):
-            return []
-
-        env_vars = vault_config.get("environment", None) or {}
-        if isinstance(env_vars, (list, tuple)):
-            env_vars = dict(env_vars)
-
-        args = []
-        for key, value in env_vars.items():
-            if not key:
-                self.log.warning(
-                    f"Skipping vault environment entry with empty key for docker env injection (value={value})"
-                )
-                continue
-            args += ["-e", "{}={}".format(key, "" if value is None else value)]
         return args
 
     def _get_docker_cmd(self, run):
@@ -6007,9 +5324,9 @@ class Worker(ServiceCommandSection):
 
         return command, script_dir
 
-    def _kill_daemon(self, dynamic_gpus=False, worker_id=None):
+    def _kill_daemon(self, worker_id=None):
         if not worker_id:
-            worker_id, worker_name = self._generate_worker_id_name(dynamic_gpus=dynamic_gpus)
+            worker_id, worker_name = self._generate_worker_id_name()
         else:
             worker_name = worker_id
 
@@ -6017,13 +5334,6 @@ class Worker(ServiceCommandSection):
         for pid, uid, slot, file in sorted(Singleton.get_running_pids(), key=lambda x: x[1] or ""):
             if pid < 0 or uid is None:
                 continue
-
-            # if dynamic gpus kill all children
-            if dynamic_gpus and uid == worker_id:
-                print("Terminating cairnml-agent worker_id={} pid={}".format(uid, pid))
-                if not terminate_process(pid, timeout=120):
-                    warning("Could not terminate process pid={}".format(pid))
-                return True
 
             # either we have a match for the worker_id or we just pick the first one, and kill it.
             if (worker_id and uid == worker_id) or (not worker_id and uid.startswith("{}:".format(worker_name))):
@@ -6041,9 +5351,9 @@ class Worker(ServiceCommandSection):
         )
         return False
 
-    def _singleton(self, dynamic_gpus=False):
+    def _singleton(self):
         # ensure singleton
-        worker_id, worker_name = self._generate_worker_id_name(dynamic_gpus=dynamic_gpus)
+        worker_id, worker_name = self._generate_worker_id_name()
 
         # if we are running in services mode, we allow double register since
         # docker-compose will kill instances before they cleanup
@@ -6063,13 +5373,13 @@ class Worker(ServiceCommandSection):
         # update folders based on free slot
         self._session.create_cache_folders(slot_index=worker_slot)
 
-    def _generate_worker_id_name(self, dynamic_gpus=False):
+    def _generate_worker_id_name(self):
         worker_id = self._session.config["agent.worker_id"]
         worker_name = self._session.config["agent.worker_name"]
         if not worker_id and Session.get_nvidia_visible_env() is not None:
             nvidia_visible_devices = Session.get_nvidia_visible_env()
             if nvidia_visible_devices and nvidia_visible_devices.lower() != "none":
-                worker_id = "{}:{}gpu{}".format(worker_name, "d" if dynamic_gpus else "", nvidia_visible_devices)
+                worker_id = "{}:gpu{}".format(worker_name, nvidia_visible_devices)
             elif nvidia_visible_devices == "":
                 pass
             else:
@@ -6099,26 +5409,6 @@ class Worker(ServiceCommandSection):
     def _valid_docker_container_name(name):
         # type: (str) -> bool
         return re.fullmatch(r"^[a-zA-Z0-9][a-zA-Z0-9_.-]+$", name) is not None
-
-    def _use_owner_token(self, use_owner_token=False):
-        self._impersonate_as_task_owner = use_owner_token
-        if self._impersonate_as_task_owner:
-            if not self._session.check_min_api_version("2.14"):
-                raise ValueError("Server does not support --use-owner-token option (incompatible API version)")
-            if self._session.feature_set == "basic":
-                raise ValueError("Server does not support --use-owner-token option")
-
-            identity = self._session.get_decoded_token(self._session.token).get("identity", {})
-            role = identity.get("role", None)
-            try:
-                service_account_type = int(identity.get("service_account_type", 0))
-            except ValueError:
-                service_account_type = 0
-            if role and (role not in ["admin", "root", "system"] and service_account_type < 2):
-                raise ValueError(
-                    "User role not suitable for --use-owner-token option (requires at least admin or service account,"
-                    " found {})".format(role)
-                )
 
     @staticmethod
     def _get_path(d, *path, default=None):

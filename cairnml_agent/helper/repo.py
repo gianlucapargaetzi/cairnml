@@ -17,6 +17,8 @@ from furl import furl
 from pathlib import Path
 
 
+from cairnml_agent.backend_api.endpoints import endpoint
+from cairnml.backend_api.services import devices as devices_api
 from cairnml_agent.definitions import (
     ENV_AGENT_GIT_USER,
     ENV_AGENT_GIT_PASS,
@@ -847,9 +849,7 @@ class Hg(VCS):
 def request_git_token(session, task_id):
     """The server's answer to the Git credential request for the task's repository, or None when there is no answer."""
     return session.send_request(
-        service="devices",
-        action="git_token",
-        version="2.8",
+        **endpoint(devices_api.GitTokenRequest),
         method=Request.def_method,
         json={"task": task_id},
     )

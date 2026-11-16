@@ -12,7 +12,7 @@ from contextlib import contextmanager
 from typing import Iterator, ContextManager, Sequence, IO, Text  # noqa: F401  # named by type comments
 from uuid import uuid4
 
-from cairnml_agent.backend_api.services import tasks
+from cairnml.backend_api.services import tasks
 from cairnml.backend_api.session.client.client import APIClient
 from pathlib import Path
 import pytest

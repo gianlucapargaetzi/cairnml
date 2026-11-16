@@ -7,7 +7,11 @@ from functools import partial
 from string import Template
 from typing import Optional, Callable, Union, List, Tuple, Dict
 
-from cairnml_agent.backend_api.services import queues as queues_api
+from cairnml_agent.backend_api.endpoints import endpoint
+from cairnml.backend_api.services import tasks as tasks_api
+from cairnml.backend_api.services import projects as projects_api
+from cairnml.backend_api.services import queues as queues_api
+from cairnml.backend_api.services import users as users_api
 from cairnml.backend_api.session.request import Request
 from pyhocon import ConfigTree
 from cairnml_agent.helper.task_logs import send_logs_to_task
@@ -385,9 +389,7 @@ class TemplateResolver:
     @property
     def task_session(self):
         if not self._task_session:
-            raise Exception(
-                "Task session was not provided, probably due to the agent running with no use-owner-token option"
-            )
+            raise Exception("Task session was not provided")
         return self._task_session
 
     def _error(self, err):
@@ -401,7 +403,7 @@ class TemplateResolver:
         )
 
     def _load_user_info(self):
-        return self.task_session.send_request("users", "get_current_user").json()["data"]["user"]
+        return self.task_session.send_request(**endpoint(users_api.GetCurrentUserRequest)).json()["data"]["user"]
 
     def _load_user_vaults(self):
         self.task_session.load_vaults()
@@ -409,9 +411,7 @@ class TemplateResolver:
 
     def _load_task_info(self):
         result = self.task_session.send_request(
-            service="tasks",
-            action="get_all",
-            version="2.20",
+            **endpoint(tasks_api.GetAllRequest),
             method=Request.def_method,
             json={"id": [self.task_id], "search_hidden": True},
         )
@@ -421,9 +421,7 @@ class TemplateResolver:
     def _load_project_info(self):
         project_id = self.task_info.get("project")
         result = self.task_session.send_request(
-            service="projects",
-            action="get_all",
-            version="2.20",
+            **endpoint(projects_api.GetAllRequest),
             method=Request.def_method,
             json={"id": [project_id], "search_hidden": True},  # check hidden required?
         )

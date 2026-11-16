@@ -73,13 +73,6 @@ def test_the_backward_compatibility_mirror_is_gone():
             True,
             id="enable-files-config-section",
         ),
-        pytest.param(
-            session_defs.ENV_FORCE_MAX_API_VERSION,
-            "CAIRNML_FORCE_MAX_API_VERSION",
-            "2.5",
-            "2.5",
-            id="force-max-api-version",
-        ),
         pytest.param(config_defs.ENV_CONFIG_VERBOSE, "CAIRNML_CONFIG_VERBOSE", "1", True, id="config-verbose"),
     ],
 )
@@ -106,9 +99,6 @@ def test_the_shared_knob_is_read_under_its_sdk_name(monkeypatch, entry, name, va
             "CAIRNML_ENABLE_FILES_CONFIG_SECTION",
             "true",
             id="enable-files-config-section",
-        ),
-        pytest.param(
-            session_defs.ENV_FORCE_MAX_API_VERSION, "CAIRNML_FORCE_MAX_API_VERSION", "2.5", id="force-max-api-version"
         ),
         pytest.param(config_defs.ENV_CONFIG_VERBOSE, "CAIRNML_CONFIG_VERBOSE", "1", id="config-verbose"),
     ],

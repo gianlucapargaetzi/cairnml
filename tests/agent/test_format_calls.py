@@ -79,15 +79,6 @@ def test_a_failed_template_argument_prints_the_error(monkeypatch, capsys):
     assert "error ()" not in out
 
 
-def test_an_invalid_hours_interval_prints_the_error(capsys):
-    from cairnml_agent.helper.runtime_verification import get_start_end_hours
-
-    assert get_start_end_hours("x-y") == (None, None)
-    out = capsys.readouterr().out
-    assert "'x-y' is invalid" in out
-    assert "invalid literal for int()" in out
-
-
 def _bound(stub):
     """Give the stub worker the real helpers that the docker command builder calls on self."""
     import inspect
