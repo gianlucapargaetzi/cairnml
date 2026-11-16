@@ -188,6 +188,8 @@ from cairnml_agent.commands import bootstrap
 
 DOCKER_ROOT_CONF_FILE = "/tmp/cairnml.conf"  # assuming we can always access/mount this file
 DOCKER_DEFAULT_CONF_FILE = "~/default_cairnml.conf"
+# a queue with this tag is not pulled from by the worker (the queue is switched off for workers)
+QUEUE_TAG_OFF = "force_workers:off"
 
 
 sys_random = random.SystemRandom()
@@ -1539,6 +1541,17 @@ class Worker(ServiceCommandSection):
 
         return status
 
+    @staticmethod
+    def _queue_is_pulled_from(queue):
+        """A queue tagged force_workers:off is not pulled from by this worker; any other queue is."""
+        return QUEUE_TAG_OFF not in queue["tags"]
+
+    def _get_queue_tags(self, queue_ids):
+        return {
+            q.id: {"name": q.name, "tags": q.tags}
+            for q in self._session.send_api(queues_api.GetAllRequest(id=queue_ids, only_fields=["id", "tags"])).queues
+        }
+
     def run_tasks_loop(self, queues, worker_params, priority_order=True):
         """
         :summary: Pull and run tasks from queues.
@@ -1562,7 +1575,11 @@ class Worker(ServiceCommandSection):
         try:
             while True:
                 # iterate over queues (priority style, queues[0] is highest)
+                queue_tags = self._get_queue_tags(queues)
                 for queue in queues:
+                    if not self._queue_is_pulled_from(queue_tags[queue]):
+                        continue
+
                     # get next task in queue
                     try:
                         response = get_next_task(self._session, queue=queue)
