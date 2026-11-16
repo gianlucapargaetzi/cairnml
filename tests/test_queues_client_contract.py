@@ -10,7 +10,7 @@ from cairnml.backend_api.session import Session
 
 # The newest declared version of queues.get_all (a request is sent at the version of its class). Before the client
 # was generated this was "2.23", the only edit the switch needed.
-GET_ALL_VERSION = "2.21"
+GET_ALL_VERSION = "2.41"
 
 
 class _Response:

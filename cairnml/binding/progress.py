@@ -263,7 +263,7 @@ class ProgressReporter(threading.Thread):
     def _send(self, state: Dict[str, Any]) -> bool:
         """One attempt, no retries: the next report comes soon enough, and it must never hold up the run or flood"""
         try:
-            from ..backend_api.services.v2_23 import tasks  # the reporter only runs against API 2.23 or newer
+            from ..backend_api.services import tasks
 
             result = self._task.session.send(
                 tasks.UpdateProgressRequest(task=self._task.id, percent=state["percent"], bars=state["bars"])
@@ -290,9 +290,7 @@ def attach(task: "Task", pinned: Optional[str] = None) -> None:
     if _reporter is not None or task is None:
         return
     try:
-        from ..backend_api import Session
-
-        if task.is_offline() or not Session.check_min_api_version("2.23"):
+        if task.is_offline():
             return
     except Exception:  # noqa
         return

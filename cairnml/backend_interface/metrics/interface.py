@@ -272,8 +272,7 @@ class Metrics(InterfaceBase):
         if good_events:
             _events = [ev.get_api_event() for ev in good_events]
             additional_kwargs = {}
-            if Session.check_min_api_version("2.23"):
-                additional_kwargs["model_event"] = self._for_model
+            additional_kwargs["model_event"] = self._for_model
             batched_requests = [api_events.AddRequest(event=ev, **additional_kwargs) for ev in _events if ev]
             if batched_requests:
                 if self._offline_mode:

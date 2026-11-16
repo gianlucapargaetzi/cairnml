@@ -33,15 +33,13 @@ from .defs import (
     ENV_ENABLE_FILES_CONFIG_SECTION,
     ENV_API_EXTRA_RETRY_CODES,
     ENV_API_DEFAULT_REQ_METHOD,
-    ENV_FORCE_MAX_API_VERSION,
-    ENV_IGNORE_MISSING_CONFIG,
+    API_VERSION,
     MissingConfigError,
 )
 from .request import Request, BatchRequest  # noqa: F401
 from .token_manager import TokenManager
 from ..utils import get_http_session_with_retry, urllib_log_warning_setup
 from ...idp.device import device_assertion
-from ...backend_config import ConfigurationError
 from ...debugging import get_logger
 from ...debugging.log import resolve_logging_level
 from pyhocon import ConfigTree, ConfigFactory
@@ -83,7 +81,6 @@ class Session(TokenManager):
         "X-Trains-Client",
     )
 
-    _async_status_code = 202
     _session_requests = 0
     _session_initial_timeout = (3.0, 10.0)
     _session_timeout = (10.0, 300.0)
@@ -92,19 +89,18 @@ class Session(TokenManager):
     _sessions_created = 0
     _ssl_error_count_verbosity = 2
     _offline_mode = ENV_OFFLINE_MODE.get()
-    _offline_default_version = "2.9"
+    _offline_default_version = API_VERSION
     # we want to keep track of sessions, but we also want to allow them to be collected by the GC if they are not used anymore
     _sessions_weakrefs = []
 
     _client = [(__package__.partition(".")[0], __version__)]
 
-    api_version = "2.9"  # this default version should match the lowest api version we have under service
+    api_version = API_VERSION
     server_version = "1.0.0"
-    max_api_version = "2.9"
+    max_api_version = API_VERSION
     feature_set = "basic"
     default_host = "http://localhost/cairnml/api"
     default_web = "http://localhost/cairnml"
-    force_max_api_version = ENV_FORCE_MAX_API_VERSION.get()
 
     # TODO: add requests.codes.gateway_timeout once we support async commits
     _retry_codes = [
@@ -239,15 +235,16 @@ class Session(TokenManager):
         # update api version from server response
         try:
             token_dict = TokenManager.get_decoded_token(self.token)
-            api_version = token_dict.get("api_version")
-            if not api_version:
-                api_version = "2.2" if token_dict.get("env", "") == "prod" else Session.api_version
+            server_api_version = token_dict.get("api_version")
+            if server_api_version and str(server_api_version) != API_VERSION:
+                local_logger().warning(
+                    f"The server speaks API version {server_api_version}, this SDK speaks {API_VERSION}"
+                )
 
             Session.server_version = token_dict.get("server_version")
             if Session.server_version:
                 self.add_client("cairnml-server", Session.server_version)
 
-            Session.max_api_version = Session.api_version = str(api_version)
             Session.feature_set = str(token_dict.get("feature_set", self.feature_set) or "basic")
         except (jwt.DecodeError, ValueError):
             local_logger().warning(f"Failed parsing server API level, defaulting to {Session.api_version}")
@@ -259,9 +256,6 @@ class Session(TokenManager):
             total_retries=self.__http_retries_config.get("total", 0),
             display_warning_after=3,
         )
-
-        if self.force_max_api_version and self.check_min_api_version(self.force_max_api_version):
-            Session.max_api_version = Session.api_version = str(self.force_max_api_version)
 
         # update only after we have max_api
         self.__class__._sessions_created += 1
@@ -306,7 +300,7 @@ class Session(TokenManager):
 
     def _read_vaults(self) -> Optional[List[dict]]:
         # () -> Optional[List[dict]]
-        if not self.check_min_api_version("2.15") or self.feature_set == "basic":
+        if self.feature_set == "basic":
             return
 
         def parse(vault: dict) -> Optional[Union[ConfigTree, dict]]:
@@ -766,54 +760,17 @@ class Session(TokenManager):
         return cls._version_tuple(cls.server_version) >= cls._version_tuple(str(min_server_version))
 
     @classmethod
-    def check_min_api_version(cls, min_api_version: str, raise_error: bool = False) -> bool:
+    def check_min_api_version(cls, min_api_version: str) -> bool:
         """
-        Return True if Session.api_version is greater or equal >= to min_api_version
+        Return True if the API version this SDK speaks (API_VERSION) is at least min_api_version
         """
-        # If no session was created, create a default one, in order to get the backend api version.
-        if cls._sessions_created <= 0:
-            if cls._offline_mode:
-                # allow to change the offline mode version by setting ENV_OFFLINE_MODE to the required API version
-                if cls.api_version != cls._offline_default_version:
-                    offline_api = ENV_OFFLINE_MODE.get(converter=lambda x: x)
-                    if offline_api:
-                        try:
-                            # check cast to float, but leave original str if we pass it.
-                            # minimum version is 2.3
-                            if float(offline_api) >= 2.3:
-                                cls._offline_default_version = str(offline_api)
-                        except ValueError:
-                            pass
-                    cls.max_api_version = cls.api_version = cls._offline_default_version
-            else:
-                # if the requested version is lower than the minimum we support,
-                # no need to actually check what the server has, we assume it must have at least our version.
-                if cls._version_tuple(cls.api_version) >= cls._version_tuple(str(min_api_version)):
-                    return True
-
-                # noinspection PyBroadException
-                try:
-                    cls()
-                except (MissingConfigError, ConfigurationError):
-                    if raise_error and not ENV_IGNORE_MISSING_CONFIG.get():
-                        raise
-                except LoginError:
-                    if raise_error:
-                        raise
-                except Exception:
-                    pass
-
-        return cls._version_tuple(cls.api_version) >= cls._version_tuple(str(min_api_version))
+        return cls._version_tuple(API_VERSION) >= cls._version_tuple(str(min_api_version))
 
     @classmethod
-    def check_min_api_server_version(cls, min_api_version: str, raise_error: bool = False) -> bool:
+    def check_min_api_server_version(cls, min_api_version: str) -> bool:
         """
-        Return True if Session.max_api_version is greater or equal >= to min_api_version
-        Notice this is the api version server reported, not the current SDK max supported api version
+        Return True if the API version the server reported is at least min_api_version
         """
-        if cls.check_min_api_version(min_api_version, raise_error=raise_error):
-            return True
-
         return cls._version_tuple(cls.max_api_version) >= cls._version_tuple(str(min_api_version))
 
     @classmethod
@@ -868,7 +825,7 @@ class Session(TokenManager):
         res = self._send_request(
             service="devices",
             action="exchange",
-            version="2.8",
+            version=API_VERSION,
             method=Request.def_method,
             json={"assertion": assertion},
             refresh_token_if_unauthorized=False,

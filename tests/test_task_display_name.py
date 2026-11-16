@@ -3,7 +3,7 @@ from types import SimpleNamespace
 from unittest import mock
 
 from cairnml import Task
-from cairnml.backend_api.services.v2_23 import tasks
+from cairnml.backend_api.services import tasks
 from cairnml.backend_interface.task.task import Task as BackendTask
 
 

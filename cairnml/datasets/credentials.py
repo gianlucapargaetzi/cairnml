@@ -6,7 +6,7 @@ import re
 from typing import Optional
 
 from .errors import DatasetError
-from ..backend_api.session.defs import MissingConfigError
+from ..backend_api.session.defs import API_VERSION, MissingConfigError
 from ..backend_api.session.session import NotSignedInError
 from ..backend_config.errors import ConfigurationError
 
@@ -51,7 +51,7 @@ def fetch_storage_keys(repository: str, level: str, session=None) -> StorageKeys
     response = _session(session).send_request(
         service="datachunks",
         action="dataset_credentials",
-        version="2.40",
+        version=API_VERSION,
         json={"repository": repository, "level": level},
     )
     if not response.ok:
@@ -230,7 +230,7 @@ def resolve_dataset(reference: str, task: Optional[str] = None, session=None) ->
 def list_credentials(session=None) -> list:
     """The credentials the person signed in may use for repositories: their own GitHub Apps and tokens, and the company's.
     Each has an id (what ``cairnml repository assign`` takes), its type, name, scope, owner and state. No secret is returned."""
-    response = _person_request(session, "get_all", {}, service="user_access", version="2.38")
+    response = _person_request(session, "get_all", {}, service="user_access", version=API_VERSION)
     if not response.ok:
         raise DatasetError(f"the server did not list the credentials: {_reason(response)}")
     return (response.json().get("data") or {}).get("credentials") or []
@@ -242,7 +242,9 @@ def fetch_repository_list(session=None) -> list:
     read-only) and ``access``: how you read it now. The server answers from its own records. Raises DatasetError when the server
     cannot be asked, for instance when there is no CairnML login."""
     try:
-        response = _session(session).send_request(service="repositories", action="get_all", version="2.40", json={})
+        response = _session(session).send_request(
+            service="repositories", action="get_all", version=API_VERSION, json={}
+        )
         if not response.ok:
             raise DatasetError(f"the server refused the repository list: {_reason(response)}")
         return (response.json().get("data") or {}).get("repositories") or []

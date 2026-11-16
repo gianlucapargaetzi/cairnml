@@ -7,12 +7,10 @@ from typing import (
     Union,
     Dict,
     Iterable,
-    Generator,
     Tuple,
     Any,
 )
 
-from ...backend_api import Session
 from ...backend_api.services import tasks
 
 
@@ -35,8 +33,6 @@ class HyperParams:
         :param projector: A callable to project values before they are returned
         :param return_obj: If True, returned dictionary values are API objects (tasks.ParamsItem). If ``projeictor
         """
-        if not Session.check_min_api_version("2.9"):
-            raise ValueError("Not supported by server")
 
         task_id = self.task.task_id
 
@@ -85,10 +81,6 @@ class HyperParams:
         :param default_section: Optional section name to be used when section is not explicitly provided.
         :param force_section: Optional section name to be used for all hyper-params.
         """
-        if not Session.check_min_api_version("2.9"):
-            raise ValueError("Not supported by server")
-
-        escape_unsafe = not Session.check_min_api_version("2.11")
 
         if not tasks.ReplaceHyperparamsEnum.has_value(replace):
             replace = None
@@ -115,10 +107,7 @@ class HyperParams:
             if not section:
                 raise ValueError(f"Missing hyper-param section for '{value}'")
             # force string value
-            if escape_unsafe:
-                a_item.section, a_item.name = self._escape_unsafe_values(section, a_item.name)
-            else:
-                a_item.section = section
+            a_item.section = section
             return a_item
 
         props = {}
@@ -160,8 +149,6 @@ class HyperParams:
             * An iterable (e.g. tuple, list etc.) whose first two items denote 'section' and 'name'
             * An API object of type tasks.ParamKey or tasks.ParamsItem whose section and name fields are not empty
         """
-        if not Session.check_min_api_version("2.9"):
-            raise ValueError("Not supported by server")
 
         def get_key(value: Union[dict, Iterable[str], tasks.ParamKey, tasks.ParamsItem]) -> Tuple[str, str]:
             if isinstance(value, dict):
@@ -187,53 +174,3 @@ class HyperParams:
             return True
 
         return False
-
-    def _escape_unsafe_values(self, *values: str) -> Generator[str, None, None]:
-        """Escape unsafe values (name, section name) for API version 2.10 and below"""
-        for value in values:
-            if value not in UNSAFE_NAMES_2_10:
-                yield value
-            else:
-                self.task.log.info(f"Converting unsafe hyper parameter name/section '{value}' to '{'_' + value}'")
-                yield "_" + value
-
-
-UNSAFE_NAMES_2_10 = {
-    "ne",
-    "gt",
-    "gte",
-    "lt",
-    "lte",
-    "in",
-    "nin",
-    "mod",
-    "all",
-    "size",
-    "exists",
-    "not",
-    "elemMatch",
-    "type",
-    "within_distance",
-    "within_spherical_distance",
-    "within_box",
-    "within_polygon",
-    "near",
-    "near_sphere",
-    "max_distance",
-    "min_distance",
-    "geo_within",
-    "geo_within_box",
-    "geo_within_polygon",
-    "geo_within_center",
-    "geo_within_sphere",
-    "geo_intersects",
-    "contains",
-    "icontains",
-    "startswith",
-    "istartswith",
-    "endswith",
-    "iendswith",
-    "exact",
-    "iexact",
-    "match",
-}

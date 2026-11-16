@@ -40,7 +40,6 @@ class PatchedMatplotlib:
     _global_image_counter_limit = None
     _last_iteration_plot_titles = {}
     _current_task = None
-    _support_image_plot = None
     _matplotlylib = None
     _plotly_renderer = None
     _lock_renderer = threading.RLock()
@@ -133,19 +132,11 @@ class PatchedMatplotlib:
             pass
 
         # update api version
-        PatchedMatplotlib._update_matplotlib_image_support()
 
         # load plotly
         PatchedMatplotlib._update_plotly_renderers()
 
         return True
-
-    @staticmethod
-    def _update_matplotlib_image_support() -> None:
-        if PatchedMatplotlib._support_image_plot is None:
-            from ..backend_api import Session
-
-            PatchedMatplotlib._support_image_plot = Session.check_min_api_version("2.2")
 
     @staticmethod
     def _update_matplotlib_version() -> None:
@@ -171,7 +162,6 @@ class PatchedMatplotlib:
             pass
 
         # check backend support
-        PatchedMatplotlib._update_matplotlib_image_support()
 
     @staticmethod
     def _update_plotly_renderers() -> bool:
@@ -644,10 +634,6 @@ class PatchedMatplotlib:
                 _pylab_helpers.Gcf.set_active(stored_figure)
 
             last_iteration = iter if iter is not None else PatchedMatplotlib._get_last_iteration()
-
-            report_as_debug_sample = report_as_debug_sample or (
-                not plotly_dict and not PatchedMatplotlib._support_image_plot
-            )
 
             if not title:
                 if mpl_fig.texts:

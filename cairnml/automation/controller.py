@@ -22,7 +22,6 @@ from pathlib2 import Path
 from .job import LocalCairnmlJob, RunningJob, BaseJob
 from .. import Logger
 from ..automation import CairnmlJob
-from ..backend_api import Session
 from ..backend_interface.task.populate import CreateFromFunction
 from ..backend_interface.util import get_or_create_project, mutually_exclusive
 from ..config import get_remote_task_id
@@ -463,7 +462,7 @@ class PipelineController:
     @classmethod
     def _pipeline_as_sub_project(cls) -> bool:
         if cls._pipeline_as_sub_project_cached is None:
-            cls._pipeline_as_sub_project_cached = bool(Session.check_min_api_server_version("2.17"))
+            cls._pipeline_as_sub_project_cached = True
         return cls._pipeline_as_sub_project_cached
 
     def set_default_execution_queue(self, default_execution_queue: Optional[str]) -> None:

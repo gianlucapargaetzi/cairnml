@@ -2,39 +2,12 @@
 
 import hashlib
 import os
-import threading
 
 import pytest
 
-from cairnml.backend_api import Session
 from cairnml.backend_api.services import tasks
 from cairnml.binding import artifacts as artifacts_module
 from cairnml.utilities.proxy_object import LazyEvalWrapper
-
-
-def test_an_old_server_refuses_the_upload_and_returns_false(artifacts_env, monkeypatch):
-    monkeypatch.setattr(Session, "check_min_api_version", classmethod(lambda cls, version: False))
-    assert artifacts_env.upload("a", {"k": 1}) is False
-    assert artifacts_env.uploads == []
-    assert artifacts_env.log.warnings == [
-        "Artifacts not supported by your CairnML-server version, please upgrade to the latest server version"
-    ]
-
-
-def test_the_minimum_api_version_asked_for_is_2_3(artifacts_env, monkeypatch):
-    asked = []
-    caller = threading.get_ident()
-
-    def check(cls, version):
-        # background threads of other tests may ask too: only this thread counts
-        if threading.get_ident() == caller:
-            asked.append(version)
-        return True
-
-    monkeypatch.setattr(Session, "check_min_api_version", classmethod(check))
-    artifacts_env.upload("a", {"k": 1})
-    # the API proxy also asks for later versions on this thread; the upload must ask for 2.3
-    assert "2.3" in asked
 
 
 def test_a_name_that_is_already_registered_raises(artifacts_env):

@@ -65,6 +65,7 @@ from requests_toolbelt import (
 )
 from .callbacks import UploadProgressReport, DownloadProgressReport
 from .url import quote_url
+from ..backend_api.session.defs import API_VERSION as API_VERSION_SDK
 from ..backend_api.utils import get_http_session_with_retry
 from ..backend_config.bucket_config import (
     S3BucketConfigurations,
@@ -1786,7 +1787,7 @@ class _DatachunkDriver(_Driver):
     _CHUNK = 1024 * 1024
     KINDS = ("artifact", "dataset", "model", "debug")
     API_SERVICE = "datachunks"
-    API_VERSION = "2.8"
+    API_VERSION = API_VERSION_SDK
     TIMEOUT = (60, 3600)
 
     class _Container:

@@ -35,7 +35,6 @@ from ...backend_api.session.response import Response
 from ...backend_api.services import tasks, models, events, projects
 
 # from ...backend_api.session.defs import ENV_OFFLINE_MODE
-from pyhocon import ConfigTree, ConfigFactory
 from ...utilities.config import config_dict_to_text, text_to_config_dict
 from ...errors import ArtifactUriDeleteError
 
@@ -375,25 +374,12 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         if isinstance(task_type, self.TaskTypes):
             task_type = task_type.value
 
-        if task_type not in (
-            self.TaskTypes.training.value,
-            self.TaskTypes.testing.value,
-        ) and not Session.check_min_api_version("2.8"):
-            print(
-                f'WARNING: Changing task type to "{self.TaskTypes.training}" : '
-                f'cairnml-server does not support task type "{task_type}", '
-                "please upgrade cairnml-server."
-            )
-            task_type = self.TaskTypes.training.value
-
         project_id = None
         if project_name:
             project_id = get_or_create_project(self, project_name)
 
         tags = [self._development_tag] if not running_remotely() else []
-        extra_properties = {"system_tags": tags} if Session.check_min_api_version("2.3") else {"tags": tags}
-        if not Session.check_min_api_version("2.20"):
-            extra_properties["input"] = {"view": {}}  # noqa
+        extra_properties = {"system_tags": tags}
         req = tasks.CreateRequest(
             name=task_name or make_message("Anonymous task (%(user)s@%(host)s %(time)s)"),
             type=tasks.TaskTypeEnum(task_type),
@@ -414,7 +400,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         value = value.rstrip("/") if value else None
         self._storage_uri = StorageHelper.conform_url(value)
         self.data.output.destination = self._storage_uri
-        self._edit(output_dest=self._storage_uri or ("" if Session.check_min_api_version("2.3") else None))
+        self._edit(output_dest=self._storage_uri or (""))
 
     @property
     def storage_uri(self) -> Optional[str]:
@@ -518,9 +504,6 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         """
         Returns the current Task's input model IDs as a dictionary.
         """
-        if not Session.check_min_api_version("2.13"):
-            model_id = self._get_task_property("execution.model", raise_on_error=False)
-            return {"Input Model": model_id} if model_id else {}
 
         input_models = self._get_task_property("models.input", default=[], raise_on_error=False) or []
         return {m.name: m.model for m in input_models}
@@ -530,9 +513,6 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         """
         Returns the current Task's output model IDs as a dictionary.
         """
-        if not Session.check_min_api_version("2.13"):
-            model_id = self._get_task_property("output.model", raise_on_error=False)
-            return {"Output Model": model_id} if model_id else {}
 
         output_models = self._get_task_property("models.output", default=[]) or []
         return {m.name: m.model for m in output_models}
@@ -818,40 +798,16 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
             This message will be stored as status_message on the Task's info panel
         """
         if hasattr(tasks, "CompletedRequest") and callable(tasks.CompletedRequest):
-            if Session.check_min_api_version("2.20"):
-                return self.send(
-                    tasks.CompletedRequest(
-                        self.id,
-                        status_reason="completed",
-                        status_message=status_message,
-                        force=force,
-                        publish=True if self._get_runtime_properties().get("_publish_on_complete") else False,
-                    ),
-                    ignore_errors=ignore_errors,
-                )
-            else:
-                resp = self.send(
-                    tasks.CompletedRequest(
-                        self.id,
-                        status_reason="completed",
-                        status_message=status_message,
-                        force=force,
-                    ),
-                    ignore_errors=ignore_errors,
-                )
-
-                if self._get_runtime_properties().get("_publish_on_complete"):
-                    self.send(
-                        tasks.PublishRequest(
-                            self.id,
-                            status_reason="completed",
-                            status_message=status_message,
-                            force=force,
-                        ),
-                        ignore_errors=ignore_errors,
-                    )
-
-                return resp
+            return self.send(
+                tasks.CompletedRequest(
+                    self.id,
+                    status_reason="completed",
+                    status_message=status_message,
+                    force=force,
+                    publish=True if self._get_runtime_properties().get("_publish_on_complete") else False,
+                ),
+                ignore_errors=ignore_errors,
+            )
         return self.send(
             tasks.StoppedRequest(
                 self.id,
@@ -1231,23 +1187,14 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         with self._edit_lock:
             self.reload()
             # store model id
-            if Session.check_min_api_version("2.13"):
-                self.send(
-                    tasks.AddOrUpdateModelRequest(
-                        task=self.id,
-                        name=name,
-                        model=model_id,
-                        type=tasks.ModelTypeEnum.input,
-                    )
+            self.send(
+                tasks.AddOrUpdateModelRequest(
+                    task=self.id,
+                    name=name,
+                    model=model_id,
+                    type=tasks.ModelTypeEnum.input,
                 )
-            else:
-                # backwards compatibility
-                self._set_task_property(
-                    "execution.model",
-                    model_id,
-                    raise_on_error=False,
-                    log_on_error=False,
-                )
+            )
 
             # Auto populate from model, if empty
             if update_task_labels and not self.data.execution.model_labels:
@@ -1271,8 +1218,6 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         :return: dict of the task parameters, all flattened to key/value.
             Different sections with key prefix "section/"
         """
-        if not Session.check_min_api_version("2.9"):
-            return self._get_task_property("execution.parameters")
 
         # API will makes sure we get old parameters with type legacy on top level (instead of nested in Args)
         parameters = dict()
@@ -1362,8 +1307,6 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
             self.log.warning(f"Parameters must be of builtin type ({not_allowed_types})")
             new_parameters = {k: v for k, v in new_parameters.items() if k not in not_allowed}
 
-        use_hyperparams = Session.check_min_api_version("2.9")
-
         with self._edit_lock:
             self.reload()
             # if we have a specific prefix and we use hyperparameters, and we use set.
@@ -1378,84 +1321,65 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
 
             parameters.update(new_parameters)
 
-            if use_hyperparams:
-                # build nested dict from flat parameters dict:
-                org_hyperparams = self.data.hyperparams or {}
-                hyperparams = dict()
-                # if the task is a legacy task, we should put everything back under Args/key with legacy type
-                legacy_name = self._legacy_parameters_section_name
-                org_legacy_section = org_hyperparams.get(legacy_name, dict())
+            org_hyperparams = self.data.hyperparams or {}
+            hyperparams = dict()
+            # if the task is a legacy task, we should put everything back under Args/key with legacy type
+            legacy_name = self._legacy_parameters_section_name
+            org_legacy_section = org_hyperparams.get(legacy_name, dict())
 
-                for k, v in parameters.items():
-                    # legacy variable
-                    if org_legacy_section.get(k, tasks.ParamsItem()).type == "legacy":
-                        section = hyperparams.get(legacy_name, dict())
-                        section[k] = copy(org_legacy_section[k])
-                        section[k].value = stringify(v)
-                        description = descriptions.get(k)
-                        if description:
-                            section[k].description = description
-                        hyperparams[legacy_name] = section
-                        continue
+            for k, v in parameters.items():
+                # legacy variable
+                if org_legacy_section.get(k, tasks.ParamsItem()).type == "legacy":
+                    section = hyperparams.get(legacy_name, dict())
+                    section[k] = copy(org_legacy_section[k])
+                    section[k].value = stringify(v)
+                    description = descriptions.get(k)
+                    if description:
+                        section[k].description = description
+                    hyperparams[legacy_name] = section
+                    continue
 
-                    org_k = k
-                    if "/" not in k:
-                        k = f"{self._default_configuration_section_name}/{k}"
-                    section_name, key = k.split("/", 1)
-                    section = hyperparams.get(section_name, dict())
-                    org_param = org_hyperparams.get(section_name, dict()).get(key, None)
-                    param_type = params_types.get(org_k) or (
-                        org_param.type
-                        if org_param is not None and (org_param.type or v == "")
-                        else get_basic_type(v)
-                        if v is not None
-                        else None
-                    )
-                    if param_type and not isinstance(param_type, str):
-                        param_type = param_type.__name__ if hasattr(param_type, "__name__") else str(param_type)
+                org_k = k
+                if "/" not in k:
+                    k = f"{self._default_configuration_section_name}/{k}"
+                section_name, key = k.split("/", 1)
+                section = hyperparams.get(section_name, dict())
+                org_param = org_hyperparams.get(section_name, dict()).get(key, None)
+                param_type = params_types.get(org_k) or (
+                    org_param.type
+                    if org_param is not None and (org_param.type or v == "")
+                    else get_basic_type(v)
+                    if v is not None
+                    else None
+                )
+                if param_type and not isinstance(param_type, str):
+                    param_type = param_type.__name__ if hasattr(param_type, "__name__") else str(param_type)
 
-                    def create_description(org_param=org_param, org_k=org_k, v=v) -> str:
-                        if org_param and org_param.description:
-                            return org_param.description
-                        # don't use get(org_k, "") here in case org_k in descriptions and the value is None
-                        created_description = descriptions.get(org_k) or ""
-                        if isinstance(v, Enum):
-                            # append enum values to description
-                            if created_description:
-                                created_description += "\n"
-                            created_description += "Values:\n" + ",\n".join(
-                                [enum_key for enum_key in type(v).__dict__.keys() if not enum_key.startswith("_")]
-                            )
-                        return created_description
+                def create_description(org_param=org_param, org_k=org_k, v=v) -> str:
+                    if org_param and org_param.description:
+                        return org_param.description
+                    # don't use get(org_k, "") here in case org_k in descriptions and the value is None
+                    created_description = descriptions.get(org_k) or ""
+                    if isinstance(v, Enum):
+                        # append enum values to description
+                        if created_description:
+                            created_description += "\n"
+                        created_description += "Values:\n" + ",\n".join(
+                            [enum_key for enum_key in type(v).__dict__.keys() if not enum_key.startswith("_")]
+                        )
+                    return created_description
 
-                    section[key] = tasks.ParamsItem(
-                        section=section_name,
-                        name=key,
-                        value=stringify(v),
-                        description=create_description(),
-                        type=param_type,
-                    )
-                    hyperparams[section_name] = section
+                section[key] = tasks.ParamsItem(
+                    section=section_name,
+                    name=key,
+                    value=stringify(v),
+                    description=create_description(),
+                    type=param_type,
+                )
+                hyperparams[section_name] = section
 
-                self._edit(hyperparams=hyperparams)
-                self.data.hyperparams = hyperparams
-            else:
-                # force cast all variables to strings (so that we can later edit them in UI)
-                parameters = {k: stringify(v) for k, v in parameters.items()}
-
-                execution = self.data.execution
-                if execution is None:
-                    execution = tasks.Execution(
-                        parameters=parameters,
-                        artifacts=[],
-                        model="",
-                        model_desc={},
-                        model_labels={},
-                        docker_cmd="",
-                    )
-                else:
-                    execution.parameters = parameters
-                self._edit(execution=execution)
+            self._edit(hyperparams=hyperparams)
+            self.data.hyperparams = hyperparams
 
     def set_parameter(
         self,
@@ -1472,10 +1396,6 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         :param description: The parameter description.
         :param value_type: The type of the parameters (cast to string and store)
         """
-        if not Session.check_min_api_version("2.9"):
-            # not supported yet
-            description = None
-            value_type = None
 
         self._set_parameters(
             {name: value},
@@ -1505,14 +1425,9 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
             Otherwise, only the new task ones. Default is ``False``
         :return: ``True`` if the parameter was deleted successfully
         """
-        if not Session.check_min_api_version("2.9"):
-            raise ValueError(
-                "Delete hyper-parameter is not supported by your cairnml-server, upgrade to the latest version"
-            )
 
         force_kwargs = {}
-        if Session.check_min_api_version("2.13"):
-            force_kwargs["force"] = force
+        force_kwargs["force"] = force
 
         with self._edit_lock:
             paramkey = tasks.ParamKey(section=name.split("/", 1)[0], name=name.split("/", 1)[1])
@@ -1618,30 +1533,19 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
 
         with self._edit_lock:
             self.reload()
-            if Session.check_min_api_version("2.13"):
-                self.data.container = dict(
-                    image=image,
-                    arguments=arguments,
-                    setup_shell_script=setup_shell_script,
-                )
-                self._edit(container=self.data.container)
-            else:
-                if setup_shell_script:
-                    raise ValueError("Your CairnML-server does not support docker bash script feature, please upgrade.")
-                execution = self.data.execution
-                execution.docker_cmd = image + (f" {arguments}" if arguments else "")
-                self._edit(execution=execution)
+            self.data.container = dict(
+                image=image,
+                arguments=arguments,
+                setup_shell_script=setup_shell_script,
+            )
+            self._edit(container=self.data.container)
 
     def get_base_docker(self) -> str:
         """Get the base Docker command (image) that is set for this experiment."""
-        if Session.check_min_api_version("2.13"):
-            # backwards compatibility
-            container = self._get_task_property("container", raise_on_error=False, log_on_error=False, default={})
-            return (
-                container.get("image", "") + (f" {container['arguments']}" if container.get("arguments", "") else "")
-            ) or None
-        else:
-            return self._get_task_property("execution.docker_cmd", raise_on_error=False, log_on_error=False)
+        container = self._get_task_property("container", raise_on_error=False, log_on_error=False, default={})
+        return (
+            container.get("image", "") + (f" {container['arguments']}" if container.get("arguments", "") else "")
+        ) or None
 
     def set_artifacts(self, artifacts_list: Sequence["tasks.Artifact"] = None) -> Optional[List["tasks.Artifact"]]:
         """
@@ -1651,8 +1555,6 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
 
         :return: List of current Task's Artifacts or None if error.
         """
-        if not Session.check_min_api_version("2.3"):
-            return None
         if not (
             isinstance(artifacts_list, (list, tuple)) and all(isinstance(a, tasks.Artifact) for a in artifacts_list)
         ):
@@ -1673,15 +1575,13 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         :param list artifacts_list: list of artifacts (type tasks.Artifact)
         :return: List of current Task's Artifacts
         """
-        if not Session.check_min_api_version("2.3"):
-            return None
         if not (
             isinstance(artifacts_list, (list, tuple)) and all(isinstance(a, tasks.Artifact) for a in artifacts_list)
         ):
             raise ValueError("Expected artifacts as List[tasks.Artifact]")
 
         with self._edit_lock:
-            if Session.check_min_api_version("2.13") and not self._offline_mode:
+            if not self._offline_mode:
                 req = tasks.AddOrUpdateArtifactsRequest(task=self.task_id, artifacts=artifacts_list, force=True)
                 res = self.send(req, raise_on_errors=False)
                 if not res or not res.response or not res.response.updated:
@@ -1738,8 +1638,6 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
 
         :return: ``True`` if successful
         """
-        if not Session.check_min_api_version("2.3"):
-            return False
         if not artifact_names:
             return True
         if not isinstance(artifact_names, (list, tuple)):
@@ -1761,7 +1659,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
                         uri = None
                     uris.append(uri)
 
-            if Session.check_min_api_version("2.13") and not self._offline_mode:
+            if not self._offline_mode:
                 req = tasks.DeleteArtifactsRequest(
                     task=self.task_id,
                     artifacts=[{"key": n, "mode": "output"} for n in artifact_names],
@@ -1790,27 +1688,19 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
     def _set_model_design(self, design: str = None) -> None:
         with self._edit_lock:
             self.reload()
-            if Session.check_min_api_version("2.9"):
-                configuration = (
-                    self._get_task_property(
-                        "configuration",
-                        default={},
-                        raise_on_error=False,
-                        log_on_error=False,
-                    )
-                    or {}
+            configuration = (
+                self._get_task_property(
+                    "configuration",
+                    default={},
+                    raise_on_error=False,
+                    log_on_error=False,
                 )
-                configuration[self._default_configuration_section_name] = tasks.ConfigurationItem(
-                    name=self._default_configuration_section_name, value=str(design)
-                )
-                self._edit(configuration=configuration)
-            else:
-                execution = self.data.execution
-                if design is not None:
-                    # noinspection PyProtectedMember
-                    execution.model_desc = Model._wrap_design(design)
-
-                self._edit(execution=execution)
+                or {}
+            )
+            configuration[self._default_configuration_section_name] = tasks.ConfigurationItem(
+                name=self._default_configuration_section_name, value=str(design)
+            )
+            self._edit(configuration=configuration)
 
     def get_labels_enumeration(self) -> Mapping[str, int]:
         """
@@ -1828,25 +1718,17 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
 
         :return: The model configuration as blob of text.
         """
-        if Session.check_min_api_version("2.9"):
-            design = (
-                self._get_task_property(
-                    "configuration",
-                    default={},
-                    raise_on_error=False,
-                    log_on_error=False,
-                )
-                or {}
-            )
-            if design:
-                design = design.get(sorted(design.keys())[0]).value or ""
-        else:
-            design = self._get_task_property(
-                "execution.model_desc",
+        design = (
+            self._get_task_property(
+                "configuration",
                 default={},
                 raise_on_error=False,
                 log_on_error=False,
             )
+            or {}
+        )
+        if design:
+            design = design.get(sorted(design.keys())[0]).value or ""
 
         # noinspection PyProtectedMember
         return Model._unwrap_design(design)
@@ -1952,15 +1834,11 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
     def set_system_tags(self, tags: Sequence[str]) -> None:
         assert isinstance(tags, (list, tuple))
         tags = list(set(tags))
-        if Session.check_min_api_version("2.3"):
-            self._set_task_property("system_tags", tags)
-            self._edit(system_tags=self.data.system_tags)
-        else:
-            self._set_task_property("tags", tags)
-            self._edit(tags=self.data.tags)
+        self._set_task_property("system_tags", tags)
+        self._edit(system_tags=self.data.system_tags)
 
     def get_system_tags(self) -> Sequence[str]:
-        return self._get_task_property("system_tags" if Session.check_min_api_version("2.3") else "tags")
+        return self._get_task_property("system_tags")
 
     def set_tags(self, tags: Sequence[str]) -> None:
         """
@@ -1969,9 +1847,6 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         :param Sequence(``str``) tags: Any sequence of tags to set.
         """
         assert isinstance(tags, (list, tuple))
-        if not Session.check_min_api_version("2.3"):
-            # not supported
-            return
         self._set_task_property("tags", tags)
         self._edit(tags=self.data.tags)
 
@@ -2317,15 +2192,12 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
             last (most updated) console output
         :return: A list of strings, each entry corresponds to one report.
         """
-        if Session.check_min_api_version("2.9"):
-            request = events.GetTaskLogRequest(
-                task=self.id,
-                order="asc",
-                navigate_earlier=True,
-                batch_size=number_of_reports,
-            )
-        else:
-            request = events.GetTaskLogRequest(task=self.id, order="asc", from_="tail", batch_size=number_of_reports)
+        request = events.GetTaskLogRequest(
+            task=self.id,
+            order="asc",
+            navigate_earlier=True,
+            batch_size=number_of_reports,
+        )
         res = self.send(request)
         response = res.wait()
         if not response.ok() or not response.response_data.get("events"):
@@ -2365,11 +2237,6 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         :return: The Task's configurations as a dict (config name as key) and text blob as value (unconstrained text
             string)
         """
-        if not Session.check_min_api_version("2.9"):
-            raise ValueError(
-                "Multiple configurations are not supported with the current 'cairnml-server', "
-                "please upgrade to the latest version"
-            )
 
         configuration = self.data.configuration or {}
         return {k: v.value for k, v in configuration.items()}
@@ -2381,11 +2248,6 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
 
         :return: A dict containing the reported values
         """
-        if not Session.check_min_api_version("2.20"):
-            raise ValueError(
-                "Current 'cairnml-server' does not support getting reported single values. "
-                "Please upgrade to the latest version"
-            )
         res = self.send(events.GetTaskSingleValueMetricsRequest(tasks=[self.id]))
         res = res.wait()
         if not res.ok() or not res.response_data.get("tasks"):
@@ -2470,7 +2332,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         """
         assert project_name
         assert isinstance(project_name, str)
-        extra = {"search_hidden": search_hidden} if Session.check_min_api_version("2.20") else {}
+        extra = {"search_hidden": search_hidden}
         res = cls._send(
             cls._get_default_session(),
             projects.GetAllRequest(order_by=["last_update"], name=exact_match_regex(project_name), **extra),
@@ -2674,7 +2536,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
             return None
 
     def _set_runtime_properties(self, runtime_properties: Mapping[str, Union[str, int, float]]) -> bool:
-        if not Session.check_min_api_version("2.13") or not runtime_properties:
+        if not runtime_properties:
             return False
 
         with self._edit_lock:
@@ -2687,8 +2549,6 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         return True
 
     def _get_runtime_properties(self) -> Dict[str, str]:
-        if not Session.check_min_api_version("2.13"):
-            return dict()
         return dict(**self.data.runtime) if self.data.runtime else dict()
 
     def _clear_task(
@@ -2707,9 +2567,8 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
             requirements={},
             diff="",
         )
-        if Session.check_min_api_version("2.13"):
-            self._data.models = tasks.TaskModels(input=[], output=[])
-            self._data.container = dict()
+        self._data.models = tasks.TaskModels(input=[], output=[])
+        self._data.container = dict()
 
         self._data.execution = tasks.Execution(
             artifacts=[],
@@ -2725,50 +2584,19 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         self._storage_uri = None
         self._data.output.destination = self._storage_uri
 
-        if Session.check_min_api_version("2.13"):
-            self._set_task_property("system_tags", system_tags)
-            self._data.script.requirements = dict()
-            self._edit(
-                system_tags=self._data.system_tags,
-                comment=self._data.comment,
-                script=self._data.script,
-                execution=self._data.execution,
-                output_dest="",
-                hyperparams=dict(),
-                configuration=dict(),
-                container=self._data.container,
-                models=self._data.models,
-            )
-        elif Session.check_min_api_version("2.9"):
-            self._update_requirements("")
-            self._set_task_property("system_tags", system_tags)
-            self._edit(
-                system_tags=self._data.system_tags,
-                comment=self._data.comment,
-                script=self._data.script,
-                execution=self._data.execution,
-                output_dest="",
-                hyperparams=dict(),
-                configuration=dict(),
-            )
-        elif Session.check_min_api_version("2.3"):
-            self._set_task_property("system_tags", system_tags)
-            self._edit(
-                system_tags=self._data.system_tags,
-                comment=self._data.comment,
-                script=self._data.script,
-                execution=self._data.execution,
-                output_dest="",
-            )
-        else:
-            self._set_task_property("tags", system_tags)
-            self._edit(
-                tags=self._data.tags,
-                comment=self._data.comment,
-                script=self._data.script,
-                execution=self._data.execution,
-                output_dest=None,
-            )
+        self._set_task_property("system_tags", system_tags)
+        self._data.script.requirements = dict()
+        self._edit(
+            system_tags=self._data.system_tags,
+            comment=self._data.comment,
+            script=self._data.script,
+            execution=self._data.execution,
+            output_dest="",
+            hyperparams=dict(),
+            configuration=dict(),
+            container=self._data.container,
+            models=self._data.models,
+        )
 
     @classmethod
     def _get_api_server(cls) -> str:
@@ -2881,12 +2709,6 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         # make sure we have either dict or text
         mutually_exclusive(config_dict=config_dict, config_text=config_text, _check_none=True)
 
-        if not Session.check_min_api_version("2.9"):
-            raise ValueError(
-                "Multiple configurations are not supported with the current 'cairnml-server', "
-                "please upgrade to the latest version"
-            )
-
         if description:
             description = str(description)
         # support empty string
@@ -2910,11 +2732,6 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         :return: The Task configuration as text (unconstrained text string).
             Return ``None`` if configuration name is not valid.
         """
-        if not Session.check_min_api_version("2.9"):
-            raise ValueError(
-                "Multiple configurations are not supported with the current 'cairnml-server', "
-                "please upgrade to the latest version"
-            )
 
         configuration = self.data.configuration or {}
         if not configuration.get(name):
@@ -2980,70 +2797,20 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
         """
 
         session = session if session else cls._get_default_session()
-        use_clone_api = Session.check_min_api_version("2.9")
-        if use_clone_api:
-            res = cls._send(
-                session=session,
-                log=log,
-                req=tasks.CloneRequest(
-                    task=cloned_task_id,
-                    new_task_name=name,
-                    new_task_tags=tags,
-                    new_task_comment=comment,
-                    new_task_parent=parent,
-                    new_task_project=project,
-                    execution_overrides=execution_overrides,
-                ),
-            )
-            cloned_task_id = res.response.id
-            return cloned_task_id
-
-        res = cls._send(session=session, log=log, req=tasks.GetByIdRequest(task=cloned_task_id))
-        task = res.response.task
-        output_dest = None
-        if task.output:
-            output_dest = task.output.destination
-        execution = task.execution.to_dict() if task.execution else {}
-        execution = ConfigTree.merge_configs(
-            ConfigFactory.from_dict(execution),
-            ConfigFactory.from_dict(execution_overrides or {}),
+        res = cls._send(
+            session=session,
+            log=log,
+            req=tasks.CloneRequest(
+                task=cloned_task_id,
+                new_task_name=name,
+                new_task_tags=tags,
+                new_task_comment=comment,
+                new_task_parent=parent,
+                new_task_project=project,
+                execution_overrides=execution_overrides,
+            ),
         )
-        # clear all artifacts
-        execution["artifacts"] = [e for e in execution["artifacts"] if e.get("mode") == "input"]
-
-        if not hasattr(task, "system_tags") and not tags and task.tags:
-            tags = [t for t in task.tags if t != cls._development_tag]
-
-        extra = {}
-        if hasattr(task, "hyperparams"):
-            extra["hyperparams"] = task.hyperparams
-        if hasattr(task, "configuration"):
-            extra["configuration"] = task.configuration
-        if getattr(task, "system_tags", None):
-            extra["system_tags"] = [t for t in task.system_tags if t not in (cls._development_tag, cls.archived_tag)]
-
-        req = tasks.CreateRequest(
-            name=name or task.name,
-            type=task.type,
-            input=task.input if hasattr(task, "input") else {"view": {}},
-            tags=tags,
-            comment=comment if comment is not None else task.comment,
-            parent=parent,
-            project=project if project else task.project,
-            output_dest=output_dest,
-            execution=execution.as_plain_ordered_dict(),
-            script=task.script,
-            **extra,
-        )
-        res = cls._send(session=session, log=log, req=req)
         cloned_task_id = res.response.id
-
-        if task.script and task.script.requirements:
-            cls._send(
-                session=session,
-                log=log,
-                req=tasks.SetRequirementsRequest(task=cloned_task_id, requirements=task.script.requirements),
-            )
         return cloned_task_id
 
     @classmethod
@@ -3099,11 +2866,7 @@ class Task(IdObjectBase, AccessMixin, SetupUploadMixin):
             app_server_host = cls.__cached_app_server_host
 
         project = project_id if project_id is not None else "*"
-        return (
-            f"{app_server_host.rstrip('/')}/projects/{project}/tasks/{task_id}/output/log"
-            if Session.check_min_api_server_version("2.31")
-            else f"{app_server_host.rstrip('/')}/projects/{project}/experiments/{task_id}/output/log"
-        )
+        return f"{app_server_host.rstrip('/')}/projects/{project}/tasks/{task_id}/output/log"
 
     @classmethod
     def _get_project_name(cls, project_id: str) -> Optional[str]:
