@@ -2,7 +2,7 @@ import abc
 
 import jsonschema
 
-from .apimodel import ApiModel
+from cairnml.backend_api.session.apimodel import ApiModel
 from .datamodel import DataModel
 from .defs import ENV_API_DEFAULT_REQ_METHOD
 

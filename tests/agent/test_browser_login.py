@@ -7,7 +7,7 @@ from urllib.parse import parse_qs, urlsplit
 import pytest
 import requests
 
-from cairnml_agent.idp.browser_login import LoginFailed, LoginPortBusy, browser_login
+from cairnml.idp.browser_login import LoginFailed, LoginPortBusy, browser_login
 
 ISSUER = "https://idp.example/realms/mlops"
 
@@ -166,7 +166,7 @@ def test_no_sign_in_in_time_is_a_timeout():
 
 
 def test_the_reply_comes_back_to_the_registered_port(monkeypatch):
-    from cairnml_agent.idp.browser_login import LOGIN_PORT
+    from cairnml.idp.browser_login import LOGIN_PORT
 
     monkeypatch.delenv("CAIRNML_LOGIN_PORT", raising=False)
     assert LOGIN_PORT == 8765

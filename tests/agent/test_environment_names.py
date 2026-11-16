@@ -4,6 +4,8 @@ import ast
 import re
 from pathlib import Path
 
+import cairnml
+
 import pytest
 
 from cairnml_agent.backend_api.session import defs as session_defs
@@ -12,6 +14,7 @@ from cairnml_agent.backend_config import environment
 
 ROOT = Path(__file__).resolve().parent.parent
 PACKAGE = ROOT / "cairnml_agent"
+SDK_PACKAGE = Path(cairnml.__file__).resolve().parent
 DOCKER = ROOT / "docker"
 DOCUMENTATION = ROOT / "docs" / "environment.md"
 
@@ -118,9 +121,9 @@ def test_the_old_agent_prefixed_knob_name_is_ignored(monkeypatch, entry, name, v
     assert not entry.get()
 
 
-def _names_in_code():
+def _names_in_code(packages=(PACKAGE,)):
     names = set()
-    for path in _source_files(PACKAGE, {".py"}):
+    for path in [path for package in packages for path in _source_files(package, {".py"})]:
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         for node in ast.walk(tree):
             if isinstance(node, ast.Constant) and isinstance(node.value, str):
@@ -144,7 +147,8 @@ def test_every_name_the_code_reads_is_in_the_documented_table():
 
 
 def test_every_name_in_the_documented_table_is_read_by_the_code():
-    unknown = sorted(_names_in_table() - _names_in_code())
+    # the agent reads some names through the SDK it uses (its identity and session code), so both packages count here
+    unknown = sorted(_names_in_table() - _names_in_code((PACKAGE, SDK_PACKAGE)))
 
     assert unknown == []
 

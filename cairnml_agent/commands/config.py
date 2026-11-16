@@ -17,7 +17,8 @@ from urllib.parse import urlparse
 from cairnml_agent.backend_config.defs import LOCAL_CONFIG_FILE_OVERRIDE_VAR, LOCAL_CONFIG_FILES
 from pyhocon import ConfigFactory
 from cairnml_agent.idp.device_login import choose_login
-from cairnml_agent.idp.enrol import EnrolmentFailed, enrol
+from cairnml.idp.enrol import EnrolmentFailed, enrol
+from cairnml_agent.idp.device import DEVICE_KEY_PATH
 
 
 def default_config_file():
@@ -37,6 +38,7 @@ def main(server, name=None, force=False, file=None, device=False):
             force=force,
             previous_device_id=previous_device_id,
             login=choose_login(device),
+            key_path=DEVICE_KEY_PATH,
         )
     except EnrolmentFailed as exc:
         print("error: {}".format(exc), file=sys.stderr)
