@@ -25,12 +25,24 @@ from cairnml_agent.helper.base import (
     dump_yaml,
 )
 from cairnml_agent.helper.process import Argv, PathLike  # noqa: F401  # named by type comments
-from cairnml_agent.helper.gpu.gpustat import get_driver_cuda_version
 from cairnml_agent.session import normalize_cuda_version, Session  # noqa: F401  # Session is named by type comments
 from cairnml_agent.helper.package.requirement_lines import Requirement, parse
 
 from .translator import RequirementsTranslator
 from pyhocon import ConfigTree  # noqa: F401  # named by type comments
+
+
+def get_driver_cuda_version():
+    # type: () -> Optional[str]
+    """The CUDA version the NVIDIA driver supports, as the agent writes it ('118' is 11.8); None without a driver or
+    without the GPU support of the SDK (cairnml[gpu])."""
+    try:
+        from cairnml.utilities.gpu_query import driver_cuda_version
+
+        version = driver_cuda_version()
+    except Exception:
+        return None
+    return normalize_cuda_version(version) if version else None
 
 
 class SpecsResolutionError(Exception):
