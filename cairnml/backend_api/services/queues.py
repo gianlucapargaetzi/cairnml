@@ -173,6 +173,8 @@ class Queue(NonStrictDataModel):
     :type metadata: dict
     :param entries_count: The number of task entries in the queue. Returned when the request sets count_task_entries
     :type entries_count: int
+    :param workers: The workers (agents) that listen to the queue. Returned when the request asks for the workers
+    :type workers: Sequence[dict]
     """
 
     _schema = {
@@ -245,6 +247,22 @@ class Queue(NonStrictDataModel):
                 "type": ["array", "null"],
             },
             "user": {"description": "Associated user id", "type": ["string", "null"]},
+            "workers": {
+                "description": "The workers (agents) that listen to the queue. Returned when the request asks for the workers",
+                "items": {
+                    "properties": {
+                        "ip": {"description": "Worker ip", "type": "string"},
+                        "key": {"description": "Worker key", "type": "string"},
+                        "name": {"description": "Worker id", "type": "string"},
+                        "task": {
+                            "description": "The task the worker is running (empty when the caller may not see it)",
+                            "type": "object",
+                        },
+                    },
+                    "type": "object",
+                },
+                "type": ["array", "null"],
+            },
         },
         "type": "object",
     }
@@ -263,6 +281,7 @@ class Queue(NonStrictDataModel):
         entries: Optional[List[Any]] = None,
         metadata: Optional[dict] = None,
         entries_count: Optional[int] = None,
+        workers: Optional[List[dict]] = None,
         **kwargs: Any
     ) -> None:
         super(Queue, self).__init__(**kwargs)
@@ -278,6 +297,7 @@ class Queue(NonStrictDataModel):
         self.entries = entries
         self.metadata = metadata
         self.entries_count = entries_count
+        self.workers = workers
 
     @schema_property("id")
     def id(self) -> Optional[str]:
@@ -432,6 +452,19 @@ class Queue(NonStrictDataModel):
             value = int(value)
         self.assert_isinstance(value, "entries_count", six.integer_types)
         self._property_entries_count = value
+
+    @schema_property("workers")
+    def workers(self) -> Optional[List[dict]]:
+        return self._property_workers
+
+    @workers.setter
+    def workers(self, value: Optional[List[dict]]) -> None:
+        if value is None:
+            self._property_workers = None
+            return
+        self.assert_isinstance(value, "workers", (list, tuple))
+        self.assert_isinstance(value, "workers", (dict,), is_array=True)
+        self._property_workers = value
 
 
 class QueueMetrics(NonStrictDataModel):
@@ -1576,6 +1609,22 @@ class GetAllResponse(Response):
                         "type": ["array", "null"],
                     },
                     "user": {"description": "Associated user id", "type": ["string", "null"]},
+                    "workers": {
+                        "description": "The workers (agents) that listen to the queue. Returned when the request asks for the workers",
+                        "items": {
+                            "properties": {
+                                "ip": {"description": "Worker ip", "type": "string"},
+                                "key": {"description": "Worker key", "type": "string"},
+                                "name": {"description": "Worker id", "type": "string"},
+                                "task": {
+                                    "description": "The task the worker is running (empty when the caller may not see it)",
+                                    "type": "object",
+                                },
+                            },
+                            "type": "object",
+                        },
+                        "type": ["array", "null"],
+                    },
                 },
                 "type": "object",
             },
@@ -2106,6 +2155,22 @@ class GetAllExResponse(Response):
                         "type": ["array", "null"],
                     },
                     "user": {"description": "Associated user id", "type": ["string", "null"]},
+                    "workers": {
+                        "description": "The workers (agents) that listen to the queue. Returned when the request asks for the workers",
+                        "items": {
+                            "properties": {
+                                "ip": {"description": "Worker ip", "type": "string"},
+                                "key": {"description": "Worker key", "type": "string"},
+                                "name": {"description": "Worker id", "type": "string"},
+                                "task": {
+                                    "description": "The task the worker is running (empty when the caller may not see it)",
+                                    "type": "object",
+                                },
+                            },
+                            "type": "object",
+                        },
+                        "type": ["array", "null"],
+                    },
                 },
                 "type": "object",
             },
@@ -2302,6 +2367,22 @@ class GetByIdResponse(Response):
                         "type": ["array", "null"],
                     },
                     "user": {"description": "Associated user id", "type": ["string", "null"]},
+                    "workers": {
+                        "description": "The workers (agents) that listen to the queue. Returned when the request asks for the workers",
+                        "items": {
+                            "properties": {
+                                "ip": {"description": "Worker ip", "type": "string"},
+                                "key": {"description": "Worker key", "type": "string"},
+                                "name": {"description": "Worker id", "type": "string"},
+                                "task": {
+                                    "description": "The task the worker is running (empty when the caller may not see it)",
+                                    "type": "object",
+                                },
+                            },
+                            "type": "object",
+                        },
+                        "type": ["array", "null"],
+                    },
                 },
                 "type": "object",
             },
