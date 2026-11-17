@@ -1841,6 +1841,10 @@ class Task(NonStrictDataModel):
                             {"type": "string"},
                             {
                                 "properties": {
+                                    "framework": {
+                                        "description": "Model framework. The expanded model has the fields the request projects, so this is present only when requested",
+                                        "type": "string",
+                                    },
                                     "id": {"description": "Model id", "type": "string"},
                                     "name": {"description": "Model name", "type": "string"},
                                     "project": {
@@ -2611,6 +2615,10 @@ class TaskModelItem(NonStrictDataModel):
                     {"type": "string"},
                     {
                         "properties": {
+                            "framework": {
+                                "description": "Model framework. The expanded model has the fields the request projects, so this is present only when requested",
+                                "type": "string",
+                            },
                             "id": {"description": "Model id", "type": "string"},
                             "name": {"description": "Model name", "type": "string"},
                             "project": {
@@ -2679,6 +2687,10 @@ class TaskModels(NonStrictDataModel):
                             {"type": "string"},
                             {
                                 "properties": {
+                                    "framework": {
+                                        "description": "Model framework. The expanded model has the fields the request projects, so this is present only when requested",
+                                        "type": "string",
+                                    },
                                     "id": {"description": "Model id", "type": "string"},
                                     "name": {"description": "Model name", "type": "string"},
                                     "project": {
@@ -3712,6 +3724,10 @@ class CloneRequest(Request):
                             {"type": "string"},
                             {
                                 "properties": {
+                                    "framework": {
+                                        "description": "Model framework. The expanded model has the fields the request projects, so this is present only when requested",
+                                        "type": "string",
+                                    },
                                     "id": {"description": "Model id", "type": "string"},
                                     "name": {"description": "Model name", "type": "string"},
                                     "project": {
@@ -4686,6 +4702,10 @@ class CreateRequest(Request):
                             {"type": "string"},
                             {
                                 "properties": {
+                                    "framework": {
+                                        "description": "Model framework. The expanded model has the fields the request projects, so this is present only when requested",
+                                        "type": "string",
+                                    },
                                     "id": {"description": "Model id", "type": "string"},
                                     "name": {"description": "Model name", "type": "string"},
                                     "project": {
@@ -6849,6 +6869,10 @@ class EditRequest(Request):
                             {"type": "string"},
                             {
                                 "properties": {
+                                    "framework": {
+                                        "description": "Model framework. The expanded model has the fields the request projects, so this is present only when requested",
+                                        "type": "string",
+                                    },
                                     "id": {"description": "Model id", "type": "string"},
                                     "name": {"description": "Model name", "type": "string"},
                                     "project": {
@@ -9479,6 +9503,10 @@ class GetAllResponse(Response):
                             {"type": "string"},
                             {
                                 "properties": {
+                                    "framework": {
+                                        "description": "Model framework. The expanded model has the fields the request projects, so this is present only when requested",
+                                        "type": "string",
+                                    },
                                     "id": {"description": "Model id", "type": "string"},
                                     "name": {"description": "Model name", "type": "string"},
                                     "project": {
@@ -10649,6 +10677,10 @@ class GetAllExResponse(Response):
                             {"type": "string"},
                             {
                                 "properties": {
+                                    "framework": {
+                                        "description": "Model framework. The expanded model has the fields the request projects, so this is present only when requested",
+                                        "type": "string",
+                                    },
                                     "id": {"description": "Model id", "type": "string"},
                                     "name": {"description": "Model name", "type": "string"},
                                     "project": {
@@ -11236,6 +11268,10 @@ class GetByIdResponse(Response):
                             {"type": "string"},
                             {
                                 "properties": {
+                                    "framework": {
+                                        "description": "Model framework. The expanded model has the fields the request projects, so this is present only when requested",
+                                        "type": "string",
+                                    },
                                     "id": {"description": "Model id", "type": "string"},
                                     "name": {"description": "Model name", "type": "string"},
                                     "project": {
@@ -12207,6 +12243,10 @@ class GetByIdExResponse(Response):
                             {"type": "string"},
                             {
                                 "properties": {
+                                    "framework": {
+                                        "description": "Model framework. The expanded model has the fields the request projects, so this is present only when requested",
+                                        "type": "string",
+                                    },
                                     "id": {"description": "Model id", "type": "string"},
                                     "name": {"description": "Model name", "type": "string"},
                                     "project": {
@@ -15977,6 +16017,10 @@ class ValidateRequest(Request):
                             {"type": "string"},
                             {
                                 "properties": {
+                                    "framework": {
+                                        "description": "Model framework. The expanded model has the fields the request projects, so this is present only when requested",
+                                        "type": "string",
+                                    },
                                     "id": {"description": "Model id", "type": "string"},
                                     "name": {"description": "Model name", "type": "string"},
                                     "project": {
