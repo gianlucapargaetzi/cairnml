@@ -5541,7 +5541,16 @@ class GetQueuesResponse(Response):
                 "items": {
                     "properties": {
                         "id": {"description": "Queue id", "type": "string"},
+                        "level": {
+                            "description": "The level the project's share gives on the queue",
+                            "enum": ["read", "read_write", "collaborator"],
+                            "type": "string",
+                        },
                         "name": {"description": "Queue name", "type": "string"},
+                        "share_id": {
+                            "description": "The id of the share that allocates the queue to the project (used to remove it)",
+                            "type": "string",
+                        },
                     },
                     "type": "object",
                 },

@@ -1805,7 +1805,7 @@ class GetEndpointMetricsHistoryResponse(Response):
 
     :param computed_interval: The inteval that was actually used for the histogram. May be larger then the requested one
     :type computed_interval: int
-    :param total:
+    :param total: The total histogram
     :type total: dict
     :param instances: Instance charts
     :type instances: dict
@@ -1842,13 +1842,13 @@ class GetEndpointMetricsHistoryResponse(Response):
                 "type": ["object", "null"],
             },
             "total": {
+                "description": "The total histogram",
                 "properties": {
                     "dates": {
                         "description": "List of timestamps (in seconds from epoch) in the acceding order. The timestamps are separated by the requested interval.",
                         "items": {"type": "integer"},
                         "type": "array",
                     },
-                    "description": "The total histogram",
                     "title": {"description": "The title of the series", "type": "string"},
                     "values": {
                         "description": "List of values corresponding to the timestamps in the dates list.",
