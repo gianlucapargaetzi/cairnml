@@ -171,6 +171,8 @@ class Queue(NonStrictDataModel):
     :type entries: Sequence[Entry]
     :param metadata: Queue metadata
     :type metadata: dict
+    :param entries_count: The number of task entries in the queue. Returned when the request sets count_task_entries
+    :type entries_count: int
     """
 
     _schema = {
@@ -221,6 +223,10 @@ class Queue(NonStrictDataModel):
                 "items": {"$ref": "#/definitions/entry"},
                 "type": ["array", "null"],
             },
+            "entries_count": {
+                "description": "The number of task entries in the queue. Returned when the request sets count_task_entries",
+                "type": ["integer", "null"],
+            },
             "id": {"description": "Queue id", "type": ["string", "null"]},
             "metadata": {
                 "additionalProperties": {"$ref": "#/definitions/metadata_item"},
@@ -256,6 +262,7 @@ class Queue(NonStrictDataModel):
         system_tags: Optional[List[str]] = None,
         entries: Optional[List[Any]] = None,
         metadata: Optional[dict] = None,
+        entries_count: Optional[int] = None,
         **kwargs: Any
     ) -> None:
         super(Queue, self).__init__(**kwargs)
@@ -270,6 +277,7 @@ class Queue(NonStrictDataModel):
         self.system_tags = system_tags
         self.entries = entries
         self.metadata = metadata
+        self.entries_count = entries_count
 
     @schema_property("id")
     def id(self) -> Optional[str]:
@@ -410,6 +418,20 @@ class Queue(NonStrictDataModel):
             return
         self.assert_isinstance(value, "metadata", (dict,))
         self._property_metadata = value
+
+    @schema_property("entries_count")
+    def entries_count(self) -> Optional[int]:
+        return self._property_entries_count
+
+    @entries_count.setter
+    def entries_count(self, value: Optional[int]) -> None:
+        if value is None:
+            self._property_entries_count = None
+            return
+        if isinstance(value, float) and value.is_integer():
+            value = int(value)
+        self.assert_isinstance(value, "entries_count", six.integer_types)
+        self._property_entries_count = value
 
 
 class QueueMetrics(NonStrictDataModel):
@@ -1532,6 +1554,10 @@ class GetAllResponse(Response):
                         "items": {"$ref": "#/definitions/entry"},
                         "type": ["array", "null"],
                     },
+                    "entries_count": {
+                        "description": "The number of task entries in the queue. Returned when the request sets count_task_entries",
+                        "type": ["integer", "null"],
+                    },
                     "id": {"description": "Queue id", "type": ["string", "null"]},
                     "metadata": {
                         "additionalProperties": {"$ref": "#/definitions/metadata_item"},
@@ -2058,6 +2084,10 @@ class GetAllExResponse(Response):
                         "items": {"$ref": "#/definitions/entry"},
                         "type": ["array", "null"],
                     },
+                    "entries_count": {
+                        "description": "The number of task entries in the queue. Returned when the request sets count_task_entries",
+                        "type": ["integer", "null"],
+                    },
                     "id": {"description": "Queue id", "type": ["string", "null"]},
                     "metadata": {
                         "additionalProperties": {"$ref": "#/definitions/metadata_item"},
@@ -2249,6 +2279,10 @@ class GetByIdResponse(Response):
                         "description": "List of ordered queue entries",
                         "items": {"$ref": "#/definitions/entry"},
                         "type": ["array", "null"],
+                    },
+                    "entries_count": {
+                        "description": "The number of task entries in the queue. Returned when the request sets count_task_entries",
+                        "type": ["integer", "null"],
                     },
                     "id": {"description": "Queue id", "type": ["string", "null"]},
                     "metadata": {

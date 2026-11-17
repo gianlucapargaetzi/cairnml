@@ -1547,10 +1547,10 @@ class Task(NonStrictDataModel):
     :type completed: datetime.datetime
     :param active_duration: Task duration time (seconds)
     :type active_duration: int
-    :param parent: Parent task id
-    :type parent: str
-    :param project: Project ID of the project to which this task is assigned
-    :type project: str
+    :param parent: Parent task: its ID, or the task {id, name, project} when the server expands the reference
+    :type parent: any
+    :param project: The project the task is assigned to: its ID, or the project {id, name} when the server expands the reference
+    :type project: any
     :param output: Task output params
     :type output: Output
     :param execution: Task execution params
@@ -1836,7 +1836,30 @@ class Task(NonStrictDataModel):
             },
             "task_model_item": {
                 "properties": {
-                    "model": {"description": "The model ID", "type": ["string", "null"]},
+                    "model": {
+                        "anyOf": [
+                            {"type": "string"},
+                            {
+                                "properties": {
+                                    "id": {"description": "Model id", "type": "string"},
+                                    "name": {"description": "Model name", "type": "string"},
+                                    "project": {
+                                        "description": "Project of the model",
+                                        "properties": {
+                                            "id": {"description": "Project id", "type": "string"},
+                                            "name": {
+                                                "description": "Project name",
+                                                "type": "string",
+                                            },
+                                        },
+                                        "type": "object",
+                                    },
+                                },
+                                "type": "object",
+                            },
+                        ],
+                        "description": "The model: its ID, or the model {id, name, project} when the server expands the reference",
+                    },
                     "name": {"description": "The task model name", "type": ["string", "null"]},
                 },
                 "required": ["name", "model"],
@@ -1970,10 +1993,38 @@ class Task(NonStrictDataModel):
                 "description": "Task output params",
                 "oneOf": [{"$ref": "#/definitions/output"}, {"type": "null"}],
             },
-            "parent": {"description": "Parent task id", "type": ["string", "null"]},
+            "parent": {
+                "anyOf": [
+                    {"type": "string"},
+                    {
+                        "properties": {
+                            "id": {"description": "Parent task id", "type": "string"},
+                            "name": {"description": "Parent task name", "type": "string"},
+                            "project": {
+                                "description": "Project of the parent task",
+                                "properties": {
+                                    "id": {"description": "Project id", "type": "string"},
+                                },
+                                "type": "object",
+                            },
+                        },
+                        "type": "object",
+                    },
+                ],
+                "description": "Parent task: its ID, or the task {id, name, project} when the server expands the reference",
+            },
             "project": {
-                "description": "Project ID of the project to which this task is assigned",
-                "type": ["string", "null"],
+                "anyOf": [
+                    {"type": "string"},
+                    {
+                        "properties": {
+                            "id": {"description": "Project id", "type": "string"},
+                            "name": {"description": "Project name", "type": "string"},
+                        },
+                        "type": "object",
+                    },
+                ],
+                "description": "The project the task is assigned to: its ID, or the project {id, name} when the server expands the reference",
             },
             "published": {
                 "description": "Task publish time",
@@ -2044,8 +2095,8 @@ class Task(NonStrictDataModel):
         started: Optional[str] = None,
         completed: Optional[str] = None,
         active_duration: Optional[int] = None,
-        parent: Optional[str] = None,
-        project: Optional[str] = None,
+        parent: Any = None,
+        project: Any = None,
         output: Any = None,
         execution: Any = None,
         container: Optional[dict] = None,
@@ -2257,27 +2308,25 @@ class Task(NonStrictDataModel):
         self._property_active_duration = value
 
     @schema_property("parent")
-    def parent(self) -> Optional[str]:
+    def parent(self) -> Any:
         return self._property_parent
 
     @parent.setter
-    def parent(self, value: Optional[str]) -> None:
+    def parent(self, value: Any) -> None:
         if value is None:
             self._property_parent = None
             return
-        self.assert_isinstance(value, "parent", six.string_types)
         self._property_parent = value
 
     @schema_property("project")
-    def project(self) -> Optional[str]:
+    def project(self) -> Any:
         return self._property_project
 
     @project.setter
-    def project(self, value: Optional[str]) -> None:
+    def project(self, value: Any) -> None:
         if value is None:
             self._property_project = None
             return
-        self.assert_isinstance(value, "project", six.string_types)
         self._property_project = value
 
     @schema_property("output")
@@ -2551,25 +2600,40 @@ class TaskModelItem(NonStrictDataModel):
     """
     :param name: The task model name
     :type name: str
-    :param model: The model ID
-    :type model: str
+    :param model: The model: its ID, or the model {id, name, project} when the server expands the reference
+    :type model: any
     """
 
     _schema = {
         "properties": {
-            "model": {"description": "The model ID", "type": ["string", "null"]},
+            "model": {
+                "anyOf": [
+                    {"type": "string"},
+                    {
+                        "properties": {
+                            "id": {"description": "Model id", "type": "string"},
+                            "name": {"description": "Model name", "type": "string"},
+                            "project": {
+                                "description": "Project of the model",
+                                "properties": {
+                                    "id": {"description": "Project id", "type": "string"},
+                                    "name": {"description": "Project name", "type": "string"},
+                                },
+                                "type": "object",
+                            },
+                        },
+                        "type": "object",
+                    },
+                ],
+                "description": "The model: its ID, or the model {id, name, project} when the server expands the reference",
+            },
             "name": {"description": "The task model name", "type": ["string", "null"]},
         },
         "required": ["name", "model"],
         "type": "object",
     }
 
-    def __init__(
-        self,
-        name: Optional[str] = None,
-        model: Optional[str] = None,
-        **kwargs: Any
-    ) -> None:
+    def __init__(self, name: Optional[str] = None, model: Any = None, **kwargs: Any) -> None:
         super(TaskModelItem, self).__init__(**kwargs)
         self.name = name
         self.model = model
@@ -2587,15 +2651,14 @@ class TaskModelItem(NonStrictDataModel):
         self._property_name = value
 
     @schema_property("model")
-    def model(self) -> Optional[str]:
+    def model(self) -> Any:
         return self._property_model
 
     @model.setter
-    def model(self, value: Optional[str]) -> None:
+    def model(self, value: Any) -> None:
         if value is None:
             self._property_model = None
             return
-        self.assert_isinstance(value, "model", six.string_types)
         self._property_model = value
 
 
@@ -2611,7 +2674,30 @@ class TaskModels(NonStrictDataModel):
         "definitions": {
             "task_model_item": {
                 "properties": {
-                    "model": {"description": "The model ID", "type": ["string", "null"]},
+                    "model": {
+                        "anyOf": [
+                            {"type": "string"},
+                            {
+                                "properties": {
+                                    "id": {"description": "Model id", "type": "string"},
+                                    "name": {"description": "Model name", "type": "string"},
+                                    "project": {
+                                        "description": "Project of the model",
+                                        "properties": {
+                                            "id": {"description": "Project id", "type": "string"},
+                                            "name": {
+                                                "description": "Project name",
+                                                "type": "string",
+                                            },
+                                        },
+                                        "type": "object",
+                                    },
+                                },
+                                "type": "object",
+                            },
+                        ],
+                        "description": "The model: its ID, or the model {id, name, project} when the server expands the reference",
+                    },
                     "name": {"description": "The task model name", "type": ["string", "null"]},
                 },
                 "required": ["name", "model"],
@@ -3621,7 +3707,30 @@ class CloneRequest(Request):
             },
             "task_model_item": {
                 "properties": {
-                    "model": {"description": "The model ID", "type": "string"},
+                    "model": {
+                        "anyOf": [
+                            {"type": "string"},
+                            {
+                                "properties": {
+                                    "id": {"description": "Model id", "type": "string"},
+                                    "name": {"description": "Model name", "type": "string"},
+                                    "project": {
+                                        "description": "Project of the model",
+                                        "properties": {
+                                            "id": {"description": "Project id", "type": "string"},
+                                            "name": {
+                                                "description": "Project name",
+                                                "type": "string",
+                                            },
+                                        },
+                                        "type": "object",
+                                    },
+                                },
+                                "type": "object",
+                            },
+                        ],
+                        "description": "The model: its ID, or the model {id, name, project} when the server expands the reference",
+                    },
                     "name": {"description": "The task model name", "type": "string"},
                 },
                 "required": ["name", "model"],
@@ -4572,7 +4681,30 @@ class CreateRequest(Request):
             },
             "task_model_item": {
                 "properties": {
-                    "model": {"description": "The model ID", "type": "string"},
+                    "model": {
+                        "anyOf": [
+                            {"type": "string"},
+                            {
+                                "properties": {
+                                    "id": {"description": "Model id", "type": "string"},
+                                    "name": {"description": "Model name", "type": "string"},
+                                    "project": {
+                                        "description": "Project of the model",
+                                        "properties": {
+                                            "id": {"description": "Project id", "type": "string"},
+                                            "name": {
+                                                "description": "Project name",
+                                                "type": "string",
+                                            },
+                                        },
+                                        "type": "object",
+                                    },
+                                },
+                                "type": "object",
+                            },
+                        ],
+                        "description": "The model: its ID, or the model {id, name, project} when the server expands the reference",
+                    },
                     "name": {"description": "The task model name", "type": "string"},
                 },
                 "required": ["name", "model"],
@@ -6712,7 +6844,30 @@ class EditRequest(Request):
             },
             "task_model_item": {
                 "properties": {
-                    "model": {"description": "The model ID", "type": "string"},
+                    "model": {
+                        "anyOf": [
+                            {"type": "string"},
+                            {
+                                "properties": {
+                                    "id": {"description": "Model id", "type": "string"},
+                                    "name": {"description": "Model name", "type": "string"},
+                                    "project": {
+                                        "description": "Project of the model",
+                                        "properties": {
+                                            "id": {"description": "Project id", "type": "string"},
+                                            "name": {
+                                                "description": "Project name",
+                                                "type": "string",
+                                            },
+                                        },
+                                        "type": "object",
+                                    },
+                                },
+                                "type": "object",
+                            },
+                        ],
+                        "description": "The model: its ID, or the model {id, name, project} when the server expands the reference",
+                    },
                     "name": {"description": "The task model name", "type": "string"},
                 },
                 "required": ["name", "model"],
@@ -9230,10 +9385,38 @@ class GetAllResponse(Response):
                         "description": "Task output params",
                         "oneOf": [{"$ref": "#/definitions/output"}, {"type": "null"}],
                     },
-                    "parent": {"description": "Parent task id", "type": ["string", "null"]},
+                    "parent": {
+                        "anyOf": [
+                            {"type": "string"},
+                            {
+                                "properties": {
+                                    "id": {"description": "Parent task id", "type": "string"},
+                                    "name": {"description": "Parent task name", "type": "string"},
+                                    "project": {
+                                        "description": "Project of the parent task",
+                                        "properties": {
+                                            "id": {"description": "Project id", "type": "string"},
+                                        },
+                                        "type": "object",
+                                    },
+                                },
+                                "type": "object",
+                            },
+                        ],
+                        "description": "Parent task: its ID, or the task {id, name, project} when the server expands the reference",
+                    },
                     "project": {
-                        "description": "Project ID of the project to which this task is assigned",
-                        "type": ["string", "null"],
+                        "anyOf": [
+                            {"type": "string"},
+                            {
+                                "properties": {
+                                    "id": {"description": "Project id", "type": "string"},
+                                    "name": {"description": "Project name", "type": "string"},
+                                },
+                                "type": "object",
+                            },
+                        ],
+                        "description": "The project the task is assigned to: its ID, or the project {id, name} when the server expands the reference",
                     },
                     "published": {
                         "description": "Task publish time",
@@ -9291,7 +9474,30 @@ class GetAllResponse(Response):
             },
             "task_model_item": {
                 "properties": {
-                    "model": {"description": "The model ID", "type": ["string", "null"]},
+                    "model": {
+                        "anyOf": [
+                            {"type": "string"},
+                            {
+                                "properties": {
+                                    "id": {"description": "Model id", "type": "string"},
+                                    "name": {"description": "Model name", "type": "string"},
+                                    "project": {
+                                        "description": "Project of the model",
+                                        "properties": {
+                                            "id": {"description": "Project id", "type": "string"},
+                                            "name": {
+                                                "description": "Project name",
+                                                "type": "string",
+                                            },
+                                        },
+                                        "type": "object",
+                                    },
+                                },
+                                "type": "object",
+                            },
+                        ],
+                        "description": "The model: its ID, or the model {id, name, project} when the server expands the reference",
+                    },
                     "name": {"description": "The task model name", "type": ["string", "null"]},
                 },
                 "required": ["name", "model"],
@@ -10349,10 +10555,38 @@ class GetAllExResponse(Response):
                         "description": "Task output params",
                         "oneOf": [{"$ref": "#/definitions/output"}, {"type": "null"}],
                     },
-                    "parent": {"description": "Parent task id", "type": ["string", "null"]},
+                    "parent": {
+                        "anyOf": [
+                            {"type": "string"},
+                            {
+                                "properties": {
+                                    "id": {"description": "Parent task id", "type": "string"},
+                                    "name": {"description": "Parent task name", "type": "string"},
+                                    "project": {
+                                        "description": "Project of the parent task",
+                                        "properties": {
+                                            "id": {"description": "Project id", "type": "string"},
+                                        },
+                                        "type": "object",
+                                    },
+                                },
+                                "type": "object",
+                            },
+                        ],
+                        "description": "Parent task: its ID, or the task {id, name, project} when the server expands the reference",
+                    },
                     "project": {
-                        "description": "Project ID of the project to which this task is assigned",
-                        "type": ["string", "null"],
+                        "anyOf": [
+                            {"type": "string"},
+                            {
+                                "properties": {
+                                    "id": {"description": "Project id", "type": "string"},
+                                    "name": {"description": "Project name", "type": "string"},
+                                },
+                                "type": "object",
+                            },
+                        ],
+                        "description": "The project the task is assigned to: its ID, or the project {id, name} when the server expands the reference",
                     },
                     "published": {
                         "description": "Task publish time",
@@ -10410,7 +10644,30 @@ class GetAllExResponse(Response):
             },
             "task_model_item": {
                 "properties": {
-                    "model": {"description": "The model ID", "type": ["string", "null"]},
+                    "model": {
+                        "anyOf": [
+                            {"type": "string"},
+                            {
+                                "properties": {
+                                    "id": {"description": "Model id", "type": "string"},
+                                    "name": {"description": "Model name", "type": "string"},
+                                    "project": {
+                                        "description": "Project of the model",
+                                        "properties": {
+                                            "id": {"description": "Project id", "type": "string"},
+                                            "name": {
+                                                "description": "Project name",
+                                                "type": "string",
+                                            },
+                                        },
+                                        "type": "object",
+                                    },
+                                },
+                                "type": "object",
+                            },
+                        ],
+                        "description": "The model: its ID, or the model {id, name, project} when the server expands the reference",
+                    },
                     "name": {"description": "The task model name", "type": ["string", "null"]},
                 },
                 "required": ["name", "model"],
@@ -10885,10 +11142,38 @@ class GetByIdResponse(Response):
                         "description": "Task output params",
                         "oneOf": [{"$ref": "#/definitions/output"}, {"type": "null"}],
                     },
-                    "parent": {"description": "Parent task id", "type": ["string", "null"]},
+                    "parent": {
+                        "anyOf": [
+                            {"type": "string"},
+                            {
+                                "properties": {
+                                    "id": {"description": "Parent task id", "type": "string"},
+                                    "name": {"description": "Parent task name", "type": "string"},
+                                    "project": {
+                                        "description": "Project of the parent task",
+                                        "properties": {
+                                            "id": {"description": "Project id", "type": "string"},
+                                        },
+                                        "type": "object",
+                                    },
+                                },
+                                "type": "object",
+                            },
+                        ],
+                        "description": "Parent task: its ID, or the task {id, name, project} when the server expands the reference",
+                    },
                     "project": {
-                        "description": "Project ID of the project to which this task is assigned",
-                        "type": ["string", "null"],
+                        "anyOf": [
+                            {"type": "string"},
+                            {
+                                "properties": {
+                                    "id": {"description": "Project id", "type": "string"},
+                                    "name": {"description": "Project name", "type": "string"},
+                                },
+                                "type": "object",
+                            },
+                        ],
+                        "description": "The project the task is assigned to: its ID, or the project {id, name} when the server expands the reference",
                     },
                     "published": {
                         "description": "Task publish time",
@@ -10946,7 +11231,30 @@ class GetByIdResponse(Response):
             },
             "task_model_item": {
                 "properties": {
-                    "model": {"description": "The model ID", "type": ["string", "null"]},
+                    "model": {
+                        "anyOf": [
+                            {"type": "string"},
+                            {
+                                "properties": {
+                                    "id": {"description": "Model id", "type": "string"},
+                                    "name": {"description": "Model name", "type": "string"},
+                                    "project": {
+                                        "description": "Project of the model",
+                                        "properties": {
+                                            "id": {"description": "Project id", "type": "string"},
+                                            "name": {
+                                                "description": "Project name",
+                                                "type": "string",
+                                            },
+                                        },
+                                        "type": "object",
+                                    },
+                                },
+                                "type": "object",
+                            },
+                        ],
+                        "description": "The model: its ID, or the model {id, name, project} when the server expands the reference",
+                    },
                     "name": {"description": "The task model name", "type": ["string", "null"]},
                 },
                 "required": ["name", "model"],
@@ -11805,10 +12113,38 @@ class GetByIdExResponse(Response):
                         "description": "Task output params",
                         "oneOf": [{"$ref": "#/definitions/output"}, {"type": "null"}],
                     },
-                    "parent": {"description": "Parent task id", "type": ["string", "null"]},
+                    "parent": {
+                        "anyOf": [
+                            {"type": "string"},
+                            {
+                                "properties": {
+                                    "id": {"description": "Parent task id", "type": "string"},
+                                    "name": {"description": "Parent task name", "type": "string"},
+                                    "project": {
+                                        "description": "Project of the parent task",
+                                        "properties": {
+                                            "id": {"description": "Project id", "type": "string"},
+                                        },
+                                        "type": "object",
+                                    },
+                                },
+                                "type": "object",
+                            },
+                        ],
+                        "description": "Parent task: its ID, or the task {id, name, project} when the server expands the reference",
+                    },
                     "project": {
-                        "description": "Project ID of the project to which this task is assigned",
-                        "type": ["string", "null"],
+                        "anyOf": [
+                            {"type": "string"},
+                            {
+                                "properties": {
+                                    "id": {"description": "Project id", "type": "string"},
+                                    "name": {"description": "Project name", "type": "string"},
+                                },
+                                "type": "object",
+                            },
+                        ],
+                        "description": "The project the task is assigned to: its ID, or the project {id, name} when the server expands the reference",
                     },
                     "published": {
                         "description": "Task publish time",
@@ -11866,7 +12202,30 @@ class GetByIdExResponse(Response):
             },
             "task_model_item": {
                 "properties": {
-                    "model": {"description": "The model ID", "type": ["string", "null"]},
+                    "model": {
+                        "anyOf": [
+                            {"type": "string"},
+                            {
+                                "properties": {
+                                    "id": {"description": "Model id", "type": "string"},
+                                    "name": {"description": "Model name", "type": "string"},
+                                    "project": {
+                                        "description": "Project of the model",
+                                        "properties": {
+                                            "id": {"description": "Project id", "type": "string"},
+                                            "name": {
+                                                "description": "Project name",
+                                                "type": "string",
+                                            },
+                                        },
+                                        "type": "object",
+                                    },
+                                },
+                                "type": "object",
+                            },
+                        ],
+                        "description": "The model: its ID, or the model {id, name, project} when the server expands the reference",
+                    },
                     "name": {"description": "The task model name", "type": ["string", "null"]},
                 },
                 "required": ["name", "model"],
@@ -15613,7 +15972,30 @@ class ValidateRequest(Request):
             },
             "task_model_item": {
                 "properties": {
-                    "model": {"description": "The model ID", "type": "string"},
+                    "model": {
+                        "anyOf": [
+                            {"type": "string"},
+                            {
+                                "properties": {
+                                    "id": {"description": "Model id", "type": "string"},
+                                    "name": {"description": "Model name", "type": "string"},
+                                    "project": {
+                                        "description": "Project of the model",
+                                        "properties": {
+                                            "id": {"description": "Project id", "type": "string"},
+                                            "name": {
+                                                "description": "Project name",
+                                                "type": "string",
+                                            },
+                                        },
+                                        "type": "object",
+                                    },
+                                },
+                                "type": "object",
+                            },
+                        ],
+                        "description": "The model: its ID, or the model {id, name, project} when the server expands the reference",
+                    },
                     "name": {"description": "The task model name", "type": "string"},
                 },
                 "required": ["name", "model"],
