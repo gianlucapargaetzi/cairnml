@@ -437,6 +437,8 @@ class Queue(NonStrictDataModel):
             self._property_metadata = None
             return
         self.assert_isinstance(value, "metadata", (dict,))
+        value = {k: MetadataItem.from_dict(v) if isinstance(v, dict) else v for k, v in value.items()}
+        self.assert_isinstance(value.values(), "metadata", (MetadataItem,), is_array=True)
         self._property_metadata = value
 
     @schema_property("entries_count")
@@ -4060,6 +4062,8 @@ class UpdateRequest(Request):
             self._property_metadata = None
             return
         self.assert_isinstance(value, "metadata", (dict,))
+        value = {k: MetadataItem.from_dict(v) if isinstance(v, dict) else v for k, v in value.items()}
+        self.assert_isinstance(value.values(), "metadata", (MetadataItem,), is_array=True)
         self._property_metadata = value
 
     @schema_property("display_name")
