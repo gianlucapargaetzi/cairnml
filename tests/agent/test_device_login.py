@@ -1,6 +1,6 @@
 import pytest
 
-from cairnml.idp.browser_login import LoginFailed, LoginPortBusy
+from cairnml_agent.idp.browser_login import LoginFailed, LoginPortBusy
 from cairnml_agent.idp.device_login import device_login
 
 

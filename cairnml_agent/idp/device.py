@@ -3,8 +3,8 @@
 import os
 from pathlib import Path
 
-from cairnml.idp.assertion import make_assertion
-from cairnml.idp.keys import read_private_key, write_private_key
+from .assertion import make_assertion
+from .keys import read_private_key, write_private_key
 
 # The agent has its own key, apart from the CairnML SDK's ~/.cairnml/device.key
 DEVICE_KEY_PATH = Path.home() / ".cairnml" / "agent" / "device.key"

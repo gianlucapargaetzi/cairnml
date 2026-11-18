@@ -16,9 +16,6 @@ from time import sleep, time
 from datetime import datetime, timedelta, timezone
 from typing import Text, List, Optional, Dict, Tuple, Callable, Any, Collection, Union, Iterable, Set  # noqa: F401  # used in type comments
 
-from cairnml_agent.backend_api.endpoints import endpoint
-from cairnml.backend_api.services import tasks as tasks_api
-from cairnml.backend_api.services import queues as queues_api
 from cairnml_agent.commands.events import Events
 from cairnml_agent.commands.worker import Worker, get_task_container, set_task_container, get_next_task
 from cairnml_agent.definitions import (
@@ -38,7 +35,7 @@ from cairnml_agent.helper.hash import md5
 from cairnml_agent.helper.process import stringify_bash_output
 from cairnml_agent.helper.resource_monitor import ResourceMonitor
 from cairnml_agent.interface.base import ObjectID
-from cairnml.backend_api.session.request import Request
+from cairnml_agent.backend_api.session.request import Request
 from cairnml_agent.glue.definitions import (
     ENV_START_AGENT_SCRIPT_PATH,
     ENV_DEFAULT_EXECUTION_AGENT_ARGS,
@@ -101,6 +98,7 @@ class K8sIntegration(Worker):
     DEFAULT_POD_NAME_PREFIX = "cairnml-id-"
     DEFAULT_LIMIT_POD_LABEL = "ai.cairnml.agent.serial=pod-{pod_number}"
 
+    _edit_hyperparams_version = "2.9"
 
     def __init__(
         self,
@@ -295,9 +293,14 @@ class K8sIntegration(Worker):
             if self._edit_hyperparams_support == self._session.api_version:
                 # tested against latest api_version, not supported
                 return
+            if not self._session.check_min_api_version(self._edit_hyperparams_version):
+                # not supported due to insufficient api_version
+                self._edit_hyperparams_support = self._session.api_version
+                return
         try:
             session.get(
-                **endpoint(tasks_api.EditHyperParamsRequest),
+                service="tasks",
+                action="edit_hyper_params",
                 task=task_id,
                 hyperparams=[
                     {
@@ -461,7 +464,7 @@ class K8sIntegration(Worker):
     def run_one_task(self, queue: Text, task_id: Text, worker_args=None, task_session=None, **_):
         print("Pulling task {} launching on kubernetes cluster".format(task_id))
         session = task_session or self._session
-        task_data = session.get(**endpoint(tasks_api.GetAllRequest), id=[task_id])["tasks"][0]
+        task_data = session.get(service="tasks", action="get_all", version="2.13", id=[task_id])["tasks"][0]
 
         # push task into the k8s queue, so we have visibility on pending tasks in the k8s scheduler
         if self._is_same_tenant(task_session):
@@ -774,7 +777,8 @@ class K8sIntegration(Worker):
 
             try:
                 res = task_session.send_request(
-                    **endpoint(tasks_api.EditRequest),
+                    service="tasks",
+                    action="edit",
                     method=Request.def_method,
                     json={"task": task_id, "force": True, "runtime": task_runtime},
                 )
@@ -786,7 +790,8 @@ class K8sIntegration(Worker):
     def _get_task_runtime(self, task_id) -> Optional[dict]:
         try:
             res = self._session.send_request(
-                **endpoint(tasks_api.GetByIdRequest),
+                service="tasks",
+                action="get_by_id",
                 method=Request.def_method,
                 json={"task": task_id, "only_fields": ["runtime"]},
             )
@@ -1249,7 +1254,8 @@ class K8sIntegration(Worker):
             )
             if task_ids:
                 result = self._session.get(
-                    **endpoint(tasks_api.GetAllRequest),
+                    service="tasks",
+                    action="get_all",
                     json={
                         "id": task_ids,
                         "status": ["in_progress", "queued"],
@@ -1280,7 +1286,8 @@ class K8sIntegration(Worker):
             try:
                 if status == "queued":
                     self._session.get(
-                        **endpoint(tasks_api.DequeueRequest),
+                        service="tasks",
+                        action="dequeue",
                         json={
                             "task": task_id,
                             "force": True,
@@ -1292,7 +1299,8 @@ class K8sIntegration(Worker):
                         method=Request.def_method,
                     )
                 self._session.get(
-                    **endpoint(tasks_api.FailedRequest),
+                    service="tasks",
+                    action="failed",
                     json={
                         "task": task_id,
                         "force": True,
@@ -1447,7 +1455,9 @@ class K8sIntegration(Worker):
     def _re_enqueue_task(self, queue, task_id):
         request = {"queue": queue, "task": task_id}
         result = self._session.send_request(
-            **endpoint(queues_api.AddTaskRequest),
+            service="queues",
+            action="add_task",
+            version="2.14",
             json=request,
             method=Request.def_method,
         )
@@ -1457,7 +1467,8 @@ class K8sIntegration(Worker):
             self.send_logs(task_id, send_log.splitlines())
             try:
                 self._session.get(
-                    **endpoint(tasks_api.FailedRequest),
+                    service="tasks",
+                    action="failed",
                     json={
                         "task": task_id,
                         "force": True,
@@ -1469,7 +1480,9 @@ class K8sIntegration(Worker):
             except Exception as exc:
                 self.log.warning('Failed setting task {} to status "{}": {}'.format(task_id, "failed", exc))
         result = self._session.send_request(
-            **endpoint(queues_api.MoveTaskToFrontRequest),
+            service="queues",
+            action="move_task_to_front",
+            version="2.14",
             json=request,
             method=Request.def_method,
         )

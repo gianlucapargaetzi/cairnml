@@ -22,8 +22,6 @@ jobs:
       - run: |
           git config --global user.email ci@example.invalid
           git config --global user.name ci
-      # The SDK comes from its main on GitHub, never from PyPI, so work in progress never waits for a release.
-      - run: python -m pip install "cairnml[gpu] @ git+https://github.com/gianlucapargaetzi/cairnml.git@main"
       - run: python -m pip install -e "." -r tests/requirements.txt
       - run: python -m pytest tests -q --ignore=tests/requirements --ignore=tests/package
 
@@ -89,8 +87,6 @@ jobs:
       - run: |
           git config --global user.email ci@example.invalid
           git config --global user.name ci
-      # The SDK comes from its main on GitHub, never from PyPI, so work in progress never waits for a release.
-      - run: python -m pip install "cairnml[gpu] @ git+https://github.com/gianlucapargaetzi/cairnml.git@main"
       - run: python -m pip install -e "." -r tests/requirements.txt
       - run: python -m pytest tests -q --ignore=tests/requirements --ignore=tests/package
 
@@ -108,7 +104,6 @@ jobs:
       - name: Install the wheel in a clean environment
         run: |
           python -m venv /tmp/clean
-          /tmp/clean/bin/pip install "cairnml[gpu] @ git+https://github.com/gianlucapargaetzi/cairnml.git@main"
           /tmp/clean/bin/pip install dist/*.whl
           /tmp/clean/bin/python -I -c "import cairnml_agent"
           /tmp/clean/bin/cairnml-agent --help > /dev/null

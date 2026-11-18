@@ -7,7 +7,7 @@ from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
 from urllib3 import PoolManager
 
-from cairnml.backend_api.session.defs import ENV_HOST_VERIFY_CERT
+from .session.defs import ENV_HOST_VERIFY_CERT
 
 
 __disable_certificate_verification_warning = 0

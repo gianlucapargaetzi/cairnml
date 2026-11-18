@@ -1,4 +1,4 @@
-from cairnml.idp.callback_page import page
+from cairnml_agent.idp.callback_page import page
 
 
 def test_the_page_is_self_contained_html_with_the_logo():

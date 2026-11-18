@@ -1,9 +1,7 @@
 from time import sleep
 from typing import Dict, List, Optional
 
-from cairnml_agent.backend_api.endpoints import endpoint
-from cairnml.backend_api.services import tasks as tasks_api
-from cairnml.backend_api.session.request import Request
+from cairnml_agent.backend_api.session.request import Request
 from cairnml_agent.glue.utilities import get_bash_output
 
 from .daemon import K8sDaemon
@@ -149,7 +147,8 @@ class PendingPodsDaemon(K8sDaemon):
     def _handle_aborted_tasks(self, pending_tasks_details: Dict[str, dict]):
         try:
             result = self._session.get(
-                **endpoint(tasks_api.GetAllRequest),
+                service="tasks",
+                action="get_all",
                 json={"id": list(pending_tasks_details), "status": ["stopped"], "only_fields": ["id"]},
             )
             aborted_task_ids = list(filter(None, (task.get("id") for task in result["tasks"])))
@@ -172,7 +171,8 @@ class PendingPodsDaemon(K8sDaemon):
                 )
 
                 result = self._session.get(
-                    **endpoint(tasks_api.GetAllRequest),
+                    service="tasks",
+                    action="get_all",
                     json={"id": [task_id], "status": ["stopped"], "only_fields": ["id"]},
                 )
                 if not result["tasks"]:
@@ -200,7 +200,8 @@ class PendingPodsDaemon(K8sDaemon):
             else:
                 # Make sure the task is queued
                 result = self._session.send_request(
-                    **endpoint(tasks_api.GetAllRequest),
+                    service="tasks",
+                    action="get_all",
                     json={"id": task_id, "only_fields": ["status"]},
                     method=Request.def_method,
                     async_enable=False,
@@ -210,7 +211,8 @@ class PendingPodsDaemon(K8sDaemon):
                     # if task is in progress, change its status to enqueued
                     if status == "in_progress":
                         result = self._session.send_request(
-                            **endpoint(tasks_api.EnqueueRequest),
+                            service="tasks",
+                            action="enqueue",
                             json={"task": task_id, "force": True, "queue": self._agent.k8s_pending_queue_id},
                             method=Request.def_method,
                             async_enable=False,

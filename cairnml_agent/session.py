@@ -12,11 +12,9 @@ import attr
 from pathlib import Path
 
 from pyhocon import ConfigFactory, HOCONConverter, ConfigTree
-from cairnml.backend_api.session.session import LoginError, Session as _Session
-from cairnml_agent.idp.device import DEVICE_KEY_PATH
-from cairnml.backend_api.session.request import Request
-from cairnml.backend_api.session.client.client import APIClient
-from cairnml.backend_api.session.defs import API_VERSION
+from cairnml_agent.backend_api.session.session import Session as _Session
+from cairnml_agent.backend_api.session.request import Request
+from cairnml_agent.backend_api.session.client.client import APIClient
 from cairnml_agent.backend_config.defs import LOCAL_CONFIG_FILE_OVERRIDE_VAR, LOCAL_CONFIG_FILES
 from cairnml_agent.definitions import ENVIRONMENT_CONFIG, ENV_TASK_EXECUTE_AS_USER, ENVIRONMENT_BACKWARD_COMPATIBLE
 from cairnml_agent.errors import APIError
@@ -70,18 +68,7 @@ class Session(_Session):
     version = __version__
     force_debug = False
 
-    def _exchange_device_assertion(self):
-        # a missing key file must say what to do, not show a raw Errno 2 (the agent's own message for an agent)
-        try:
-            return super(Session, self)._exchange_device_assertion()
-        except FileNotFoundError:
-            raise LoginError("This machine has no device key: run cairnml-agent init to enrol it") from None
-
     def __init__(self, *args, **kwargs):
-        # the agent signs in with its own device key, under ~/.cairnml/agent, not the SDK's
-        kwargs.setdefault("device_key_path", DEVICE_KEY_PATH)
-        # the server sees this process as the agent (the SDK sends the client names in its headers)
-        Session.add_client("cairnml-agent", __version__)
         # make sure we set the environment variable so the parent session opens the correct file
         if kwargs.get("config_file"):
             config_file = Path(os.path.expandvars(kwargs.get("config_file"))).expanduser().absolute().as_posix()
@@ -191,7 +178,7 @@ class Session(_Session):
     @property
     def api_client(self):
         if self._api_client is None:
-            self._api_client = APIClient(session=self, api_version=API_VERSION)
+            self._api_client = APIClient(session=self, api_version="2.5")
         return self._api_client
 
     @api_client.setter

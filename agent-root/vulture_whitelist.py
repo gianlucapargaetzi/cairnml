@@ -9,4 +9,3 @@ pool_kwargs  # noqa: F821  # TLSv1HTTPAdapter.init_poolmanager(**pool_kwargs): H
 kwds  # noqa: F821  # custom_template.Template.substitute/safe_substitute(**kwds): string.Template signature callers use
 type_  # noqa: F821  # LockFile.__exit__(type_, value, tb): context-manager protocol signature; the body does not need it
 force_current_version  # noqa: F821  # Worker._get_docker_cmd keyword: kept until cairnml-agent#46 splits that method
-module_name  # noqa: F821  # PackageTraceIgnore.names(file_name, module_name): the signature of the standard trace.Ignore.names, which callers pass by position

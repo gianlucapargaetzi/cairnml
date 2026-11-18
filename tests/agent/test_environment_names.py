@@ -4,17 +4,14 @@ import ast
 import re
 from pathlib import Path
 
-import cairnml
-
 import pytest
 
-from cairnml.backend_api.session import defs as session_defs
+from cairnml_agent.backend_api.session import defs as session_defs
 from cairnml_agent.backend_config import defs as config_defs
-from cairnml.backend_config import environment
+from cairnml_agent.backend_config import environment
 
 ROOT = Path(__file__).resolve().parent.parent
 PACKAGE = ROOT / "cairnml_agent"
-SDK_PACKAGE = Path(cairnml.__file__).resolve().parent
 DOCKER = ROOT / "docker"
 DOCUMENTATION = ROOT / "docs" / "environment.md"
 
@@ -73,6 +70,13 @@ def test_the_backward_compatibility_mirror_is_gone():
             True,
             id="enable-files-config-section",
         ),
+        pytest.param(
+            session_defs.ENV_FORCE_MAX_API_VERSION,
+            "CAIRNML_FORCE_MAX_API_VERSION",
+            "2.5",
+            "2.5",
+            id="force-max-api-version",
+        ),
         pytest.param(config_defs.ENV_CONFIG_VERBOSE, "CAIRNML_CONFIG_VERBOSE", "1", True, id="config-verbose"),
     ],
 )
@@ -100,6 +104,9 @@ def test_the_shared_knob_is_read_under_its_sdk_name(monkeypatch, entry, name, va
             "true",
             id="enable-files-config-section",
         ),
+        pytest.param(
+            session_defs.ENV_FORCE_MAX_API_VERSION, "CAIRNML_FORCE_MAX_API_VERSION", "2.5", id="force-max-api-version"
+        ),
         pytest.param(config_defs.ENV_CONFIG_VERBOSE, "CAIRNML_CONFIG_VERBOSE", "1", id="config-verbose"),
     ],
 )
@@ -111,9 +118,9 @@ def test_the_old_agent_prefixed_knob_name_is_ignored(monkeypatch, entry, name, v
     assert not entry.get()
 
 
-def _names_in_code(packages=(PACKAGE,)):
+def _names_in_code():
     names = set()
-    for path in [path for package in packages for path in _source_files(package, {".py"})]:
+    for path in _source_files(PACKAGE, {".py"}):
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         for node in ast.walk(tree):
             if isinstance(node, ast.Constant) and isinstance(node.value, str):
@@ -137,8 +144,7 @@ def test_every_name_the_code_reads_is_in_the_documented_table():
 
 
 def test_every_name_in_the_documented_table_is_read_by_the_code():
-    # the agent reads some names through the SDK it uses (its identity and session code), so both packages count here
-    unknown = sorted(_names_in_table() - _names_in_code((PACKAGE, SDK_PACKAGE)))
+    unknown = sorted(_names_in_table() - _names_in_code())
 
     assert unknown == []
 

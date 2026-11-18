@@ -1,19 +1,28 @@
-"""The agent's configuration settings: the SDK's, plus the agent's own files and its own settings."""
-
 from os.path import expanduser
+from pathlib import Path
 
-from cairnml.backend_config.defs import (  # noqa: F401  # re-exported for the agent's modules
-    CONFIG_VERBOSE,
-    DEFAULT_CONFIG_FOLDER,
-    ENV_CONFIG_PATH_OVERRIDE_VAR,
-    ENV_CONFIG_PATHS,
-    ENV_VAR,
-    LOCAL_CONFIG_FILE_OVERRIDE_VAR,
-    LOCAL_CONFIG_PATHS,
-    Environment,
-)
+from ..backend_config.environment import EnvEntry
 
-ENV_CONFIG_VERBOSE = CONFIG_VERBOSE
+ENV_VAR = "CAIRNML_ENV"
+""" Name of system environment variable that can be used to specify the config environment name """
+
+
+DEFAULT_CONFIG_FOLDER = "config"
+""" Default config folder to search for when loading relative to a given path """
+
+
+ENV_CONFIG_PATHS = []
+
+
+""" Environment-related config paths """
+
+
+LOCAL_CONFIG_PATHS = [
+    # '/etc/opt/cairnml',               # used by servers for docker-generated configuration
+    # expanduser('~/.cairnml/config'),
+]
+""" Local config paths, not related to environment """
+
 
 LOCAL_CONFIG_FILES = [
     expanduser("~/trains.conf"),  # used for workstation configuration (end-users, workers)
@@ -22,4 +31,31 @@ LOCAL_CONFIG_FILES = [
         "~/.cairnml/agent/cairnml-agent.conf"
     ),  # written by cairnml-agent init, next to the device key (last = preferred)
 ]
-""" Local config files of the agent (not paths). The agent does not read the CairnML SDK's ~/cairnml.conf """
+""" Local config files (not paths). The agent does not read the CairnML SDK's ~/cairnml.conf """
+
+
+LOCAL_CONFIG_FILE_OVERRIDE_VAR = EnvEntry("CAIRNML_CONFIG_FILE")
+""" Local config file override environment variable. If this is set, no other local config files will be used. """
+
+
+ENV_CONFIG_PATH_OVERRIDE_VAR = EnvEntry("CAIRNML_CONFIG_PATH")
+""" 
+Environment-related config path override environment variable. If this is set, no other env config path will be used. 
+"""
+
+ENV_CONFIG_VERBOSE = EnvEntry("CAIRNML_CONFIG_VERBOSE", default=False, converter=bool)
+
+
+class Environment(object):
+    """Supported environment names"""
+
+    default = "default"
+    demo = "demo"
+    local = "local"
+
+
+CONFIG_FILE_EXTENSION = ".conf"
+
+
+def is_config_file(path):
+    return Path(path).suffix == CONFIG_FILE_EXTENSION

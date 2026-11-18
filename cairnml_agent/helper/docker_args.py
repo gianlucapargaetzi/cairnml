@@ -302,7 +302,7 @@ class DockerArgsSanitizer:
 
 class DockerArgsTemplateResolver(TemplateResolver):
     def resolve_from_docker_cmd(self, full_docker_cmd):
-        if not full_docker_cmd:
+        if not full_docker_cmd or not self.task_session.check_min_api_version("2.20"):
             return full_docker_cmd
 
         # convert docker template arguments (i.e. ${CAIRNML_} ) based on the current Task

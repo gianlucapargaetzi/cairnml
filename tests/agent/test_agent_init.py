@@ -5,7 +5,7 @@ from unittest import mock
 import pytest
 
 from cairnml_agent.commands import config as init
-from cairnml.idp.enrol import EnrolmentFailed
+from cairnml_agent.idp.enrol import EnrolmentFailed
 
 
 def enrolment(server_url, device_id="dev_agent", web_url=None, queue=""):

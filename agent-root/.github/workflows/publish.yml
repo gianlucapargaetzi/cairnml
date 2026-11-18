@@ -23,24 +23,6 @@ jobs:
         with:
           python-version: "3.12"
       - run: python -m pip install build twine
-      # Release gate: the newest released SDK must be accepted by the version range of requirements.txt. Nothing is
-      # uploaded when this fails. Release order: server first, then the SDK, then the agent.
-      - name: The latest released SDK is accepted by requirements.txt
-        if: github.event_name == 'release' || inputs.target == 'pypi'
-        run: |
-          python -m pip install packaging
-          git clone -q https://github.com/gianlucapargaetzi/cairnml.git /tmp/sdk
-          TAG="$(git -C /tmp/sdk tag | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1)"
-          test -n "$TAG" || { echo "the SDK has no release"; exit 1; }
-          python - "$TAG" <<'PY'
-          import sys
-          from packaging.requirements import Requirement
-          sdk = sys.argv[1][1:]
-          spec = Requirement(next(l for l in open('requirements.txt') if l.startswith('cairnml')).strip()).specifier
-          if sdk not in spec:
-              sys.exit(f'latest released SDK {sdk} is outside requirements.txt ({spec})')
-          print(f'SDK v{sdk} is accepted by requirements.txt ({spec})')
-          PY
       - name: The release tag matches the package version
         if: github.event_name == 'release'
         env:

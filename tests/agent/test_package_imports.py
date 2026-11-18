@@ -4,10 +4,10 @@ import subprocess
 import sys
 from pathlib import Path
 
-from cairnml.backend_api.session.callresult import CallResult
-from cairnml.backend_api.session.client.client import APIClient
-from cairnml.backend_api.session.request import Request
-from cairnml.backend_api.session.session import Session
+from cairnml_agent.backend_api.session.callresult import CallResult
+from cairnml_agent.backend_api.session.client.client import APIClient
+from cairnml_agent.backend_api.session.request import Request
+from cairnml_agent.backend_api.session.session import Session
 from cairnml_agent.backend_config.config import Config
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -31,13 +31,13 @@ def test_the_package_imports_without_the_working_directory_on_the_path():
 def test_the_packages_export_only_the_names_that_are_used_through_them():
     import cairnml_agent
     import cairnml_agent.backend_api as backend_api
-    import cairnml.backend_api.session as session
-
+    import cairnml_agent.backend_api.session as session
+    import cairnml_agent.backend_api.session.client as client
     import cairnml_agent.backend_config as backend_config
     import cairnml_agent.commands as commands
 
-    # the generated services import these eight names from the session package of the SDK
-    assert {
+    # the generated services import these eight names from the session package
+    assert set(session.__all__) == {
         "DataModel",
         "NonStrictDataModel",
         "schema_property",
@@ -46,11 +46,14 @@ def test_the_packages_export_only_the_names_that_are_used_through_them():
         "BatchRequest",
         "CompoundRequest",
         "Response",
-    } <= set(session.__all__)
+    }
     # __main__ looks these up by name on the commands package
     assert set(commands.__all__) == {"Worker", "Config", "install_bootstrap"}
-    # the agent's own packages do not re-export the SDK's session classes
     for module, name in [
+        (session, "Session"),
+        (session, "CallResult"),
+        (session, "TokenManager"),
+        (client, "APIClient"),
         (backend_api, "CallResult"),
         (backend_config, "Config"),
         (cairnml_agent, "APIClient"),
@@ -87,7 +90,7 @@ def test_the_embedded_pyhocon_jsonmodels_and_pynvml_copies_are_gone():
 
     for name in (
         "cairnml_agent.external.pyhocon",
-        "cairnml.backend_api.session.jsonmodels",
+        "cairnml_agent.backend_api.session.jsonmodels",
         "cairnml_agent.helper.gpu.pynvml",
     ):
         assert importlib.util.find_spec(name) is None, name

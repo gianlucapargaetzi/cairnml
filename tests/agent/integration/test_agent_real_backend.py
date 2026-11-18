@@ -12,6 +12,7 @@ enrolled client home, so the test process itself never imports the SDK.
 import json
 import os
 import re
+import shutil
 import signal
 import socket
 import subprocess
@@ -247,6 +248,27 @@ def daemon(agent_home, chain):
                 process.wait(timeout=10)
 
 
+EVIDENCE_VARIABLE = "CAIRNML_TEST_EVIDENCE_DIR"
+DAEMON_OUTPUT = re.compile(r"writing stdout/stderr to (\S+)")
+
+
+def keep_evidence(chain, task_id, result):
+    """Copies the daemon's log, its stdout (where a job's output goes) and the task's result to the directory named by
+    CAIRNML_TEST_EVIDENCE_DIR, when it is set, so that a failure can be read after the test's temporary directory is gone.
+    """
+    folder = os.environ.get(EVIDENCE_VARIABLE, "").strip()
+    if not folder:
+        return
+    target = Path(folder)
+    target.mkdir(parents=True, exist_ok=True)
+    log_path = Path(need(chain, "daemon_log"))
+    shutil.copy(log_path, target / "daemon.log")
+    match = DAEMON_OUTPUT.search(log_path.read_text(errors="replace"))
+    if match and Path(match.group(1)).is_file():
+        shutil.copy(match.group(1), target / "daemon-stdout.txt")
+    (target / "task.json").write_text(json.dumps({"task_id": task_id, **result}, indent=2, default=str))
+
+
 def test_01_the_agent_enrols_and_its_doctor_is_green(real_server, chain, agent_home):
     assert (agent_home / ".cairnml" / "agent" / "device.key").is_file()
     doctor = subprocess.run(
@@ -288,6 +310,7 @@ def test_03_a_job_from_a_git_repository_completes(real_server, chain, client_hom
     result = run_as(client_home, WATCH, task_id, JOB_TIMEOUT_SECONDS, timeout=JOB_TIMEOUT_SECONDS + 120)
     elapsed = time.monotonic() - started
     print(f"\njob {task_id} ended {result['status']!r} after {elapsed:.0f} s")
+    keep_evidence(chain, task_id, result)
     assert daemon.poll() is None, Path(need(chain, "daemon_log")).read_text(errors="replace")[-3000:]
     assert result["status"] == "completed", (
         f"status {result['status']!r}\n" + Path(need(chain, "daemon_log")).read_text(errors="replace")[-3000:]

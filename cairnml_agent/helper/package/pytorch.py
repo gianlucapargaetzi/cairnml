@@ -22,7 +22,7 @@ from .requirements import (
 )
 from ...definitions import ENV_PACKAGE_PYTORCH_RESOLVE
 from .requirement_lines import Requirement
-from cairnml.utilities.gpu_query import detect_rocm_env
+from ..gpu.util import detect_rocm_env
 
 OS_TO_WHEEL_NAME = {"linux": "linux_x86_64", "windows": "win_amd64"}
 

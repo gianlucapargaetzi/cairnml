@@ -6,9 +6,7 @@ import tempfile
 import threading
 from pathlib import Path
 
-from cairnml_agent.backend_api.endpoints import endpoint
-from cairnml.backend_api.services import devices as devices_api
-from cairnml.backend_api.session.request import Request
+from cairnml_agent.backend_api.session.request import Request
 
 TOKEN_FILE_NAME = "job_token"
 # Where docker mode mounts the folder with the file, inside the job container.
@@ -26,7 +24,9 @@ def request_job_token(session, task_id):
     """The job's token and its lifetime in seconds, issued by the server to this agent while the task runs here.
     None when the server refuses for good (401, 403 or 404). Any other failure is raised."""
     res = session.send_request(
-        **endpoint(devices_api.JobTokenRequest),
+        service="devices",
+        action="job_token",
+        version="2.8",
         method=Request.def_method,
         json={"task": task_id},
     )

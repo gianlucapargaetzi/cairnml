@@ -1,8 +1,6 @@
 from typing import Optional
 
-from cairnml_agent.backend_api.endpoints import endpoint
-from cairnml.backend_api.services import tasks as tasks_api
-from cairnml.backend_api.session.request import Request
+from ..backend_api.session.request import Request
 
 
 class TaskRuntime(object):
@@ -12,7 +10,8 @@ class TaskRuntime(object):
     def get_task_runtime(self, task_id) -> Optional[dict]:
         try:
             res = self._session.send_request(
-                **endpoint(tasks_api.GetByIdRequest),
+                service="tasks",
+                action="get_by_id",
                 method=Request.def_method,
                 json={"task": task_id, "only_fields": ["runtime"]},
             )
@@ -31,7 +30,8 @@ class TaskRuntime(object):
 
         try:
             res = self._session.send_request(
-                **endpoint(tasks_api.EditRequest),
+                service="tasks",
+                action="edit",
                 method=Request.def_method,
                 json={"task": task_id, "force": True, "runtime": task_runtime},
             )

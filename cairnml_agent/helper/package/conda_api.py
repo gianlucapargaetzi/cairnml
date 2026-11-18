@@ -29,7 +29,7 @@ from cairnml_agent.helper.package.requirements import SimpleVersion
 from .base import PackageManager
 from .pip_api.venv import VirtualenvPip
 from .requirements import MarkerRequirement, RequirementsManager  # noqa: F401  # named by type comments
-from cairnml_agent.session_env import ENV_CONDA_ENV_PACKAGE, ENV_USE_CONDA_BASE_ENV
+from ...backend_api.session.defs import ENV_CONDA_ENV_PACKAGE, ENV_USE_CONDA_BASE_ENV
 
 package_normalize = partial(re.compile(r"""\[version=['"](.*)['"]\]""").sub, r"\1")
 

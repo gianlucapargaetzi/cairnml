@@ -14,14 +14,12 @@ import attr
 import psutil
 from pathlib import Path
 
-from cairnml_agent.backend_api.endpoints import endpoint
-from cairnml.backend_api.services import workers as workers_api
 from cairnml_agent.definitions import ENV_WORKER_TAGS, ENV_GPU_FRACTIONS
 from cairnml_agent.session import Session
 from cairnml_agent.version import __version__
 
 try:
-    from cairnml.utilities import gpu_query as gpustat
+    from .gpu import gpustat
 except ImportError:
     gpustat = None
 
@@ -172,7 +170,7 @@ class ResourceMonitor(object):
 
         # noinspection PyBroadException
         try:
-            self.session.get(**endpoint(workers_api.StatusReportRequest), **report)
+            self.session.get(service="workers", action="status_report", **report)
         except Exception:
             log.warning("Failed sending report: %s", report)
             return False
@@ -190,7 +188,7 @@ class ResourceMonitor(object):
             return
 
         try:
-            gpu_stat = self._gpustat.query()
+            gpu_stat = self._gpustat.new_query(per_process_stats=False)
             skips_all = True
             for gpu in gpu_stat:
                 if not self._skip_nonactive_gpu(gpu):
@@ -346,7 +344,7 @@ class ResourceMonitor(object):
         # check if we need to monitor gpus and if we can access the gpu statistics
         if self._active_gpus is not False and self._gpustat:
             try:
-                gpu_stat = self._gpustat.query()
+                gpu_stat = self._gpustat.new_query()
                 report_index = 0
                 for i, g in enumerate(gpu_stat.gpus):
                     # only monitor the active gpu's, if none were selected, monitor everything
@@ -560,7 +558,7 @@ class GpuFractionsHandler:
     def _get_gpu_names():
         # noinspection PyBroadException
         try:
-            gpus = gpustat.query().gpus
+            gpus = gpustat.new_query().gpus
             names = [g["name"] for g in gpus]
 
             print("GPU names: {}".format(names))
