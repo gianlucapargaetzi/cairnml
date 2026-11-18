@@ -73,7 +73,10 @@ def fetch_git_token(repository: str, task_id: str, session=None) -> Optional[str
     if not running_as_job():
         return None
     response = _session(session).send_request(
-        service="devices", action="git_token", json={"task": task_id, "repository": repository}
+        service="devices",
+        action="git_token",
+        version=newest_version("devices", "git_token"),
+        json={"task": task_id, "repository": repository},
     )
     if not response.ok:
         raise DatasetError(f"the server refused a token for {repository}: {_reason(response)}")

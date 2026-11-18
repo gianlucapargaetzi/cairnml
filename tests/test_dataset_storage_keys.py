@@ -4,6 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from cairnml.backend_api.services import API_LEVEL, resolve
 from cairnml.datasets import DatasetError
 from cairnml.datasets.credentials import StorageKeys, fetch_storage_keys
 
@@ -39,7 +40,7 @@ def test_the_request_names_the_repository_and_the_level_at_the_newest_definition
         {
             "service": "datachunks",
             "action": "dataset_credentials",
-            "version": "2.40",  # the newest definition of datachunks.dataset_credentials
+            "version": resolve("datachunks", "dataset_credentials", API_LEVEL)[0]._version,
             "json": {"repository": "acme/cars", "level": "read"},
         }
     ]
