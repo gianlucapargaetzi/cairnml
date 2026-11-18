@@ -150,6 +150,12 @@ class CreateAndPopulate:
         self.binary = binary
         self.detect_repository = detect_repository
 
+    def _working_directory(self) -> str:
+        """
+        The working directory relative to the repository root (or local folder); the root itself when none was given
+        """
+        return self.cwd or "."
+
     def create_task(self, dry_run: bool = False) -> Union[Task, Dict]:
         """
         Create the new populated Task
@@ -188,18 +194,19 @@ class CreateAndPopulate:
                     stand_alone_script_outside_repo = True
 
                 if not os.path.isfile(entry_point) and not stand_alone_script_outside_repo:
+                    working_dir = self._working_directory()
                     if (
                         not Path(self.script).is_absolute()
-                        and not Path(self.cwd).is_absolute()
-                        and (Path(self.folder) / self.cwd / self.script).is_file()
+                        and not Path(working_dir).is_absolute()
+                        and (Path(self.folder) / working_dir / self.script).is_file()
                     ):
-                        entry_point = (Path(self.folder) / self.cwd / self.script).as_posix()
+                        entry_point = (Path(self.folder) / working_dir / self.script).as_posix()
                     elif (
-                        Path(self.cwd).is_absolute()
+                        Path(working_dir).is_absolute()
                         and not Path(self.script).is_absolute()
-                        and (Path(self.cwd) / self.script).is_file()
+                        and (Path(working_dir) / self.script).is_file()
                     ):
-                        entry_point = (Path(self.cwd) / self.script).as_posix()
+                        entry_point = (Path(working_dir) / self.script).as_posix()
                     else:
                         raise ValueError(f"Script entrypoint file '{entry_point}' could not be found")
 
@@ -364,7 +371,7 @@ class CreateAndPopulate:
                 task_state["script"]["entry_point"] = entry_point or ""
                 task_state["script"]["working_dir"] = cwd or "."
         elif self.repo:
-            cwd = "/".join([p for p in (self.cwd or ".").split("/") if p and p != "."])
+            cwd = "/".join([p for p in self._working_directory().split("/") if p and p != "."])
             # normalize backslashes and remove first one
             if self.module:
                 entry_point = f"-m {self.module}"
