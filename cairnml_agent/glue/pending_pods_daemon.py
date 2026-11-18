@@ -204,7 +204,6 @@ class PendingPodsDaemon(K8sDaemon):
                     action="get_all",
                     json={"id": task_id, "only_fields": ["status"]},
                     method=Request.def_method,
-                    async_enable=False,
                 )
                 if result.ok:
                     status = get_path(result.json(), "data", "tasks", 0, "status")
@@ -215,7 +214,6 @@ class PendingPodsDaemon(K8sDaemon):
                             action="enqueue",
                             json={"task": task_id, "force": True, "queue": self._agent.k8s_pending_queue_id},
                             method=Request.def_method,
-                            async_enable=False,
                         )
                         if not result.ok:
                             result_msg = get_path(result.json(), "meta", "result_msg")

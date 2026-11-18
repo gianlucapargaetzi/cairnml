@@ -44,7 +44,6 @@ def resolve_default_container(session, task_id, container_config, ignore_match_r
             "search_hidden": True,
         },
         method=Request.def_method,
-        async_enable=False,
     )
     try:
         task_info = result.json()["data"]["tasks"][0] if result.ok else {}
@@ -71,7 +70,6 @@ def resolve_default_container(session, task_id, container_config, ignore_match_r
                 "only_fields": ["name"],
             },
             method=Request.def_method,
-            async_enable=False,
         )
         try:
             if result.ok:

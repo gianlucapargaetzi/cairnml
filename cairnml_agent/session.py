@@ -178,7 +178,7 @@ class Session(_Session):
     @property
     def api_client(self):
         if self._api_client is None:
-            self._api_client = APIClient(session=self, api_version="2.5")
+            self._api_client = APIClient(session=self)
         return self._api_client
 
     @api_client.setter
@@ -323,7 +323,7 @@ class Session(_Session):
             raise APIError(result, extra_info="Invalid response")
         return result.response
 
-    def get(self, service, action, version=None, headers=None, data=None, json=None, async_enable=False, **kwargs):
+    def get(self, service, action, version=None, headers=None, data=None, json=None, **kwargs):
         return self._manual_request(
             service=service,
             action=action,
@@ -331,11 +331,10 @@ class Session(_Session):
             method=Request.def_method,
             headers=headers,
             data=data,
-            async_enable=async_enable,
             json=json or kwargs,
         )
 
-    def post(self, service, action, version=None, headers=None, data=None, json=None, async_enable=False, **kwargs):
+    def post(self, service, action, version=None, headers=None, data=None, json=None, **kwargs):
         return self._manual_request(
             service=service,
             action=action,
@@ -343,7 +342,6 @@ class Session(_Session):
             method="post",
             headers=headers,
             data=data,
-            async_enable=async_enable,
             json=json or kwargs,
         )
 
@@ -356,7 +354,6 @@ class Session(_Session):
         headers=None,
         data=None,
         json=None,
-        async_enable=False,
         **kwargs,
     ):
 
@@ -367,7 +364,6 @@ class Session(_Session):
             method=method,
             headers=headers,
             data=data,
-            async_enable=async_enable,
             json=json or kwargs,
         )
 

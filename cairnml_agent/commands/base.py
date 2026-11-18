@@ -130,9 +130,6 @@ class ServiceCommandSection(BaseCommandSection, metaclass=Singleton):
         service = service or self.service
         return session.post(service=service, action=endpoint, *args, **kwargs)
 
-    def get_with_act_as(self, endpoint, *args, **kwargs):
-        return self._session.get_with_act_as(service=self.service, action=endpoint, *args, **kwargs)
-
     @property
     def name(self):
         return self.service.title()

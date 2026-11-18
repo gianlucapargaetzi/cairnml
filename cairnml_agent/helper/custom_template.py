@@ -376,7 +376,8 @@ class TemplateResolver:
         self.queue_name = queue_name
         self.task_id = task_id
         self.worker_id = worker_id
-        self.user_vaults = LazyDict("user vaults", self._load_user_vaults, self._error)
+        # the vaults are the SDK session's to load; the agent passes none to the template
+        self.user_vaults = {}
         self.user_info = LazyDict("user info", self._load_user_info, error_cb=self._error)
         self.task_info = task_info if task_info else LazyDict("task info", self._load_task_info, self._error)
         self.provider_info = LazyDict("provider info", self._load_provider_info, self._error)
@@ -400,10 +401,6 @@ class TemplateResolver:
 
     def _load_user_info(self):
         return self.task_session.send_request("users", "get_current_user").json()["data"]["user"]
-
-    def _load_user_vaults(self):
-        self.task_session.load_vaults()
-        return self.task_session.config.resolve_override_configs() or {}
 
     def _load_task_info(self):
         result = self.task_session.send_request(

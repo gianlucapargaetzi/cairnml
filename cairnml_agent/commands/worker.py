@@ -32,7 +32,6 @@ import attr
 from pathlib import Path
 from urllib.parse import quote  # noqa
 
-from pyhocon import ConfigTree, ConfigFactory
 from cairnml_agent.backend_api.services import queues as queues_api
 from cairnml_agent.backend_api.services import tasks as tasks_api
 from cairnml_agent.backend_api.session.callresult import CallResult
@@ -122,7 +121,7 @@ from cairnml_agent.helper.base import (
     dump_flat_dict,
     check_is_binary_python_or_bash,
 )
-from cairnml_agent.helper.console import ensure_text, print_text, decode_binary_lines
+from cairnml_agent.helper.console import print_text, decode_binary_lines
 from cairnml_agent.helper.environment.converters import strtobool
 from cairnml.utilities.gpu_query import detect_rocm_env
 from cairnml_agent.helper.os.daemonize import daemonize_process
@@ -479,7 +478,6 @@ def get_task(session, task_id, **kwargs):
         version="2.14",
         json={"id": [task_id], "search_hidden": True, **kwargs},
         method=Request.def_method,
-        async_enable=False,
     )
     result = CallResult.from_result(
         res=res,
@@ -512,7 +510,6 @@ def get_next_task(session, queue):
         version="2.14",
         json=request,
         method=Request.def_method,
-        async_enable=False,
     )
     if debug:
         print(f"debug> get_next_task: response {result.status_code} text {result.text}")
@@ -533,7 +530,6 @@ def get_task_fields(session, task_id, fields: list, log=None) -> dict:
         action="get_all",
         json={"id": [task_id], "only_fields": list(fields), "search_hidden": True},
         method=Request.def_method,
-        async_enable=False,
     )
     # noinspection PyBroadException
     try:
@@ -567,7 +563,6 @@ def get_task_container(session, task_id, ignore_match_rules=False, allow_force_c
             version="2.14",
             json={"id": [task_id], "only_fields": ["container"], "search_hidden": True},
             method=Request.def_method,
-            async_enable=False,
         )
         try:
             container = result.json()["data"]["tasks"][0]["container"] if result.ok else {}
@@ -679,7 +674,6 @@ def set_task_container(session, task_id, docker_image=None, docker_arguments=Non
             version="2.13",
             json={"task": task_id, "container": container, "force": True},
             method=Request.def_method,
-            async_enable=False,
         )
         return result.ok
     else:
@@ -2287,27 +2281,7 @@ class Worker(ServiceCommandSection):
 
     def _apply_extra_configuration(self):
         # store a few things we updated in runtime (TODO: we should list theme somewhere)
-        vault_loaded = False
-        session = self._session
-        agent_config = session.config["agent"].copy()
-        agent_config_keys = ["cuda_version", "cudnn_version", "default_python", "worker_id", "worker_name", "debug"]
-        try:
-            vault_loaded = session.load_vaults()
-        except Exception as ex:
-            print("Error: failed applying extra configuration: {}".format(ex))
-
-        config = session.config
-
-        # merge back
-        if vault_loaded:
-            for restore_key in agent_config_keys:
-                if restore_key in agent_config and agent_config[restore_key] != config["agent"].get(restore_key, None):
-                    print(
-                        "Ignoring vault value for '{}' (agent config takes precedence), using '{}'".format(
-                            restore_key, agent_config[restore_key]
-                        )
-                    )
-                    config["agent"][restore_key] = agent_config[restore_key]
+        config = self._session.config
 
         default = config.get("agent.apply_environment", False)
         if ENV_ENABLE_ENV_CONFIG_SECTION.get(default=default):
@@ -2324,11 +2298,6 @@ class Worker(ServiceCommandSection):
                 apply_files(config)
             except Exception as ex:
                 print("Error: failed applying files from configuration: {}".format(ex))
-
-        try:
-            self._session.update_default_api_method()
-        except Exception as ex:
-            print("Error: failed updating default API method: {}".format(ex))
 
     @resolve_names
     def build(
@@ -4441,22 +4410,6 @@ class Worker(ServiceCommandSection):
                     self.package_api = get_conda(path=venv_dir)
 
         return call_package_manager_create, requirements_manager
-
-    def parse_requirements(self, reqs_file=None, overrides=None):
-        os = None
-        session = self._session
-        if overrides:
-            overrides = ConfigFactory.parse_string("\n".join(overrides))
-            os = overrides.pop("os", None)
-            ConfigTree.merge_configs(session.config, overrides)
-        if reqs_file:
-            contents = Path(reqs_file).read_text()
-        else:
-            contents = ensure_text(sys.stdin.read())
-        session.finalize_config(session.config)
-        requirements_manager = self._get_requirements_manager(os_override=os)
-        requirements_manager.translator.enabled = False
-        print(requirements_manager.replace(contents))
 
     def remove_non_backwards_compatible_entries(self, config: Config):
         if not self._standalone_mode or not ENV_CONFIG_BC_IN_STANDALONE.get() or self._session.feature_set == "basic":
