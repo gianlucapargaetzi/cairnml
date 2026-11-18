@@ -65,7 +65,7 @@ from requests_toolbelt import (
 )
 from .callbacks import UploadProgressReport, DownloadProgressReport
 from .url import quote_url
-from ..backend_api.session.defs import API_VERSION as API_VERSION_SDK
+from ..backend_api.session.defs import newest_version
 from ..backend_api.utils import get_http_session_with_retry
 from ..backend_config.bucket_config import (
     S3BucketConfigurations,
@@ -1787,7 +1787,6 @@ class _DatachunkDriver(_Driver):
     _CHUNK = 1024 * 1024
     KINDS = ("artifact", "dataset", "model", "debug")
     API_SERVICE = "datachunks"
-    API_VERSION = API_VERSION_SDK
     TIMEOUT = (60, 3600)
 
     class _Container:
@@ -1822,7 +1821,11 @@ class _DatachunkDriver(_Driver):
         from ..backend_interface.base import InterfaceBase
 
         response = InterfaceBase._get_default_session().send_request(
-            service=cls.API_SERVICE, action=action, version=cls.API_VERSION, method="post", json=body
+            service=cls.API_SERVICE,
+            action=action,
+            version=newest_version(cls.API_SERVICE, action),
+            method="post",
+            json=body,
         )
         if response.status_code != requests_codes.ok:
             raise StorageError(f"datachunks.{action} failed ({response.status_code}): {response.text[:300]}")
