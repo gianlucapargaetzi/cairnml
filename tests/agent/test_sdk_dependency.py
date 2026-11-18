@@ -15,5 +15,6 @@ def _requirements():
 def test_the_agent_requires_the_sdk():
     sdk = [r for r in _requirements() if r.name == "cairnml"]
     assert len(sdk) == 1, "requirements.txt must hold exactly one cairnml requirement"
-    assert sdk[0].specifier.contains("0.0.6")
+    assert sdk[0].specifier.contains("0.0.8")
+    assert "gpu" in sdk[0].extras, "the GPU readers come from the SDK's gpu extra"
     assert not sdk[0].specifier.contains("0.1.0")

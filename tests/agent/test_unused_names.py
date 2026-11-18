@@ -15,7 +15,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
-EXCLUDED = ("_vendor", "/external/", "helper/gpu/pyrsmi.py", "backend_api/services")
+EXCLUDED = ("_vendor", "/external/", "backend_api/services")
 FINDING = re.compile(r"^(?P<path>[^:]+):(?P<line>\d+):\d+: (?P<message>.*)$")
 UNUSED_IMPORT = "imported but unused"
 UNUSED_LOCAL = "assigned to but never used"

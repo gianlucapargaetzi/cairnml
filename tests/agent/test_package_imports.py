@@ -88,9 +88,15 @@ def test_every_module_of_the_agent_imports_except_the_known_failures():
 def test_the_embedded_pyhocon_jsonmodels_and_pynvml_copies_are_gone():
     import importlib.util
 
+    def absent(name):
+        try:
+            return importlib.util.find_spec(name) is None
+        except ModuleNotFoundError:  # the parent package itself is gone (helper/gpu was deleted)
+            return True
+
     for name in (
         "cairnml_agent.external.pyhocon",
         "cairnml_agent.backend_api.session.jsonmodels",
         "cairnml_agent.helper.gpu.pynvml",
     ):
-        assert importlib.util.find_spec(name) is None, name
+        assert absent(name), name

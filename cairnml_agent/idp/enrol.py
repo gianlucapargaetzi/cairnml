@@ -12,9 +12,9 @@ from typing import Optional
 import jwt
 import requests
 
-from .browser_login import browser_login
+from cairnml.idp.browser_login import browser_login
 from .device import DEVICE_KEY_PATH, device_assertion, secure_folder
-from .keys import generate_private_key, public_key_pem, write_private_key
+from cairnml.idp.keys import generate_private_key, public_key_pem, write_private_key
 
 
 class EnrolmentFailed(Exception):

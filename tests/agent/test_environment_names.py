@@ -1,6 +1,7 @@
 """The agent's environment names: one name per setting, and the documented table lists exactly the names the code reads."""
 
 import ast
+import importlib.util
 import re
 from pathlib import Path
 
@@ -118,8 +119,20 @@ def test_the_old_agent_prefixed_knob_name_is_ignored(monkeypatch, entry, name, v
     assert not entry.get()
 
 
-def _names_in_code():
+# SDK modules the agent imports and runs for it: the names they read are read on the agent's behalf.
+READ_FOR_THE_AGENT_BY_SDK = ("cairnml.idp.browser_login",)
+
+
+def _names_in_sdk_modules():
     names = set()
+    for module in READ_FOR_THE_AGENT_BY_SDK:
+        origin = importlib.util.find_spec(module).origin
+        names.update(CAIRNML_NAME.findall(Path(origin).read_text(encoding="utf-8")))
+    return names
+
+
+def _names_in_code():
+    names = _names_in_sdk_modules()
     for path in _source_files(PACKAGE, {".py"}):
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         for node in ast.walk(tree):

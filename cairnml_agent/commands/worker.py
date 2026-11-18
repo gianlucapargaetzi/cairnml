@@ -124,7 +124,7 @@ from cairnml_agent.helper.base import (
 )
 from cairnml_agent.helper.console import ensure_text, print_text, decode_binary_lines
 from cairnml_agent.helper.environment.converters import strtobool
-from cairnml_agent.helper.gpu.util import detect_rocm_env
+from cairnml.utilities.gpu_query import detect_rocm_env
 from cairnml_agent.helper.os.daemonize import daemonize_process
 from cairnml_agent.helper.package.base import PackageManager, get_specific_package_version
 from cairnml_agent.helper.package.conda_api import CondaAPI

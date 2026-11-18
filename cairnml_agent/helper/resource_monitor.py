@@ -19,9 +19,9 @@ from cairnml_agent.session import Session
 from cairnml_agent.version import __version__
 
 try:
-    from .gpu import gpustat
+    from cairnml.utilities import gpu_query
 except ImportError:
-    gpustat = None
+    gpu_query = None
 
 log = logging.getLogger(__name__)
 
@@ -80,7 +80,7 @@ class ResourceMonitor(object):
         self._thread = None
         self._exit_event = Event()
         self._gpustat_fail = 0
-        self._gpustat = gpustat
+        self._gpustat = gpu_query
         self._active_gpus = None
         self._default_gpu_utilization = session.config.get("agent.resource_monitoring.default_gpu_utilization", 100)
         # allow default_gpu_utilization as null in the config, in which case we don't log anything
@@ -188,7 +188,7 @@ class ResourceMonitor(object):
             return
 
         try:
-            gpu_stat = self._gpustat.new_query(per_process_stats=False)
+            gpu_stat = self._gpustat.query()
             skips_all = True
             for gpu in gpu_stat:
                 if not self._skip_nonactive_gpu(gpu):
@@ -344,7 +344,7 @@ class ResourceMonitor(object):
         # check if we need to monitor gpus and if we can access the gpu statistics
         if self._active_gpus is not False and self._gpustat:
             try:
-                gpu_stat = self._gpustat.new_query()
+                gpu_stat = self._gpustat.query()
                 report_index = 0
                 for i, g in enumerate(gpu_stat.gpus):
                     # only monitor the active gpu's, if none were selected, monitor everything
@@ -558,7 +558,7 @@ class GpuFractionsHandler:
     def _get_gpu_names():
         # noinspection PyBroadException
         try:
-            gpus = gpustat.new_query().gpus
+            gpus = gpu_query.query().gpus
             names = [g["name"] for g in gpus]
 
             print("GPU names: {}".format(names))

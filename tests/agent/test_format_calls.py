@@ -16,7 +16,7 @@ FORMAT_PROBLEM = (
     "placeholder",
     "invalid format string",
 )
-EXCLUDED = ("_vendor", "/external/", "helper/gpu/pyrsmi.py", "backend_api/services")
+EXCLUDED = ("_vendor", "/external/", "backend_api/services")
 
 
 def test_no_format_call_drops_or_misses_a_value():
