@@ -12,6 +12,7 @@ from typing import Optional
 import jwt
 import requests
 
+from ..backend_api.services import devices, users
 from .browser_login import browser_login
 from .device import DEVICE_KEY_PATH, device_assertion, secure_folder
 from .keys import generate_private_key, public_key_pem, write_private_key
@@ -54,18 +55,19 @@ def _call(http, url, body, token=None):
     return reply["data"]
 
 
-def _base(server: str) -> str:
-    return server.rstrip("/") + "/v2.8/"
+def _endpoint(server: str, request_cls) -> str:
+    """The URL of a generated request's endpoint, at the API version that request's definition implements."""
+    return f"{server.rstrip('/')}/v{request_cls._version}/{request_cls._service}.{request_cls._action}"
 
 
 def _settings(http, server: str) -> dict:
-    return _call(http, _base(server) + "devices.idp_settings", {})
+    return _call(http, _endpoint(server, devices.IdpSettingsRequest), {})
 
 
 def _token_for_device(http, server_url: str, device_id: str, key_path: Path) -> str:
     """Prove the device's key to the server and get a short-lived token for it."""
     assertion = device_assertion(device_id, server_url, key_path=key_path)
-    return _call(http, _base(server_url) + "devices.exchange", {"assertion": assertion})["access_token"]
+    return _call(http, _endpoint(server_url, devices.ExchangeRequest), {"assertion": assertion})["access_token"]
 
 
 def revoke_device(server_url: str, device_id: str, key_path=None, http=None) -> None:
@@ -73,7 +75,7 @@ def revoke_device(server_url: str, device_id: str, key_path=None, http=None) -> 
     http = http or requests.Session()
     key_path = Path(key_path or DEVICE_KEY_PATH)
     token = _token_for_device(http, server_url, device_id, key_path)
-    _call(http, _base(server_url) + "devices.revoke", {"id": device_id}, token=token)
+    _call(http, _endpoint(server_url, devices.RevokeRequest), {"id": device_id}, token=token)
 
 
 def whoami(server_url: str, device_id: str, key_path=None, http=None) -> dict:
@@ -81,7 +83,7 @@ def whoami(server_url: str, device_id: str, key_path=None, http=None) -> dict:
     http = http or requests.Session()
     key_path = Path(key_path or DEVICE_KEY_PATH)
     token = _token_for_device(http, server_url, device_id, key_path)
-    return _call(http, _base(server_url) + "users.get_current_user", {}, token=token)["user"]
+    return _call(http, _endpoint(server_url, users.GetCurrentUserRequest), {}, token=token)["user"]
 
 
 def _replace_key(key, key_path: Path) -> None:
@@ -159,7 +161,7 @@ def enrol(
     key = generate_private_key()
     device = _call(
         http,
-        _base(server_url) + "devices.enroll",
+        _endpoint(server_url, devices.EnrollRequest),
         {"kind": kind, "name": name or _hostname(), "public_key": public_key_pem(key)},
         token=token,
     )

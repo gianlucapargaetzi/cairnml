@@ -27,6 +27,8 @@ from urllib.parse import urlparse
 
 import requests
 
+from cairnml.backend_api.services import queues as queues_api
+from cairnml.backend_api.services import workers as workers_api
 from cairnml.cli.enrolment import ClientSession, default_config_file, read_enrolment
 from cairnml.idp import enrol as idp_enrol
 from cairnml.idp.device import DEVICE_KEY_PATH
@@ -168,9 +170,12 @@ def check_queues(server: Optional[str], device: Optional[str], sign_in: Check, k
     session = http or requests.Session()
     try:
         token = idp_enrol._token_for_device(session, server, device, key_path)
-        base = idp_enrol._base(server)
-        queues = idp_enrol._call(session, base + "queues.get_all", {}, token=token).get("queues") or []
-        workers = idp_enrol._call(session, base + "workers.get_all", {}, token=token).get("workers") or []
+        queues_reply = idp_enrol._call(session, idp_enrol._endpoint(server, queues_api.GetAllRequest), {}, token=token)
+        workers_reply = idp_enrol._call(
+            session, idp_enrol._endpoint(server, workers_api.GetAllRequest), {}, token=token
+        )
+        queues = queues_reply.get("queues") or []
+        workers = workers_reply.get("workers") or []
     except idp_enrol.EnrolmentFailed as exc:
         return _fail(
             "queues",

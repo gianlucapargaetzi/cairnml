@@ -56,6 +56,8 @@ class FakeServer:
             return Response(*self.exchange_reply)
         if url.endswith("devices.revoke"):
             return Response(*self.revoke_reply)
+        if url.endswith("users.get_current_user"):
+            return Response(200, {"data": {"user": {"username": "alice"}}})
         return Response(*self.enrol_reply)
 
 
