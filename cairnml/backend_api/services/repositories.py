@@ -36,7 +36,7 @@ class AddRequest(Request):
 
     _service = "repositories"
     _action = "add"
-    _version = "2.41"
+    _version = "2.40"
     _schema = {
         "additionalProperties": False,
         "definitions": {},
@@ -153,7 +153,7 @@ class AddResponse(Response):
 
     _service = "repositories"
     _action = "add"
-    _version = "2.41"
+    _version = "2.40"
     _schema = {
         "definitions": {},
         "properties": {"repository": {"type": ["object", "null"]}},
@@ -193,7 +193,7 @@ class AssignRequest(Request):
 
     _service = "repositories"
     _action = "assign"
-    _version = "2.41"
+    _version = "2.40"
     _schema = {
         "additionalProperties": False,
         "definitions": {},
@@ -282,7 +282,7 @@ class AssignResponse(Response):
 
     _service = "repositories"
     _action = "assign"
-    _version = "2.41"
+    _version = "2.40"
     _schema = {
         "definitions": {},
         "properties": {"repository": {"type": ["object", "null"]}},
@@ -316,7 +316,7 @@ class CheckRequest(Request):
 
     _service = "repositories"
     _action = "check"
-    _version = "2.41"
+    _version = "2.40"
     _schema = {
         "additionalProperties": False,
         "definitions": {},
@@ -356,7 +356,7 @@ class CheckResponse(Response):
 
     _service = "repositories"
     _action = "check"
-    _version = "2.41"
+    _version = "2.40"
     _schema = {
         "definitions": {},
         "properties": {"repository": {"type": ["object", "null"]}},
@@ -394,7 +394,7 @@ class CheckSharingRequest(Request):
 
     _service = "repositories"
     _action = "check_sharing"
-    _version = "2.41"
+    _version = "2.40"
     _schema = {
         "additionalProperties": False,
         "definitions": {},
@@ -470,7 +470,7 @@ class CheckSharingResponse(Response):
 
     _service = "repositories"
     _action = "check_sharing"
-    _version = "2.41"
+    _version = "2.40"
     _schema = {
         "definitions": {},
         "properties": {
@@ -527,7 +527,7 @@ class CloneRequest(Request):
 
     _service = "repositories"
     _action = "clone"
-    _version = "2.41"
+    _version = "2.40"
     _schema = {
         "additionalProperties": False,
         "definitions": {},
@@ -586,7 +586,7 @@ class CloneResponse(Response):
 
     _service = "repositories"
     _action = "clone"
-    _version = "2.41"
+    _version = "2.40"
     _schema = {
         "definitions": {},
         "properties": {
@@ -701,7 +701,7 @@ class DeleteRequest(Request):
 
     _service = "repositories"
     _action = "delete"
-    _version = "2.41"
+    _version = "2.40"
     _schema = {
         "additionalProperties": False,
         "definitions": {},
@@ -741,7 +741,7 @@ class DeleteResponse(Response):
 
     _service = "repositories"
     _action = "delete"
-    _version = "2.41"
+    _version = "2.40"
     _schema = {
         "definitions": {},
         "properties": {"deleted": {"type": ["boolean", "null"]}},
@@ -775,7 +775,7 @@ class FindRequest(Request):
 
     _service = "repositories"
     _action = "find"
-    _version = "2.41"
+    _version = "2.40"
     _schema = {
         "additionalProperties": False,
         "definitions": {},
@@ -811,7 +811,7 @@ class FindResponse(Response):
 
     _service = "repositories"
     _action = "find"
-    _version = "2.41"
+    _version = "2.40"
     _schema = {
         "definitions": {},
         "properties": {"repository": {"type": ["object", "null"]}},
@@ -845,7 +845,7 @@ class GetAllRequest(Request):
 
     _service = "repositories"
     _action = "get_all"
-    _version = "2.41"
+    _version = "2.40"
     _schema = {
         "additionalProperties": False,
         "definitions": {},
@@ -880,7 +880,7 @@ class GetAllResponse(Response):
 
     _service = "repositories"
     _action = "get_all"
-    _version = "2.41"
+    _version = "2.40"
     _schema = {
         "definitions": {},
         "properties": {"repositories": {"items": {"type": "object"}, "type": ["array", "null"]}},
@@ -915,7 +915,7 @@ class GetDatasetVersionsRequest(Request):
 
     _service = "repositories"
     _action = "get_dataset_versions"
-    _version = "2.41"
+    _version = "2.40"
     _schema = {
         "additionalProperties": False,
         "definitions": {},
@@ -955,7 +955,7 @@ class GetDatasetVersionsResponse(Response):
 
     _service = "repositories"
     _action = "get_dataset_versions"
-    _version = "2.41"
+    _version = "2.40"
     _schema = {
         "definitions": {},
         "properties": {"versions": {"items": {"type": "object"}, "type": ["array", "null"]}},
@@ -994,7 +994,7 @@ class GetDetailsRequest(Request):
 
     _service = "repositories"
     _action = "get_details"
-    _version = "2.41"
+    _version = "2.40"
     _schema = {
         "additionalProperties": False,
         "definitions": {},
@@ -1065,7 +1065,7 @@ class GetDetailsResponse(Response):
 
     _service = "repositories"
     _action = "get_details"
-    _version = "2.41"
+    _version = "2.40"
     _schema = {"definitions": {}, "type": "object"}
 
     def __init__(self, **kwargs: Any) -> None:
@@ -1082,7 +1082,7 @@ class GetHistoryRequest(Request):
 
     _service = "repositories"
     _action = "get_history"
-    _version = "2.41"
+    _version = "2.40"
     _schema = {
         "additionalProperties": False,
         "definitions": {},
@@ -1130,7 +1130,7 @@ class GetHistoryResponse(Response):
 
     _service = "repositories"
     _action = "get_history"
-    _version = "2.41"
+    _version = "2.40"
     _schema = {
         "definitions": {},
         "properties": {
@@ -1237,7 +1237,7 @@ class GetRunsRequest(Request):
 
     _service = "repositories"
     _action = "get_runs"
-    _version = "2.41"
+    _version = "2.40"
     _schema = {
         "additionalProperties": False,
         "definitions": {},
@@ -1277,7 +1277,7 @@ class GetRunsResponse(Response):
 
     _service = "repositories"
     _action = "get_runs"
-    _version = "2.41"
+    _version = "2.40"
     _schema = {
         "definitions": {},
         "properties": {"runs": {"items": {"type": "object"}, "type": ["array", "null"]}},
@@ -1314,7 +1314,7 @@ class GitTokenRequest(Request):
 
     _service = "repositories"
     _action = "git_token"
-    _version = "2.41"
+    _version = "2.40"
     _schema = {
         "additionalProperties": False,
         "definitions": {},
@@ -1373,7 +1373,7 @@ class GitTokenResponse(Response):
 
     _service = "repositories"
     _action = "git_token"
-    _version = "2.41"
+    _version = "2.40"
     _schema = {
         "definitions": {},
         "properties": {
@@ -1445,7 +1445,7 @@ class LinkRequest(Request):
 
     _service = "repositories"
     _action = "link"
-    _version = "2.41"
+    _version = "2.40"
     _schema = {
         "additionalProperties": False,
         "definitions": {},
@@ -1500,7 +1500,7 @@ class LinkResponse(Response):
 
     _service = "repositories"
     _action = "link"
-    _version = "2.41"
+    _version = "2.40"
     _schema = {
         "definitions": {},
         "properties": {"repository": {"type": ["object", "null"]}},
@@ -1534,7 +1534,7 @@ class RefreshRequest(Request):
 
     _service = "repositories"
     _action = "refresh"
-    _version = "2.41"
+    _version = "2.40"
     _schema = {
         "additionalProperties": False,
         "definitions": {},
@@ -1574,7 +1574,7 @@ class RefreshResponse(Response):
 
     _service = "repositories"
     _action = "refresh"
-    _version = "2.41"
+    _version = "2.40"
     _schema = {
         "definitions": {},
         "properties": {"counts": {"type": ["object", "null"]}},
@@ -1608,7 +1608,7 @@ class RequirementRequest(Request):
 
     _service = "repositories"
     _action = "requirement"
-    _version = "2.41"
+    _version = "2.40"
     _schema = {
         "additionalProperties": False,
         "definitions": {},
@@ -1645,7 +1645,7 @@ class RequirementResponse(Response):
 
     _service = "repositories"
     _action = "requirement"
-    _version = "2.41"
+    _version = "2.40"
     _schema = {
         "definitions": {},
         "properties": {"repositories": {"items": {"type": "object"}, "type": ["array", "null"]}},
@@ -1682,7 +1682,7 @@ class ResolveRequest(Request):
 
     _service = "repositories"
     _action = "resolve"
-    _version = "2.41"
+    _version = "2.40"
     _schema = {
         "additionalProperties": False,
         "definitions": {},
@@ -1743,7 +1743,7 @@ class ResolveResponse(Response):
 
     _service = "repositories"
     _action = "resolve"
-    _version = "2.41"
+    _version = "2.40"
     _schema = {
         "definitions": {},
         "properties": {"repositories": {"items": {"type": "object"}, "type": ["array", "null"]}},
@@ -1784,7 +1784,7 @@ class SetSharedRequest(Request):
 
     _service = "repositories"
     _action = "set_shared"
-    _version = "2.41"
+    _version = "2.40"
     _schema = {
         "additionalProperties": False,
         "definitions": {},
@@ -1873,7 +1873,7 @@ class SetSharedResponse(Response):
 
     _service = "repositories"
     _action = "set_shared"
-    _version = "2.41"
+    _version = "2.40"
     _schema = {
         "definitions": {},
         "properties": {"repository": {"type": ["object", "null"]}},
@@ -1907,7 +1907,7 @@ class UnassignRequest(Request):
 
     _service = "repositories"
     _action = "unassign"
-    _version = "2.41"
+    _version = "2.40"
     _schema = {
         "additionalProperties": False,
         "definitions": {},
@@ -1947,7 +1947,7 @@ class UnassignResponse(Response):
 
     _service = "repositories"
     _action = "unassign"
-    _version = "2.41"
+    _version = "2.40"
     _schema = {
         "definitions": {},
         "properties": {"repository": {"type": ["object", "null"]}},
@@ -1983,7 +1983,7 @@ class UnlinkRequest(Request):
 
     _service = "repositories"
     _action = "unlink"
-    _version = "2.41"
+    _version = "2.40"
     _schema = {
         "additionalProperties": False,
         "definitions": {},
@@ -2038,7 +2038,7 @@ class UnlinkResponse(Response):
 
     _service = "repositories"
     _action = "unlink"
-    _version = "2.41"
+    _version = "2.40"
     _schema = {
         "definitions": {},
         "properties": {"repository": {"type": ["object", "null"]}},

@@ -1383,7 +1383,7 @@ class AddMemberRequest(Request):
 
     _service = "projects"
     _action = "add_member"
-    _version = "2.41"
+    _version = "2.37"
     _schema = {
         "definitions": {},
         "properties": {
@@ -1452,7 +1452,7 @@ class AddMemberResponse(Response):
 
     _service = "projects"
     _action = "add_member"
-    _version = "2.41"
+    _version = "2.37"
     _schema = {
         "definitions": {},
         "properties": {
@@ -1492,7 +1492,7 @@ class AddQueuesRequest(Request):
 
     _service = "projects"
     _action = "add_queues"
-    _version = "2.41"
+    _version = "2.38"
     _schema = {
         "definitions": {},
         "properties": {
@@ -1548,7 +1548,7 @@ class AddQueuesResponse(Response):
 
     _service = "projects"
     _action = "add_queues"
-    _version = "2.41"
+    _version = "2.38"
     _schema = {
         "definitions": {},
         "properties": {
@@ -1598,7 +1598,7 @@ class CreateRequest(Request):
 
     _service = "projects"
     _action = "create"
-    _version = "2.41"
+    _version = "2.1"
     _schema = {
         "definitions": {},
         "properties": {
@@ -1712,7 +1712,7 @@ class CreateResponse(Response):
 
     _service = "projects"
     _action = "create"
-    _version = "2.41"
+    _version = "2.1"
     _schema = {
         "definitions": {},
         "properties": {"id": {"description": "Project id", "type": ["string", "null"]}},
@@ -1752,7 +1752,7 @@ class DeleteRequest(Request):
 
     _service = "projects"
     _action = "delete"
-    _version = "2.41"
+    _version = "2.26"
     _schema = {
         "definitions": {},
         "properties": {
@@ -1857,7 +1857,7 @@ class DeleteResponse(Response):
 
     _service = "projects"
     _action = "delete"
-    _version = "2.41"
+    _version = "2.26"
     _schema = {
         "definitions": {
             "urls": {
@@ -2026,7 +2026,7 @@ class GetAllRequest(Request):
 
     _service = "projects"
     _action = "get_all"
-    _version = "2.41"
+    _version = "2.15"
     _schema = {
         "definitions": {
             "multi_field_pattern_data": {
@@ -2417,7 +2417,7 @@ class GetAllResponse(Response):
 
     _service = "projects"
     _action = "get_all"
-    _version = "2.41"
+    _version = "2.15"
     _schema = {
         "definitions": {
             "projects_get_all_response_single": {
@@ -3622,7 +3622,7 @@ class GetAssignableQueuesRequest(Request):
 
     _service = "projects"
     _action = "get_assignable_queues"
-    _version = "2.41"
+    _version = "2.38"
     _schema = {
         "definitions": {},
         "properties": {"project": {"description": "Project id", "type": "string"}},
@@ -3657,7 +3657,7 @@ class GetAssignableQueuesResponse(Response):
 
     _service = "projects"
     _action = "get_assignable_queues"
-    _version = "2.41"
+    _version = "2.38"
     _schema = {
         "definitions": {},
         "properties": {
@@ -3703,7 +3703,7 @@ class GetByIdRequest(Request):
 
     _service = "projects"
     _action = "get_by_id"
-    _version = "2.41"
+    _version = "2.1"
     _schema = {
         "definitions": {},
         "properties": {"project": {"description": "Project id", "type": "string"}},
@@ -3738,7 +3738,7 @@ class GetByIdResponse(Response):
 
     _service = "projects"
     _action = "get_by_id"
-    _version = "2.41"
+    _version = "2.1"
     _schema = {
         "definitions": {
             "project": {
@@ -3829,7 +3829,7 @@ class GetContributionsRequest(Request):
 
     _service = "projects"
     _action = "get_contributions"
-    _version = "2.41"
+    _version = "2.39"
     _schema = {
         "definitions": {},
         "properties": {
@@ -3950,7 +3950,7 @@ class GetContributionsResponse(Response):
 
     _service = "projects"
     _action = "get_contributions"
-    _version = "2.41"
+    _version = "2.39"
     _schema = {
         "definitions": {},
         "properties": {
@@ -4148,7 +4148,7 @@ class GetHyperParametersRequest(Request):
 
     _service = "projects"
     _action = "get_hyper_parameters"
-    _version = "2.41"
+    _version = "2.13"
     _schema = {
         "definitions": {},
         "properties": {
@@ -4246,7 +4246,7 @@ class GetHyperParametersResponse(Response):
 
     _service = "projects"
     _action = "get_hyper_parameters"
-    _version = "2.41"
+    _version = "2.13"
     _schema = {
         "definitions": {},
         "properties": {
@@ -4339,7 +4339,7 @@ class GetHyperparamValuesRequest(Request):
 
     _service = "projects"
     _action = "get_hyperparam_values"
-    _version = "2.41"
+    _version = "2.27"
     _schema = {
         "definitions": {},
         "properties": {
@@ -4503,7 +4503,7 @@ class GetHyperparamValuesResponse(Response):
 
     _service = "projects"
     _action = "get_hyperparam_values"
-    _version = "2.41"
+    _version = "2.27"
     _schema = {
         "definitions": {},
         "properties": {
@@ -4568,7 +4568,7 @@ class GetMembersRequest(Request):
 
     _service = "projects"
     _action = "get_members"
-    _version = "2.41"
+    _version = "2.37"
     _schema = {
         "definitions": {},
         "properties": {"project": {"description": "Project id", "type": "string"}},
@@ -4605,7 +4605,7 @@ class GetMembersResponse(Response):
 
     _service = "projects"
     _action = "get_members"
-    _version = "2.41"
+    _version = "2.37"
     _schema = {
         "definitions": {},
         "properties": {
@@ -4686,7 +4686,7 @@ class GetModelMetadataKeysRequest(Request):
 
     _service = "projects"
     _action = "get_model_metadata_keys"
-    _version = "2.41"
+    _version = "2.17"
     _schema = {
         "definitions": {},
         "properties": {
@@ -4784,7 +4784,7 @@ class GetModelMetadataKeysResponse(Response):
 
     _service = "projects"
     _action = "get_model_metadata_keys"
-    _version = "2.41"
+    _version = "2.17"
     _schema = {
         "definitions": {},
         "properties": {
@@ -4873,7 +4873,7 @@ class GetModelMetadataValuesRequest(Request):
 
     _service = "projects"
     _action = "get_model_metadata_values"
-    _version = "2.41"
+    _version = "2.26"
     _schema = {
         "definitions": {},
         "properties": {
@@ -5007,7 +5007,7 @@ class GetModelMetadataValuesResponse(Response):
 
     _service = "projects"
     _action = "get_model_metadata_values"
-    _version = "2.41"
+    _version = "2.26"
     _schema = {
         "definitions": {},
         "properties": {
@@ -5076,7 +5076,7 @@ class GetModelTagsRequest(Request):
 
     _service = "projects"
     _action = "get_model_tags"
-    _version = "2.41"
+    _version = "2.8"
     _schema = {
         "definitions": {},
         "properties": {
@@ -5172,7 +5172,7 @@ class GetModelTagsResponse(Response):
 
     _service = "projects"
     _action = "get_model_tags"
-    _version = "2.41"
+    _version = "2.8"
     _schema = {
         "definitions": {},
         "properties": {
@@ -5237,7 +5237,7 @@ class GetOverviewBoardRequest(Request):
 
     _service = "projects"
     _action = "get_overview_board"
-    _version = "2.41"
+    _version = "2.40"
     _schema = {
         "definitions": {},
         "properties": {"project": {"description": "Project id", "type": "string"}},
@@ -5274,7 +5274,7 @@ class GetOverviewBoardResponse(Response):
 
     _service = "projects"
     _action = "get_overview_board"
-    _version = "2.41"
+    _version = "2.40"
     _schema = {
         "definitions": {},
         "properties": {
@@ -5336,7 +5336,7 @@ class GetProjectTagsRequest(Request):
 
     _service = "projects"
     _action = "get_project_tags"
-    _version = "2.41"
+    _version = "2.17"
     _schema = {
         "definitions": {},
         "properties": {
@@ -5432,7 +5432,7 @@ class GetProjectTagsResponse(Response):
 
     _service = "projects"
     _action = "get_project_tags"
-    _version = "2.41"
+    _version = "2.17"
     _schema = {
         "definitions": {},
         "properties": {
@@ -5497,7 +5497,7 @@ class GetQueuesRequest(Request):
 
     _service = "projects"
     _action = "get_queues"
-    _version = "2.41"
+    _version = "2.38"
     _schema = {
         "definitions": {},
         "properties": {"project": {"description": "Project id", "type": "string"}},
@@ -5532,7 +5532,7 @@ class GetQueuesResponse(Response):
 
     _service = "projects"
     _action = "get_queues"
-    _version = "2.41"
+    _version = "2.38"
     _schema = {
         "definitions": {},
         "properties": {
@@ -5594,7 +5594,7 @@ class GetTaskParentsRequest(Request):
 
     _service = "projects"
     _action = "get_task_parents"
-    _version = "2.41"
+    _version = "2.25"
     _schema = {
         "definitions": {},
         "properties": {
@@ -5696,7 +5696,7 @@ class GetTaskParentsResponse(Response):
 
     _service = "projects"
     _action = "get_task_parents"
-    _version = "2.41"
+    _version = "2.25"
     _schema = {
         "definitions": {},
         "properties": {
@@ -5760,7 +5760,7 @@ class GetTaskTagsRequest(Request):
 
     _service = "projects"
     _action = "get_task_tags"
-    _version = "2.41"
+    _version = "2.8"
     _schema = {
         "definitions": {},
         "properties": {
@@ -5856,7 +5856,7 @@ class GetTaskTagsResponse(Response):
 
     _service = "projects"
     _action = "get_task_tags"
-    _version = "2.41"
+    _version = "2.8"
     _schema = {
         "definitions": {},
         "properties": {
@@ -5927,7 +5927,7 @@ class GetUniqueMetricVariantsRequest(Request):
 
     _service = "projects"
     _action = "get_unique_metric_variants"
-    _version = "2.41"
+    _version = "2.28"
     _schema = {
         "definitions": {},
         "properties": {
@@ -6025,7 +6025,7 @@ class GetUniqueMetricVariantsResponse(Response):
 
     _service = "projects"
     _action = "get_unique_metric_variants"
-    _version = "2.41"
+    _version = "2.28"
     _schema = {
         "definitions": {
             "metric_variant_result": {
@@ -6089,7 +6089,7 @@ class GetUserNamesRequest(Request):
 
     _service = "projects"
     _action = "get_user_names"
-    _version = "2.41"
+    _version = "2.26"
     _schema = {
         "definitions": {},
         "properties": {
@@ -6173,7 +6173,7 @@ class GetUserNamesResponse(Response):
 
     _service = "projects"
     _action = "get_user_names"
-    _version = "2.41"
+    _version = "2.26"
     _schema = {
         "definitions": {},
         "properties": {
@@ -6220,7 +6220,7 @@ class MakePrivateRequest(Request):
 
     _service = "projects"
     _action = "make_private"
-    _version = "2.41"
+    _version = "2.9"
     _schema = {
         "definitions": {},
         "properties": {
@@ -6261,7 +6261,7 @@ class MakePrivateResponse(Response):
 
     _service = "projects"
     _action = "make_private"
-    _version = "2.41"
+    _version = "2.9"
     _schema = {
         "definitions": {},
         "properties": {
@@ -6299,7 +6299,7 @@ class MakePublicRequest(Request):
 
     _service = "projects"
     _action = "make_public"
-    _version = "2.41"
+    _version = "2.9"
     _schema = {
         "definitions": {},
         "properties": {
@@ -6340,7 +6340,7 @@ class MakePublicResponse(Response):
 
     _service = "projects"
     _action = "make_public"
-    _version = "2.41"
+    _version = "2.9"
     _schema = {
         "definitions": {},
         "properties": {
@@ -6380,7 +6380,7 @@ class MergeRequest(Request):
 
     _service = "projects"
     _action = "merge"
-    _version = "2.41"
+    _version = "2.13"
     _schema = {
         "definitions": {},
         "properties": {
@@ -6441,7 +6441,7 @@ class MergeResponse(Response):
 
     _service = "projects"
     _action = "merge"
-    _version = "2.41"
+    _version = "2.13"
     _schema = {
         "definitions": {},
         "properties": {
@@ -6508,7 +6508,7 @@ class MoveRequest(Request):
 
     _service = "projects"
     _action = "move"
-    _version = "2.41"
+    _version = "2.13"
     _schema = {
         "definitions": {},
         "properties": {
@@ -6559,7 +6559,7 @@ class MoveResponse(Response):
 
     _service = "projects"
     _action = "move"
-    _version = "2.41"
+    _version = "2.13"
     _schema = {
         "definitions": {},
         "properties": {
@@ -6599,7 +6599,7 @@ class RemoveMemberRequest(Request):
 
     _service = "projects"
     _action = "remove_member"
-    _version = "2.41"
+    _version = "2.37"
     _schema = {
         "definitions": {},
         "properties": {
@@ -6650,7 +6650,7 @@ class RemoveMemberResponse(Response):
 
     _service = "projects"
     _action = "remove_member"
-    _version = "2.41"
+    _version = "2.37"
     _schema = {
         "definitions": {},
         "properties": {
@@ -6690,7 +6690,7 @@ class RemoveQueueRequest(Request):
 
     _service = "projects"
     _action = "remove_queue"
-    _version = "2.41"
+    _version = "2.38"
     _schema = {
         "definitions": {},
         "properties": {
@@ -6741,7 +6741,7 @@ class RemoveQueueResponse(Response):
 
     _service = "projects"
     _action = "remove_queue"
-    _version = "2.41"
+    _version = "2.38"
     _schema = {
         "definitions": {},
         "properties": {
@@ -6787,7 +6787,7 @@ class SetOverviewBoardRequest(Request):
 
     _service = "projects"
     _action = "set_overview_board"
-    _version = "2.41"
+    _version = "2.40"
     _schema = {
         "definitions": {},
         "properties": {
@@ -6858,7 +6858,7 @@ class SetOverviewBoardResponse(Response):
 
     _service = "projects"
     _action = "set_overview_board"
-    _version = "2.41"
+    _version = "2.40"
     _schema = {
         "definitions": {},
         "properties": {
@@ -6901,7 +6901,7 @@ class SetVisibilityRequest(Request):
 
     _service = "projects"
     _action = "set_visibility"
-    _version = "2.41"
+    _version = "2.37"
     _schema = {
         "definitions": {},
         "properties": {
@@ -6956,7 +6956,7 @@ class SetVisibilityResponse(Response):
 
     _service = "projects"
     _action = "set_visibility"
-    _version = "2.41"
+    _version = "2.37"
     _schema = {
         "definitions": {},
         "properties": {
@@ -6996,7 +6996,7 @@ class TransferOwnershipRequest(Request):
 
     _service = "projects"
     _action = "transfer_ownership"
-    _version = "2.41"
+    _version = "2.37"
     _schema = {
         "definitions": {},
         "properties": {
@@ -7050,7 +7050,7 @@ class TransferOwnershipResponse(Response):
 
     _service = "projects"
     _action = "transfer_ownership"
-    _version = "2.41"
+    _version = "2.37"
     _schema = {
         "definitions": {},
         "properties": {
@@ -7100,7 +7100,7 @@ class UpdateRequest(Request):
 
     _service = "projects"
     _action = "update"
-    _version = "2.41"
+    _version = "2.39"
     _schema = {
         "definitions": {},
         "properties": {
@@ -7249,7 +7249,7 @@ class UpdateResponse(Response):
 
     _service = "projects"
     _action = "update"
-    _version = "2.41"
+    _version = "2.39"
     _schema = {
         "definitions": {},
         "properties": {
@@ -7318,7 +7318,7 @@ class UpdateMemberRoleRequest(Request):
 
     _service = "projects"
     _action = "update_member_role"
-    _version = "2.41"
+    _version = "2.37"
     _schema = {
         "definitions": {},
         "properties": {
@@ -7387,7 +7387,7 @@ class UpdateMemberRoleResponse(Response):
 
     _service = "projects"
     _action = "update_member_role"
-    _version = "2.41"
+    _version = "2.37"
     _schema = {
         "definitions": {},
         "properties": {
@@ -7530,7 +7530,7 @@ class ValidateDeleteRequest(Request):
 
     _service = "projects"
     _action = "validate_delete"
-    _version = "2.41"
+    _version = "2.26"
     _schema = {
         "definitions": {},
         "properties": {"project": {"description": "Project ID", "type": "string"}},
@@ -7579,7 +7579,7 @@ class ValidateDeleteResponse(Response):
 
     _service = "projects"
     _action = "validate_delete"
-    _version = "2.41"
+    _version = "2.26"
     _schema = {
         "definitions": {},
         "properties": {

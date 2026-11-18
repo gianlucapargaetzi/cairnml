@@ -2999,7 +2999,7 @@ class AddOrUpdateArtifactsRequest(Request):
 
     _service = "tasks"
     _action = "add_or_update_artifacts"
-    _version = "2.41"
+    _version = "2.10"
     _schema = {
         "definitions": {
             "artifact": {
@@ -3129,7 +3129,7 @@ class AddOrUpdateArtifactsResponse(Response):
 
     _service = "tasks"
     _action = "add_or_update_artifacts"
-    _version = "2.41"
+    _version = "2.10"
     _schema = {
         "definitions": {},
         "properties": {
@@ -3178,7 +3178,7 @@ class AddOrUpdateModelRequest(Request):
 
     _service = "tasks"
     _action = "add_or_update_model"
-    _version = "2.41"
+    _version = "2.13"
     _schema = {
         "definitions": {"model_type_enum": {"enum": ["input", "output"], "type": "string"}},
         "properties": {
@@ -3290,7 +3290,7 @@ class AddOrUpdateModelResponse(Response):
 
     _service = "tasks"
     _action = "add_or_update_model"
-    _version = "2.41"
+    _version = "2.13"
     _schema = {
         "definitions": {},
         "properties": {
@@ -3338,7 +3338,7 @@ class ArchiveRequest(Request):
 
     _service = "tasks"
     _action = "archive"
-    _version = "2.41"
+    _version = "2.30"
     _schema = {
         "definitions": {},
         "properties": {
@@ -3436,7 +3436,7 @@ class ArchiveResponse(Response):
 
     _service = "tasks"
     _action = "archive"
-    _version = "2.41"
+    _version = "2.30"
     _schema = {
         "definitions": {},
         "properties": {
@@ -3483,7 +3483,7 @@ class ArchiveManyRequest(Request):
 
     _service = "tasks"
     _action = "archive_many"
-    _version = "2.41"
+    _version = "2.30"
     _schema = {
         "definitions": {},
         "properties": {
@@ -3583,7 +3583,7 @@ class ArchiveManyResponse(Response):
 
     _service = "tasks"
     _action = "archive_many"
-    _version = "2.41"
+    _version = "2.30"
     _schema = {
         "definitions": {},
         "properties": {
@@ -4281,7 +4281,7 @@ class CloseRequest(Request):
 
     _service = "tasks"
     _action = "close"
-    _version = "2.41"
+    _version = "2.1"
     _schema = {
         "definitions": {},
         "properties": {
@@ -4376,7 +4376,7 @@ class CloseResponse(Response):
 
     _service = "tasks"
     _action = "close"
-    _version = "2.41"
+    _version = "2.1"
     _schema = {
         "definitions": {},
         "properties": {
@@ -4449,7 +4449,7 @@ class CompletedRequest(Request):
 
     _service = "tasks"
     _action = "completed"
-    _version = "2.41"
+    _version = "2.20"
     _schema = {
         "definitions": {},
         "properties": {
@@ -4565,7 +4565,7 @@ class CompletedResponse(Response):
 
     _service = "tasks"
     _action = "completed"
-    _version = "2.41"
+    _version = "2.20"
     _schema = {
         "definitions": {},
         "properties": {
@@ -5263,7 +5263,7 @@ class DeleteRequest(Request):
 
     _service = "tasks"
     _action = "delete"
-    _version = "2.41"
+    _version = "2.30"
     _schema = {
         "definitions": {},
         "properties": {
@@ -5457,7 +5457,7 @@ class DeleteResponse(Response):
 
     _service = "tasks"
     _action = "delete"
-    _version = "2.41"
+    _version = "2.30"
     _schema = {
         "definitions": {
             "task_urls": {
@@ -5593,7 +5593,7 @@ class DeleteArtifactsRequest(Request):
 
     _service = "tasks"
     _action = "delete_artifacts"
-    _version = "2.41"
+    _version = "2.10"
     _schema = {
         "definitions": {
             "artifact_id": {
@@ -5692,7 +5692,7 @@ class DeleteArtifactsResponse(Response):
 
     _service = "tasks"
     _action = "delete_artifacts"
-    _version = "2.41"
+    _version = "2.10"
     _schema = {
         "definitions": {},
         "properties": {
@@ -5737,7 +5737,7 @@ class DeleteConfigurationRequest(Request):
 
     _service = "tasks"
     _action = "delete_configuration"
-    _version = "2.41"
+    _version = "2.9"
     _schema = {
         "definitions": {},
         "properties": {
@@ -5816,7 +5816,7 @@ class DeleteConfigurationResponse(Response):
 
     _service = "tasks"
     _action = "delete_configuration"
-    _version = "2.41"
+    _version = "2.9"
     _schema = {
         "definitions": {},
         "properties": {
@@ -5861,7 +5861,7 @@ class DeleteHyperParamsRequest(Request):
 
     _service = "tasks"
     _action = "delete_hyper_params"
-    _version = "2.41"
+    _version = "2.9"
     _schema = {
         "definitions": {
             "param_key": {
@@ -5957,7 +5957,7 @@ class DeleteHyperParamsResponse(Response):
 
     _service = "tasks"
     _action = "delete_hyper_params"
-    _version = "2.41"
+    _version = "2.9"
     _schema = {
         "definitions": {},
         "properties": {
@@ -6010,7 +6010,7 @@ class DeleteManyRequest(Request):
 
     _service = "tasks"
     _action = "delete_many"
-    _version = "2.41"
+    _version = "2.30"
     _schema = {
         "definitions": {},
         "properties": {
@@ -6170,7 +6170,7 @@ class DeleteManyResponse(Response):
 
     _service = "tasks"
     _action = "delete_many"
-    _version = "2.41"
+    _version = "2.30"
     _schema = {
         "definitions": {
             "task_urls": {
@@ -6283,7 +6283,7 @@ class DeleteModelsRequest(Request):
 
     _service = "tasks"
     _action = "delete_models"
-    _version = "2.41"
+    _version = "2.13"
     _schema = {
         "definitions": {"model_type_enum": {"enum": ["input", "output"], "type": "string"}},
         "properties": {
@@ -6349,7 +6349,7 @@ class DeleteModelsResponse(Response):
 
     _service = "tasks"
     _action = "delete_models"
-    _version = "2.41"
+    _version = "2.13"
     _schema = {
         "definitions": {},
         "properties": {
@@ -6399,7 +6399,7 @@ class DequeueRequest(Request):
 
     _service = "tasks"
     _action = "dequeue"
-    _version = "2.41"
+    _version = "2.26"
     _schema = {
         "definitions": {},
         "properties": {
@@ -6514,7 +6514,7 @@ class DequeueResponse(Response):
 
     _service = "tasks"
     _action = "dequeue"
-    _version = "2.41"
+    _version = "2.26"
     _schema = {
         "definitions": {},
         "properties": {
@@ -6608,7 +6608,7 @@ class DequeueManyRequest(Request):
 
     _service = "tasks"
     _action = "dequeue_many"
-    _version = "2.41"
+    _version = "2.26"
     _schema = {
         "definitions": {},
         "properties": {
@@ -6726,7 +6726,7 @@ class DequeueManyResponse(Response):
 
     _service = "tasks"
     _action = "dequeue_many"
-    _version = "2.41"
+    _version = "2.26"
     _schema = {
         "definitions": {},
         "properties": {
@@ -7516,7 +7516,7 @@ class EditConfigurationRequest(Request):
 
     _service = "tasks"
     _action = "edit_configuration"
-    _version = "2.41"
+    _version = "2.9"
     _schema = {
         "definitions": {
             "configuration_item": {
@@ -7632,7 +7632,7 @@ class EditConfigurationResponse(Response):
 
     _service = "tasks"
     _action = "edit_configuration"
-    _version = "2.41"
+    _version = "2.9"
     _schema = {
         "definitions": {},
         "properties": {
@@ -7679,7 +7679,7 @@ class EditHyperParamsRequest(Request):
 
     _service = "tasks"
     _action = "edit_hyper_params"
-    _version = "2.41"
+    _version = "2.9"
     _schema = {
         "definitions": {
             "params_item": {
@@ -7806,7 +7806,7 @@ class EditHyperParamsResponse(Response):
 
     _service = "tasks"
     _action = "edit_hyper_params"
-    _version = "2.41"
+    _version = "2.9"
     _schema = {
         "definitions": {},
         "properties": {
@@ -7853,7 +7853,7 @@ class EditRuntimeRequest(Request):
 
     _service = "tasks"
     _action = "edit_runtime"
-    _version = "2.41"
+    _version = "2.34"
     _schema = {
         "definitions": {},
         "properties": {
@@ -7951,7 +7951,7 @@ class EditRuntimeResponse(Response):
 
     _service = "tasks"
     _action = "edit_runtime"
-    _version = "2.41"
+    _version = "2.34"
     _schema = {
         "definitions": {},
         "properties": {
@@ -8004,7 +8004,7 @@ class EnqueueRequest(Request):
 
     _service = "tasks"
     _action = "enqueue"
-    _version = "2.41"
+    _version = "2.31"
     _schema = {
         "definitions": {},
         "properties": {
@@ -8158,7 +8158,7 @@ class EnqueueResponse(Response):
 
     _service = "tasks"
     _action = "enqueue"
-    _version = "2.41"
+    _version = "2.31"
     _schema = {
         "definitions": {},
         "properties": {
@@ -8274,7 +8274,7 @@ class EnqueueManyRequest(Request):
 
     _service = "tasks"
     _action = "enqueue_many"
-    _version = "2.41"
+    _version = "2.22"
     _schema = {
         "definitions": {},
         "properties": {
@@ -8431,7 +8431,7 @@ class EnqueueManyResponse(Response):
 
     _service = "tasks"
     _action = "enqueue_many"
-    _version = "2.41"
+    _version = "2.22"
     _schema = {
         "definitions": {},
         "properties": {
@@ -8551,7 +8551,7 @@ class FailedRequest(Request):
 
     _service = "tasks"
     _action = "failed"
-    _version = "2.41"
+    _version = "2.1"
     _schema = {
         "definitions": {},
         "properties": {
@@ -8646,7 +8646,7 @@ class FailedResponse(Response):
 
     _service = "tasks"
     _action = "failed"
-    _version = "2.41"
+    _version = "2.1"
     _schema = {
         "definitions": {},
         "properties": {
@@ -12564,7 +12564,7 @@ class GetConfigurationNamesRequest(Request):
 
     _service = "tasks"
     _action = "get_configuration_names"
-    _version = "2.41"
+    _version = "2.9"
     _schema = {
         "definitions": {},
         "properties": {
@@ -12620,7 +12620,7 @@ class GetConfigurationNamesResponse(Response):
 
     _service = "tasks"
     _action = "get_configuration_names"
-    _version = "2.41"
+    _version = "2.9"
     _schema = {
         "definitions": {},
         "properties": {
@@ -12669,7 +12669,7 @@ class GetConfigurationsRequest(Request):
 
     _service = "tasks"
     _action = "get_configurations"
-    _version = "2.41"
+    _version = "2.9"
     _schema = {
         "definitions": {},
         "properties": {
@@ -12726,7 +12726,7 @@ class GetConfigurationsResponse(Response):
 
     _service = "tasks"
     _action = "get_configurations"
-    _version = "2.41"
+    _version = "2.9"
     _schema = {
         "definitions": {
             "configuration_item": {
@@ -12796,7 +12796,7 @@ class GetHyperParamsRequest(Request):
 
     _service = "tasks"
     _action = "get_hyper_params"
-    _version = "2.41"
+    _version = "2.9"
     _schema = {
         "definitions": {},
         "properties": {
@@ -12834,7 +12834,7 @@ class GetHyperParamsResponse(Response):
 
     _service = "tasks"
     _action = "get_hyper_params"
-    _version = "2.41"
+    _version = "2.9"
     _schema = {
         "definitions": {
             "params_item": {
@@ -12908,7 +12908,7 @@ class GetProgressRequest(Request):
 
     _service = "tasks"
     _action = "get_progress"
-    _version = "2.41"
+    _version = "2.23"
     _schema = {
         "definitions": {},
         "properties": {
@@ -12946,7 +12946,7 @@ class GetProgressResponse(Response):
 
     _service = "tasks"
     _action = "get_progress"
-    _version = "2.41"
+    _version = "2.23"
     _schema = {
         "definitions": {},
         "properties": {
@@ -13003,7 +13003,7 @@ class GetTypesRequest(Request):
 
     _service = "tasks"
     _action = "get_types"
-    _version = "2.41"
+    _version = "2.8"
     _schema = {
         "definitions": {},
         "properties": {
@@ -13044,7 +13044,7 @@ class GetTypesResponse(Response):
 
     _service = "tasks"
     _action = "get_types"
-    _version = "2.41"
+    _version = "2.8"
     _schema = {
         "definitions": {},
         "properties": {
@@ -13085,7 +13085,7 @@ class MakePrivateRequest(Request):
 
     _service = "tasks"
     _action = "make_private"
-    _version = "2.41"
+    _version = "2.9"
     _schema = {
         "definitions": {},
         "properties": {
@@ -13126,7 +13126,7 @@ class MakePrivateResponse(Response):
 
     _service = "tasks"
     _action = "make_private"
-    _version = "2.41"
+    _version = "2.9"
     _schema = {
         "definitions": {},
         "properties": {
@@ -13164,7 +13164,7 @@ class MakePublicRequest(Request):
 
     _service = "tasks"
     _action = "make_public"
-    _version = "2.41"
+    _version = "2.9"
     _schema = {
         "definitions": {},
         "properties": {
@@ -13205,7 +13205,7 @@ class MakePublicResponse(Response):
 
     _service = "tasks"
     _action = "make_public"
-    _version = "2.41"
+    _version = "2.9"
     _schema = {
         "definitions": {},
         "properties": {
@@ -13247,7 +13247,7 @@ class MoveRequest(Request):
 
     _service = "tasks"
     _action = "move"
-    _version = "2.41"
+    _version = "2.12"
     _schema = {
         "definitions": {},
         "properties": {
@@ -13322,7 +13322,7 @@ class MoveResponse(Response):
 
     _service = "tasks"
     _action = "move"
-    _version = "2.41"
+    _version = "2.12"
     _schema = {"additionalProperties": True, "definitions": {}, "type": "object"}
 
     def __init__(self, **kwargs: Any) -> None:
@@ -13339,7 +13339,7 @@ class PingRequest(Request):
 
     _service = "tasks"
     _action = "ping"
-    _version = "2.41"
+    _version = "2.1"
     _schema = {
         "definitions": {},
         "properties": {"task": {"description": "Task ID", "type": "string"}},
@@ -13371,7 +13371,7 @@ class PingResponse(Response):
 
     _service = "tasks"
     _action = "ping"
-    _version = "2.41"
+    _version = "2.1"
     _schema = {"additionalProperties": False, "definitions": {}, "type": "object"}
 
     def __init__(self, **kwargs: Any) -> None:
@@ -13396,7 +13396,7 @@ class PublishRequest(Request):
 
     _service = "tasks"
     _action = "publish"
-    _version = "2.41"
+    _version = "2.1"
     _schema = {
         "definitions": {},
         "properties": {
@@ -13509,7 +13509,7 @@ class PublishResponse(Response):
 
     _service = "tasks"
     _action = "publish"
-    _version = "2.41"
+    _version = "2.1"
     _schema = {
         "definitions": {},
         "properties": {
@@ -13582,7 +13582,7 @@ class PublishManyRequest(Request):
 
     _service = "tasks"
     _action = "publish_many"
-    _version = "2.41"
+    _version = "2.13"
     _schema = {
         "definitions": {},
         "properties": {
@@ -13700,7 +13700,7 @@ class PublishManyResponse(Response):
 
     _service = "tasks"
     _action = "publish_many"
-    _version = "2.41"
+    _version = "2.13"
     _schema = {
         "definitions": {},
         "properties": {
@@ -13806,7 +13806,7 @@ class ResetRequest(Request):
 
     _service = "tasks"
     _action = "reset"
-    _version = "2.41"
+    _version = "2.21"
     _schema = {
         "definitions": {},
         "properties": {
@@ -13983,7 +13983,7 @@ class ResetResponse(Response):
 
     _service = "tasks"
     _action = "reset"
-    _version = "2.41"
+    _version = "2.21"
     _schema = {
         "definitions": {
             "task_urls": {
@@ -14146,7 +14146,7 @@ class ResetManyRequest(Request):
 
     _service = "tasks"
     _action = "reset_many"
-    _version = "2.41"
+    _version = "2.21"
     _schema = {
         "definitions": {},
         "properties": {
@@ -14287,7 +14287,7 @@ class ResetManyResponse(Response):
 
     _service = "tasks"
     _action = "reset_many"
-    _version = "2.41"
+    _version = "2.21"
     _schema = {
         "definitions": {
             "task_urls": {
@@ -14402,7 +14402,7 @@ class SetRequirementsRequest(Request):
 
     _service = "tasks"
     _action = "set_requirements"
-    _version = "2.41"
+    _version = "2.1"
     _schema = {
         "definitions": {},
         "properties": {
@@ -14458,7 +14458,7 @@ class SetRequirementsResponse(Response):
 
     _service = "tasks"
     _action = "set_requirements"
-    _version = "2.41"
+    _version = "2.1"
     _schema = {
         "definitions": {},
         "properties": {
@@ -14529,7 +14529,7 @@ class StartedRequest(Request):
 
     _service = "tasks"
     _action = "started"
-    _version = "2.41"
+    _version = "2.1"
     _schema = {
         "definitions": {},
         "properties": {
@@ -14626,7 +14626,7 @@ class StartedResponse(Response):
 
     _service = "tasks"
     _action = "started"
-    _version = "2.41"
+    _version = "2.1"
     _schema = {
         "definitions": {},
         "properties": {
@@ -14720,7 +14720,7 @@ class StopRequest(Request):
 
     _service = "tasks"
     _action = "stop"
-    _version = "2.41"
+    _version = "2.30"
     _schema = {
         "definitions": {},
         "properties": {
@@ -14834,7 +14834,7 @@ class StopResponse(Response):
 
     _service = "tasks"
     _action = "stop"
-    _version = "2.41"
+    _version = "2.30"
     _schema = {
         "definitions": {},
         "properties": {
@@ -14907,7 +14907,7 @@ class StopManyRequest(Request):
 
     _service = "tasks"
     _action = "stop_many"
-    _version = "2.41"
+    _version = "2.30"
     _schema = {
         "definitions": {},
         "properties": {
@@ -15026,7 +15026,7 @@ class StopManyResponse(Response):
 
     _service = "tasks"
     _action = "stop_many"
-    _version = "2.41"
+    _version = "2.30"
     _schema = {
         "definitions": {},
         "properties": {
@@ -15124,7 +15124,7 @@ class StoppedRequest(Request):
 
     _service = "tasks"
     _action = "stopped"
-    _version = "2.41"
+    _version = "2.1"
     _schema = {
         "definitions": {},
         "properties": {
@@ -15219,7 +15219,7 @@ class StoppedResponse(Response):
 
     _service = "tasks"
     _action = "stopped"
-    _version = "2.41"
+    _version = "2.1"
     _schema = {
         "definitions": {},
         "properties": {
@@ -15290,7 +15290,7 @@ class UnarchiveManyRequest(Request):
 
     _service = "tasks"
     _action = "unarchive_many"
-    _version = "2.41"
+    _version = "2.30"
     _schema = {
         "definitions": {},
         "properties": {
@@ -15390,7 +15390,7 @@ class UnarchiveManyResponse(Response):
 
     _service = "tasks"
     _action = "unarchive_many"
-    _version = "2.41"
+    _version = "2.30"
     _schema = {
         "definitions": {},
         "properties": {
@@ -15492,7 +15492,7 @@ class UpdateRequest(Request):
 
     _service = "tasks"
     _action = "update"
-    _version = "2.41"
+    _version = "2.1"
     _schema = {
         "definitions": {},
         "properties": {
@@ -15677,7 +15677,7 @@ class UpdateResponse(Response):
 
     _service = "tasks"
     _action = "update"
-    _version = "2.41"
+    _version = "2.1"
     _schema = {
         "definitions": {},
         "properties": {
@@ -15788,7 +15788,7 @@ class UpdateProgressRequest(Request):
 
     _service = "tasks"
     _action = "update_progress"
-    _version = "2.41"
+    _version = "2.23"
     _schema = {
         "definitions": {},
         "properties": {
@@ -15875,7 +15875,7 @@ class UpdateProgressResponse(Response):
 
     _service = "tasks"
     _action = "update_progress"
-    _version = "2.41"
+    _version = "2.23"
     _schema = {"additionalProperties": False, "definitions": {}, "type": "object"}
 
     def __init__(self, **kwargs: Any) -> None:
@@ -15896,7 +15896,7 @@ class UpdateTagsRequest(Request):
 
     _service = "tasks"
     _action = "update_tags"
-    _version = "2.41"
+    _version = "2.27"
     _schema = {
         "definitions": {},
         "properties": {
@@ -15981,7 +15981,7 @@ class UpdateTagsResponse(Response):
 
     _service = "tasks"
     _action = "update_tags"
-    _version = "2.41"
+    _version = "2.27"
     _schema = {
         "definitions": {},
         "properties": {

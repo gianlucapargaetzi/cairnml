@@ -28,7 +28,7 @@ class IdpCallbackRequest(Request):
 
     _service = "login"
     _action = "idp_callback"
-    _version = "2.41"
+    _version = "2.8"
     _schema = {
         "additionalProperties": False,
         "definitions": {},
@@ -74,7 +74,7 @@ class IdpCallbackResponse(Response):
 
     _service = "login"
     _action = "idp_callback"
-    _version = "2.41"
+    _version = "2.8"
     _schema = {"definitions": {}, "type": "object"}
 
     def __init__(self, **kwargs: Any) -> None:
@@ -88,7 +88,7 @@ class IdpStartRequest(Request):
 
     _service = "login"
     _action = "idp_start"
-    _version = "2.41"
+    _version = "2.8"
     _schema = {"additionalProperties": False, "definitions": {}, "type": "object"}
 
     def __init__(self, **kwargs: Any) -> None:
@@ -102,7 +102,7 @@ class IdpStartResponse(Response):
 
     _service = "login"
     _action = "idp_start"
-    _version = "2.41"
+    _version = "2.8"
     _schema = {"definitions": {}, "type": "object"}
 
     def __init__(self, **kwargs: Any) -> None:
@@ -116,7 +116,7 @@ class LogoutRequest(Request):
 
     _service = "login"
     _action = "logout"
-    _version = "2.41"
+    _version = "2.13"
     _schema = {"additionalProperties": True, "definitions": {}, "type": "object"}
 
     def __init__(self, **kwargs: Any) -> None:
@@ -133,7 +133,7 @@ class LogoutResponse(Response):
 
     _service = "login"
     _action = "logout"
-    _version = "2.41"
+    _version = "2.13"
     _schema = {
         "definitions": {},
         "properties": {

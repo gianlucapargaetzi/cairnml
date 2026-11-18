@@ -26,7 +26,7 @@ class DismissNoticeRequest(Request):
 
     _service = "access"
     _action = "dismiss_notice"
-    _version = "2.41"
+    _version = "2.40"
     _schema = {
         "additionalProperties": False,
         "definitions": {},
@@ -59,7 +59,7 @@ class DismissNoticeResponse(Response):
 
     _service = "access"
     _action = "dismiss_notice"
-    _version = "2.41"
+    _version = "2.40"
     _schema = {"definitions": {}, "type": "object"}
 
     def __init__(self, **kwargs: Any) -> None:
@@ -78,7 +78,7 @@ class ListRequest(Request):
 
     _service = "access"
     _action = "list"
-    _version = "2.41"
+    _version = "2.40"
     _schema = {
         "additionalProperties": False,
         "definitions": {},
@@ -133,7 +133,7 @@ class ListResponse(Response):
 
     _service = "access"
     _action = "list"
-    _version = "2.41"
+    _version = "2.40"
     _schema = {
         "definitions": {},
         "properties": {"shares": {"items": {"type": "object"}, "type": ["array", "null"]}},
@@ -165,7 +165,7 @@ class NoticesRequest(Request):
 
     _service = "access"
     _action = "notices"
-    _version = "2.41"
+    _version = "2.40"
     _schema = {"additionalProperties": False, "definitions": {}, "type": "object"}
 
     def __init__(self, **kwargs: Any) -> None:
@@ -182,7 +182,7 @@ class NoticesResponse(Response):
 
     _service = "access"
     _action = "notices"
-    _version = "2.41"
+    _version = "2.40"
     _schema = {
         "definitions": {},
         "properties": {"notices": {"items": {"type": "object"}, "type": ["array", "null"]}},
@@ -227,7 +227,7 @@ class ShareRequest(Request):
 
     _service = "access"
     _action = "share"
-    _version = "2.41"
+    _version = "2.40"
     _schema = {
         "additionalProperties": False,
         "definitions": {},
@@ -347,7 +347,7 @@ class ShareResponse(Response):
 
     _service = "access"
     _action = "share"
-    _version = "2.41"
+    _version = "2.40"
     _schema = {
         "definitions": {},
         "properties": {"share": {"type": ["object", "null"]}},
@@ -381,7 +381,7 @@ class UnshareRequest(Request):
 
     _service = "access"
     _action = "unshare"
-    _version = "2.41"
+    _version = "2.40"
     _schema = {
         "additionalProperties": False,
         "definitions": {},
@@ -417,7 +417,7 @@ class UnshareResponse(Response):
 
     _service = "access"
     _action = "unshare"
-    _version = "2.41"
+    _version = "2.40"
     _schema = {
         "definitions": {},
         "properties": {"deleted": {"type": ["boolean", "null"]}},
