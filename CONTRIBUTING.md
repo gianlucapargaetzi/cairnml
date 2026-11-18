@@ -67,3 +67,26 @@ In your PR include:
 * A reference to the issue it addresses
 * A brief description of the approach you've taken for implementing
 
+
+## Integration tests (a real server)
+
+`tests/integration/` runs the SDK against a real CairnML server: the checks that the unit tests, which mock the server,
+cannot make. They carry the `integration` marker and are skipped unless two environment variables are set:
+
+* `CAIRNML_TEST_SERVER`: the server's web address, for example `http://localhost/cairnml`.
+* `CAIRNML_TEST_HOME`: a home directory with a device enrolled on that server. Enrol it with `HOME` set to that directory:
+  `HOME=$CAIRNML_TEST_HOME cairnml init --device http://localhost/cairnml`, then approve the device in the browser.
+
+The SDK reads its configuration and device key from `HOME` when it is imported, so run pytest with `HOME` set to the same
+directory (the fixture refuses to run otherwise):
+
+```
+HOME=$CAIRNML_TEST_HOME CAIRNML_TEST_SERVER=http://localhost/cairnml CAIRNML_TEST_HOME=$CAIRNML_TEST_HOME \
+    python -m pytest -m integration tests/integration -v
+```
+
+The check that stores a table needs `pandas` and `numpy` in the environment. Without the variables, `python -m pytest tests` reports these tests as skipped. The checks of one module form a chain (each
+check uses what the check before it stored), so they run in file order; a check whose input is missing fails. They create
+projects named `integration-<random>` on the server and do not delete them.
+
+The checks are run against a stack built from the working trees by the deployment in `cairnml-server` (`deploy/`).

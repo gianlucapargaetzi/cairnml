@@ -54,6 +54,11 @@ cairnml = "cairnml.cli.__main__:main"
 version = { attr = "cairnml.version.__version__" }
 dependencies = { file = ["requirements.txt"] }
 
+[tool.pytest.ini_options]
+markers = [
+    "integration: needs a real CairnML server; set CAIRNML_TEST_SERVER and CAIRNML_TEST_HOME (see CONTRIBUTING.md)",
+]
+
 [tool.setuptools.packages.find]
 exclude = ["contrib*", "docs*", "data*", "examples*", "tests*"]
 
