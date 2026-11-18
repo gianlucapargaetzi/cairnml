@@ -37,6 +37,17 @@ from ..task import Task
 logger = getLogger("cairnml.automation.optimization")
 
 
+def _last_metrics_event_as_dict(event: Any) -> dict:
+    """Return a Task last-metrics entry (a generated LastMetricsEvent) as the plain dict the public API returns."""
+    return {
+        "metric": event.metric,
+        "variant": event.variant,
+        "value": event.value,
+        "min_value": event.min_value,
+        "max_value": event.max_value,
+    }
+
+
 class _ObjectiveInterface(ABC):
     @abstractmethod
     def get_objective(self, task_id: Union[str, Task, CairnmlJob]) -> Optional[float]:
@@ -150,9 +161,9 @@ class Objective(_ObjectiveInterface):
         try:
             values = metrics[self._metric[0]][self._metric[1]]
             if not self.extremum:
-                return values["value"]
+                return values.value
 
-            return values["min_value"] if self.sign < 0 else values["max_value"]
+            return values.min_value if self.sign < 0 else values.max_value
         except Exception:
             return None
 
@@ -673,14 +684,14 @@ class SearchStrategy:
             (
                 i,
                 {
-                    f"{v['metric']}/{v['variant']}": v
+                    f"{v.metric}/{v.variant}": _last_metrics_event_as_dict(v)
                     for variant in metric.values()
                     for v in variant.values()
                     if (
                         all_metrics  # ruff-format-hint
                         or (
-                            v["metric"] in titles  # ruff-format-hint
-                            and v["variant"] in series
+                            v.metric in titles  # ruff-format-hint
+                            and v.variant in series
                         )
                     )
                 },
@@ -831,14 +842,14 @@ class SearchStrategy:
                     )
                 },
                 "metrics": {
-                    f"{value['metric']}/{value['variant']}": value
+                    f"{value.metric}/{value.variant}": _last_metrics_event_as_dict(value)
                     for variant in metric.values()
                     for value in variant.values()
                     if (
                         all_metrics
                         or (
-                            value["metric"] in titles  # ruff-format-hint
-                            and value["variant"] in series
+                            value.metric in titles  # ruff-format-hint
+                            and value.variant in series
                         )
                     )
                 },

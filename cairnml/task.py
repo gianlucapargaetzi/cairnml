@@ -3262,13 +3262,13 @@ class Task(_Task):
         :return: The last scalar metrics.
         """
         self.reload()
-        metrics = self.data.last_metrics
+        metrics = self.data.last_metrics or {}
         scalar_metrics = dict()
         for i in metrics.values():
             for j in i.values():
-                scalar_metrics.setdefault(j["metric"], {}).setdefault(
-                    j["variant"],
-                    {"last": j["value"], "min": j["min_value"], "max": j["max_value"]},
+                scalar_metrics.setdefault(j.metric, {}).setdefault(
+                    j.variant,
+                    {"last": j.value, "min": j.min_value, "max": j.max_value},
                 )
         return scalar_metrics
 
