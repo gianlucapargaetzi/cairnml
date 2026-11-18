@@ -3799,7 +3799,6 @@ class Task(_Task):
         export_data.get("execution", {}).pop("artifacts", None)
         export_data.get("execution", {}).pop("model", None)
         export_data["project_name"] = self.get_project_name()
-        export_data["session_api_version"] = self.session.api_version
         return export_data
 
     def update_task(self, task_data: dict) -> bool:
@@ -3913,13 +3912,6 @@ class Task(_Task):
         :return: ``True`` if Task was imported/updated
         """
 
-        # restore original API version (otherwise, we might not be able to restore the data correctly)
-        force_api_version = task_data.get("session_api_version") or None
-        original_api_version = Session.api_version
-        original_force_max_api_version = Session.force_max_api_version
-        if force_api_version:
-            Session.force_max_api_version = str(force_api_version)
-
         if not target_task:
             project_name = task_data.get("project_name") or Task._get_project_name(task_data.get("project", ""))
             target_task = Task.create(project_name=project_name, task_name=task_data.get("name", None))
@@ -3943,13 +3935,6 @@ class Task(_Task):
             target_task.reload()
         else:
             target_task = None
-
-        # restore current api version, and return a new instance if Task with the current version
-        if force_api_version:
-            Session.force_max_api_version = original_force_max_api_version
-            Session.api_version = original_api_version
-            if target_task:
-                target_task = Task.get_task(task_id=target_task.id)
 
         return target_task
 
