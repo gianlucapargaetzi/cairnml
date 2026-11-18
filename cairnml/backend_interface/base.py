@@ -69,7 +69,6 @@ class InterfaceBase(SessionInterface):
         ignore_errors: bool = False,
         raise_on_errors: bool = True,
         log: logging.Logger = None,
-        async_enable: bool = False,
     ) -> Optional[CallResult]:
         """Convenience send() method providing a standardized error reporting"""
         if cls._offline_mode:
@@ -79,7 +78,7 @@ class InterfaceBase(SessionInterface):
         while True:
             error_msg = ""
             try:
-                res = session.send(req, async_enable=async_enable)
+                res = session.send(req)
                 if res.meta.result_code in (200, 202) or ignore_errors:
                     return res
 
@@ -145,7 +144,6 @@ class InterfaceBase(SessionInterface):
         req: BatchRequest,
         ignore_errors: bool = False,
         raise_on_errors: bool = True,
-        async_enable: bool = False,
     ) -> Optional[CallResult]:
         return self._send(
             session=self.session,
@@ -153,7 +151,6 @@ class InterfaceBase(SessionInterface):
             ignore_errors=ignore_errors,
             raise_on_errors=raise_on_errors,
             log=self.log,
-            async_enable=async_enable,
         )
 
     @classmethod

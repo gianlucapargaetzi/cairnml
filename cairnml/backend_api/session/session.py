@@ -70,18 +70,8 @@ class Session(TokenManager):
     """CairnML API Session class."""
 
     _AUTHORIZATION_HEADER = "Authorization"
-    _WORKER_HEADER = (
-        "X-CairnML-Worker",
-        "X-Trains-Worker",
-    )
-    _ASYNC_HEADER = (
-        "X-CairnML-Async",
-        "X-Trains-Async",
-    )
-    _CLIENT_HEADER = (
-        "X-CairnML-Client",
-        "X-Trains-Client",
-    )
+    _WORKER_HEADER = "X-CairnML-Worker"
+    _CLIENT_HEADER = "X-CairnML-Client"
 
     _session_requests = 0
     _session_initial_timeout = (3.0, 10.0)
@@ -422,10 +412,8 @@ class Session(TokenManager):
         res = None
         host = self.host
         headers = headers.copy() if headers else {}
-        for h in self._WORKER_HEADER:
-            headers[h] = self.worker
-        for h in self._CLIENT_HEADER:
-            headers[h] = self.client
+        headers[self._WORKER_HEADER] = self.worker
+        headers[self._CLIENT_HEADER] = self.client
 
         token_refreshed_on_error = False
         url = (
@@ -522,7 +510,6 @@ class Session(TokenManager):
         headers: Optional[dict] = None,
         data: Optional[Union[dict, bytes, IOBase]] = None,
         json: Optional[Any] = None,
-        async_enable: bool = False,
         params: Optional[dict] = None,
     ) -> requests.Response:
         """
@@ -535,16 +522,12 @@ class Session(TokenManager):
         :param json: json to send in the request body (jsonable object or builtin types construct. if used,
                      content type will be application/json)
         :param data: Dictionary, bytes, or file-like object to send in the request body
-        :param async_enable: whether request is asynchronous
         :param params: additional query parameters
         :return: requests Response instance
         """
         if not method:
             method = Request.def_method
         headers = self.add_auth_headers(headers.copy() if headers else {})
-        if async_enable:
-            for h in self._ASYNC_HEADER:
-                headers[h] = "1"
         return self._send_request(
             service=service,
             action=action,
@@ -648,26 +631,15 @@ class Session(TokenManager):
 
         validate()
 
-    def send_async(self, req_obj: Request) -> CallResult:
-        """
-        Asynchronously sends an API request using a request object.
-        :param req_obj: The request object
-        :type req_obj: Request
-        :return: CallResult object containing the raw response, response metadata and parsed response object.
-        """
-        return self.send(req_obj=req_obj, async_enable=True)
-
     def send(
         self,
         req_obj: Request,
-        async_enable: bool = False,
         headers: Optional[dict] = None,
     ) -> Optional[CallResult]:
         """
         Sends an API request using a request object.
         :param req_obj: The request object
         :type req_obj: Request
-        :param async_enable: Request this method be executed in an asynchronous manner
         :param headers: Additional headers to send with request
         :return: CallResult object containing the raw response, response metadata and parsed response object.
         """
@@ -677,10 +649,6 @@ class Session(TokenManager):
             return None
 
         if isinstance(req_obj, BatchRequest):
-            # TODO: support async for batch requests as well
-            if async_enable:
-                raise NotImplementedError("Async behavior is currently not implemented for batch requests")
-
             json_data = req_obj.get_json()
             res = self.send_request_batch(
                 service=req_obj._service,
@@ -704,7 +672,6 @@ class Session(TokenManager):
                 version=req_obj._version,
                 json=req_obj.to_dict(),
                 method=req_obj._method,
-                async_enable=async_enable,
                 headers=headers,
             )
 
