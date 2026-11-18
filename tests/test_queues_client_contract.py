@@ -8,9 +8,9 @@ import pytest
 from cairnml.backend_api.services import queues
 from cairnml.backend_api.session import Session
 
-# The newest declared version of queues.get_all (a request is sent at the version of its class). Before the client
-# was generated this was "2.23", the only edit the switch needed.
-GET_ALL_VERSION = "2.41"
+# The newest declared version of queues.get_all (a request is sent at the version of its class). The generator labels
+# the definitions by the version in which they began: the last change of queues.get_all is 2.21.
+GET_ALL_VERSION = "2.21"
 
 
 class _Response:

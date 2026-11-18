@@ -36,7 +36,7 @@ class GetAllRequest(Request):
 
     _service = "audit"
     _action = "get_all"
-    _version = "2.41"
+    _version = "2.8"
     _schema = {
         "additionalProperties": False,
         "definitions": {},
@@ -162,7 +162,7 @@ class GetAllResponse(Response):
 
     _service = "audit"
     _action = "get_all"
-    _version = "2.41"
+    _version = "2.8"
     _schema = {
         "definitions": {},
         "properties": {

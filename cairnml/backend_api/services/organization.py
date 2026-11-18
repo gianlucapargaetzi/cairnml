@@ -286,7 +286,7 @@ class DownloadForGetAllRequest(Request):
 
     _service = "organization"
     _action = "download_for_get_all"
-    _version = "2.41"
+    _version = "2.26"
     _schema = {
         "definitions": {},
         "properties": {
@@ -323,7 +323,7 @@ class DownloadForGetAllResponse(Response):
 
     _service = "organization"
     _action = "download_for_get_all"
-    _version = "2.41"
+    _version = "2.26"
     _schema = {"definitions": {}, "type": "string"}
 
     def __init__(self, **kwargs: Any) -> None:
@@ -362,7 +362,7 @@ class GetEntitiesCountRequest(Request):
 
     _service = "organization"
     _action = "get_entities_count"
-    _version = "2.41"
+    _version = "2.34"
     _schema = {
         "definitions": {},
         "properties": {
@@ -633,7 +633,7 @@ class GetEntitiesCountResponse(Response):
 
     _service = "organization"
     _action = "get_entities_count"
-    _version = "2.41"
+    _version = "2.34"
     _schema = {
         "definitions": {},
         "properties": {
@@ -855,7 +855,7 @@ class GetProjectWorkloadsRequest(Request):
 
     _service = "organization"
     _action = "get_project_workloads"
-    _version = "2.41"
+    _version = "2.34"
     _schema = {
         "definitions": {},
         "properties": {
@@ -1004,7 +1004,7 @@ class GetProjectWorkloadsResponse(Response):
 
     _service = "organization"
     _action = "get_project_workloads"
-    _version = "2.41"
+    _version = "2.34"
     _schema = {
         "definitions": {
             "workloads": {
@@ -1168,7 +1168,7 @@ class GetTagsRequest(Request):
 
     _service = "organization"
     _action = "get_tags"
-    _version = "2.41"
+    _version = "2.8"
     _schema = {
         "definitions": {},
         "properties": {
@@ -1244,7 +1244,7 @@ class GetTagsResponse(Response):
 
     _service = "organization"
     _action = "get_tags"
-    _version = "2.41"
+    _version = "2.8"
     _schema = {
         "definitions": {},
         "properties": {
@@ -1306,7 +1306,7 @@ class GetUserCompaniesRequest(Request):
 
     _service = "organization"
     _action = "get_user_companies"
-    _version = "2.41"
+    _version = "2.12"
     _schema = {"additionalProperties": False, "definitions": {}, "properties": {}, "type": "object"}
 
     def __init__(self, **kwargs: Any) -> None:
@@ -1323,7 +1323,7 @@ class GetUserCompaniesResponse(Response):
 
     _service = "organization"
     _action = "get_user_companies"
-    _version = "2.41"
+    _version = "2.12"
     _schema = {
         "definitions": {},
         "properties": {
@@ -1397,7 +1397,7 @@ class PrepareDownloadForGetAllRequest(Request):
 
     _service = "organization"
     _action = "prepare_download_for_get_all"
-    _version = "2.41"
+    _version = "2.26"
     _schema = {
         "definitions": {
             "field_mapping": {
@@ -1547,7 +1547,7 @@ class PrepareDownloadForGetAllResponse(Response):
 
     _service = "organization"
     _action = "prepare_download_for_get_all"
-    _version = "2.41"
+    _version = "2.26"
     _schema = {
         "definitions": {},
         "properties": {

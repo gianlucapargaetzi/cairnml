@@ -992,7 +992,7 @@ class ContainerStatusReportRequest(Request):
 
     _service = "serving"
     _action = "container_status_report"
-    _version = "2.41"
+    _version = "2.31"
     _schema = {
         "definitions": {
             "machine_stats": {
@@ -1321,7 +1321,7 @@ class ContainerStatusReportResponse(Response):
 
     _service = "serving"
     _action = "container_status_report"
-    _version = "2.41"
+    _version = "2.31"
     _schema = {"additionalProperties": False, "definitions": {}, "type": "object"}
 
     def __init__(self, **kwargs: Any) -> None:
@@ -1338,7 +1338,7 @@ class GetEndpointDetailsRequest(Request):
 
     _service = "serving"
     _action = "get_endpoint_details"
-    _version = "2.41"
+    _version = "2.31"
     _schema = {
         "definitions": {},
         "properties": {"endpoint_url": {"description": "Endpoint URL", "type": "string"}},
@@ -1393,7 +1393,7 @@ class GetEndpointDetailsResponse(Response):
 
     _service = "serving"
     _action = "get_endpoint_details"
-    _version = "2.41"
+    _version = "2.31"
     _schema = {
         "definitions": {
             "container_instance_stats": {
@@ -1657,7 +1657,7 @@ class GetEndpointMetricsHistoryRequest(Request):
 
     _service = "serving"
     _action = "get_endpoint_metrics_history"
-    _version = "2.41"
+    _version = "2.31"
     _schema = {
         "definitions": {},
         "properties": {
@@ -1813,7 +1813,7 @@ class GetEndpointMetricsHistoryResponse(Response):
 
     _service = "serving"
     _action = "get_endpoint_metrics_history"
-    _version = "2.41"
+    _version = "2.31"
     _schema = {
         "definitions": {},
         "properties": {
@@ -1920,7 +1920,7 @@ class GetEndpointsRequest(Request):
 
     _service = "serving"
     _action = "get_endpoints"
-    _version = "2.41"
+    _version = "2.31"
     _schema = {"additionalProperties": False, "definitions": {}, "type": "object"}
 
     def __init__(self, **kwargs: Any) -> None:
@@ -1937,7 +1937,7 @@ class GetEndpointsResponse(Response):
 
     _service = "serving"
     _action = "get_endpoints"
-    _version = "2.41"
+    _version = "2.31"
     _schema = {
         "definitions": {
             "endpoint_stats": {
@@ -2011,7 +2011,7 @@ class GetLoadingInstancesRequest(Request):
 
     _service = "serving"
     _action = "get_loading_instances"
-    _version = "2.41"
+    _version = "2.31"
     _schema = {"additionalProperties": False, "definitions": {}, "type": "object"}
 
     def __init__(self, **kwargs: Any) -> None:
@@ -2028,7 +2028,7 @@ class GetLoadingInstancesResponse(Response):
 
     _service = "serving"
     _action = "get_loading_instances"
-    _version = "2.41"
+    _version = "2.31"
     _schema = {
         "definitions": {
             "container_info": {
@@ -2122,7 +2122,7 @@ class RegisterContainerRequest(Request):
 
     _service = "serving"
     _action = "register_container"
-    _version = "2.41"
+    _version = "2.31"
     _schema = {
         "definitions": {},
         "properties": {
@@ -2335,7 +2335,7 @@ class RegisterContainerResponse(Response):
 
     _service = "serving"
     _action = "register_container"
-    _version = "2.41"
+    _version = "2.31"
     _schema = {"additionalProperties": False, "definitions": {}, "type": "object"}
 
     def __init__(self, **kwargs: Any) -> None:
@@ -2352,7 +2352,7 @@ class UnregisterContainerRequest(Request):
 
     _service = "serving"
     _action = "unregister_container"
-    _version = "2.41"
+    _version = "2.31"
     _schema = {
         "definitions": {},
         "properties": {"container_id": {"description": "Container ID", "type": "string"}},
@@ -2384,7 +2384,7 @@ class UnregisterContainerResponse(Response):
 
     _service = "serving"
     _action = "unregister_container"
-    _version = "2.41"
+    _version = "2.31"
     _schema = {"additionalProperties": False, "definitions": {}, "type": "object"}
 
     def __init__(self, **kwargs: Any) -> None:

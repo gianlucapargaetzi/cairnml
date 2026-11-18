@@ -28,7 +28,7 @@ class DeleteRequest(Request):
 
     _service = "git_credentials"
     _action = "delete"
-    _version = "2.41"
+    _version = "2.8"
     _schema = {
         "additionalProperties": False,
         "definitions": {},
@@ -77,7 +77,7 @@ class DeleteResponse(Response):
 
     _service = "git_credentials"
     _action = "delete"
-    _version = "2.41"
+    _version = "2.8"
     _schema = {
         "definitions": {},
         "properties": {"deleted": {"type": ["integer", "null"]}},
@@ -110,7 +110,7 @@ class GetAllRequest(Request):
 
     _service = "git_credentials"
     _action = "get_all"
-    _version = "2.41"
+    _version = "2.8"
     _schema = {"additionalProperties": False, "definitions": {}, "type": "object"}
 
     def __init__(self, **kwargs: Any) -> None:
@@ -127,7 +127,7 @@ class GetAllResponse(Response):
 
     _service = "git_credentials"
     _action = "get_all"
-    _version = "2.41"
+    _version = "2.8"
     _schema = {
         "definitions": {},
         "properties": {
@@ -181,7 +181,7 @@ class SetRequest(Request):
 
     _service = "git_credentials"
     _action = "set"
-    _version = "2.41"
+    _version = "2.8"
     _schema = {
         "additionalProperties": False,
         "definitions": {},
@@ -268,7 +268,7 @@ class SetResponse(Response):
 
     _service = "git_credentials"
     _action = "set"
-    _version = "2.41"
+    _version = "2.8"
     _schema = {
         "definitions": {},
         "properties": {

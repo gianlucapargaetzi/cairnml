@@ -34,8 +34,8 @@ from .defs import (
     ENV_ENABLE_FILES_CONFIG_SECTION,
     ENV_API_EXTRA_RETRY_CODES,
     ENV_API_DEFAULT_REQ_METHOD,
-    API_VERSION,
     MissingConfigError,
+    newest_version,
 )
 from .request import Request, BatchRequest  # noqa: F401
 from .token_manager import TokenManager
@@ -45,6 +45,7 @@ from ...debugging import get_logger
 from ...debugging.log import resolve_logging_level
 from pyhocon import ConfigTree, ConfigFactory
 from ...version import __version__
+from ..services import API_LEVEL, UnsupportedApiVersion
 from ...backend_config.utils import apply_files, apply_environment
 
 try:
@@ -80,15 +81,17 @@ class Session(TokenManager):
     _sessions_created = 0
     _ssl_error_count_verbosity = 2
     _offline_mode = ENV_OFFLINE_MODE.get()
-    _offline_default_version = API_VERSION
+    _offline_default_version = API_LEVEL
     # we want to keep track of sessions, but we also want to allow them to be collected by the GC if they are not used anymore
     _sessions_weakrefs = []
 
     _client = [(__package__.partition(".")[0], __version__)]
 
-    api_version = API_VERSION
+    # the API level this SDK's generated client is generated for, and the level the server reported (the token's
+    # api_version); the server's level is only known once signed in, until then no request is refused for it
+    api_version = API_LEVEL
     server_version = "1.0.0"
-    max_api_version = API_VERSION
+    max_api_version = API_LEVEL
     feature_set = "basic"
     default_host = "http://localhost/cairnml/api"
     default_web = "http://localhost/cairnml"
@@ -225,10 +228,8 @@ class Session(TokenManager):
         try:
             token_dict = TokenManager.get_decoded_token(self.token)
             server_api_version = token_dict.get("api_version")
-            if server_api_version and str(server_api_version) != API_VERSION:
-                local_logger().warning(
-                    f"The server speaks API version {server_api_version}, this SDK speaks {API_VERSION}"
-                )
+            if server_api_version:
+                Session.max_api_version = str(server_api_version)
 
             Session.server_version = token_dict.get("server_version")
             if Session.server_version:
@@ -363,6 +364,16 @@ class Session(TokenManager):
             self.__http_session = self.__new_http_session()
         return self.__http_session
 
+    @classmethod
+    def _check_server_serves(cls, service: str, action: str, version: Optional[str]) -> None:
+        """A request is sent at the version of the definition it implements. A server older than that definition
+        cannot read it, so the request is refused here instead of being sent. A newer server serves it silently."""
+        if version and cls._version_tuple(str(version)) > cls._version_tuple(cls.max_api_version):
+            raise UnsupportedApiVersion(
+                f"{service}.{action} is sent at API version {version}, but the server speaks API version "
+                f"{cls.max_api_version}; upgrade the server or use an older definition of the action"
+            )
+
     def _send_request(
         self,
         service: str,
@@ -392,6 +403,8 @@ class Session(TokenManager):
         """
         if self._offline_mode:
             return None
+
+        self._check_server_serves(service, action, version)
 
         if not method:
             method = Request.def_method
@@ -743,9 +756,9 @@ class Session(TokenManager):
     @classmethod
     def check_min_api_version(cls, min_api_version: str) -> bool:
         """
-        Return True if the API version this SDK speaks (API_VERSION) is at least min_api_version
+        Return True if the API version this SDK speaks (API_LEVEL) is at least min_api_version
         """
-        return cls._version_tuple(API_VERSION) >= cls._version_tuple(str(min_api_version))
+        return cls._version_tuple(API_LEVEL) >= cls._version_tuple(str(min_api_version))
 
     @classmethod
     def check_min_api_server_version(cls, min_api_version: str) -> bool:
@@ -806,7 +819,7 @@ class Session(TokenManager):
         res = self._send_request(
             service="devices",
             action="exchange",
-            version=API_VERSION,
+            version=newest_version("devices", "exchange"),
             method=Request.def_method,
             json={"assertion": assertion},
             refresh_token_if_unauthorized=False,

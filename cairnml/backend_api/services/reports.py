@@ -3364,7 +3364,7 @@ class ArchiveRequest(Request):
 
     _service = "reports"
     _action = "archive"
-    _version = "2.41"
+    _version = "2.23"
     _schema = {
         "definitions": {},
         "properties": {
@@ -3415,7 +3415,7 @@ class ArchiveResponse(Response):
 
     _service = "reports"
     _action = "archive"
-    _version = "2.41"
+    _version = "2.23"
     _schema = {
         "definitions": {},
         "properties": {
@@ -3467,7 +3467,7 @@ class CreateRequest(Request):
 
     _service = "reports"
     _action = "create"
-    _version = "2.41"
+    _version = "2.24"
     _schema = {
         "definitions": {},
         "properties": {
@@ -3598,7 +3598,7 @@ class CreateResponse(Response):
 
     _service = "reports"
     _action = "create"
-    _version = "2.41"
+    _version = "2.24"
     _schema = {
         "definitions": {},
         "properties": {
@@ -3658,7 +3658,7 @@ class DeleteRequest(Request):
 
     _service = "reports"
     _action = "delete"
-    _version = "2.41"
+    _version = "2.23"
     _schema = {
         "definitions": {},
         "properties": {
@@ -3713,7 +3713,7 @@ class DeleteResponse(Response):
 
     _service = "reports"
     _action = "delete"
-    _version = "2.41"
+    _version = "2.23"
     _schema = {
         "definitions": {},
         "properties": {
@@ -3795,7 +3795,7 @@ class GetAllExRequest(Request):
 
     _service = "reports"
     _action = "get_all_ex"
-    _version = "2.41"
+    _version = "2.27"
     _schema = {
         "definitions": {
             "multi_field_pattern_data": {
@@ -4288,7 +4288,7 @@ class GetAllExResponse(Response):
 
     _service = "reports"
     _action = "get_all_ex"
-    _version = "2.41"
+    _version = "2.27"
     _schema = {
         "definitions": {
             "report": {
@@ -4415,7 +4415,7 @@ class GetTagsRequest(Request):
 
     _service = "reports"
     _action = "get_tags"
-    _version = "2.41"
+    _version = "2.23"
     _schema = {"additionalProperties": False, "definitions": {}, "type": "object"}
 
     def __init__(self, **kwargs: Any) -> None:
@@ -4432,7 +4432,7 @@ class GetTagsResponse(Response):
 
     _service = "reports"
     _action = "get_tags"
-    _version = "2.41"
+    _version = "2.23"
     _schema = {
         "definitions": {},
         "properties": {
@@ -5813,7 +5813,7 @@ class MoveRequest(Request):
 
     _service = "reports"
     _action = "move"
-    _version = "2.41"
+    _version = "2.23"
     _schema = {
         "definitions": {},
         "properties": {
@@ -5890,7 +5890,7 @@ class MoveResponse(Response):
 
     _service = "reports"
     _action = "move"
-    _version = "2.41"
+    _version = "2.23"
     _schema = {
         "definitions": {},
         "properties": {
@@ -5931,7 +5931,7 @@ class PublishRequest(Request):
 
     _service = "reports"
     _action = "publish"
-    _version = "2.41"
+    _version = "2.23"
     _schema = {
         "definitions": {},
         "properties": {
@@ -5984,7 +5984,7 @@ class PublishResponse(Response):
 
     _service = "reports"
     _action = "publish"
-    _version = "2.41"
+    _version = "2.23"
     _schema = {
         "definitions": {},
         "properties": {
@@ -6051,7 +6051,7 @@ class UnarchiveRequest(Request):
 
     _service = "reports"
     _action = "unarchive"
-    _version = "2.41"
+    _version = "2.23"
     _schema = {
         "definitions": {},
         "properties": {
@@ -6102,7 +6102,7 @@ class UnarchiveResponse(Response):
 
     _service = "reports"
     _action = "unarchive"
-    _version = "2.41"
+    _version = "2.23"
     _schema = {
         "definitions": {},
         "properties": {
@@ -6154,7 +6154,7 @@ class UpdateRequest(Request):
 
     _service = "reports"
     _action = "update"
-    _version = "2.41"
+    _version = "2.24"
     _schema = {
         "definitions": {},
         "properties": {
@@ -6282,7 +6282,7 @@ class UpdateResponse(Response):
 
     _service = "reports"
     _action = "update"
-    _version = "2.41"
+    _version = "2.24"
     _schema = {
         "definitions": {},
         "properties": {

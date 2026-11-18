@@ -26,7 +26,7 @@ class ConfigRequest(Request):
 
     _service = "server"
     _action = "config"
-    _version = "2.41"
+    _version = "2.1"
     _schema = {
         "definitions": {},
         "properties": {
@@ -59,7 +59,7 @@ class ConfigResponse(Response):
 
     _service = "server"
     _action = "config"
-    _version = "2.41"
+    _version = "2.1"
     _schema = {"definitions": {}, "properties": {}, "type": "object"}
 
     def __init__(self, **kwargs: Any) -> None:
@@ -73,7 +73,7 @@ class EndpointsRequest(Request):
 
     _service = "server"
     _action = "endpoints"
-    _version = "2.41"
+    _version = "2.1"
     _schema = {"definitions": {}, "properties": {}, "type": "object"}
 
     def __init__(self, **kwargs: Any) -> None:
@@ -87,7 +87,7 @@ class EndpointsResponse(Response):
 
     _service = "server"
     _action = "endpoints"
-    _version = "2.41"
+    _version = "2.1"
     _schema = {"definitions": {}, "properties": {}, "type": "object"}
 
     def __init__(self, **kwargs: Any) -> None:
@@ -104,7 +104,7 @@ class GetStatsRequest(Request):
 
     _service = "server"
     _action = "get_stats"
-    _version = "2.41"
+    _version = "2.1"
     _schema = {
         "definitions": {},
         "properties": {
@@ -142,7 +142,7 @@ class GetStatsResponse(Response):
 
     _service = "server"
     _action = "get_stats"
-    _version = "2.41"
+    _version = "2.1"
     _schema = {"definitions": {}, "properties": {}, "type": "object"}
 
     def __init__(self, **kwargs: Any) -> None:
@@ -156,7 +156,7 @@ class InfoRequest(Request):
 
     _service = "server"
     _action = "info"
-    _version = "2.41"
+    _version = "2.12"
     _schema = {"definitions": {}, "properties": {}, "type": "object"}
 
     def __init__(self, **kwargs: Any) -> None:
@@ -181,7 +181,7 @@ class InfoResponse(Response):
 
     _service = "server"
     _action = "info"
-    _version = "2.41"
+    _version = "2.12"
     _schema = {
         "definitions": {},
         "properties": {
@@ -281,7 +281,7 @@ class ReportStatsOptionRequest(Request):
 
     _service = "server"
     _action = "report_stats_option"
-    _version = "2.41"
+    _version = "2.4"
     _schema = {
         "definitions": {},
         "properties": {
@@ -330,7 +330,7 @@ class ReportStatsOptionResponse(Response):
 
     _service = "server"
     _action = "report_stats_option"
-    _version = "2.41"
+    _version = "2.4"
     _schema = {
         "definitions": {},
         "properties": {
