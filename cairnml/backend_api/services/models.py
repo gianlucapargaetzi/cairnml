@@ -260,6 +260,70 @@ class LastMetricsEvent(NonStrictDataModel):
         self._property_x_axis_label = value
 
 
+class LastMetricsVariants(dict, NonStrictDataModel):
+    """
+    Last metric events, one for each variant hash
+    """
+
+    _schema = {
+        "additionalProperties": {"$ref": "#/definitions/last_metrics_event"},
+        "definitions": {
+            "last_metrics_event": {
+                "properties": {
+                    "count": {
+                        "description": "The total count of reported values",
+                        "type": ["integer", "null"],
+                    },
+                    "first_value": {
+                        "description": "First value reported",
+                        "type": ["number", "null"],
+                    },
+                    "first_value_iteration": {
+                        "description": "The iteration at which the first value was reported",
+                        "type": ["integer", "null"],
+                    },
+                    "max_value": {
+                        "description": "Maximum value reported",
+                        "type": ["number", "null"],
+                    },
+                    "max_value_iteration": {
+                        "description": "The iteration at which the maximum value was reported",
+                        "type": ["integer", "null"],
+                    },
+                    "mean_value": {"description": "The mean value", "type": ["number", "null"]},
+                    "metric": {"description": "Metric name", "type": ["string", "null"]},
+                    "min_value": {
+                        "description": "Minimum value reported",
+                        "type": ["number", "null"],
+                    },
+                    "min_value_iteration": {
+                        "description": "The iteration at which the minimum value was reported",
+                        "type": ["integer", "null"],
+                    },
+                    "value": {"description": "Last value reported", "type": ["number", "null"]},
+                    "variant": {"description": "Variant name", "type": ["string", "null"]},
+                    "x_axis_label": {
+                        "description": "The user defined value for the X-Axis name stored with the event",
+                        "type": ["string", "null"],
+                    },
+                },
+                "type": "object",
+            },
+        },
+        "description": "Last metric events, one for each variant hash",
+        "type": "object",
+    }
+
+    def __init__(self, *args, **kwargs):
+        values = dict(*args, **kwargs)
+        converted = {k: LastMetricsEvent.from_dict(v) if isinstance(v, dict) else v for k, v in values.items()}
+        self.assert_isinstance(converted.values(), "last_metrics_variants", (LastMetricsEvent,), is_array=True)
+        super(LastMetricsVariants, self).__init__(converted)
+
+    def to_dict(self):
+        return self._to_base_type(self)
+
+
 class MetadataItem(NonStrictDataModel):
     """
     :param key: The key uniquely identifying the metadata item inside the given entity
@@ -817,6 +881,8 @@ class Model(NonStrictDataModel):
             self._property_metadata = None
             return
         self.assert_isinstance(value, "metadata", (dict,))
+        value = {k: MetadataItem.from_dict(v) if isinstance(v, dict) else v for k, v in value.items()}
+        self.assert_isinstance(value.values(), "metadata", (MetadataItem,), is_array=True)
         self._property_metadata = value
 
     @schema_property("last_iteration")
@@ -843,6 +909,8 @@ class Model(NonStrictDataModel):
             self._property_last_metrics = None
             return
         self.assert_isinstance(value, "last_metrics", (dict,))
+        value = {k: LastMetricsVariants(v) if isinstance(v, dict) else v for k, v in value.items()}
+        self.assert_isinstance(value.values(), "last_metrics", (LastMetricsVariants,), is_array=True)
         self._property_last_metrics = value
 
     @schema_property("stats")
@@ -1518,6 +1586,8 @@ class CreateRequest(Request):
             self._property_metadata = None
             return
         self.assert_isinstance(value, "metadata", (dict,))
+        value = {k: MetadataItem.from_dict(v) if isinstance(v, dict) else v for k, v in value.items()}
+        self.assert_isinstance(value.values(), "metadata", (MetadataItem,), is_array=True)
         self._property_metadata = value
 
 
@@ -2268,6 +2338,8 @@ class EditRequest(Request):
             self._property_metadata = None
             return
         self.assert_isinstance(value, "metadata", (dict,))
+        value = {k: MetadataItem.from_dict(v) if isinstance(v, dict) else v for k, v in value.items()}
+        self.assert_isinstance(value.values(), "metadata", (MetadataItem,), is_array=True)
         self._property_metadata = value
 
 
@@ -5857,6 +5929,8 @@ class UpdateRequest(Request):
             self._property_metadata = None
             return
         self.assert_isinstance(value, "metadata", (dict,))
+        value = {k: MetadataItem.from_dict(v) if isinstance(v, dict) else v for k, v in value.items()}
+        self.assert_isinstance(value.values(), "metadata", (MetadataItem,), is_array=True)
         self._property_metadata = value
 
 
