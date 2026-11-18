@@ -28,7 +28,7 @@ class CommitRequest(Request):
 
     _service = "imports"
     _action = "commit"
-    _version = "2.41"
+    _version = "2.39"
     _schema = {
         "additionalProperties": False,
         "definitions": {},
@@ -93,7 +93,7 @@ class CommitResponse(Response):
 
     _service = "imports"
     _action = "commit"
-    _version = "2.41"
+    _version = "2.39"
     _schema = {
         "definitions": {},
         "properties": {"id": {"type": ["string", "null"]}, "state": {"type": ["string", "null"]}},
@@ -147,7 +147,7 @@ class PreparePartRequest(Request):
 
     _service = "imports"
     _action = "prepare_part"
-    _version = "2.41"
+    _version = "2.39"
     _schema = {
         "additionalProperties": False,
         "definitions": {},
@@ -208,7 +208,7 @@ class PreparePartResponse(Response):
 
     _service = "imports"
     _action = "prepare_part"
-    _version = "2.41"
+    _version = "2.39"
     _schema = {
         "definitions": {},
         "properties": {
@@ -331,7 +331,7 @@ class PrepareUploadRequest(Request):
 
     _service = "imports"
     _action = "prepare_upload"
-    _version = "2.41"
+    _version = "2.39"
     _schema = {
         "additionalProperties": False,
         "definitions": {},
@@ -430,7 +430,7 @@ class PrepareUploadResponse(Response):
 
     _service = "imports"
     _action = "prepare_upload"
-    _version = "2.41"
+    _version = "2.39"
     _schema = {
         "definitions": {},
         "properties": {
@@ -548,7 +548,7 @@ class RunRequest(Request):
 
     _service = "imports"
     _action = "run"
-    _version = "2.41"
+    _version = "2.39"
     _schema = {
         "additionalProperties": False,
         "definitions": {},
@@ -594,7 +594,7 @@ class RunResponse(Response):
 
     _service = "imports"
     _action = "run"
-    _version = "2.41"
+    _version = "2.39"
     _schema = {
         "definitions": {},
         "properties": {

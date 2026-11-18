@@ -26,7 +26,7 @@ class E2eDeletionsRequest(Request):
 
     _service = "system"
     _action = "e2e_deletions"
-    _version = "2.41"
+    _version = "2.1"
     _schema = {
         "definitions": {},
         "properties": {
@@ -67,7 +67,7 @@ class E2eDeletionsResponse(Response):
 
     _service = "system"
     _action = "e2e_deletions"
-    _version = "2.41"
+    _version = "2.1"
     _schema = {
         "definitions": {},
         "properties": {"pending": {"items": {"type": "object"}, "type": ["array", "null"]}},
@@ -102,7 +102,7 @@ class E2eResetRequest(Request):
 
     _service = "system"
     _action = "e2e_reset"
-    _version = "2.41"
+    _version = "2.1"
     _schema = {
         "definitions": {},
         "properties": {
@@ -143,7 +143,7 @@ class E2eResetResponse(Response):
 
     _service = "system"
     _action = "e2e_reset"
-    _version = "2.41"
+    _version = "2.1"
     _schema = {
         "definitions": {},
         "properties": {

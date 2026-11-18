@@ -28,7 +28,7 @@ class DeleteRunsRequest(Request):
 
     _service = "pipelines"
     _action = "delete_runs"
-    _version = "2.41"
+    _version = "2.26"
     _schema = {
         "definitions": {},
         "properties": {
@@ -89,7 +89,7 @@ class DeleteRunsResponse(Response):
 
     _service = "pipelines"
     _action = "delete_runs"
-    _version = "2.41"
+    _version = "2.26"
     _schema = {
         "definitions": {},
         "properties": {
@@ -193,7 +193,7 @@ class StartPipelineRequest(Request):
 
     _service = "pipelines"
     _action = "start_pipeline"
-    _version = "2.41"
+    _version = "2.28"
     _schema = {
         "definitions": {},
         "properties": {
@@ -301,7 +301,7 @@ class StartPipelineResponse(Response):
 
     _service = "pipelines"
     _action = "start_pipeline"
-    _version = "2.41"
+    _version = "2.28"
     _schema = {
         "definitions": {},
         "properties": {

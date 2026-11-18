@@ -23,7 +23,7 @@ class PingRequest(Request):
 
     _service = "debug"
     _action = "ping"
-    _version = "2.41"
+    _version = "2.9"
     _schema = {"additionalProperties": True, "definitions": {}, "type": "object"}
 
     def __init__(self, **kwargs: Any) -> None:
@@ -37,7 +37,7 @@ class PingResponse(Response):
 
     _service = "debug"
     _action = "ping"
-    _version = "2.41"
+    _version = "2.9"
     _schema = {"definitions": {}, "properties": {}, "type": "object"}
 
     def __init__(self, **kwargs: Any) -> None:

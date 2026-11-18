@@ -28,7 +28,7 @@ class CommitRequest(Request):
 
     _service = "datachunks"
     _action = "commit"
-    _version = "2.41"
+    _version = "2.8"
     _schema = {
         "additionalProperties": False,
         "definitions": {},
@@ -93,7 +93,7 @@ class CommitResponse(Response):
 
     _service = "datachunks"
     _action = "commit"
-    _version = "2.41"
+    _version = "2.8"
     _schema = {
         "definitions": {},
         "properties": {"id": {"type": ["string", "null"]}, "state": {"type": ["string", "null"]}},
@@ -147,7 +147,7 @@ class DatasetCredentialsRequest(Request):
 
     _service = "datachunks"
     _action = "dataset_credentials"
-    _version = "2.41"
+    _version = "2.40"
     _schema = {
         "additionalProperties": False,
         "definitions": {},
@@ -216,7 +216,7 @@ class DatasetCredentialsResponse(Response):
 
     _service = "datachunks"
     _action = "dataset_credentials"
-    _version = "2.41"
+    _version = "2.40"
     _schema = {
         "definitions": {},
         "properties": {
@@ -370,7 +370,7 @@ class DeleteRequest(Request):
 
     _service = "datachunks"
     _action = "delete"
-    _version = "2.41"
+    _version = "2.8"
     _schema = {
         "additionalProperties": False,
         "definitions": {},
@@ -456,7 +456,7 @@ class DeleteResponse(Response):
 
     _service = "datachunks"
     _action = "delete"
-    _version = "2.41"
+    _version = "2.8"
     _schema = {
         "definitions": {},
         "properties": {"deleted": {"type": ["integer", "null"]}},
@@ -498,7 +498,7 @@ class PrepareDownloadRequest(Request):
 
     _service = "datachunks"
     _action = "prepare_download"
-    _version = "2.41"
+    _version = "2.8"
     _schema = {
         "additionalProperties": False,
         "definitions": {},
@@ -588,7 +588,7 @@ class PrepareDownloadResponse(Response):
 
     _service = "datachunks"
     _action = "prepare_download"
-    _version = "2.41"
+    _version = "2.8"
     _schema = {
         "definitions": {},
         "properties": {
@@ -660,7 +660,7 @@ class PreparePartRequest(Request):
 
     _service = "datachunks"
     _action = "prepare_part"
-    _version = "2.41"
+    _version = "2.8"
     _schema = {
         "additionalProperties": False,
         "definitions": {},
@@ -721,7 +721,7 @@ class PreparePartResponse(Response):
 
     _service = "datachunks"
     _action = "prepare_part"
-    _version = "2.41"
+    _version = "2.8"
     _schema = {
         "definitions": {},
         "properties": {
@@ -848,7 +848,7 @@ class PrepareUploadRequest(Request):
 
     _service = "datachunks"
     _action = "prepare_upload"
-    _version = "2.41"
+    _version = "2.8"
     _schema = {
         "additionalProperties": False,
         "definitions": {},
@@ -977,7 +977,7 @@ class PrepareUploadResponse(Response):
 
     _service = "datachunks"
     _action = "prepare_upload"
-    _version = "2.41"
+    _version = "2.8"
     _schema = {
         "definitions": {},
         "properties": {

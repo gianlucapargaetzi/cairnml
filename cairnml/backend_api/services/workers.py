@@ -1733,7 +1733,7 @@ class GetActivityReportRequest(Request):
 
     _service = "workers"
     _action = "get_activity_report"
-    _version = "2.41"
+    _version = "2.4"
     _schema = {
         "definitions": {},
         "properties": {
@@ -1811,7 +1811,7 @@ class GetActivityReportResponse(Response):
 
     _service = "workers"
     _action = "get_activity_report"
-    _version = "2.41"
+    _version = "2.4"
     _schema = {
         "definitions": {
             "activity_series": {
@@ -1895,7 +1895,7 @@ class GetAllRequest(Request):
 
     _service = "workers"
     _action = "get_all"
-    _version = "2.41"
+    _version = "2.39"
     _schema = {
         "definitions": {},
         "properties": {
@@ -1999,7 +1999,7 @@ class GetAllResponse(Response):
 
     _service = "workers"
     _action = "get_all"
-    _version = "2.41"
+    _version = "2.39"
     _schema = {
         "definitions": {
             "current_task_entry": {
@@ -2171,7 +2171,7 @@ class GetCountRequest(Request):
 
     _service = "workers"
     _action = "get_count"
-    _version = "2.41"
+    _version = "2.30"
     _schema = {
         "definitions": {},
         "properties": {
@@ -2275,7 +2275,7 @@ class GetCountResponse(Response):
 
     _service = "workers"
     _action = "get_count"
-    _version = "2.41"
+    _version = "2.30"
     _schema = {
         "definitions": {},
         "properties": {"count": {"description": "Workers count", "type": ["integer", "null"]}},
@@ -2311,7 +2311,7 @@ class GetMetricKeysRequest(Request):
 
     _service = "workers"
     _action = "get_metric_keys"
-    _version = "2.41"
+    _version = "2.4"
     _schema = {
         "definitions": {},
         "properties": {
@@ -2352,7 +2352,7 @@ class GetMetricKeysResponse(Response):
 
     _service = "workers"
     _action = "get_metric_keys"
-    _version = "2.41"
+    _version = "2.4"
     _schema = {
         "definitions": {
             "metrics_category": {
@@ -2423,7 +2423,7 @@ class GetStatsRequest(Request):
 
     _service = "workers"
     _action = "get_stats"
-    _version = "2.41"
+    _version = "2.32"
     _schema = {
         "definitions": {
             "aggregation_type": {
@@ -2619,7 +2619,7 @@ class GetStatsResponse(Response):
 
     _service = "workers"
     _action = "get_stats"
-    _version = "2.41"
+    _version = "2.32"
     _schema = {
         "definitions": {
             "aggregation_stats": {
@@ -2742,7 +2742,7 @@ class RegisterRequest(Request):
 
     _service = "workers"
     _action = "register"
-    _version = "2.41"
+    _version = "2.34"
     _schema = {
         "definitions": {},
         "properties": {
@@ -2883,7 +2883,7 @@ class RegisterResponse(Response):
 
     _service = "workers"
     _action = "register"
-    _version = "2.41"
+    _version = "2.34"
     _schema = {"definitions": {}, "properties": {}, "type": "object"}
 
     def __init__(self, **kwargs: Any) -> None:
@@ -2918,7 +2918,7 @@ class StatusReportRequest(Request):
 
     _service = "workers"
     _action = "status_report"
-    _version = "2.41"
+    _version = "2.39"
     _schema = {
         "definitions": {
             "machine_stats": {
@@ -3173,7 +3173,7 @@ class StatusReportResponse(Response):
 
     _service = "workers"
     _action = "status_report"
-    _version = "2.41"
+    _version = "2.39"
     _schema = {"definitions": {}, "properties": {}, "type": "object"}
 
     def __init__(self, **kwargs: Any) -> None:
@@ -3190,7 +3190,7 @@ class UnregisterRequest(Request):
 
     _service = "workers"
     _action = "unregister"
-    _version = "2.41"
+    _version = "2.4"
     _schema = {
         "definitions": {},
         "properties": {
@@ -3224,7 +3224,7 @@ class UnregisterResponse(Response):
 
     _service = "workers"
     _action = "unregister"
-    _version = "2.41"
+    _version = "2.4"
     _schema = {"definitions": {}, "properties": {}, "type": "object"}
 
     def __init__(self, **kwargs: Any) -> None:

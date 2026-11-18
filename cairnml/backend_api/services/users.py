@@ -396,7 +396,7 @@ class CreateRequest(Request):
 
     _service = "users"
     _action = "create"
-    _version = "2.41"
+    _version = "2.1"
     _schema = {
         "definitions": {},
         "properties": {
@@ -509,7 +509,7 @@ class CreateResponse(Response):
 
     _service = "users"
     _action = "create"
-    _version = "2.41"
+    _version = "2.1"
     _schema = {"additionalProperties": False, "definitions": {}, "properties": {}, "type": "object"}
 
     def __init__(self, **kwargs: Any) -> None:
@@ -526,7 +526,7 @@ class DeleteRequest(Request):
 
     _service = "users"
     _action = "delete"
-    _version = "2.41"
+    _version = "2.1"
     _schema = {
         "definitions": {},
         "properties": {"user": {"description": "ID of user to delete", "type": "string"}},
@@ -558,7 +558,7 @@ class DeleteResponse(Response):
 
     _service = "users"
     _action = "delete"
-    _version = "2.41"
+    _version = "2.1"
     _schema = {"additionalProperties": False, "definitions": {}, "type": "object"}
 
     def __init__(self, **kwargs: Any) -> None:
@@ -585,7 +585,7 @@ class GetAllRequest(Request):
 
     _service = "users"
     _action = "get_all"
-    _version = "2.41"
+    _version = "2.1"
     _schema = {
         "definitions": {},
         "properties": {
@@ -730,7 +730,7 @@ class GetAllResponse(Response):
 
     _service = "users"
     _action = "get_all"
-    _version = "2.41"
+    _version = "2.1"
     _schema = {
         "definitions": {
             "user": {
@@ -814,7 +814,7 @@ class GetAllExRequest(Request):
 
     _service = "users"
     _action = "get_all_ex"
-    _version = "2.41"
+    _version = "2.8"
     _schema = {
         "definitions": {},
         "properties": {
@@ -979,7 +979,7 @@ class GetAllExResponse(Response):
 
     _service = "users"
     _action = "get_all_ex"
-    _version = "2.41"
+    _version = "2.8"
     _schema = {
         "definitions": {
             "user": {
@@ -1051,7 +1051,7 @@ class GetByIdRequest(Request):
 
     _service = "users"
     _action = "get_by_id"
-    _version = "2.41"
+    _version = "2.1"
     _schema = {
         "definitions": {},
         "properties": {"user": {"description": "User ID", "type": "string"}},
@@ -1086,7 +1086,7 @@ class GetByIdResponse(Response):
 
     _service = "users"
     _action = "get_by_id"
-    _version = "2.41"
+    _version = "2.1"
     _schema = {
         "definitions": {
             "user": {
@@ -1153,7 +1153,7 @@ class GetCurrentUserRequest(Request):
 
     _service = "users"
     _action = "get_current_user"
-    _version = "2.41"
+    _version = "2.31"
     _schema = {"additionalProperties": False, "definitions": {}, "type": "object"}
 
     def __init__(self, **kwargs: Any) -> None:
@@ -1174,7 +1174,7 @@ class GetCurrentUserResponse(Response):
 
     _service = "users"
     _action = "get_current_user"
-    _version = "2.41"
+    _version = "2.31"
     _schema = {
         "definitions": {
             "get_current_user_response_user_object": {
@@ -1295,7 +1295,7 @@ class GetPreferencesRequest(Request):
 
     _service = "users"
     _action = "get_preferences"
-    _version = "2.41"
+    _version = "2.1"
     _schema = {"definitions": {}, "properties": {}, "type": "object"}
 
     def __init__(self, **kwargs: Any) -> None:
@@ -1312,7 +1312,7 @@ class GetPreferencesResponse(Response):
 
     _service = "users"
     _action = "get_preferences"
-    _version = "2.41"
+    _version = "2.1"
     _schema = {
         "definitions": {},
         "properties": {"preferences": {"additionalProperties": True, "type": ["object", "null"]}},
@@ -1348,7 +1348,7 @@ class SetPreferencesRequest(Request):
 
     _service = "users"
     _action = "set_preferences"
-    _version = "2.41"
+    _version = "2.33"
     _schema = {
         "definitions": {},
         "properties": {
@@ -1414,7 +1414,7 @@ class SetPreferencesResponse(Response):
 
     _service = "users"
     _action = "set_preferences"
-    _version = "2.41"
+    _version = "2.33"
     _schema = {
         "definitions": {},
         "properties": {
@@ -1486,7 +1486,7 @@ class UpdateRequest(Request):
 
     _service = "users"
     _action = "update"
-    _version = "2.41"
+    _version = "2.1"
     _schema = {
         "definitions": {},
         "properties": {
@@ -1589,7 +1589,7 @@ class UpdateResponse(Response):
 
     _service = "users"
     _action = "update"
-    _version = "2.41"
+    _version = "2.1"
     _schema = {
         "definitions": {},
         "properties": {

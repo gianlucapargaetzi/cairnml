@@ -6,7 +6,7 @@ import re
 from typing import Optional
 
 from .errors import DatasetError
-from ..backend_api.session.defs import API_VERSION, MissingConfigError
+from ..backend_api.session.defs import MissingConfigError, newest_version
 from ..backend_api.session.session import NotSignedInError
 from ..backend_config.errors import ConfigurationError
 
@@ -51,7 +51,7 @@ def fetch_storage_keys(repository: str, level: str, session=None) -> StorageKeys
     response = _session(session).send_request(
         service="datachunks",
         action="dataset_credentials",
-        version=API_VERSION,
+        version=newest_version("datachunks", "dataset_credentials"),
         json={"repository": repository, "level": level},
     )
     if not response.ok:
@@ -98,10 +98,12 @@ def _could_not_ask(exc: Exception, what: str, login_hint: str) -> str:
     return f"{message}: {login_hint}" if _not_signed_in(exc) else message
 
 
-def _person_request(session, action: str, json: dict, service: str = "repositories", version: str = "2.40"):
+def _person_request(session, action: str, json: dict, service: str = "repositories"):
     """A request made for a person, with the login. Without a login the reason is said in the error."""
     try:
-        return _session(session).send_request(service=service, action=action, version=version, json=json)
+        return _session(session).send_request(
+            service=service, action=action, version=newest_version(service, action), json=json
+        )
     except Exception as exc:
         raise DatasetError(_could_not_ask(exc, "", LOGIN_HINT_FOR_TOKENS)) from exc
 
@@ -230,7 +232,7 @@ def resolve_dataset(reference: str, task: Optional[str] = None, session=None) ->
 def list_credentials(session=None) -> list:
     """The credentials the person signed in may use for repositories: their own GitHub Apps and tokens, and the company's.
     Each has an id (what ``cairnml repository assign`` takes), its type, name, scope, owner and state. No secret is returned."""
-    response = _person_request(session, "get_all", {}, service="user_access", version=API_VERSION)
+    response = _person_request(session, "get_all", {}, service="user_access")
     if not response.ok:
         raise DatasetError(f"the server did not list the credentials: {_reason(response)}")
     return (response.json().get("data") or {}).get("credentials") or []
@@ -243,7 +245,7 @@ def fetch_repository_list(session=None) -> list:
     cannot be asked, for instance when there is no CairnML login."""
     try:
         response = _session(session).send_request(
-            service="repositories", action="get_all", version=API_VERSION, json={}
+            service="repositories", action="get_all", version=newest_version("repositories", "get_all"), json={}
         )
         if not response.ok:
             raise DatasetError(f"the server refused the repository list: {_reason(response)}")

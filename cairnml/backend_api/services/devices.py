@@ -30,7 +30,7 @@ class EnrollRequest(Request):
 
     _service = "devices"
     _action = "enroll"
-    _version = "2.41"
+    _version = "2.8"
     _schema = {
         "additionalProperties": False,
         "definitions": {},
@@ -106,7 +106,7 @@ class EnrollResponse(Response):
 
     _service = "devices"
     _action = "enroll"
-    _version = "2.41"
+    _version = "2.8"
     _schema = {
         "definitions": {},
         "properties": {
@@ -179,7 +179,7 @@ class ExchangeRequest(Request):
 
     _service = "devices"
     _action = "exchange"
-    _version = "2.41"
+    _version = "2.8"
     _schema = {
         "additionalProperties": False,
         "definitions": {},
@@ -217,7 +217,7 @@ class ExchangeResponse(Response):
 
     _service = "devices"
     _action = "exchange"
-    _version = "2.41"
+    _version = "2.8"
     _schema = {
         "definitions": {},
         "properties": {
@@ -271,7 +271,7 @@ class GetAllRequest(Request):
 
     _service = "devices"
     _action = "get_all"
-    _version = "2.41"
+    _version = "2.8"
     _schema = {"additionalProperties": False, "definitions": {}, "type": "object"}
 
     def __init__(self, **kwargs: Any) -> None:
@@ -288,7 +288,7 @@ class GetAllResponse(Response):
 
     _service = "devices"
     _action = "get_all"
-    _version = "2.41"
+    _version = "2.8"
     _schema = {
         "definitions": {},
         "properties": {"devices": {"type": ["array", "null"]}},
@@ -324,7 +324,7 @@ class GitTokenRequest(Request):
 
     _service = "devices"
     _action = "git_token"
-    _version = "2.41"
+    _version = "2.8"
     _schema = {
         "additionalProperties": False,
         "definitions": {},
@@ -383,7 +383,7 @@ class GitTokenResponse(Response):
 
     _service = "devices"
     _action = "git_token"
-    _version = "2.41"
+    _version = "2.8"
     _schema = {
         "definitions": {},
         "properties": {
@@ -453,7 +453,7 @@ class IdpSettingsRequest(Request):
 
     _service = "devices"
     _action = "idp_settings"
-    _version = "2.41"
+    _version = "2.8"
     _schema = {"additionalProperties": False, "definitions": {}, "type": "object"}
 
     def __init__(self, **kwargs: Any) -> None:
@@ -476,7 +476,7 @@ class IdpSettingsResponse(Response):
 
     _service = "devices"
     _action = "idp_settings"
-    _version = "2.41"
+    _version = "2.8"
     _schema = {
         "definitions": {},
         "properties": {
@@ -561,7 +561,7 @@ class JobTokenRequest(Request):
 
     _service = "devices"
     _action = "job_token"
-    _version = "2.41"
+    _version = "2.8"
     _schema = {
         "additionalProperties": False,
         "definitions": {},
@@ -599,7 +599,7 @@ class JobTokenResponse(Response):
 
     _service = "devices"
     _action = "job_token"
-    _version = "2.41"
+    _version = "2.8"
     _schema = {
         "definitions": {},
         "properties": {
@@ -658,7 +658,7 @@ class ReassignRequest(Request):
 
     _service = "devices"
     _action = "reassign"
-    _version = "2.41"
+    _version = "2.8"
     _schema = {
         "additionalProperties": False,
         "definitions": {},
@@ -704,7 +704,7 @@ class ReassignResponse(Response):
 
     _service = "devices"
     _action = "reassign"
-    _version = "2.41"
+    _version = "2.8"
     _schema = {"definitions": {}, "type": "object"}
 
     def __init__(self, **kwargs: Any) -> None:
@@ -721,7 +721,7 @@ class RevokeRequest(Request):
 
     _service = "devices"
     _action = "revoke"
-    _version = "2.41"
+    _version = "2.8"
     _schema = {
         "additionalProperties": False,
         "definitions": {},
@@ -754,7 +754,7 @@ class RevokeResponse(Response):
 
     _service = "devices"
     _action = "revoke"
-    _version = "2.41"
+    _version = "2.8"
     _schema = {"definitions": {}, "type": "object"}
 
     def __init__(self, **kwargs: Any) -> None:

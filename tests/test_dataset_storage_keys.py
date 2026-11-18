@@ -30,7 +30,7 @@ class FakeSession:
         return SimpleNamespace(ok=self.ok, text="refused", json=lambda: {"data": self.data})
 
 
-def test_the_request_names_the_repository_and_the_level_at_version_2_41():
+def test_the_request_names_the_repository_and_the_level_at_the_newest_definition():
     session = FakeSession(ANSWER)
 
     keys = fetch_storage_keys(repository="acme/cars", level="read", session=session)
@@ -39,7 +39,7 @@ def test_the_request_names_the_repository_and_the_level_at_version_2_41():
         {
             "service": "datachunks",
             "action": "dataset_credentials",
-            "version": "2.41",
+            "version": "2.40",  # the newest definition of datachunks.dataset_credentials
             "json": {"repository": "acme/cars", "level": "read"},
         }
     ]

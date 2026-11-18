@@ -1019,7 +1019,7 @@ class AddOrUpdateMetadataRequest(Request):
 
     _service = "models"
     _action = "add_or_update_metadata"
-    _version = "2.41"
+    _version = "2.13"
     _schema = {
         "definitions": {
             "metadata_item": {
@@ -1117,7 +1117,7 @@ class AddOrUpdateMetadataResponse(Response):
 
     _service = "models"
     _action = "add_or_update_metadata"
-    _version = "2.41"
+    _version = "2.13"
     _schema = {
         "definitions": {},
         "properties": {
@@ -1159,7 +1159,7 @@ class ArchiveManyRequest(Request):
 
     _service = "models"
     _action = "archive_many"
-    _version = "2.41"
+    _version = "2.13"
     _schema = {
         "definitions": {},
         "properties": {
@@ -1203,7 +1203,7 @@ class ArchiveManyResponse(Response):
 
     _service = "models"
     _action = "archive_many"
-    _version = "2.41"
+    _version = "2.13"
     _schema = {
         "definitions": {},
         "properties": {
@@ -1315,7 +1315,7 @@ class CreateRequest(Request):
 
     _service = "models"
     _action = "create"
-    _version = "2.41"
+    _version = "2.13"
     _schema = {
         "definitions": {
             "metadata_item": {
@@ -1603,7 +1603,7 @@ class CreateResponse(Response):
 
     _service = "models"
     _action = "create"
-    _version = "2.41"
+    _version = "2.13"
     _schema = {
         "definitions": {},
         "properties": {
@@ -1660,7 +1660,7 @@ class DeleteRequest(Request):
 
     _service = "models"
     _action = "delete"
-    _version = "2.41"
+    _version = "2.13"
     _schema = {
         "definitions": {},
         "properties": {
@@ -1716,7 +1716,7 @@ class DeleteResponse(Response):
 
     _service = "models"
     _action = "delete"
-    _version = "2.41"
+    _version = "2.13"
     _schema = {
         "definitions": {},
         "properties": {
@@ -1776,7 +1776,7 @@ class DeleteManyRequest(Request):
 
     _service = "models"
     _action = "delete_many"
-    _version = "2.41"
+    _version = "2.13"
     _schema = {
         "definitions": {},
         "properties": {
@@ -1837,7 +1837,7 @@ class DeleteManyResponse(Response):
 
     _service = "models"
     _action = "delete_many"
-    _version = "2.41"
+    _version = "2.13"
     _schema = {
         "definitions": {},
         "properties": {
@@ -1926,7 +1926,7 @@ class DeleteMetadataRequest(Request):
 
     _service = "models"
     _action = "delete_metadata"
-    _version = "2.41"
+    _version = "2.13"
     _schema = {
         "definitions": {},
         "properties": {
@@ -1982,7 +1982,7 @@ class DeleteMetadataResponse(Response):
 
     _service = "models"
     _action = "delete_metadata"
-    _version = "2.41"
+    _version = "2.13"
     _schema = {
         "definitions": {},
         "properties": {
@@ -2052,7 +2052,7 @@ class EditRequest(Request):
 
     _service = "models"
     _action = "edit"
-    _version = "2.41"
+    _version = "2.13"
     _schema = {
         "definitions": {
             "metadata_item": {
@@ -2355,7 +2355,7 @@ class EditResponse(Response):
 
     _service = "models"
     _action = "edit"
-    _version = "2.41"
+    _version = "2.13"
     _schema = {
         "definitions": {},
         "properties": {
@@ -2462,7 +2462,7 @@ class GetAllRequest(Request):
 
     _service = "models"
     _action = "get_all"
-    _version = "2.41"
+    _version = "2.26"
     _schema = {
         "definitions": {
             "multi_field_pattern_data": {
@@ -2939,7 +2939,7 @@ class GetAllResponse(Response):
 
     _service = "models"
     _action = "get_all"
-    _version = "2.41"
+    _version = "2.26"
     _schema = {
         "definitions": {
             "last_metrics_event": {
@@ -3204,7 +3204,7 @@ class GetAllExRequest(Request):
 
     _service = "models"
     _action = "get_all_ex"
-    _version = "2.41"
+    _version = "2.27"
     _schema = {
         "definitions": {
             "multi_field_pattern_data": {
@@ -3764,7 +3764,7 @@ class GetAllExResponse(Response):
 
     _service = "models"
     _action = "get_all_ex"
-    _version = "2.41"
+    _version = "2.27"
     _schema = {
         "definitions": {
             "last_metrics_event": {
@@ -3981,7 +3981,7 @@ class GetByIdRequest(Request):
 
     _service = "models"
     _action = "get_by_id"
-    _version = "2.41"
+    _version = "2.1"
     _schema = {
         "definitions": {},
         "properties": {"model": {"description": "Model id", "type": "string"}},
@@ -4016,7 +4016,7 @@ class GetByIdResponse(Response):
 
     _service = "models"
     _action = "get_by_id"
-    _version = "2.41"
+    _version = "2.1"
     _schema = {
         "definitions": {
             "last_metrics_event": {
@@ -4243,7 +4243,7 @@ class GetByIdExRequest(Request):
 
     _service = "models"
     _action = "get_by_id_ex"
-    _version = "2.41"
+    _version = "2.11"
     _schema = {
         "definitions": {
             "multi_field_pattern_data": {
@@ -4642,7 +4642,7 @@ class GetByIdExResponse(Response):
 
     _service = "models"
     _action = "get_by_id_ex"
-    _version = "2.41"
+    _version = "2.11"
     _schema = {
         "definitions": {
             "last_metrics_event": {
@@ -4837,7 +4837,7 @@ class GetFrameworksRequest(Request):
 
     _service = "models"
     _action = "get_frameworks"
-    _version = "2.41"
+    _version = "2.8"
     _schema = {
         "definitions": {},
         "properties": {
@@ -4878,7 +4878,7 @@ class GetFrameworksResponse(Response):
 
     _service = "models"
     _action = "get_frameworks"
-    _version = "2.41"
+    _version = "2.8"
     _schema = {
         "definitions": {},
         "properties": {
@@ -4919,7 +4919,7 @@ class MakePrivateRequest(Request):
 
     _service = "models"
     _action = "make_private"
-    _version = "2.41"
+    _version = "2.9"
     _schema = {
         "definitions": {},
         "properties": {
@@ -4960,7 +4960,7 @@ class MakePrivateResponse(Response):
 
     _service = "models"
     _action = "make_private"
-    _version = "2.41"
+    _version = "2.9"
     _schema = {
         "definitions": {},
         "properties": {
@@ -4998,7 +4998,7 @@ class MakePublicRequest(Request):
 
     _service = "models"
     _action = "make_public"
-    _version = "2.41"
+    _version = "2.9"
     _schema = {
         "definitions": {},
         "properties": {
@@ -5039,7 +5039,7 @@ class MakePublicResponse(Response):
 
     _service = "models"
     _action = "make_public"
-    _version = "2.41"
+    _version = "2.9"
     _schema = {
         "definitions": {},
         "properties": {
@@ -5081,7 +5081,7 @@ class MoveRequest(Request):
 
     _service = "models"
     _action = "move"
-    _version = "2.41"
+    _version = "2.12"
     _schema = {
         "definitions": {},
         "properties": {
@@ -5156,7 +5156,7 @@ class MoveResponse(Response):
 
     _service = "models"
     _action = "move"
-    _version = "2.41"
+    _version = "2.12"
     _schema = {"additionalProperties": True, "definitions": {}, "type": "object"}
 
     def __init__(self, **kwargs: Any) -> None:
@@ -5177,7 +5177,7 @@ class PublishManyRequest(Request):
 
     _service = "models"
     _action = "publish_many"
-    _version = "2.41"
+    _version = "2.13"
     _schema = {
         "definitions": {},
         "properties": {
@@ -5261,7 +5261,7 @@ class PublishManyResponse(Response):
 
     _service = "models"
     _action = "publish_many"
-    _version = "2.41"
+    _version = "2.13"
     _schema = {
         "definitions": {},
         "properties": {
@@ -5374,7 +5374,7 @@ class SetReadyRequest(Request):
 
     _service = "models"
     _action = "set_ready"
-    _version = "2.41"
+    _version = "2.1"
     _schema = {
         "definitions": {},
         "properties": {
@@ -5453,7 +5453,7 @@ class SetReadyResponse(Response):
 
     _service = "models"
     _action = "set_ready"
-    _version = "2.41"
+    _version = "2.1"
     _schema = {
         "definitions": {},
         "properties": {
@@ -5536,7 +5536,7 @@ class UnarchiveManyRequest(Request):
 
     _service = "models"
     _action = "unarchive_many"
-    _version = "2.41"
+    _version = "2.13"
     _schema = {
         "definitions": {},
         "properties": {
@@ -5580,7 +5580,7 @@ class UnarchiveManyResponse(Response):
 
     _service = "models"
     _action = "unarchive_many"
-    _version = "2.41"
+    _version = "2.13"
     _schema = {
         "definitions": {},
         "properties": {
@@ -5688,7 +5688,7 @@ class UpdateRequest(Request):
 
     _service = "models"
     _action = "update"
-    _version = "2.41"
+    _version = "2.13"
     _schema = {
         "definitions": {
             "metadata_item": {
@@ -5946,7 +5946,7 @@ class UpdateResponse(Response):
 
     _service = "models"
     _action = "update"
-    _version = "2.41"
+    _version = "2.13"
     _schema = {
         "definitions": {},
         "properties": {
@@ -6015,7 +6015,7 @@ class UpdateTagsRequest(Request):
 
     _service = "models"
     _action = "update_tags"
-    _version = "2.41"
+    _version = "2.27"
     _schema = {
         "definitions": {},
         "properties": {
@@ -6100,7 +6100,7 @@ class UpdateTagsResponse(Response):
 
     _service = "models"
     _action = "update_tags"
-    _version = "2.41"
+    _version = "2.27"
     _schema = {
         "definitions": {},
         "properties": {

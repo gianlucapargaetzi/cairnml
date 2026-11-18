@@ -34,7 +34,7 @@ class AddAppRequest(Request):
 
     _service = "user_access"
     _action = "add_app"
-    _version = "2.41"
+    _version = "2.38"
     _schema = {
         "additionalProperties": False,
         "definitions": {},
@@ -136,7 +136,7 @@ class AddAppResponse(Response):
 
     _service = "user_access"
     _action = "add_app"
-    _version = "2.41"
+    _version = "2.38"
     _schema = {
         "definitions": {},
         "properties": {"access": {"type": ["object", "null"]}},
@@ -170,7 +170,7 @@ class CheckRequest(Request):
 
     _service = "user_access"
     _action = "check"
-    _version = "2.41"
+    _version = "2.38"
     _schema = {
         "additionalProperties": False,
         "definitions": {},
@@ -206,7 +206,7 @@ class CheckResponse(Response):
 
     _service = "user_access"
     _action = "check"
-    _version = "2.41"
+    _version = "2.38"
     _schema = {
         "definitions": {},
         "properties": {"access": {"type": ["object", "null"]}},
@@ -240,7 +240,7 @@ class DeleteRequest(Request):
 
     _service = "user_access"
     _action = "delete"
-    _version = "2.41"
+    _version = "2.38"
     _schema = {
         "additionalProperties": False,
         "definitions": {},
@@ -276,7 +276,7 @@ class DeleteResponse(Response):
 
     _service = "user_access"
     _action = "delete"
-    _version = "2.41"
+    _version = "2.38"
     _schema = {
         "definitions": {},
         "properties": {"deleted": {"type": ["boolean", "null"]}},
@@ -307,7 +307,7 @@ class GetAllRequest(Request):
 
     _service = "user_access"
     _action = "get_all"
-    _version = "2.41"
+    _version = "2.38"
     _schema = {"additionalProperties": False, "definitions": {}, "type": "object"}
 
     def __init__(self, **kwargs: Any) -> None:
@@ -332,7 +332,7 @@ class GetAllResponse(Response):
 
     _service = "user_access"
     _action = "get_all"
-    _version = "2.41"
+    _version = "2.38"
     _schema = {
         "definitions": {},
         "properties": {

@@ -23,7 +23,7 @@ class CheckRequest(Request):
 
     _service = "github"
     _action = "check"
-    _version = "2.41"
+    _version = "2.38"
     _schema = {"additionalProperties": False, "definitions": {}, "type": "object"}
 
     def __init__(self, **kwargs: Any) -> None:
@@ -40,7 +40,7 @@ class CheckResponse(Response):
 
     _service = "github"
     _action = "check"
-    _version = "2.41"
+    _version = "2.38"
     _schema = {
         "definitions": {},
         "properties": {"status": {"type": ["object", "null"]}},
@@ -71,7 +71,7 @@ class StatusRequest(Request):
 
     _service = "github"
     _action = "status"
-    _version = "2.41"
+    _version = "2.38"
     _schema = {"additionalProperties": False, "definitions": {}, "type": "object"}
 
     def __init__(self, **kwargs: Any) -> None:
@@ -88,7 +88,7 @@ class StatusResponse(Response):
 
     _service = "github"
     _action = "status"
-    _version = "2.41"
+    _version = "2.38"
     _schema = {
         "definitions": {},
         "properties": {"status": {"type": ["object", "null"]}},
