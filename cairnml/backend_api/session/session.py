@@ -1,6 +1,7 @@
 from __future__ import print_function
 import json as json_lib
 import logging
+import os
 import sys
 import types
 import weakref
@@ -192,9 +193,7 @@ class Session(TokenManager):
 
         self.__http_retries_config["status_forcelist"] = self._get_retry_codes()
         self.__http_retries_config["config"] = self.config
-        self.__http_session = get_http_session_with_retry(**self.__http_retries_config)
-        self.__http_session.write_timeout = self._write_session_timeout
-        self.__http_session.request_size_threshold = self._write_session_data_size
+        self.__http_session = self.__new_http_session()
 
         self.__max_req_size = self.config.get("api.http.max_req_size", None)
         if not self.__max_req_size:
@@ -359,6 +358,21 @@ class Session(TokenManager):
             except Exception as ex:
                 local_logger().warning(f"Failed applying files from configuration: {ex}")
 
+    def __new_http_session(self) -> requests.Session:
+        http_session = get_http_session_with_retry(**self.__http_retries_config)
+        http_session.write_timeout = self._write_session_timeout
+        http_session.request_size_threshold = self._write_session_data_size
+        self.__http_session_pid = os.getpid()
+        return http_session
+
+    def __http_session_of_this_process(self) -> requests.Session:
+        # A forked child inherits the parent's pooled keep-alive connections. Parent and child then send requests on
+        # the same sockets and each reads the other's responses (issue #123: the resource monitor runs in a forked
+        # child). The child therefore opens a connection pool of its own; the parent's pool is left as it is.
+        if self.__http_session_pid != os.getpid():
+            self.__http_session = self.__new_http_session()
+        return self.__http_session
+
     def _send_request(
         self,
         service: str,
@@ -426,7 +440,7 @@ class Session(TokenManager):
                         size,
                         len(headers or {}),
                     )
-                res = self.__http_session.request(
+                res = self.__http_session_of_this_process().request(
                     method,
                     url,
                     headers=headers,

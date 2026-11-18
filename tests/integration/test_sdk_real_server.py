@@ -5,8 +5,8 @@ what each check leaves for the next. The tests therefore run in file order, and 
 with the name of the check that should have left it (it does not pass silently). Each check asserts what the server
 returns, so a wrong answer from the server or a wrong conversion in the SDK fails the check.
 
-``RESOURCE_MONITOR`` is off: the resource monitor interleaves responses between calls (issue #123). When that is
-fixed, set it to True and the same checks run with the monitor on.
+``RESOURCE_MONITOR`` is on: the resource monitor, which runs in a forked child, used to interleave responses between
+calls (issue #123). Turning it off would hide that defect, so the checks run with the monitor as the SDK ships it.
 """
 
 import os
@@ -23,7 +23,7 @@ from cairnml import Task
 
 pytestmark = pytest.mark.integration
 
-RESOURCE_MONITOR = False
+RESOURCE_MONITOR = True
 
 
 @pytest.fixture(scope="module")
