@@ -1,4 +1,5 @@
 import inspect
+import os
 from unittest import mock
 
 import pytest
@@ -25,6 +26,7 @@ def wire_session():
     session._verbose = False
     session._logger = None
     session._Session__http_session = mock.Mock()
+    session._Session__http_session_pid = os.getpid()
     session._Session__http_session.request.return_value = Reply()
     return session
 
