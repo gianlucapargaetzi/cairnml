@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 from unittest import mock
 
@@ -5,6 +6,10 @@ import jwt
 import pytest
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
+from cairnml.backend_api.services import devices as devices_api
+from cairnml.backend_api.services import users as users_api
+from cairnml.cli import devices as cli_devices
+from cairnml.cli import doctor as cli_doctor
 from cairnml.idp import enrol as enrol_module
 from cairnml.idp.enrol import EnrolmentFailed, enrol, enrol_device, revoke_device
 from cairnml.idp.device import save_device_key
@@ -13,6 +18,11 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 PUBLIC = "http://cairnml:8008"
 API = "http://localhost:8008"  # the address typed on the command line; the server's own address wins
+
+
+def endpoint(request_cls, server=PUBLIC):
+    """The URL of a generated request class, at the version that class implements."""
+    return f"{server}/v{request_cls._version}/{request_cls._service}.{request_cls._action}"
 
 
 def token_for(user):
@@ -46,6 +56,8 @@ class FakeServer:
             return Response(*self.exchange_reply)
         if url.endswith("devices.revoke"):
             return Response(*self.revoke_reply)
+        if url.endswith("users.get_current_user"):
+            return Response(200, {"data": {"user": {"username": "alice"}}})
         return Response(*self.enrol_reply)
 
 
@@ -64,7 +76,7 @@ def test_enrolment_uses_the_servers_public_address_and_registers_the_key(tmp_pat
     assert result.web_url == "http://cairnml:8080"
     assert result.user == "alice"
     url, body, headers = server.calls[-1]
-    assert url == PUBLIC + "/v2.8/devices.enroll"
+    assert url == endpoint(devices_api.EnrollRequest)
     assert headers == {"Authorization": "Bearer " + token_for("alice")}
     assert body["kind"] == "client" and body["name"] == "laptop"
     public: Ed25519PublicKey = load_public_key(body["public_key"])
@@ -144,7 +156,7 @@ def test_sign_out_revokes_the_device_with_its_own_key(tmp_path):
     server = FakeServer()
     revoke_device(PUBLIC, "dev_1", key_path=key_path, http=server)
     url, body, headers = server.calls[-1]
-    assert url == PUBLIC + "/v2.8/devices.revoke"
+    assert url == endpoint(devices_api.RevokeRequest)
     assert body == {"id": "dev_1"}
     assert headers == {"Authorization": "Bearer device-token"}
 
@@ -165,3 +177,32 @@ def test_the_key_folder_is_created_for_its_owner_only(tmp_path):
     secure_folder(folder)
     assert folder.is_dir()
     assert stat.S_IMODE(folder.stat().st_mode) == 0o700
+
+
+def test_each_call_takes_its_version_from_its_request_class(tmp_path, monkeypatch):
+    """The version is read from the generated class, not written here: a changed class moves the call with it."""
+    for request_cls in (devices_api.IdpSettingsRequest, devices_api.ExchangeRequest, devices_api.RevokeRequest,
+                        devices_api.EnrollRequest, users_api.GetCurrentUserRequest):
+        monkeypatch.setattr(request_cls, "_version", "7.7")
+    key_path = tmp_path / "device.key"
+    save_device_key(key_path, Ed25519PrivateKey.generate())
+    server = FakeServer()
+    enrol(API, http=server, login=login, key_path=tmp_path / "new.key")
+    revoke_device(PUBLIC, "dev_1", key_path=key_path, http=server)
+    enrol_module.whoami(PUBLIC, "dev_1", key_path=key_path, http=server)
+    urls = [url for url, _, _ in server.calls]
+    assert urls == [
+        API + "/v7.7/devices.idp_settings",
+        PUBLIC + "/v7.7/devices.enroll",
+        PUBLIC + "/v7.7/devices.exchange",
+        PUBLIC + "/v7.7/devices.revoke",
+        PUBLIC + "/v7.7/devices.exchange",
+        PUBLIC + "/v7.7/users.get_current_user",
+    ]
+
+
+def test_no_hand_written_call_carries_an_api_version_literal():
+    """A version written into a URL in the modules that talk to the server is the defect of #117: the generated classes own it."""
+    for module in (enrol_module, cli_devices, cli_doctor):
+        source = Path(module.__file__).read_text()
+        assert re.findall(r"""["'/]v?\d+\.\d+""", source) == [], module.__name__

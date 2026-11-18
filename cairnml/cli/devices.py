@@ -14,9 +14,10 @@ from pathlib2 import Path
 
 import requests
 
+from cairnml.backend_api.services import devices as devices_api
 from cairnml.cli.enrolment import ClientSession, _config_arg, read_enrolment
 from cairnml.idp.device import DEVICE_KEY_PATH
-from cairnml.idp.enrol import EnrolmentFailed, _base, _call, _token_for_device
+from cairnml.idp.enrol import EnrolmentFailed, _call, _endpoint, _token_for_device
 
 
 def list_devices(server_url: str, device_id: str, key_path=None, http=None) -> list:
@@ -24,7 +25,7 @@ def list_devices(server_url: str, device_id: str, key_path=None, http=None) -> l
     http = http or ClientSession()
     key_path = Path(key_path or DEVICE_KEY_PATH)
     token = _token_for_device(http, server_url, device_id, key_path)
-    return _call(http, _base(server_url) + "devices.get_all", {}, token=token)["devices"]
+    return _call(http, _endpoint(server_url, devices_api.GetAllRequest), {}, token=token)["devices"]
 
 
 def revoke_other_device(server_url: str, device_id: str, target_id: str, key_path=None, http=None) -> dict:
@@ -32,7 +33,7 @@ def revoke_other_device(server_url: str, device_id: str, target_id: str, key_pat
     http = http or ClientSession()
     key_path = Path(key_path or DEVICE_KEY_PATH)
     token = _token_for_device(http, server_url, device_id, key_path)
-    return _call(http, _base(server_url) + "devices.revoke", {"id": target_id}, token=token)
+    return _call(http, _endpoint(server_url, devices_api.RevokeRequest), {"id": target_id}, token=token)
 
 
 def _state(device: dict) -> str:
