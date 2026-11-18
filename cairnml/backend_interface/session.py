@@ -28,6 +28,5 @@ class SessionInterface(ABC):
         req: Any,
         ignore_errors: bool = False,
         raise_on_errors: bool = True,
-        async_enable: bool = False,
     ) -> Any:
         pass

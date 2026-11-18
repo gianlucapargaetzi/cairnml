@@ -6,7 +6,6 @@ from argparse import Namespace
 from collections import OrderedDict
 from enum import Enum
 from functools import reduce, wraps, WRAPPER_ASSIGNMENTS
-from importlib import import_module
 from itertools import chain
 from operator import itemgetter
 from types import ModuleType
@@ -517,37 +516,10 @@ class APIClient:
     models: Any = None
     projects: Any = None
 
-    def __init__(
-        self,
-        session: Session = None,
-        api_version: str = None,
-        **kwargs: Any,
-    ) -> None:
+    def __init__(self, session: Session = None) -> None:
         self.session = session or StrictSession()
 
-        _api_services = kwargs.pop("api_services", api_services)
-
-        def import_(*args: Any, **kwargs: Any) -> Optional[ModuleType]:
-            try:
-                return import_module(*args, **kwargs)
-            except ImportError:
-                return None
-
-        if api_version:
-            api_version = f"v{str(api_version).replace('.', '_')}"
-            services = OrderedDict(
-                (name, mod)
-                for name, mod in (
-                    (
-                        name,
-                        import_(".".join((_api_services.__name__, api_version, name))),
-                    )
-                    for name in _api_services.__all__
-                )
-                if mod
-            )
-        else:
-            services = OrderedDict((name, getattr(_api_services, name)) for name in _api_services.__all__)
+        services = OrderedDict((name, getattr(api_services, name)) for name in api_services.__all__)
         self._update_services(services)
 
     def _update_services(self, services: Dict[str, types.ModuleType]) -> None:
