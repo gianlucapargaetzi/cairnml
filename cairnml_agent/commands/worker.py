@@ -1975,29 +1975,31 @@ class Worker(ServiceCommandSection):
         return self.monitor
 
     def dump_config(self, filename, config=None):
-        # noinspection PyBroadException
+        """Writes the configuration of the agent (or of config) to filename; False when the file cannot be written.
+
+        Only the file access is caught: a configuration that cannot be turned into a dictionary is an error of the
+        agent and is raised, not reported as a file that could not be written.
+        """
         try:
             current_content = Path(filename).read_text()
-        except Exception:
+        except OSError:
             current_content = None
 
-        # noinspection PyBroadException
-        try:
-            config_data = (
-                self._session.config.as_plain_ordered_dict() if config is None else config.as_plain_ordered_dict()
-            )
-            api = config_data.get("api")
-            if api:
-                # the job signs in with its own token, never with the agent's device
-                api.pop("idp", None)
+        config_data = self._session.config.as_plain_ordered_dict() if config is None else config.as_plain_ordered_dict()
+        api = config_data.get("api")
+        if api:
+            # the job signs in with its own token, never with the agent's device
+            api.pop("idp", None)
 
-            new_content = str(json.dumps(config_data, cls=HOCONEncoder, indent=4))
-            # Overwrite file only if the content is different, because we are mounting the same file  into
-            # multiple containers in services mode, and we don't want to change it if we do not have to.
-            if new_content != current_content:
+        new_content = str(json.dumps(config_data, cls=HOCONEncoder, indent=4))
+        # Overwrite file only if the content is different, because we are mounting the same file  into
+        # multiple containers in services mode, and we don't want to change it if we do not have to.
+        if new_content != current_content:
+            try:
                 Path(filename).write_text(new_content)
-        except Exception:
-            return False
+            except OSError as ex:
+                print(f"Could not write the configuration file {filename}: {ex}")
+                return False
         return True
 
     def _log_command_output(

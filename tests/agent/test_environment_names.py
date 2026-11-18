@@ -119,8 +119,10 @@ def test_the_old_agent_prefixed_knob_name_is_ignored(monkeypatch, entry, name, v
     assert not entry.get()
 
 
-# SDK modules the agent imports and runs for it: the names they read are read on the agent's behalf.
-READ_FOR_THE_AGENT_BY_SDK = ("cairnml.idp.browser_login",)
+# SDK modules the agent imports and runs for it: the names they read are read on the agent's behalf. The agent's
+# configuration is the SDK's (backend_config.defs holds the names of its files, paths and environment), so the
+# names are read here, not in the agent's own source.
+READ_FOR_THE_AGENT_BY_SDK = ("cairnml.idp.browser_login", "cairnml.backend_config.defs")
 
 
 def _names_in_sdk_modules():
