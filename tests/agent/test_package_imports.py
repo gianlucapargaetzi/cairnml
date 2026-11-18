@@ -4,9 +4,9 @@ import subprocess
 import sys
 from pathlib import Path
 
-from cairnml_agent.backend_api.session.callresult import CallResult
-from cairnml_agent.backend_api.session.client.client import APIClient
-from cairnml_agent.backend_api.session.request import Request
+from cairnml.backend_api.session.callresult import CallResult
+from cairnml.backend_api.session.client.client import APIClient
+from cairnml.backend_api.session.request import Request
 from cairnml_agent.backend_api.session.session import Session
 from cairnml_agent.backend_config.config import Config
 
@@ -32,28 +32,18 @@ def test_the_packages_export_only_the_names_that_are_used_through_them():
     import cairnml_agent
     import cairnml_agent.backend_api as backend_api
     import cairnml_agent.backend_api.session as session
-    import cairnml_agent.backend_api.session.client as client
     import cairnml_agent.backend_config as backend_config
     import cairnml_agent.commands as commands
 
-    # the generated services import these eight names from the session package
-    assert set(session.__all__) == {
-        "DataModel",
-        "NonStrictDataModel",
-        "schema_property",
-        "StringEnum",
-        "Request",
-        "BatchRequest",
-        "CompoundRequest",
-        "Response",
-    }
+    # the session package holds the agent's session definitions only; the SDK's names come from the SDK
+    assert not getattr(session, "__all__", None)
     # __main__ looks these up by name on the commands package
     assert set(commands.__all__) == {"Worker", "Config", "install_bootstrap"}
     for module, name in [
         (session, "Session"),
         (session, "CallResult"),
         (session, "TokenManager"),
-        (client, "APIClient"),
+        (session, "Request"),
         (backend_api, "CallResult"),
         (backend_config, "Config"),
         (cairnml_agent, "APIClient"),

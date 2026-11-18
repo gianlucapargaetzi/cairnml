@@ -1,12 +1,12 @@
 """The job's token file: written by the agent, and renewed in the background while the job runs. The job reads it
-through cairnml_agent/backend_api/session/job_token_file.py."""
+through the SDK's cairnml/backend_api/session/job_token_file.py."""
 
 import os
 import tempfile
 import threading
 from pathlib import Path
 
-from cairnml_agent.backend_api.session.request import Request
+from cairnml.backend_api.session.request import Request
 
 TOKEN_FILE_NAME = "job_token"
 # Where docker mode mounts the folder with the file, inside the job container.

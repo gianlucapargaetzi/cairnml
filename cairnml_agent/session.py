@@ -13,8 +13,8 @@ from pathlib import Path
 
 from pyhocon import ConfigFactory, HOCONConverter, ConfigTree
 from cairnml_agent.backend_api.session.session import Session as _Session
-from cairnml_agent.backend_api.session.request import Request
-from cairnml_agent.backend_api.session.client.client import APIClient
+from cairnml.backend_api.session.request import Request
+from cairnml.backend_api.session.client.client import APIClient
 from cairnml_agent.backend_config.defs import LOCAL_CONFIG_FILE_OVERRIDE_VAR, LOCAL_CONFIG_FILES
 from cairnml_agent.definitions import ENVIRONMENT_CONFIG, ENV_TASK_EXECUTE_AS_USER, ENVIRONMENT_BACKWARD_COMPATIBLE
 from cairnml_agent.errors import APIError

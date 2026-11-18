@@ -9,7 +9,7 @@ import jwt
 import requests
 
 from pyhocon import ConfigTree, ConfigFactory
-from .callresult import CallResult
+from cairnml.backend_api.session.callresult import CallResult
 from .defs import (
     ENV_VERBOSE,
     ENV_HOST,
@@ -24,8 +24,8 @@ from .defs import (
     ENV_FORCE_MAX_API_VERSION,
     ENV_URLLIB3_CONNECT_LEVEL,
 )
-from .job_token_file import read_job_token_file
-from .request import Request, BatchRequest
+from cairnml.backend_api.session.job_token_file import read_job_token_file
+from cairnml.backend_api.session.request import Request, BatchRequest
 from .token_manager import TokenManager
 from ..config import load
 from ..utils import get_http_session_with_retry, urllib_log_warning_setup
