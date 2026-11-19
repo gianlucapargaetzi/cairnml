@@ -63,13 +63,14 @@ def _endpoint(server: str, request_cls) -> str:
 
 
 def _settings(http, server: str) -> dict:
-    return _call(http, _endpoint(server, devices.IdpSettingsRequest), {})
+    return _call(http, _endpoint(server, devices.IdpSettingsRequest), devices.IdpSettingsRequest().to_dict())
 
 
 def _token_for_device(http, server_url: str, device_id: str, key_path: Path) -> str:
     """Prove the device's key to the server and get a short-lived token for it."""
     assertion = device_assertion(device_id, server_url, key_path=key_path)
-    return _call(http, _endpoint(server_url, devices.ExchangeRequest), {"assertion": assertion})["access_token"]
+    body = devices.ExchangeRequest(assertion=assertion).to_dict()
+    return _call(http, _endpoint(server_url, devices.ExchangeRequest), body)["access_token"]
 
 
 def revoke_device(server_url: str, device_id: str, key_path=None, http=None) -> None:
@@ -77,7 +78,8 @@ def revoke_device(server_url: str, device_id: str, key_path=None, http=None) -> 
     http = http or requests.Session()
     key_path = Path(key_path or DEVICE_KEY_PATH)
     token = _token_for_device(http, server_url, device_id, key_path)
-    _call(http, _endpoint(server_url, devices.RevokeRequest), {"id": device_id}, token=token)
+    body = devices.RevokeRequest(id=device_id).to_dict()
+    _call(http, _endpoint(server_url, devices.RevokeRequest), body, token=token)
 
 
 def whoami(server_url: str, device_id: str, key_path=None, http=None) -> dict:
@@ -85,7 +87,8 @@ def whoami(server_url: str, device_id: str, key_path=None, http=None) -> dict:
     http = http or requests.Session()
     key_path = Path(key_path or DEVICE_KEY_PATH)
     token = _token_for_device(http, server_url, device_id, key_path)
-    return _call(http, _endpoint(server_url, users.GetCurrentUserRequest), {}, token=token)["user"]
+    body = users.GetCurrentUserRequest().to_dict()
+    return _call(http, _endpoint(server_url, users.GetCurrentUserRequest), body, token=token)["user"]
 
 
 def _replace_key(key, key_path: Path) -> None:
@@ -161,12 +164,8 @@ def enrol(
     user = jwt.decode(token, options={"verify_signature": False}).get("preferred_username", "")
 
     key = generate_private_key()
-    device = _call(
-        http,
-        _endpoint(server_url, devices.EnrollRequest),
-        {"kind": kind, "name": name or _hostname(), "public_key": public_key_pem(key)},
-        token=token,
-    )
+    body = devices.EnrollRequest(public_key=public_key_pem(key), kind=kind, name=name or _hostname()).to_dict()
+    device = _call(http, _endpoint(server_url, devices.EnrollRequest), body, token=token)
     _replace_key(key, key_path)
     return Enrolment(
         device_id=device["id"],

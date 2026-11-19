@@ -48,7 +48,7 @@ def test_a_request_needs_its_required_fields():
 
 def test_a_request_sends_only_the_fields_that_are_set():
     body = queues.GetByIdRequest(queue="q").to_dict()
-    assert {k: v for k, v in body.items() if k != "method"} == {"queue": "q"}  # "method" is the HTTP verb
+    assert body == {"queue": "q"}
     body = queues.GetAllRequest(only_fields=["id", "name"]).to_dict()
     assert body["only_fields"] == ["id", "name"]
     assert "name" not in body

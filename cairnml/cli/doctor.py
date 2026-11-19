@@ -170,9 +170,17 @@ def check_queues(server: Optional[str], device: Optional[str], sign_in: Check, k
     session = http or requests.Session()
     try:
         token = idp_enrol._token_for_device(session, server, device, key_path)
-        queues_reply = idp_enrol._call(session, idp_enrol._endpoint(server, queues_api.GetAllRequest), {}, token=token)
+        queues_reply = idp_enrol._call(
+            session,
+            idp_enrol._endpoint(server, queues_api.GetAllRequest),
+            queues_api.GetAllRequest().to_dict(),
+            token=token,
+        )
         workers_reply = idp_enrol._call(
-            session, idp_enrol._endpoint(server, workers_api.GetAllRequest), {}, token=token
+            session,
+            idp_enrol._endpoint(server, workers_api.GetAllRequest),
+            workers_api.GetAllRequest().to_dict(),
+            token=token,
         )
         queues = queues_reply.get("queues") or []
         workers = workers_reply.get("workers") or []
