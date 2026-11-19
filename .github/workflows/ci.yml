@@ -2,15 +2,19 @@ name: ci
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     branches: [main]
-  push:
-    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
   test:
+    if: github.event.pull_request.draft == false
     name: test
     runs-on: ubuntu-latest
     steps:
@@ -27,6 +31,7 @@ jobs:
 
   # Dead code: vulture at 80% confidence, with every deliberate name listed in vulture_whitelist.py. New unused code fails here.
   dead-code:
+    if: github.event.pull_request.draft == false
     name: dead code
     runs-on: ubuntu-latest
     steps:
@@ -42,7 +47,7 @@ jobs:
   # formatted at line length 120. The formatting commit is listed in .git-blame-ignore-revs.
   ruff:
     name: ruff
-    if: github.event_name == 'pull_request'
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -64,6 +69,7 @@ jobs:
   # from the schema on the server's main, and the hand-written callers must only use actions, request fields and
   # versions that schema has. Red here means "the server changed, update the SDK": run scripts/regenerate-api.sh.
   api-contract:
+    if: github.event.pull_request.draft == false
     name: api contract
     runs-on: ubuntu-latest
     steps:
@@ -96,6 +102,7 @@ jobs:
   # above is 3.12; this one runs the tests on each of the others, so the list is tested and not only claimed.
   # tests/test_python_versions_tested.py fails when the list and the versions run here differ.
   python-versions:
+    if: github.event.pull_request.draft == false
     name: python ${{ matrix.python }}
     # 24.04, not latest: setup-python has no Python 3.9 build for Ubuntu 26.04
     runs-on: ubuntu-24.04
@@ -116,6 +123,7 @@ jobs:
       - run: python -m pytest tests -q
 
   package:
+    if: github.event.pull_request.draft == false
     name: package
     runs-on: ubuntu-latest
     steps:
