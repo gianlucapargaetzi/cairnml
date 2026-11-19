@@ -5497,7 +5497,7 @@ class GetQueuesRequest(Request):
 
     _service = "projects"
     _action = "get_queues"
-    _version = "2.38"
+    _version = "2.41"
     _schema = {
         "definitions": {},
         "properties": {"project": {"description": "Project id", "type": "string"}},
@@ -5532,7 +5532,7 @@ class GetQueuesResponse(Response):
 
     _service = "projects"
     _action = "get_queues"
-    _version = "2.38"
+    _version = "2.41"
     _schema = {
         "definitions": {},
         "properties": {
