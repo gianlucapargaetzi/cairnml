@@ -24,10 +24,17 @@ _TRANSFERS = {"push", "pull", "fetch", "checkout", "get", "update"}
 
 
 def _command() -> List[str]:
+    """The dvc of the interpreter that runs the SDK, else the one on PATH; a missing one is an error, not a guess."""
+    beside = Path(sys.executable).parent / "dvc"
+    if beside.is_file() and os.access(beside, os.X_OK):
+        return [str(beside)]
     found = shutil.which("dvc")
     if found:
         return [found]
-    return [sys.executable, "-m", "dvc"]
+    raise DvcError(
+        f"dvc was not found next to the Python interpreter ({beside}) or on PATH; "
+        "install it with pip install 'cairnml[dataset]'"
+    )
 
 
 class Dvc:
