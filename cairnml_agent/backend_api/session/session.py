@@ -202,10 +202,6 @@ class Session(SdkSession):
         except FileNotFoundError:
             raise LoginError("This machine has no device key: run cairnml-agent init to enrol it") from None
 
-    def _load_vaults(self):
-        """The agent does not load the server's vaults at start-up."""
-        return
-
     def _send_request(self, *args, **kwargs):
         """Once started, a request that fails at the connection is sent again, after a short pause, until it is
         answered."""

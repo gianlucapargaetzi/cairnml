@@ -56,16 +56,13 @@ class PackageTraceIgnore(object):
         self.package_path = get_module_path(package)
 
     @lru_cache(None)
-    def names(self, file_name, module_name=None):
-        # type: (Text, Text) -> bool
+    def names(self, file_name):
+        # type: (Text) -> bool
         """
-        Return whether a file should be ignored based on it's path and module name.
+        Return whether a file should be ignored based on its path.
         Ignore files which are not part of self.package.
-        trace.Ignore's documentation states that module_name is unreliable for packages,
-        therefore, it is not used here.
 
         :param file_name: source file path
-        :param module_name: module name
         :return: whether file should be ignored
         """
         file_path = Path(file_name).resolve()
