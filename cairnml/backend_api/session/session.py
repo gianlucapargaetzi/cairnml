@@ -29,7 +29,6 @@ from .defs import (
     ENV_AUTH_TOKEN,
     ENV_JOB_TOKEN,
     ENV_JOB_TOKEN_FILE,
-    ENV_DISABLE_VAULT_SUPPORT,
     ENV_ENABLE_ENV_CONFIG_SECTION,
     ENV_ENABLE_FILES_CONFIG_SECTION,
     ENV_API_EXTRA_RETRY_CODES,
@@ -42,7 +41,7 @@ from ..utils import get_http_session_with_retry, urllib_log_warning_setup
 from ...idp.device import device_assertion
 from ...debugging import get_logger
 from ...debugging.log import resolve_logging_level
-from pyhocon import ConfigTree, ConfigFactory
+from pyhocon import ConfigTree
 from ...version import __version__
 from ..services import API_LEVEL, UnsupportedApiVersion, resolve
 from ...backend_config.utils import apply_files, apply_environment
@@ -252,12 +251,6 @@ class Session(TokenManager):
         # update only after we have max_api
         self.__class__._sessions_created += 1
 
-        if self._load_vaults():
-            from cairnml.config import ConfigWrapper, ConfigSDKWrapper
-
-            ConfigWrapper.set_config_impl(self.config)
-            ConfigSDKWrapper.clear_config_impl()
-
         self._apply_config_sections(local_logger)
 
         self._update_default_api_method()
@@ -305,49 +298,6 @@ class Session(TokenManager):
             print(f"Using extra HTTP retry codes {sorted(retry_codes.difference(self._retry_codes))}")
 
         return list(retry_codes)
-
-    def _read_vaults(self) -> Optional[List[dict]]:
-        # () -> Optional[List[dict]]
-        if self.feature_set == "basic":
-            return
-
-        def parse(vault: dict) -> Optional[Union[ConfigTree, dict]]:
-            # noinspection PyBroadException
-            try:
-                d = vault.get("data", None)
-                if d:
-                    r = ConfigFactory.parse_string(d)
-                    if isinstance(r, (ConfigTree, dict)):
-                        return r
-            except Exception as e:
-                (self._logger or get_logger()).warning(
-                    f"Failed parsing vault {vault.get('description', '<unknown>')}: {e}"
-                )
-
-        # noinspection PyBroadException
-        try:
-            # Use params and not data/json otherwise payload might be dropped if we're using GET with a strict firewall
-            res = self.send_request("users", "get_vaults", params="enabled=true&types=config&types=config")
-            if res.ok:
-                vaults = res.json().get("data", {}).get("vaults", [])
-                data = list(filter(None, map(parse, vaults)))
-                if data:
-                    return data
-            elif res.status_code != 404:
-                raise Exception(res.json().get("meta", {}).get("result_msg", res.text))
-        except Exception as ex:
-            (self._logger or get_logger()).warning(f"Failed getting vaults: {ex}")
-
-    def _load_vaults(self) -> Optional[bool]:
-        # () -> Optional[bool]
-        if ENV_DISABLE_VAULT_SUPPORT.get():
-            # (self._logger or get_logger()).debug("Vault support is disabled")
-            return
-
-        data = self._read_vaults()
-        if data:
-            self.config.set_overrides(*data)
-            return True
 
     def _apply_config_sections(self, local_logger: Any) -> None:
         # noqa: F821
@@ -854,12 +804,14 @@ class Session(TokenManager):
         """Sign an assertion with this device's key and exchange it for a short-lived token."""
         key_path = Path(self.__device_key_path).expanduser() if self.__device_key_path else None
         assertion = device_assertion(self.__device_id, self.host, key_path=key_path)
+        from ..services import devices  # imported here: the services import this module
+
         res = self._send_request(
             service="devices",
             action="exchange",
             version=self.request_version("devices", "exchange"),
             method=Request.def_method,
-            json={"assertion": assertion},
+            json=devices.ExchangeRequest(assertion=assertion).to_dict(),
             refresh_token_if_unauthorized=False,
         )
         if res is None:

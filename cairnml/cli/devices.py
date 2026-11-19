@@ -25,7 +25,8 @@ def list_devices(server_url: str, device_id: str, key_path=None, http=None) -> l
     http = http or ClientSession()
     key_path = Path(key_path or DEVICE_KEY_PATH)
     token = _token_for_device(http, server_url, device_id, key_path)
-    return _call(http, _endpoint(server_url, devices_api.GetAllRequest), {}, token=token)["devices"]
+    body = devices_api.GetAllRequest().to_dict()
+    return _call(http, _endpoint(server_url, devices_api.GetAllRequest), body, token=token)["devices"]
 
 
 def revoke_other_device(server_url: str, device_id: str, target_id: str, key_path=None, http=None) -> dict:
@@ -33,7 +34,8 @@ def revoke_other_device(server_url: str, device_id: str, target_id: str, key_pat
     http = http or ClientSession()
     key_path = Path(key_path or DEVICE_KEY_PATH)
     token = _token_for_device(http, server_url, device_id, key_path)
-    return _call(http, _endpoint(server_url, devices_api.RevokeRequest), {"id": target_id}, token=token)
+    body = devices_api.RevokeRequest(id=target_id).to_dict()
+    return _call(http, _endpoint(server_url, devices_api.RevokeRequest), body, token=token)
 
 
 def _state(device: dict) -> str:

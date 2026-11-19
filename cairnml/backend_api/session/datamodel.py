@@ -57,8 +57,9 @@ class DataModel:
         props = cls._data_props_list
         if props is None:
             props = {}
+            # Only schema properties are data: a plain property (such as Request.method, the HTTP verb) is not sent.
             for c in cls.__mro__:
-                props.update({k: getattr(v, "name", k) for k, v in vars(c).items() if isinstance(v, property)})
+                props.update({k: v.name for k, v in vars(c).items() if isinstance(v, SchemaProperty)})
             cls._data_props_list = props
         return props.copy()
 
