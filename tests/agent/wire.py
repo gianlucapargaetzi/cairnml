@@ -14,6 +14,8 @@ from types import SimpleNamespace
 import requests
 from pyhocon import ConfigFactory
 
+from cairnml.backend_api.services import API_LEVEL
+
 from cairnml_agent.session import Session
 
 
@@ -27,7 +29,7 @@ def answer(data=None, status=200, msg="OK", subcode=0):
     meta = {
         "id": "id-1",
         "trx": "trx-1",
-        "endpoint": {"name": "x.y", "requested_version": "2.41", "actual_version": "2.41"},
+        "endpoint": {"name": "x.y", "requested_version": API_LEVEL, "actual_version": API_LEVEL},
         "result_code": status,
         "result_subcode": subcode,
         "result_msg": msg,

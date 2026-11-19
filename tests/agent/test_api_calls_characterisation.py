@@ -633,6 +633,8 @@ def test_a_task_is_pushed_into_the_pending_queue_and_a_stale_queue_is_made_again
             "status_reason": "k8s pending scheduler",
             "update_execution_queue": False,
             "verify_watched_queue": False,
+            # the generated class sends its schema default for force (the server's default too)
+            "force": False,
         }
     )
     assert ensured == [True]
@@ -793,10 +795,46 @@ def test_the_status_message_of_a_pending_task_is_updated_and_an_in_progress_task
         "include_subprojects": False,
     }
     [enqueue] = session.of("tasks.enqueue")
-    assert enqueue.json == {"task": "task-1", "force": True, "queue": "pending-q"}
+    # the generated class sends its schema defaults too (verify_watched_queue, update_execution_queue): the server's own
+    assert enqueue.json == {
+        "task": "task-1",
+        "force": True,
+        "queue": "pending-q",
+        "verify_watched_queue": False,
+        "update_execution_queue": True,
+    }
     [update] = session.of("tasks.update")
     assert update.json == {"task": "task-1", "status_message": "K8S glue status: waiting", "tags": ["tag"]}
     assert daemon._last_tasks_msgs == {"task-1": ("waiting", ["tag"])}
+
+
+def test_an_older_server_still_gets_the_forced_enqueue_and_the_status_message(monkeypatch):
+    """The definitions before 2.41 do not declare force and status_message, but the server reads them: they go out
+    as before, and the tags are left out when there are none."""
+    from cairnml_agent.session import Session
+
+    monkeypatch.setattr(Session, "max_api_version", "2.31")
+    session = WireSession(
+        {
+            "tasks.get_all": answer({"tasks": [{"status": "in_progress"}]}),
+            "tasks.enqueue": answer({"queued": 1}),
+            "tasks.update": answer({"updated": 1}),
+        }
+    )
+    daemon = pending_pods(session)
+    daemon._update_pending_task_msg("task-1", "waiting")
+    [enqueue] = session.of("tasks.enqueue")
+    assert enqueue.version == "2.31"
+    assert enqueue.json == {
+        "task": "task-1",
+        "force": True,
+        "queue": "pending-q",
+        "verify_watched_queue": False,
+        "update_execution_queue": True,
+    }
+    [update] = session.of("tasks.update")
+    assert update.version == "2.31"  # the level the server runs at; the definition sent is 2.1
+    assert update.json == {"task": "task-1", "status_message": "K8S glue status: waiting"}
 
 
 def test_a_refused_status_message_update_is_logged_and_not_remembered():

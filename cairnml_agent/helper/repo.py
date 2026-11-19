@@ -27,7 +27,7 @@ from cairnml_agent.definitions import (
     ENV_SSH_URL_REPLACEMENT_SCHEME,
 )
 from cairnml_agent.helper.console import ensure_text, ensure_binary
-from cairnml.backend_api.session.request import Request
+from cairnml.backend_api.services import devices as devices_api
 from cairnml_agent.errors import CommandFailedError
 from cairnml_agent.helper.base import (
     select_for_platform,
@@ -845,16 +845,15 @@ class Hg(VCS):
 
 
 def request_git_token(session, task_id):
-    """The server's answer to the Git credential request for the task's repository, or None when there is no answer.
-    Hand-built: the server answers a url (apiserver/bll/repository_access.py:279) that devices.git_token 2.8 does not declare.
     """
-    return session.send_request(
-        service="devices",
-        action="git_token",
-        version=session.request_version("devices", "git_token"),
-        method=Request.def_method,
-        json={"task": task_id},
-    )
+    The server's answer to the Git credential request for the task's repository (a CallResult), or None when the
+    server refuses it. The answer's clone url (apiserver/bll/repository_access.py:279) is read from its data, not from
+    the typed response: the definitions before 2.41 do not declare it, and the typed response would drop it.
+    """
+    result = session.send(session.current(devices_api.GitTokenRequest)(task=task_id))
+    if result is None or not result.ok():
+        return None
+    return result
 
 
 def git_credential_from_answer(res):
@@ -862,11 +861,11 @@ def git_credential_from_answer(res):
     (username, secret) from a successful answer. A public repository is answered with a null token: it has no
     credential, so None is returned and the repository is cloned without an authorization header.
     """
-    data = res.json()["data"]
-    token = data.get("token")
+    response = res.response
+    token = response.token if response else None
     if not token:
         return None
-    return (data.get("username") or GITHUB_APP_USERNAME), token
+    return (response.username or GITHUB_APP_USERNAME), token
 
 
 def fetch_git_credential(session, task_id):
@@ -876,7 +875,7 @@ def fetch_git_credential(session, task_id):
     Returns (username, secret), or None when the server gives no credential (a public repository, or no answer).
     """
     res = request_git_token(session, task_id)
-    if res is None or not res.ok:
+    if res is None:
         return None
     return git_credential_from_answer(res)
 
@@ -945,7 +944,7 @@ def resolve_git_clone(session, repository_url, task_id):
     if not task_id or not wants_stored_credential(repository_url):
         return None, None
     res = request_git_token(session, task_id)
-    if res is None or not res.ok:
+    if res is None:
         print(
             "The server has no Git credential for {}, using the configured credentials".format(
                 furl(repository_url).host
@@ -953,7 +952,7 @@ def resolve_git_clone(session, repository_url, task_id):
         )
         return None, None
     credential = git_credential_from_answer(res)
-    clone_url = res.json()["data"].get("url")
+    clone_url = (res.response_data or {}).get("url")
     if clone_url:
         return clone_url, credential
     if not _is_http_address(repository_url):

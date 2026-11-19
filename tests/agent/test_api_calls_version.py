@@ -133,25 +133,6 @@ def test_no_version_literal_is_passed_to_a_call_or_a_feature_check():
     assert found == []
 
 
-# The calls that stay hand-built, by the function they are in, each with the generator or server issue that blocks
-# its conversion. A call that is converted leaves this list; a new hand-built call fails the test below.
-HAND_BUILT = {
-    # the server answers a url (apiserver/bll/repository_access.py:279,283,288) and the endpoint returns that dict
-    # unchanged (apiserver/services/devices.py:282-314, apiserver/service_repo/apicall.py:632); the response schema
-    # (apiserver/schema/services/devices.conf:227-241) declares token, expires_at and username only
-    ("cairnml_agent/helper/repo.py", "request_git_token"): "devices.git_token: the server answers a url the response "
-    "schema does not declare",
-    # the server reads status_message (apiserver/services/tasks.py:707-715) and force (tasks.py:1025), and the schemas
-    # tasks.update 2.1 (apiserver/schema/services/tasks.conf:1669-1721) and tasks.enqueue 2.31 (tasks.conf:3516-3595)
-    # declare neither field the agent sends
-    (
-        "cairnml_agent/glue/pending_pods_daemon.py",
-        "_update_pending_task_msg",
-    ): "tasks.update: status_message is read by "
-    "the server and not declared; tasks.enqueue: force is read by the server and not declared",
-}
-
-
 def _names_by_string(call):
     """Whether a session call names its service and action by string constants: `send_request` by its first two
     arguments or by keyword, `get` and `post` by the keywords `service` and `action` (other calls, such as
@@ -165,11 +146,10 @@ def _names_by_string(call):
     return constant(keywords.get("service")) and constant(keywords.get("action"))
 
 
-def test_no_call_names_its_service_and_action_by_strings_except_the_listed_hand_built_ones():
+def test_no_call_names_its_service_and_action_by_strings():
     """A call that sends is built from a generated request class (cairnml.backend_api.services.<service>.<Action>Request,
-    at the level the session negotiated), so the agent names no service and action by strings. The calls that cannot
-    be built from a class yet are listed in HAND_BUILT with the reason, so none is left out silently."""
-    found = set()
+    at the level the session negotiated), so the agent names no service and action by strings."""
+    found = []
     for path, tree in _agent_modules():
         for fn in ast.walk(tree):
             if not isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -178,15 +158,12 @@ def test_no_call_names_its_service_and_action_by_strings_except_the_listed_hand_
                 if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)):
                     continue
                 if node.func.attr in ("send_request", "get", "post") and _names_by_string(node):
-                    found.add((path.relative_to(AGENT.parent).as_posix(), fn.name))
-    assert found == set(HAND_BUILT), "hand-built calls not listed: {}; listed but converted: {}".format(
-        sorted(found - set(HAND_BUILT)), sorted(set(HAND_BUILT) - found)
-    )
+                    found.append(f"{path.name}:{node.lineno} in {fn.name}")
+    assert found == []
 
 
-def test_no_hand_built_request_body_outside_the_listed_calls():
-    """A body is not written as a dict literal next to the call that sends it: the request is a generated class. The
-    calls listed in HAND_BUILT are the exception, and only until their generated class exists."""
+def test_no_hand_built_request_body():
+    """A body is not written as a dict literal next to the call that sends it: the request is a generated class."""
     offenders = []
     for path, tree in _agent_modules():
         for fn in ast.walk(tree):
@@ -202,6 +179,6 @@ def test_no_hand_built_request_body_outside_the_listed_calls():
                 literal = literal or (
                     node.func.attr in ("send_api", "send") and bool(node.args) and isinstance(node.args[0], ast.Dict)
                 )
-                if literal and (path.relative_to(AGENT.parent).as_posix(), fn.name) not in HAND_BUILT:
+                if literal:
                     offenders.append(f"{path.name}:{node.lineno} in {fn.name}")
     assert offenders == []

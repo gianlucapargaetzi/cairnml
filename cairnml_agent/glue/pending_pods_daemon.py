@@ -2,7 +2,6 @@ from time import sleep
 from typing import Dict, List, Optional
 
 from cairnml.backend_api.services import tasks as tasks_api
-from cairnml.backend_api.session.request import Request
 from cairnml_agent.errors import APIError
 from cairnml_agent.glue.utilities import get_bash_output
 
@@ -209,30 +208,32 @@ class PendingPodsDaemon(K8sDaemon):
                     tasks = {}
                 status = get_path(tasks, "tasks", 0, "status")
                 if status == "in_progress":
-                    # hand-built: the server reads force (apiserver/services/tasks.py:1025), tasks.enqueue 2.31 does not declare it
-                    result = self._session.send_request(
-                        service="tasks",
-                        action="enqueue",
-                        json={"task": task_id, "force": True, "queue": self._agent.k8s_pending_queue_id},
-                        method=Request.def_method,
-                    )
-                    if not result.ok:
-                        result_msg = get_path(result.json(), "meta", "result_msg")
+                    try:
+                        self._session.send_api(
+                            self._session.current(tasks_api.EnqueueRequest)(
+                                task=task_id,
+                                force=True,
+                                queue=self._agent.k8s_pending_queue_id,
+                                # force is declared from definition 2.41 on; an older server reads it all the same
+                                _allow_extra_fields_=True,
+                            )
+                        )
+                    except APIError as ex:
                         self.log.debug(
                             "K8S Glue pods monitor: failed forcing task status change for pending task {}: {}".format(
-                                task_id, result_msg
+                                task_id, ex.message
                             )
                         )
 
             # Update task status message
-            payload = {"task": task_id, "status_message": "K8S glue status: {}".format(msg)}
-            if tags:
-                payload["tags"] = tags
-            # hand-built: the server reads status_message (apiserver/services/tasks.py:707-715), tasks.update 2.1 does not declare it
-            result = self._session.send_request("tasks", "update", json=payload, method=Request.def_method)
-            if not result.ok:
-                result_msg = get_path(result.json(), "meta", "result_msg")
-                raise Exception(result_msg or result.text)
+            # status_message is declared from definition 2.41 on; an older server reads it all the same
+            update = self._session.current(tasks_api.UpdateRequest)(
+                task=task_id,
+                status_message="K8S glue status: {}".format(msg),
+                tags=tags or None,
+                _allow_extra_fields_=True,
+            )
+            self._session.send_api(update)
 
             self._agent.send_logs(task_id, ["Kubernetes Pod status: {}".format(msg)], session=self._session)
 

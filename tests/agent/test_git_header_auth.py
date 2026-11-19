@@ -3,12 +3,12 @@ import os
 import subprocess
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from types import SimpleNamespace
 
 import pytest
 
-from cairnml_agent.backend_api.session.session import Session
 from cairnml_agent.helper.repo import Git, fetch_git_token, github_header, scrub_token
+
+from .wire import WireSession, answer
 
 TOKEN = "ghs_exampletoken123"
 
@@ -55,21 +55,14 @@ def test_git_output_with_the_token_is_scrubbed_by_the_repository():
 
 
 def test_fetching_the_token_asks_the_server_for_the_tasks_repository():
-    class Reply:
-        ok = True
-
-        def json(self):
-            return {"data": {"token": TOKEN}}
-
-    session = SimpleNamespace(send_request=lambda **kwargs: Reply(), request_version=Session.request_version)
+    session = WireSession({"devices.git_token": answer({"token": TOKEN})})
     assert fetch_git_token(session, "task-1") == TOKEN
+    [call] = session.of("devices.git_token")
+    assert call.json == {"task": "task-1"}
 
 
 def test_a_missing_token_is_none_so_the_configured_credentials_are_used():
-    class Reply:
-        ok = False
-
-    session = SimpleNamespace(send_request=lambda **kwargs: Reply(), request_version=Session.request_version)
+    session = WireSession({"devices.git_token": answer(status=400, msg="refused")})
     assert fetch_git_token(session, "task-1") is None
 
 
