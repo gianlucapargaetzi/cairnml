@@ -7,8 +7,6 @@ Provides a management API for tasks in the system.
 from typing import List, Optional, Any
 import enum
 import six
-from datetime import datetime
-from dateutil.parser import parse as parse_datetime
 from cairnml.backend_api.session import (
     Request,
     Response,
