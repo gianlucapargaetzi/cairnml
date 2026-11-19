@@ -35,6 +35,7 @@ from urllib.parse import quote  # noqa
 from cairnml.backend_api.services import queues as queues_api
 from cairnml.backend_api.services import tasks as tasks_api
 from cairnml.backend_api.services import workers as workers_api
+from cairnml.backend_config.utils import apply_environment, apply_files
 from cairnml.idp.device import secure_folder
 from cairnml_agent.backend_api.session.defs import (
     ENV_ENABLE_ENV_CONFIG_SECTION,
@@ -44,7 +45,6 @@ from cairnml_agent.backend_api.session.defs import (
     ENV_MULTI_NODE_SINGLE_TASK,
 )
 from cairnml_agent.backend_config.config import Config
-from cairnml_agent.backend_config.utils import apply_environment, apply_files
 from cairnml_agent.helper.environment.converters import text_to_int
 from cairnml_agent.commands.base import resolve_names, ServiceCommandSection
 from cairnml_agent.commands.resolver import resolve_default_container
