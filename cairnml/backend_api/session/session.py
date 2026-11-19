@@ -96,6 +96,9 @@ class Session(TokenManager):
     default_host = "http://localhost/cairnml/api"
     default_web = "http://localhost/cairnml"
 
+    # Connection retries for the sign-in at start-up only; None keeps the configured policy. A subclass may set it.
+    _startup_connect_retries = None
+
     # TODO: add requests.codes.gateway_timeout once we support async commits
     _retry_codes = [
         requests.codes.bad_gateway,
@@ -220,7 +223,7 @@ class Session(TokenManager):
             token_expiration_threshold_sec=token_expiration_threshold_sec,
             req_token_expiration_sec=req_token_expiration_sec,
         )
-        self.refresh_token()
+        self._sign_in_at_startup()
 
         local_logger = self._LocalLogger(self._logger)
 
@@ -269,6 +272,22 @@ class Session(TokenManager):
                 )
             Request.def_method = def_method
             Request._method = Request.def_method
+
+    def _sign_in_at_startup(self) -> None:
+        if self._startup_connect_retries is None:
+            self.refresh_token()
+            return
+        configured = self.__http_retries_config
+        self.__http_retries_config = {
+            **configured,
+            "connect": self._startup_connect_retries,
+        }
+        self.__http_session = self.__new_http_session()
+        try:
+            self.refresh_token()
+        finally:
+            self.__http_retries_config = configured
+            self.__http_session = self.__new_http_session()
 
     def _get_retry_codes(self) -> List[int]:
         retry_codes = set(self._retry_codes)
