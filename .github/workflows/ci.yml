@@ -75,6 +75,7 @@ jobs:
           path: server
           sparse-checkout: |
             apiserver/__init__.py
+            apiserver/schema_rules.py
             apiserver/client_generator
             apiserver/schema/services
           sparse-checkout-cone-mode: false
