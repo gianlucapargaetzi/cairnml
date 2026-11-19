@@ -1,22 +1,15 @@
-"""The device's key, and the short-lived assertion it signs to ask the server for a token."""
+"""The agent's device key: its place, the check that a job cannot reach it, and the assertion it signs.
 
-import os
+Writing the key (secure_folder, save_device_key) and signing are the SDK's (cairnml.idp.device); what stays here is
+the agent's own key, apart from the SDK's ~/.cairnml/device.key, and the job-folder check, which only an agent needs.
+"""
+
 from pathlib import Path
 
-from cairnml.idp.assertion import make_assertion
-from cairnml.idp.keys import read_private_key, write_private_key
+from cairnml.idp.device import device_assertion as sdk_device_assertion
 
 # The agent has its own key, apart from the CairnML SDK's ~/.cairnml/device.key
 DEVICE_KEY_PATH = Path.home() / ".cairnml" / "agent" / "device.key"
-# Long enough to reach the server, short enough that a leaked assertion is useless soon after.
-ASSERTION_TTL_SEC = 60
-
-
-def secure_folder(folder) -> None:
-    """Create the agent's folder, and make it accessible by its owner only."""
-    folder = Path(folder)
-    folder.mkdir(parents=True, exist_ok=True)
-    os.chmod(folder, 0o700)
 
 
 def exposes_device_key(folder, key_path=None) -> bool:
@@ -27,11 +20,6 @@ def exposes_device_key(folder, key_path=None) -> bool:
     return host == key or host in key.parents
 
 
-def save_device_key(path, key) -> None:
-    """Write a new device key, readable by its owner only."""
-    write_private_key(path, key)
-
-
 def device_assertion(device_id: str, audience: str, key_path=None) -> str:
-    key = read_private_key(key_path or DEVICE_KEY_PATH)
-    return make_assertion(key, device_id, audience, ttl=ASSERTION_TTL_SEC)
+    """The SDK's signed assertion, with the agent's key unless another is given."""
+    return sdk_device_assertion(device_id, audience, key_path or DEVICE_KEY_PATH)

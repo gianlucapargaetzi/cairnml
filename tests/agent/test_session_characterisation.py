@@ -10,6 +10,7 @@ import jwt
 import pytest
 import requests
 from cairnml.backend_api.session.session import Session as SdkSession
+from cairnml.idp.device import save_device_key, secure_folder
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from cairnml_agent.backend_api.config import load
@@ -167,7 +168,7 @@ def test_the_configured_device_id_is_read(monkeypatch, tmp_path, wire):
     config = load()
     config.put("api.idp.device_id", "dev_cfg")
     key = tmp_path / "device.key"
-    agent_device.save_device_key(key, Ed25519PrivateKey.generate())
+    save_device_key(key, Ed25519PrivateKey.generate())
     with mock.patch.object(agent_device, "DEVICE_KEY_PATH", key):
         wire.reply = Reply(200, {"data": {"access_token": token(api_version="2.9")}})
         session = Session(config=config, host=HOST)
@@ -321,7 +322,7 @@ def test_the_job_token_file_is_read_again_on_every_refresh(monkeypatch, tmp_path
 def test_a_device_exchange_is_sent_at_version_2_8_and_signed_for_the_host(monkeypatch, tmp_path, wire):
     key_path = tmp_path / "device.key"
     key = Ed25519PrivateKey.generate()
-    agent_device.save_device_key(key_path, key)
+    save_device_key(key_path, key)
     config = load()
     config.put("api.idp.device_id", "dev_agent")
     monkeypatch.delenv("CAIRNML_AUTH_TOKEN", raising=False)
@@ -346,8 +347,8 @@ def test_a_device_exchange_is_sent_at_version_2_8_and_signed_for_the_host(monkey
 def test_a_device_key_read_from_the_agent_folder_is_the_key_the_exchange_uses(monkeypatch, tmp_path, wire):
     """The agent's own key path is read when the session is made, not the SDK's default key."""
     key_path = tmp_path / "agent" / "device.key"
-    agent_device.secure_folder(key_path.parent)
-    agent_device.save_device_key(key_path, Ed25519PrivateKey.generate())
+    secure_folder(key_path.parent)
+    save_device_key(key_path, Ed25519PrivateKey.generate())
     config = load()
     config.put("api.idp.device_id", "dev_agent")
     monkeypatch.delenv("CAIRNML_AUTH_TOKEN", raising=False)
@@ -359,7 +360,7 @@ def test_a_device_key_read_from_the_agent_folder_is_the_key_the_exchange_uses(mo
 
 def test_a_refused_device_exchange_is_a_login_error_with_the_server_reason(monkeypatch, tmp_path, wire):
     key_path = tmp_path / "device.key"
-    agent_device.save_device_key(key_path, Ed25519PrivateKey.generate())
+    save_device_key(key_path, Ed25519PrivateKey.generate())
     config = load()
     config.put("api.idp.device_id", "dev_agent")
     monkeypatch.delenv("CAIRNML_AUTH_TOKEN", raising=False)

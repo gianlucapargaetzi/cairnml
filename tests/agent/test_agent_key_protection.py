@@ -5,11 +5,12 @@ import stat
 from pathlib import Path
 
 import pytest
+from cairnml.idp.device import secure_folder
 from cairnml.idp.enrol import _replace_key
 from cairnml.idp.keys import generate_private_key
 
 from cairnml_agent.commands.worker import check_job_mounts, job_environment
-from cairnml_agent.idp.device import DEVICE_KEY_PATH, exposes_device_key, secure_folder
+from cairnml_agent.idp.device import DEVICE_KEY_PATH, exposes_device_key
 
 
 def test_the_agent_folder_is_readable_by_its_owner_only(tmp_path):

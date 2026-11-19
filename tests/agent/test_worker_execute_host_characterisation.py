@@ -60,7 +60,6 @@ class Session:
         self.config_file = "/tmp/unused.conf"
         self.debug_mode = False
         self.trace = False
-        self.pre_vault_config = self.config
 
     def print_configuration(self):
         self.calls.append(("print_configuration",))

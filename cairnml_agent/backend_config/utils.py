@@ -1,3 +1,15 @@
+"""The top-level ``environment`` and ``files`` sections of the configuration, applied for the agent.
+
+The SDK has functions of the same names (cairnml.backend_config.utils), but not the same behaviour, so the agent keeps
+its own:
+- apply_files sets the file mode given as ``mode`` (documented in the agent's default configuration); the SDK's does
+  not read it;
+- apply_environment writes a false value (0, False) as text, and only None as an empty value; the SDK's writes every
+  false value as an empty value.
+tests/test_backend_config_utils.py pins both. The two helpers that were in this module besides (get_items, get_options)
+were the SDK's, unused here, and are gone.
+"""
+
 import base64
 import os
 from os.path import expandvars, expanduser
@@ -8,16 +20,6 @@ from typing import List, TYPE_CHECKING  # noqa: F401  # named by type comments
 
 if TYPE_CHECKING:
     from .config import Config  # noqa: F401  # named by type comments
-
-
-def get_items(cls):
-    """get key/value items from an enum-like class (members represent enumeration key/value)"""
-    return {k: v for k, v in vars(cls).items() if not k.startswith("_")}
-
-
-def get_options(cls):
-    """get options from an enum-like class (members represent enumeration key/value)"""
-    return get_items(cls).values()
 
 
 def apply_environment(config):

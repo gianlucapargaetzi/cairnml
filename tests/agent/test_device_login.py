@@ -1,7 +1,10 @@
+import base64
+import hashlib
+
 import pytest
 
 from cairnml.idp.browser_login import LoginFailed, LoginPortBusy
-from cairnml_agent.idp.device_login import device_login
+from cairnml.idp.device_login import browser_or_device_login, device_login
 
 
 class Reply:
@@ -92,10 +95,59 @@ def test_a_provider_without_the_device_grant_is_reported_clearly():
         run(session)
 
 
-def test_the_cli_uses_the_device_code_when_asked_or_when_no_browser_is_there(monkeypatch):
-    from cairnml_agent.idp.device_login import browser_or_device_login
+def test_discovery_and_device_request_carry_the_pkce_challenge_and_the_client():
+    session = FakeSession([Reply(200, {"access_token": "tok"})])
+    run(session)
+    (device_url, device_data), (token_url, token_data) = session.calls
+    assert device_url == "https://idp/device-auth"
+    assert device_data["client_id"] == "cairnml-sdk" and device_data["scope"] == "openid"
+    assert device_data["code_challenge_method"] == "S256"
+    # the challenge is the S256 of the verifier that the token request sends
+    digest = hashlib.sha256(token_data["code_verifier"].encode()).digest()
+    assert device_data["code_challenge"] == base64.urlsafe_b64encode(digest).rstrip(b"=").decode()
+    assert token_url == "https://idp/token"
+    assert token_data["device_code"] == "dc" and token_data["client_id"] == "cairnml-sdk"
 
-    import cairnml_agent.idp.device_login as mod
+
+def test_the_plain_address_is_shown_when_no_complete_address_is_given():
+    device = {"device_code": "dc", "user_code": "WXYZ", "verification_uri": "https://idp/device", "interval": 1}
+    _, lines = run(FakeSession([Reply(200, {"access_token": "tok"})], device=device))
+    assert lines[0] == "To sign in, open https://idp/device on any device and enter the code WXYZ."
+    assert lines[1] == "Waiting for the sign-in to complete..."
+
+
+def test_a_device_request_that_is_refused_is_reported_with_the_reason():
+    class Refusing(FakeSession):
+        def post(self, url, data, timeout):
+            return Reply(400, {"error": "invalid_client", "error_description": "unknown client"})
+
+    with pytest.raises(LoginFailed, match="unknown client"):
+        run(Refusing([]))
+
+
+def test_the_sign_in_gives_up_when_the_code_expires():
+    session = FakeSession([Reply(400, {"error": "authorization_pending"})] * 5)
+    with pytest.raises(LoginFailed, match="sign-in timed out"):
+        # the clock passes the deadline (expires_in, capped by the time-out) after the first poll
+        device_login(
+            "https://idp",
+            "cairnml-sdk",
+            session=session,
+            out=lambda m: None,
+            timeout=2.0,
+            sleep=lambda s: None,
+            clock=iter([0.0, 1.0, 3.0]).__next__,
+        )
+    assert len([1 for _, data in session.calls if "device_code" in data]) == 1
+
+
+def test_an_unknown_token_error_is_reported_by_its_code():
+    with pytest.raises(LoginFailed, match="expired_token"):
+        run(FakeSession([Reply(400, {"error": "expired_token"})]))
+
+
+def test_the_cli_uses_the_device_code_when_asked_or_when_no_browser_is_there(monkeypatch):
+    import cairnml.cli.enrolment as mod
 
     monkeypatch.setattr(mod.sys, "platform", "linux")
     monkeypatch.delenv("DISPLAY", raising=False)
@@ -107,9 +159,19 @@ def test_the_cli_uses_the_device_code_when_asked_or_when_no_browser_is_there(mon
     assert mod.choose_login(device=False) is browser_or_device_login
     assert mod.choose_login(device=True) is device_login
 
+    monkeypatch.delenv("DISPLAY")
+    monkeypatch.setenv("WAYLAND_DISPLAY", "wayland-0")
+    assert mod.choose_login(device=False) is browser_or_device_login
+
+    # other systems than Linux can always open a browser
+    monkeypatch.delenv("WAYLAND_DISPLAY")
+    monkeypatch.setattr(mod.sys, "platform", "darwin")
+    assert mod.choose_login(device=False) is browser_or_device_login
+    assert mod.choose_login(device=True) is device_login
+
 
 def test_a_busy_browser_port_falls_back_to_the_device_code(monkeypatch):
-    import cairnml_agent.idp.device_login as module
+    import cairnml.idp.device_login as module
 
     def busy_browser(issuer, client_id, **kwargs):
         raise LoginPortBusy("port 8765 on 127.0.0.1 is in use")
@@ -123,7 +185,7 @@ def test_a_busy_browser_port_falls_back_to_the_device_code(monkeypatch):
 
 
 def test_other_browser_failures_are_not_replaced_by_the_device_code(monkeypatch):
-    import cairnml_agent.idp.device_login as module
+    import cairnml.idp.device_login as module
 
     def refused(issuer, client_id, **kwargs):
         raise LoginFailed("not allowed")

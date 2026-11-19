@@ -10,12 +10,12 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 import requests
+from cairnml.cli.enrolment import choose_login
 from cairnml.idp.enrol import EnrolmentFailed, enrol
 from pyhocon import ConfigFactory
 
 from cairnml_agent.backend_config.defs import LOCAL_CONFIG_FILE_OVERRIDE_VAR, LOCAL_CONFIG_FILES
 from cairnml_agent.idp import device as agent_device
-from cairnml_agent.idp.device_login import choose_login
 
 
 def default_config_file():

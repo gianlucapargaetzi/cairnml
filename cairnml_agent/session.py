@@ -156,16 +156,14 @@ class Session(_Session):
             env_key = ConfigValue(self.config, config_key)
             env_key.set(value)
 
-        # initialize cuda versions
-        try:
-            from cairnml_agent.helper.package.requirements import RequirementsManager
+        # initialize cuda versions; the detection answers "0" for what it does not find, so an error in it is raised:
+        # a start without the versions would pick the job's CPU packages without a word
+        from cairnml_agent.helper.package.requirements import RequirementsManager
 
-            agent = self.config["agent"]
-            agent["cuda_version"], agent["cudnn_version"] = (
-                RequirementsManager.get_cuda_version(self.config) if not cpu_only else ("0", "0")
-            )
-        except Exception:
-            pass
+        agent = self.config["agent"]
+        agent["cuda_version"], agent["cudnn_version"] = (
+            RequirementsManager.get_cuda_version(self.config) if not cpu_only else ("0", "0")
+        )
 
         # initialize worker name
         worker_name = ConfigValue(self.config, "agent.worker_name")
@@ -250,8 +248,9 @@ class Session(_Session):
             folder_key.set(folder.as_posix())
             try:
                 folder.mkdir(parents=True, exist_ok=True)
-            except Exception:
-                pass
+            except OSError as ex:
+                # a cache that is not needed must not stop the agent, but the person is told why it is missing
+                self.log.warning(f"Could not create the folder {folder} ({key}): {ex}")
 
     def print_configuration(self):
         def load_config(key, default):

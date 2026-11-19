@@ -2,11 +2,10 @@ from pathlib import Path
 
 import jwt
 import pytest
+from cairnml.idp.device import save_device_key, secure_folder
 from cairnml.idp.enrol import EnrolmentFailed, enrol, revoke_device
 from cairnml.idp.keys import load_public_key
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
-
-from cairnml_agent.idp.device import save_device_key
 
 PUBLIC = "http://cairnml:8008"
 API = "http://localhost:8008"  # the address typed on the command line; the server's own address wins
@@ -167,8 +166,6 @@ def test_a_wrong_address_says_which_address_to_give(tmp_path):
 
 def test_the_key_folder_is_created_for_its_owner_only(tmp_path):
     import stat
-
-    from cairnml_agent.idp.device import secure_folder
 
     folder = tmp_path / "a" / ".cairnml"
     secure_folder(folder)

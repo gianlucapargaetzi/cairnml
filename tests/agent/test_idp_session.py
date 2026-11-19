@@ -3,10 +3,11 @@ from unittest import mock
 
 import jwt
 import pytest
+from cairnml.idp.device import save_device_key
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from cairnml_agent.backend_api.session.session import LoginError, Session
-from cairnml_agent.idp.device import device_assertion, save_device_key
+from cairnml_agent.idp.device import device_assertion
 
 HOST = "https://api.example"
 DEVICE = "dev_agent"

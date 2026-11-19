@@ -36,6 +36,7 @@ from cairnml.backend_api.services import queues as queues_api
 from cairnml.backend_api.services import tasks as tasks_api
 from cairnml.backend_api.session.callresult import CallResult
 from cairnml.backend_api.session.request import Request
+from cairnml.idp.device import secure_folder
 from cairnml_agent.backend_api.session.defs import (
     ENV_ENABLE_ENV_CONFIG_SECTION,
     ENV_ENABLE_FILES_CONFIG_SECTION,
@@ -177,7 +178,7 @@ from cairnml_agent.helper.repo import (
 from cairnml_agent.helper.resource_monitor import ResourceMonitor
 from cairnml_agent.helper.singleton import Singleton
 from cairnml_agent.helper.docker_args import DockerArgsSanitizer, DockerArgsTemplateResolver
-from cairnml_agent.idp.device import DEVICE_KEY_PATH, exposes_device_key, secure_folder
+from cairnml_agent.idp.device import DEVICE_KEY_PATH, exposes_device_key
 from cairnml_agent.session import Session
 from .events import Events
 from cairnml_agent.commands import bootstrap
@@ -1360,11 +1361,7 @@ class Worker(ServiceCommandSection):
         )
 
         docker_image = None
-        worker_id = (
-            "{}:service:{}".format(self.worker_id, task_id)
-            if self._services_mode
-            else self.worker_id
-        )
+        worker_id = "{}:service:{}".format(self.worker_id, task_id) if self._services_mode else self.worker_id
 
         if self.docker_image_func:
             # noinspection PyBroadException
@@ -1457,7 +1454,6 @@ class Worker(ServiceCommandSection):
                 docker_params["docker_arguments"] = docker_args_template_resolver.resolve_from_docker_cmd(
                     full_docker_cmd=docker_params["docker_arguments"]
                 )
-
 
             full_docker_cmd = self.docker_image_func(env_task_id=task_id, **docker_params)
 
@@ -1792,7 +1788,6 @@ class Worker(ServiceCommandSection):
         self.is_daemon = True
 
         self._worker_tags = kwargs.get("child_report_tags", None)
-
 
         self._standalone_mode = kwargs.get("standalone_mode", False)
         self._polling_interval = ENV_QUEUE_POLL_FREQ_SEC.get() or max(kwargs.get("polling_interval", 5), 5)
@@ -2875,7 +2870,7 @@ class Worker(ServiceCommandSection):
                 name_only=True,
                 dir=(ENV_TEMP_STDOUT_FILE_DIR.get() or None),
             )
-            self.dump_config(filename=self.temp_config_path, config=self._session.pre_vault_config)
+            self.dump_config(filename=self.temp_config_path)
             self._session._config_file = self.temp_config_path
 
         worker_params = WorkerParams(
@@ -4510,9 +4505,7 @@ class Worker(ServiceCommandSection):
             self._host_ssh_cache = mkdtemp(prefix="cairnml_agent.ssh.")
             self._temp_cleanup_list.append(self._host_ssh_cache)
 
-        return temp_config, partial(
-            self._get_docker_config_cmd, temp_config=temp_config
-        )
+        return temp_config, partial(self._get_docker_config_cmd, temp_config=temp_config)
 
     def _get_docker_config_cmd(self, temp_config, **kwargs):
         self.debug("Setting up docker config command")
