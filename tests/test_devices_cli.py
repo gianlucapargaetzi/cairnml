@@ -4,7 +4,7 @@ import pytest
 import requests
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
-from cairnml.backend_api.services import devices as devices_api
+from cairnml.backend_api.services import API_LEVEL
 from cairnml.cli import __main__ as cli
 from cairnml.cli import devices
 from cairnml.idp.device import save_device_key
@@ -155,7 +155,8 @@ def test_list_devices_calls_get_all_with_the_devices_own_token(tmp_path):
     save_device_key(key, Ed25519PrivateKey.generate())
     assert devices.list_devices(PUBLIC, "dev_1", key_path=key, http=server) == DEVICES
     url, body, headers = server.calls[-1]
-    assert url == f"{PUBLIC}/v{devices_api.GetAllRequest._version}/devices.get_all"
+    # at the negotiated level, not the label of the definition (2.8)
+    assert url == f"{PUBLIC}/v{API_LEVEL}/devices.get_all"
     assert headers["Authorization"] == "Bearer device-token"
 
 

@@ -5,11 +5,12 @@ schema (cairnml-server#136): the classes keep their names and fields, and only t
 
 import pytest
 
-from cairnml.backend_api.services import queues
+from cairnml.backend_api.services import API_LEVEL, queues
 from cairnml.backend_api.session import Session
 
-# The newest declared version of queues.get_all (a request is sent at the version of its class). The generator labels
-# the definitions by the version in which they began: the last change of queues.get_all is 2.21.
+# The newest declared version of queues.get_all. The generator labels the definitions by the version in which they
+# began: the last change of queues.get_all is 2.21. The request is not sent at that label but at the negotiated API
+# level (API_LEVEL here), see tests/test_session_api_version.py.
 GET_ALL_VERSION = "2.21"
 
 
@@ -59,10 +60,11 @@ def test_a_response_parses_its_nested_models():
     assert response.queues[0].name == "n"
 
 
-def test_sending_posts_to_the_version_of_the_request_class_and_parses_the_answer():
+def test_sending_posts_at_the_negotiated_level_and_parses_the_answer():
     session = _RecordingSession({"queues": [{"id": "1", "name": "n"}]})
     result = session.send(queues.GetAllRequest())
     (call,) = session.calls
     assert (call["service"], call["action"]) == ("queues", "get_all")
-    assert call["version"] == queues.GetAllRequest._version == GET_ALL_VERSION
+    assert queues.GetAllRequest._version == GET_ALL_VERSION
+    assert call["version"] == API_LEVEL
     assert result.response.queues[0].name == "n"

@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 
+from cairnml.backend_api.services import API_LEVEL
 from cairnml.cli.dataset import __main__ as dataset_cli
 from cairnml.datasets import Dataset, DatasetCache, DatasetError, DatasetRepo, SampleWriter, footprint
 from cairnml.backend_api.session.defs import MissingConfigError
@@ -666,7 +667,8 @@ def test_adding_a_repository_asks_the_server_to_list_it_as_the_users_own_dataset
 
     credentials.register_dataset("https://github.com/acme/cars.git", None, Session())
 
-    assert asked == [("repositories", "add", {"url": "https://github.com/acme/cars.git", "role": "dataset"}, "2.40")]
+    # at the negotiated level (the SDK's), not the label of the definition (2.40)
+    assert asked == [("repositories", "add", {"url": "https://github.com/acme/cars.git", "role": "dataset"}, API_LEVEL)]
 
 
 def test_adding_a_repository_with_a_credential_sends_the_credential_it_is_read_with(monkeypatch):

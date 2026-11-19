@@ -6,8 +6,9 @@ import jwt
 import pytest
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
+from cairnml.backend_api.services import API_LEVEL, resolve
 from cairnml.backend_api.services import devices as devices_api
-from cairnml.backend_api.services import users as users_api
+from cairnml.backend_api.session import Session
 from cairnml.cli import devices as cli_devices
 from cairnml.cli import doctor as cli_doctor
 from cairnml.idp import enrol as enrol_module
@@ -21,8 +22,9 @@ API = "http://localhost:8008"  # the address typed on the command line; the serv
 
 
 def endpoint(request_cls, server=PUBLIC):
-    """The URL of a generated request class, at the version that class implements."""
-    return f"{server}/v{request_cls._version}/{request_cls._service}.{request_cls._action}"
+    """The URL of a generated request class, at the negotiated API level (not the label of the class, which is the
+    version its definition began at: devices.* are 2.8, and a client asks for the level it was generated for)."""
+    return f"{server}/v{API_LEVEL}/{request_cls._service}.{request_cls._action}"
 
 
 def token_for(user):
@@ -179,11 +181,10 @@ def test_the_key_folder_is_created_for_its_owner_only(tmp_path):
     assert stat.S_IMODE(folder.stat().st_mode) == 0o700
 
 
-def test_each_call_takes_its_version_from_its_request_class(tmp_path, monkeypatch):
-    """The version is read from the generated class, not written here: a changed class moves the call with it."""
-    for request_cls in (devices_api.IdpSettingsRequest, devices_api.ExchangeRequest, devices_api.RevokeRequest,
-                        devices_api.EnrollRequest, users_api.GetCurrentUserRequest):
-        monkeypatch.setattr(request_cls, "_version", "7.7")
+def test_each_call_takes_its_version_from_the_negotiated_level(tmp_path, monkeypatch):
+    """The version on the wire is the negotiated level, read from Session, not written here and not the label of the
+    request class: a server that reports a lower level moves every call to that level."""
+    monkeypatch.setattr(Session, "max_api_version", "2.30")
     key_path = tmp_path / "device.key"
     save_device_key(key_path, Ed25519PrivateKey.generate())
     server = FakeServer()
@@ -192,13 +193,24 @@ def test_each_call_takes_its_version_from_its_request_class(tmp_path, monkeypatc
     enrol_module.whoami(PUBLIC, "dev_1", key_path=key_path, http=server)
     urls = [url for url, _, _ in server.calls]
     assert urls == [
-        API + "/v7.7/devices.idp_settings",
-        PUBLIC + "/v7.7/devices.enroll",
-        PUBLIC + "/v7.7/devices.exchange",
-        PUBLIC + "/v7.7/devices.revoke",
-        PUBLIC + "/v7.7/devices.exchange",
-        PUBLIC + "/v7.7/users.get_current_user",
+        API + "/v2.30/devices.idp_settings",
+        PUBLIC + "/v2.30/devices.enroll",
+        PUBLIC + "/v2.30/devices.exchange",
+        PUBLIC + "/v2.30/devices.revoke",
+        PUBLIC + "/v2.30/devices.exchange",
+        PUBLIC + "/v2.30/users.get_current_user",
     ]
+
+
+@pytest.mark.parametrize("request_cls", [devices_api.IdpSettingsRequest, devices_api.ExchangeRequest,
+                                         devices_api.RevokeRequest, devices_api.EnrollRequest,
+                                         devices_api.GetAllRequest])
+def test_the_enrolment_calls_use_the_same_definition_at_every_level_they_are_sent_at(request_cls):
+    """The devices.* definitions began at 2.8 and have not changed: the generated class is the same one at the
+    SDK's level and at a lower server level, so sending at the level does not change what they mean. (users.get_current_user
+    is not in this list: it changed at 2.31, so a server below that serves its older definition.)"""
+    for level in ("2.41", "2.30", "2.12"):
+        assert resolve(request_cls._service, request_cls._action, level)[0] is request_cls
 
 
 def test_no_hand_written_call_carries_an_api_version_literal():
