@@ -31,7 +31,8 @@ def apply_environment(config: "Config") -> List[str]:
     keys = list(filter(None, env_vars.keys()))
 
     for key in keys:
-        os.environ[str(key)] = str(env_vars[key] or "")
+        value = env_vars[key]
+        os.environ[str(key)] = str(value if value is not None else "")
 
     return keys
 
@@ -52,6 +53,7 @@ def apply_files(config: "Config") -> None:
         target_fmt = data.get("target_format", "string")
         overwrite = bool(data.get("overwrite", True))
         contents = data.get("contents")
+        mode = data.get("mode", None)
 
         target = Path(expanduser(expandvars(path)))
 
@@ -109,4 +111,15 @@ def apply_files(config: "Config") -> None:
             print(f"Saved [{key}]: {target}")
         except Exception as ex:
             print(f"Skipped [{key}]: failed saving file {target} ({ex})")
+            continue
+
+        try:
+            if mode:
+                if isinstance(mode, int):
+                    mode = int(str(mode), 8)
+                else:
+                    mode = int(mode, 8)
+                target.chmod(mode)
+        except Exception as ex:
+            print(f"Skipped [{key}]: failed setting mode {mode} for {target} ({ex})")
             continue
