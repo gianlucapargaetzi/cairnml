@@ -7988,6 +7988,8 @@ class EnqueueRequest(Request):
 
     :param task: Task ID
     :type task: str
+    :param force: If true, the task is queued even when its status does not allow it: the status transition is not checked
+    :type force: bool
     :param queue: Queue id. If not provided and no queue name is passed then task is added to the default queue.
     :type queue: str
     :param status_reason: Reason for status change
@@ -8004,10 +8006,15 @@ class EnqueueRequest(Request):
 
     _service = "tasks"
     _action = "enqueue"
-    _version = "2.31"
+    _version = "2.41"
     _schema = {
         "definitions": {},
         "properties": {
+            "force": {
+                "default": False,
+                "description": "If true, the task is queued even when its status does not allow it: the status transition is not checked",
+                "type": "boolean",
+            },
             "queue": {
                 "description": "Queue id. If not provided and no queue name is passed then task is added to the default queue.",
                 "type": "string",
@@ -8040,6 +8047,7 @@ class EnqueueRequest(Request):
     def __init__(
         self,
         task: str,
+        force: Optional[bool] = False,
         queue: Optional[str] = None,
         status_reason: Optional[str] = None,
         status_message: Optional[str] = None,
@@ -8050,6 +8058,7 @@ class EnqueueRequest(Request):
     ) -> None:
         super(EnqueueRequest, self).__init__(**kwargs)
         self.task = task
+        self.force = force
         self.queue = queue
         self.status_reason = status_reason
         self.status_message = status_message
@@ -8068,6 +8077,18 @@ class EnqueueRequest(Request):
             return
         self.assert_isinstance(value, "task", six.string_types)
         self._property_task = value
+
+    @schema_property("force")
+    def force(self) -> Optional[bool]:
+        return self._property_force
+
+    @force.setter
+    def force(self, value: Optional[bool]) -> None:
+        if value is None:
+            self._property_force = None
+            return
+        self.assert_isinstance(value, "force", (bool,))
+        self._property_force = value
 
     @schema_property("queue")
     def queue(self) -> Optional[str]:
@@ -8158,7 +8179,7 @@ class EnqueueResponse(Response):
 
     _service = "tasks"
     _action = "enqueue"
-    _version = "2.31"
+    _version = "2.41"
     _schema = {
         "definitions": {},
         "properties": {
@@ -15472,6 +15493,8 @@ class UpdateRequest(Request):
 
     :param task: ID of the task
     :type task: str
+    :param status_message: Extra information regarding status change
+    :type status_message: str
     :param name: Task name Unique within the company.
     :type name: str
     :param display_name: Label of this experiment. Shown instead of the task name when present
@@ -15492,7 +15515,7 @@ class UpdateRequest(Request):
 
     _service = "tasks"
     _action = "update"
-    _version = "2.1"
+    _version = "2.41"
     _schema = {
         "definitions": {},
         "properties": {
@@ -15510,6 +15533,10 @@ class UpdateRequest(Request):
             "output__error": {"description": "Free text error", "type": "string"},
             "project": {
                 "description": "Project ID of the project to which this task is assigned",
+                "type": "string",
+            },
+            "status_message": {
+                "description": "Extra information regarding status change",
                 "type": "string",
             },
             "system_tags": {
@@ -15531,6 +15558,7 @@ class UpdateRequest(Request):
     def __init__(
         self,
         task: str,
+        status_message: Optional[str] = None,
         name: Optional[str] = None,
         display_name: Optional[str] = None,
         tags: Optional[List[str]] = None,
@@ -15543,6 +15571,7 @@ class UpdateRequest(Request):
     ) -> None:
         super(UpdateRequest, self).__init__(**kwargs)
         self.task = task
+        self.status_message = status_message
         self.name = name
         self.display_name = display_name
         self.tags = tags
@@ -15563,6 +15592,18 @@ class UpdateRequest(Request):
             return
         self.assert_isinstance(value, "task", six.string_types)
         self._property_task = value
+
+    @schema_property("status_message")
+    def status_message(self) -> Optional[str]:
+        return self._property_status_message
+
+    @status_message.setter
+    def status_message(self, value: Optional[str]) -> None:
+        if value is None:
+            self._property_status_message = None
+            return
+        self.assert_isinstance(value, "status_message", six.string_types)
+        self._property_status_message = value
 
     @schema_property("name")
     def name(self) -> Optional[str]:
@@ -15677,7 +15718,7 @@ class UpdateResponse(Response):
 
     _service = "tasks"
     _action = "update"
-    _version = "2.1"
+    _version = "2.41"
     _schema = {
         "definitions": {},
         "properties": {

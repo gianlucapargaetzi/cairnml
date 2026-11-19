@@ -102,6 +102,7 @@ DEFINITIONS: Dict[str, Dict[str, Tuple[Tuple[str, str, str], ...]]] = {
         ),
         "git_token": (
             ("2.8", "GitTokenRequest", "GitTokenResponse"),
+            ("2.41", "GitTokenRequest", "GitTokenResponse"),
         ),
         "idp_settings": (
             ("2.8", "IdpSettingsRequest", "IdpSettingsResponse"),
@@ -847,6 +848,7 @@ DEFINITIONS: Dict[str, Dict[str, Tuple[Tuple[str, str, str], ...]]] = {
             ("2.19", "EnqueueRequest", "EnqueueResponse"),
             ("2.22", "EnqueueRequest", "EnqueueResponse"),
             ("2.31", "EnqueueRequest", "EnqueueResponse"),
+            ("2.41", "EnqueueRequest", "EnqueueResponse"),
         ),
         "enqueue_many": (
             ("2.13", "EnqueueManyRequest", "EnqueueManyResponse"),
@@ -943,6 +945,7 @@ DEFINITIONS: Dict[str, Dict[str, Tuple[Tuple[str, str, str], ...]]] = {
         ),
         "update": (
             ("2.1", "UpdateRequest", "UpdateResponse"),
+            ("2.41", "UpdateRequest", "UpdateResponse"),
         ),
         "update_batch": (
             ("2.1", "UpdateBatchRequest", "UpdateBatchResponse"),

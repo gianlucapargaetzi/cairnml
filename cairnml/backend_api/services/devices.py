@@ -324,7 +324,7 @@ class GitTokenRequest(Request):
 
     _service = "devices"
     _action = "git_token"
-    _version = "2.8"
+    _version = "2.41"
     _schema = {
         "additionalProperties": False,
         "definitions": {},
@@ -373,6 +373,8 @@ class GitTokenResponse(Response):
     """
     Response of devices.git_token endpoint.
 
+    :param url: The clone address of the repository (https://host/path) the token is for
+    :type url: str
     :param token:
     :type token: str
     :param expires_at: Empty for a stored Git credential, which does not expire
@@ -383,7 +385,7 @@ class GitTokenResponse(Response):
 
     _service = "devices"
     _action = "git_token"
-    _version = "2.8"
+    _version = "2.41"
     _schema = {
         "definitions": {},
         "properties": {
@@ -392,6 +394,10 @@ class GitTokenResponse(Response):
                 "type": ["string", "null"],
             },
             "token": {"type": ["string", "null"]},
+            "url": {
+                "description": "The clone address of the repository (https://host/path) the token is for",
+                "type": ["string", "null"],
+            },
             "username": {"type": ["string", "null"]},
         },
         "type": "object",
@@ -399,15 +405,29 @@ class GitTokenResponse(Response):
 
     def __init__(
         self,
+        url: Optional[str] = None,
         token: Optional[str] = None,
         expires_at: Optional[str] = None,
         username: Optional[str] = None,
         **kwargs: Any
     ) -> None:
         super(GitTokenResponse, self).__init__(**kwargs)
+        self.url = url
         self.token = token
         self.expires_at = expires_at
         self.username = username
+
+    @schema_property("url")
+    def url(self) -> Optional[str]:
+        return self._property_url
+
+    @url.setter
+    def url(self, value: Optional[str]) -> None:
+        if value is None:
+            self._property_url = None
+            return
+        self.assert_isinstance(value, "url", six.string_types)
+        self._property_url = value
 
     @schema_property("token")
     def token(self) -> Optional[str]:
