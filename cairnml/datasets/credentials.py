@@ -6,8 +6,8 @@ import re
 from typing import Optional
 
 from .errors import DatasetError
-from ..backend_api.session.defs import MissingConfigError, newest_version
-from ..backend_api.session.session import NotSignedInError
+from ..backend_api.session.defs import MissingConfigError
+from ..backend_api.session.session import NotSignedInError, Session
 from ..backend_config.errors import ConfigurationError
 
 
@@ -51,7 +51,7 @@ def fetch_storage_keys(repository: str, level: str, session=None) -> StorageKeys
     response = _session(session).send_request(
         service="datachunks",
         action="dataset_credentials",
-        version=newest_version("datachunks", "dataset_credentials"),
+        version=Session.request_version("datachunks", "dataset_credentials"),
         json={"repository": repository, "level": level},
     )
     if not response.ok:
@@ -75,7 +75,7 @@ def fetch_git_token(repository: str, task_id: str, session=None) -> Optional[str
     response = _session(session).send_request(
         service="devices",
         action="git_token",
-        version=newest_version("devices", "git_token"),
+        version=Session.request_version("devices", "git_token"),
         json={"task": task_id, "repository": repository},
     )
     if not response.ok:
@@ -105,7 +105,7 @@ def _person_request(session, action: str, json: dict, service: str = "repositori
     """A request made for a person, with the login. Without a login the reason is said in the error."""
     try:
         return _session(session).send_request(
-            service=service, action=action, version=newest_version(service, action), json=json
+            service=service, action=action, version=Session.request_version(service, action), json=json
         )
     except Exception as exc:
         raise DatasetError(_could_not_ask(exc, "", LOGIN_HINT_FOR_TOKENS)) from exc
@@ -248,7 +248,10 @@ def fetch_repository_list(session=None) -> list:
     cannot be asked, for instance when there is no CairnML login."""
     try:
         response = _session(session).send_request(
-            service="repositories", action="get_all", version=newest_version("repositories", "get_all"), json={}
+            service="repositories",
+            action="get_all",
+            version=Session.request_version("repositories", "get_all"),
+            json={},
         )
         if not response.ok:
             raise DatasetError(f"the server refused the repository list: {_reason(response)}")

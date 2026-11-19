@@ -2,7 +2,6 @@ from typing import Optional
 
 from ...backend_config import EnvEntry
 from ...backend_config.converters import safe_text_to_bool
-from ..services import API_LEVEL, resolve
 
 ENV_HOST = EnvEntry(
     "CAIRNML_API_HOST",
@@ -55,13 +54,6 @@ NOTE: this changes behavior and might cause the experiment to wait
 for a very long time for a non-responding or mis-configured server
 """
 ENV_API_EXTRA_RETRY_CODES = EnvEntry("CAIRNML_API_EXTRA_RETRY_CODES")
-
-
-def newest_version(service: str, action: str) -> str:
-    """The API version of the newest definition of an action in the generated client: the version a request made
-    by this SDK for that action is sent at. The definition is picked by version through the generated resolver."""
-    request_cls, _ = resolve(service, action, API_LEVEL)
-    return request_cls._version
 
 
 class MissingConfigError(ValueError):

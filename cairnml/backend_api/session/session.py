@@ -35,7 +35,6 @@ from .defs import (
     ENV_API_EXTRA_RETRY_CODES,
     ENV_API_DEFAULT_REQ_METHOD,
     MissingConfigError,
-    newest_version,
 )
 from .request import Request, BatchRequest  # noqa: F401
 from .token_manager import TokenManager
@@ -45,7 +44,7 @@ from ...debugging import get_logger
 from ...debugging.log import resolve_logging_level
 from pyhocon import ConfigTree, ConfigFactory
 from ...version import __version__
-from ..services import API_LEVEL, UnsupportedApiVersion
+from ..services import API_LEVEL, UnsupportedApiVersion, resolve
 from ...backend_config.utils import apply_files, apply_environment
 
 try:
@@ -384,12 +383,28 @@ class Session(TokenManager):
         return self.__http_session
 
     @classmethod
+    def request_version(cls, service: str, action: str) -> str:
+        """The API version every request of this SDK is sent at: the negotiated level, the lower of the level the
+        generated client was generated for (API_LEVEL) and the level the server reported (max_api_version, known once
+        signed in). It is not the version label of the action's definition: the server decides some behaviour on the
+        version a client asks for (an old level gets the old answer shape, e.g. no model metadata), and an action
+        that has not changed since 2.1 must not make the client ask for 2.1. The server serves the newest definition
+        at or below the level, so an unchanged action works at every later level.
+
+        Raises UnsupportedApiVersion when the action has no definition as old as the level."""
+        level = API_LEVEL
+        if cls._version_tuple(cls.max_api_version) < cls._version_tuple(API_LEVEL):
+            level = str(cls.max_api_version)
+        resolve(service, action, level)
+        return level
+
+    @classmethod
     def _check_server_serves(cls, service: str, action: str, version: Optional[str]) -> None:
-        """A request is sent at the version of the definition it implements. A server older than that definition
-        cannot read it, so the request is refused here instead of being sent. A newer server serves it silently."""
+        """A definition of version V cannot be read by a server older than V, so a request that needs it is refused
+        here instead of being sent. A newer server serves it silently."""
         if version and cls._version_tuple(str(version)) > cls._version_tuple(cls.max_api_version):
             raise UnsupportedApiVersion(
-                f"{service}.{action} is sent at API version {version}, but the server speaks API version "
+                f"{service}.{action} needs API version {version}, but the server speaks API version "
                 f"{cls.max_api_version}; upgrade the server or use an older definition of the action"
             )
 
@@ -667,12 +682,16 @@ class Session(TokenManager):
         if self._offline_mode:
             return None
 
+        # the request class is the definition the caller built; the version on the wire is the negotiated level
+        self._check_server_serves(req_obj._service, req_obj._action, req_obj._version)
+        version = self.request_version(req_obj._service, req_obj._action)
+
         if isinstance(req_obj, BatchRequest):
             json_data = req_obj.get_json()
             res = self.send_request_batch(
                 service=req_obj._service,
                 action=req_obj._action,
-                version=req_obj._version,
+                version=version,
                 json=json_data,
                 method=req_obj._method,
                 headers=headers,
@@ -688,7 +707,7 @@ class Session(TokenManager):
             res = self.send_request(
                 service=req_obj._service,
                 action=req_obj._action,
-                version=req_obj._version,
+                version=version,
                 json=req_obj.to_dict(),
                 method=req_obj._method,
                 headers=headers,
@@ -838,7 +857,7 @@ class Session(TokenManager):
         res = self._send_request(
             service="devices",
             action="exchange",
-            version=newest_version("devices", "exchange"),
+            version=self.request_version("devices", "exchange"),
             method=Request.def_method,
             json={"assertion": assertion},
             refresh_token_if_unauthorized=False,

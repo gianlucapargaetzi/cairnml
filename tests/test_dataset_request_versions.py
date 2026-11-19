@@ -1,5 +1,6 @@
-"""Every request the dataset module makes is sent at the version of its generated request class (issue #118), and no
-operation takes or spells a version of its own."""
+"""Every request the dataset module makes is sent at the negotiated API level (issue #118; the level, not the label of
+the generated definition, since the server decides some behaviour on the version a client asks for), and no operation
+takes or spells a version of its own."""
 
 import inspect
 import re
@@ -95,30 +96,30 @@ def _operations(session):
     ("fetch_repository_list", "repositories", "get_all"),
     ("clone_answer", "repositories", "clone"),
 ])
-def test_a_request_carries_the_version_of_its_generated_class(name, service, action):
+def test_a_request_is_sent_at_the_negotiated_level(name, service, action):
     session = RecordingSession()
     operation = {op[0]: op for op in _operations(session)}[name]
 
     operation[1]()
 
-    request_cls, _ = resolve(service, action, API_LEVEL)
+    resolve(service, action, API_LEVEL)  # the action has a definition at the level
     assert len(session.calls) == 1, session.calls
     call = session.calls[0]
     assert (call["service"], call["action"]) == (service, action)
-    assert call["version"] == request_cls._version
+    assert call["version"] == API_LEVEL
 
 
-def test_the_device_git_token_carries_the_version_of_its_generated_class(monkeypatch):
+def test_the_device_git_token_is_sent_at_the_negotiated_level(monkeypatch):
     monkeypatch.setenv("CAIRNML_JOB_TOKEN", "job-token")
     session = RecordingSession()
 
     credentials.fetch_git_token("https://github.com/a/b", "task-1", session=session)
 
-    request_cls, _ = resolve("devices", "git_token", API_LEVEL)
+    resolve("devices", "git_token", API_LEVEL)
     assert len(session.calls) == 1
     call = session.calls[0]
     assert (call["service"], call["action"]) == ("devices", "git_token")
-    assert call["version"] == request_cls._version
+    assert call["version"] == API_LEVEL
 
 
 @pytest.mark.parametrize("function", [

@@ -13,6 +13,7 @@ import jwt
 import requests
 
 from ..backend_api.services import devices, users
+from ..backend_api.session.session import Session
 from .browser_login import browser_login
 from .device import DEVICE_KEY_PATH, device_assertion, secure_folder
 from .keys import generate_private_key, public_key_pem, write_private_key
@@ -56,8 +57,9 @@ def _call(http, url, body, token=None):
 
 
 def _endpoint(server: str, request_cls) -> str:
-    """The URL of a generated request's endpoint, at the API version that request's definition implements."""
-    return f"{server.rstrip('/')}/v{request_cls._version}/{request_cls._service}.{request_cls._action}"
+    """The URL of a generated request's endpoint, at the negotiated API level the SDK sends every request at."""
+    version = Session.request_version(request_cls._service, request_cls._action)
+    return f"{server.rstrip('/')}/v{version}/{request_cls._service}.{request_cls._action}"
 
 
 def _settings(http, server: str) -> dict:

@@ -65,7 +65,7 @@ from requests_toolbelt import (
 )
 from .callbacks import UploadProgressReport, DownloadProgressReport
 from .url import quote_url
-from ..backend_api.session.defs import newest_version
+from ..backend_api.session.session import Session
 from ..backend_api.utils import get_http_session_with_retry
 from ..backend_config.bucket_config import (
     S3BucketConfigurations,
@@ -1823,7 +1823,7 @@ class _DatachunkDriver(_Driver):
         response = InterfaceBase._get_default_session().send_request(
             service=cls.API_SERVICE,
             action=action,
-            version=newest_version(cls.API_SERVICE, action),
+            version=Session.request_version(cls.API_SERVICE, action),
             method="post",
             json=body,
         )
