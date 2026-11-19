@@ -459,6 +459,7 @@ DEFINITIONS: Dict[str, Dict[str, Tuple[Tuple[str, str, str], ...]]] = {
         ),
         "get_queues": (
             ("2.38", "GetQueuesRequest", "GetQueuesResponse"),
+            ("2.41", "GetQueuesRequest", "GetQueuesResponse"),
         ),
         "get_task_parents": (
             ("2.12", "GetTaskParentsRequest", "GetTaskParentsResponse"),
