@@ -1,6 +1,8 @@
 import re
 
-from cairnml.backend_api.session.request import Request
+from cairnml.backend_api.services import projects as projects_api
+from cairnml.backend_api.services import tasks as tasks_api
+from cairnml_agent.errors import APIError
 from cairnml_agent.helper.package.requirements import (
     RequirementsManager,
     MarkerRequirement,
@@ -25,28 +27,25 @@ def resolve_default_container(session, task_id, container_config, ignore_match_r
         # ignoring matching rules only supported in higher tiers
         return container_config, None
 
-    result = session.send_request(
-        service="tasks",
-        action="get_all",
-        version=session.request_version("tasks", "get_all"),
-        json={
-            "id": [task_id],
-            "only_fields": [
-                "script.requirements",
-                "script.binary",
-                "script.repository",
-                "script.branch",
-                "project",
-                "container",
-                "tags",
-                "user",
-            ],
-            "search_hidden": True,
-        },
-        method=Request.def_method,
-    )
     try:
-        task_info = result.json()["data"]["tasks"][0] if result.ok else {}
+        task_info = session.send_api(
+            session.current(tasks_api.GetAllRequest)(
+                id=[task_id],
+                only_fields=[
+                    "script.requirements",
+                    "script.binary",
+                    "script.repository",
+                    "script.branch",
+                    "project",
+                    "container",
+                    "tags",
+                    "user",
+                ],
+                search_hidden=True,
+            )
+        ).to_dict()["tasks"][0]
+    except APIError:
+        task_info = {}
     except (ValueError, TypeError):
         return container_config, None
 
@@ -61,20 +60,14 @@ def resolve_default_container(session, task_id, container_config, ignore_match_r
     # get project full path
     project_full_name = ""
     if task_info.get("project", None):
-        result = session.send_request(
-            service="projects",
-            action="get_all",
-            version=session.request_version("projects", "get_all"),
-            json={
-                "id": [task_info.get("project")],
-                "only_fields": ["name"],
-            },
-            method=Request.def_method,
-        )
         try:
-            if result.ok:
-                project_full_name = result.json()["data"]["projects"][0]["name"] or ""
-        except (ValueError, TypeError):
+            project_full_name = (
+                session.send_api(
+                    session.current(projects_api.GetAllRequest)(id=[task_info.get("project")], only_fields=["name"])
+                ).to_dict()["projects"][0]["name"]
+                or ""
+            )
+        except (APIError, ValueError, TypeError):
             pass
 
     match_term_lookup = {

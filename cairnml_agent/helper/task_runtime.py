@@ -1,6 +1,6 @@
 from typing import Optional
 
-from cairnml.backend_api.session.request import Request
+from cairnml.backend_api.services import tasks as tasks_api
 
 
 class TaskRuntime(object):
@@ -9,15 +9,7 @@ class TaskRuntime(object):
 
     def get_task_runtime(self, task_id) -> Optional[dict]:
         try:
-            res = self._session.send_request(
-                service="tasks",
-                action="get_by_id",
-                method=Request.def_method,
-                json={"task": task_id, "only_fields": ["runtime"]},
-            )
-            if not res.ok:
-                raise ValueError(f"request returned {res.status_code}")
-            data = res.json().get("data")
+            data = self._session.send_api(self._session.current(tasks_api.GetByIdRequest)(task_id)).to_dict()
             if not data or "task" not in data:
                 raise ValueError("empty data in result")
             return data["task"].get("runtime", {})
@@ -29,14 +21,9 @@ class TaskRuntime(object):
         task_runtime.update(runtime)
 
         try:
-            res = self._session.send_request(
-                service="tasks",
-                action="edit",
-                method=Request.def_method,
-                json={"task": task_id, "force": True, "runtime": task_runtime},
+            self._session.send_api(
+                self._session.current(tasks_api.EditRequest)(task=task_id, force=True, runtime=task_runtime)
             )
-            if not res.ok:
-                raise Exception("failed setting runtime property")
             return True
         except Exception as ex:
             print("WARNING: failed setting custom runtime properties for task '{}': {}".format(task_id, ex))

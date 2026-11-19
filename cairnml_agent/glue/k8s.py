@@ -35,7 +35,8 @@ from cairnml_agent.helper.hash import md5
 from cairnml_agent.helper.process import stringify_bash_output
 from cairnml_agent.helper.resource_monitor import ResourceMonitor
 from cairnml_agent.interface.base import ObjectID
-from cairnml.backend_api.session.request import Request
+from cairnml.backend_api.services import queues as queues_api
+from cairnml.backend_api.services import tasks as tasks_api
 from cairnml_agent.glue.definitions import (
     ENV_START_AGENT_SCRIPT_PATH,
     ENV_DEFAULT_EXECUTION_AGENT_ARGS,
@@ -296,18 +297,18 @@ class K8sIntegration(Worker):
                 self._edit_hyperparams_support = self._session.api_version
                 return
         try:
-            session.get(
-                service="tasks",
-                action="edit_hyper_params",
-                task=task_id,
-                hyperparams=[
-                    {
-                        "section": "properties",
-                        "name": k,
-                        "value": str(v),
-                    }
-                    for k, v in properties.items()
-                ],
+            session.send_api(
+                session.current(tasks_api.EditHyperParamsRequest)(
+                    task=task_id,
+                    hyperparams=[
+                        {
+                            "section": "properties",
+                            "name": k,
+                            "value": str(v),
+                        }
+                        for k, v in properties.items()
+                    ],
+                )
             )
             # definitely supported
         except APIError as error:
@@ -462,9 +463,7 @@ class K8sIntegration(Worker):
     def run_one_task(self, queue: Text, task_id: Text, worker_args=None, task_session=None, **_):
         print("Pulling task {} launching on kubernetes cluster".format(task_id))
         session = task_session or self._session
-        task_data = session.get(
-            service="tasks", action="get_all", version=session.request_version("tasks", "get_all"), id=[task_id]
-        )["tasks"][0]
+        task_data = session.send_api(session.current(tasks_api.GetAllRequest)(id=[task_id])).to_dict()["tasks"][0]
 
         # push task into the k8s queue, so we have visibility on pending tasks in the k8s scheduler
         if self._is_same_tenant(task_session):
@@ -472,41 +471,37 @@ class K8sIntegration(Worker):
                 print("Pushing task {} into temporary pending queue".format(task_id))
 
                 if not self._server_supports_same_state_transition:
-                    _ = session.api_client.tasks.stop(task_id, force=True, status_reason="moving to k8s pending queue")
+                    session.send_api(
+                        session.current(tasks_api.StopRequest)(
+                            task=task_id, force=True, status_reason="moving to k8s pending queue"
+                        )
+                    )
 
                 # Just make sure to clean up in case the task is stuck in the queue (known issue)
-                self._session.api_client.queues.remove_task(
-                    task=task_id,
-                    queue=self.k8s_pending_queue_id,
+                self._session.send_api(
+                    self._session.current(queues_api.RemoveTaskRequest)(
+                        task=task_id,
+                        queue=self.k8s_pending_queue_id,
+                    )
                 )
 
                 for attempt in range(2):
-                    res = self._session.send_request(
-                        "tasks",
-                        "enqueue",
-                        json={
-                            "task": task_id,
-                            "queue": self.k8s_pending_queue_id,
-                            "status_reason": "k8s pending scheduler",
-                            "update_execution_queue": self._update_execution_queue_when_enqueueing_to_pending_queue,
-                        },
-                    )
-                    if res.ok:
-                        break
-
-                    # noinspection PyBroadException
                     try:
-                        result_subcode = res.json()["meta"]["result_subcode"]
-                        result_msg = res.json()["meta"]["result_msg"]
-                    except Exception:
-                        result_subcode = None
-                        result_msg = res.text
-
-                    if attempt == 0 and res.status_code == 400 and result_subcode == 701:
-                        # Invalid queue ID, only retry once
-                        self._ensure_pending_queue_exists()
-                        continue
-                    raise Exception(result_msg)
+                        self._session.send_api(
+                            self._session.current(tasks_api.EnqueueRequest)(
+                                task=task_id,
+                                queue=self.k8s_pending_queue_id,
+                                status_reason="k8s pending scheduler",
+                                update_execution_queue=self._update_execution_queue_when_enqueueing_to_pending_queue,
+                            )
+                        )
+                        break
+                    except APIError as ex:
+                        if attempt == 0 and ex.code == 400 and ex.subcode == 701:
+                            # Invalid queue ID, only retry once
+                            self._ensure_pending_queue_exists()
+                            continue
+                        raise Exception(ex.message) from ex
 
             except Exception as e:
                 self.log.error(
@@ -559,7 +554,9 @@ class K8sIntegration(Worker):
 
         # noinspection PyBroadException
         try:
-            queue_name = self._session.api_client.queues.get_by_id(queue=queue).name
+            queue_name = self._session.send_api(
+                self._session.current(queues_api.GetByIdRequest)(queue=queue)
+            ).queue.name
         except Exception:
             queue_name = "k8s"
 
@@ -578,10 +575,14 @@ class K8sIntegration(Worker):
                 self.log.warning(
                     "K8S Glue pods monitor: task '{}' will be enqueued back to queue '{}'".format(task_id, queue)
                 )
-                session.api_client.tasks.stop(task_id, force=True)
+                session.send_api(session.current(tasks_api.StopRequest)(task=task_id, force=True))
                 # noinspection PyBroadException
                 try:
-                    self._session.api_client.tasks.enqueue(task_id, queue=queue, status_reason="kubectl parsing error")
+                    self._session.send_api(
+                        self._session.current(tasks_api.EnqueueRequest)(
+                            task=task_id, queue=queue, status_reason="kubectl parsing error"
+                        )
+                    )
                 except Exception:
                     self.log.warning("Failed enqueuing task to queue '{}'".format(queue))
                 return
@@ -602,11 +603,13 @@ class K8sIntegration(Worker):
                 self.log.warning(
                     "All k8s services are in use, task '{}' will be enqueued back to queue '{}'".format(task_id, queue)
                 )
-                session.api_client.tasks.stop(task_id, force=True)
+                session.send_api(session.current(tasks_api.StopRequest)(task=task_id, force=True))
                 # noinspection PyBroadException
                 try:
-                    self._session.api_client.tasks.enqueue(
-                        task_id, queue=queue, status_reason="k8s max pod limit (no free k8s service)"
+                    self._session.send_api(
+                        self._session.current(tasks_api.EnqueueRequest)(
+                            task=task_id, queue=queue, status_reason="k8s max pod limit (no free k8s service)"
+                        )
                     )
                 except Exception:
                     self.log.warning("Failed enqueuing task to queue '{}'".format(queue))
@@ -729,12 +732,11 @@ class K8sIntegration(Worker):
         self.send_logs(task_id, send_log.splitlines())
 
         # Make sure to remove the task from our k8s pending queue
-        self._session.api_client.queues.remove_task(
-            task=task_id,
-            queue=self.k8s_pending_queue_id,
+        self._session.send_api(
+            self._session.current(queues_api.RemoveTaskRequest)(task=task_id, queue=self.k8s_pending_queue_id)
         )
         # Set task as failed
-        session.api_client.tasks.failed(task_id, force=True)
+        session.send_api(session.current(tasks_api.FailedRequest)(task=task_id, force=True))
 
     def set_task_info(
         self, task_id: str, task_session, task_data, queue_name: str, ports_mode: bool, pod_number, pod_count
@@ -776,28 +778,15 @@ class K8sIntegration(Worker):
             task_runtime.update(runtime)
 
             try:
-                res = task_session.send_request(
-                    service="tasks",
-                    action="edit",
-                    method=Request.def_method,
-                    json={"task": task_id, "force": True, "runtime": task_runtime},
+                task_session.send_api(
+                    task_session.current(tasks_api.EditRequest)(task=task_id, force=True, runtime=task_runtime)
                 )
-                if not res.ok:
-                    raise Exception("failed setting runtime property")
             except Exception as ex:
                 print("WARNING: failed setting custom runtime properties for task '{}': {}".format(task_id, ex))
 
     def _get_task_runtime(self, task_id) -> Optional[dict]:
         try:
-            res = self._session.send_request(
-                service="tasks",
-                action="get_by_id",
-                method=Request.def_method,
-                json={"task": task_id, "only_fields": ["runtime"]},
-            )
-            if not res.ok:
-                raise ValueError(f"request returned {res.status_code}")
-            data = res.json().get("data")
+            data = self._session.send_api(self._session.current(tasks_api.GetByIdRequest)(task_id)).to_dict()
             if not data or "task" not in data:
                 raise ValueError("empty data in result")
             return data["task"].get("runtime", {})
@@ -1253,16 +1242,13 @@ class K8sIntegration(Worker):
                 )
             )
             if task_ids:
-                result = self._session.get(
-                    service="tasks",
-                    action="get_all",
-                    json={
-                        "id": task_ids,
-                        "status": ["in_progress", "queued"],
-                        "only_fields": ["id", "status", "status_reason", "last_change"],
-                    },
-                    method=Request.def_method,
-                )
+                result = self._session.send_api(
+                    self._session.current(tasks_api.GetAllRequest)(
+                        id=task_ids,
+                        status=["in_progress", "queued"],
+                        only_fields=["id", "status", "status_reason", "last_change"],
+                    )
+                ).to_dict()
                 tasks_to_abort = result["tasks"]
         except Exception as ex:
             self.log.warning("Failed getting running tasks for deleted {}(s): {}".format(self.kind, ex))
@@ -1285,31 +1271,24 @@ class K8sIntegration(Worker):
                 continue
             try:
                 if status == "queued":
-                    self._session.get(
-                        service="tasks",
-                        action="dequeue",
-                        json={
-                            "task": task_id,
-                            "force": True,
-                            "status_reason": "Pod deleted (not pending or running)",
-                            "status_message": "{} deleted by agent {}".format(
+                    self._session.send_api(
+                        self._session.current(tasks_api.DequeueRequest)(
+                            task=task_id,
+                            status_reason="Pod deleted (not pending or running)",
+                            status_message="{} deleted by agent {}".format(
                                 self.kind.capitalize(), self.worker_id or "unknown"
                             ),
-                        },
-                        method=Request.def_method,
+                        )
                     )
-                self._session.get(
-                    service="tasks",
-                    action="failed",
-                    json={
-                        "task": task_id,
-                        "force": True,
-                        "status_reason": "Pod deleted (not pending or running)",
-                        "status_message": "{} deleted by agent {}".format(
+                self._session.send_api(
+                    self._session.current(tasks_api.FailedRequest)(
+                        task=task_id,
+                        force=True,
+                        status_reason="Pod deleted (not pending or running)",
+                        status_message="{} deleted by agent {}".format(
                             self.kind.capitalize(), self.worker_id or "unknown"
                         ),
-                    },
-                    method=Request.def_method,
+                    )
                 )
             except Exception as ex:
                 self.log.warning('Failed setting task {} to status "failed": {}'.format(task_id, ex))
@@ -1453,41 +1432,27 @@ class K8sIntegration(Worker):
         return get_next_task(self._session, queue=queue)
 
     def _re_enqueue_task(self, queue, task_id):
-        request = {"queue": queue, "task": task_id}
-        result = self._session.send_request(
-            service="queues",
-            action="add_task",
-            version=self._session.request_version("queues", "add_task"),
-            json=request,
-            method=Request.def_method,
-        )
-        if not result.ok:
-            send_log = f"ERROR: Could not re-enqueue task {task_id}, error: {result.text}"
+        try:
+            self._session.send_api(self._session.current(queues_api.AddTaskRequest)(queue=queue, task=task_id))
+        except APIError as ex:
+            send_log = f"ERROR: Could not re-enqueue task {task_id}, error: {ex.message}"
             self.log.error(send_log)
             self.send_logs(task_id, send_log.splitlines())
             try:
-                self._session.get(
-                    service="tasks",
-                    action="failed",
-                    json={
-                        "task": task_id,
-                        "force": True,
-                        "status_reason": "Task could not be re-enqueued",
-                        "status_message": "Task could not be re-enqueued",
-                    },
-                    method=Request.def_method,
+                self._session.send_api(
+                    self._session.current(tasks_api.FailedRequest)(
+                        task=task_id,
+                        force=True,
+                        status_reason="Task could not be re-enqueued",
+                        status_message="Task could not be re-enqueued",
+                    )
                 )
             except Exception as exc:
                 self.log.warning('Failed setting task {} to status "{}": {}'.format(task_id, "failed", exc))
-        result = self._session.send_request(
-            service="queues",
-            action="move_task_to_front",
-            version=self._session.request_version("queues", "move_task_to_front"),
-            json=request,
-            method=Request.def_method,
-        )
-        if not result.ok:
-            send_log = f"ERROR: Could not move task {task_id} to front after re-enqueue, error: {result.text}"
+        try:
+            self._session.send_api(self._session.current(queues_api.MoveTaskToFrontRequest)(queue=queue, task=task_id))
+        except APIError as ex:
+            send_log = f"ERROR: Could not move task {task_id} to front after re-enqueue, error: {ex.message}"
             self.log.error(send_log)
             self.send_logs(task_id, send_log.splitlines())
 

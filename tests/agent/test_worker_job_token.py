@@ -3,33 +3,16 @@ from types import SimpleNamespace
 from cairnml.backend_api.services import API_LEVEL
 from pyhocon import ConfigFactory
 
-from cairnml_agent.backend_api.session.session import Session
 from cairnml_agent.commands.worker import Worker
 
-
-class Reply:
-    def __init__(self, ok, body=None, status_code=200):
-        self.ok = ok
-        self.status_code = status_code
-        self._body = body or {}
-
-    def json(self):
-        return self._body
+from .wire import WireSession, answer
 
 
-class FakeSession:
-    request_version = Session.request_version
+class FakeSession(WireSession):
+    """The agent's session with the server's answers to the job token requests."""
 
-    def __init__(self, reply=None, error=None):
-        self.reply = reply
-        self.error = error
-        self.calls = []
-
-    def send_request(self, **kwargs):
-        self.calls.append(kwargs)
-        if self.error:
-            raise self.error
-        return self.reply
+    def __init__(self, *answers):
+        super().__init__({"devices.job_token": list(answers)})
 
 
 def agent_worker(session):
@@ -37,20 +20,20 @@ def agent_worker(session):
 
 
 def test_the_agent_asks_for_the_job_token_of_the_task_with_its_own_session():
-    session = FakeSession(Reply(True, {"data": {"access_token": "job-1", "expires_in": 3600}}))
+    session = FakeSession(answer({"access_token": "job-1", "expires_in": 3600}))
     assert Worker._get_job_token(agent_worker(session), "task-1") == ("job-1", 3600)
-    call = session.calls[0]
-    assert (call["service"], call["action"], call["version"]) == ("devices", "job_token", API_LEVEL)
-    assert call["json"] == {"task": "task-1"}
+    [call] = session.of("devices.job_token")
+    assert (call.service, call.action, call.version) == ("devices", "job_token", API_LEVEL)
+    assert call.json == {"task": "task-1"}
 
 
 def test_a_refused_job_token_is_none_so_the_job_does_not_start():
-    session = FakeSession(Reply(False, {"meta": {"result_msg": "task is stopped"}}, status_code=401))
+    session = FakeSession(answer(status=401, msg="task is stopped"))
     assert Worker._get_job_token(agent_worker(session), "task-1") == (None, None)
 
 
 def test_a_failed_request_is_none_so_the_job_does_not_start():
-    session = FakeSession(error=ConnectionError("server down"))
+    session = FakeSession(ConnectionError("server down"))
     assert Worker._get_job_token(agent_worker(session), "task-1") == (None, None)
 
 

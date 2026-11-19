@@ -7,8 +7,10 @@ from functools import partial
 from string import Template
 from typing import Optional, Callable, Union, List, Tuple, Dict
 
+from cairnml.backend_api.services import projects as projects_api
 from cairnml.backend_api.services import queues as queues_api
-from cairnml.backend_api.session.request import Request
+from cairnml.backend_api.services import tasks as tasks_api
+from cairnml.backend_api.services import users as users_api
 from pyhocon import ConfigTree
 from cairnml_agent.helper.task_logs import send_logs_to_task
 import yaml
@@ -400,30 +402,24 @@ class TemplateResolver:
         )
 
     def _load_user_info(self):
-        return self.task_session.send_request("users", "get_current_user").json()["data"]["user"]
+        return self.task_session.send_api(self.task_session.current(users_api.GetCurrentUserRequest)()).to_dict()[
+            "user"
+        ]
 
     def _load_task_info(self):
-        result = self.task_session.send_request(
-            service="tasks",
-            action="get_all",
-            version=self.task_session.request_version("tasks", "get_all"),
-            method=Request.def_method,
-            json={"id": [self.task_id], "search_hidden": True},
-        )
+        result = self.task_session.send_api(
+            self.task_session.current(tasks_api.GetAllRequest)(id=[self.task_id], search_hidden=True)
+        ).to_dict()
         # we should not fail here
-        return result.json().get("data", {}).get("tasks", [])[0] or {}
+        return result.get("tasks", [])[0] or {}
 
     def _load_project_info(self):
         project_id = self.task_info.get("project")
-        result = self.task_session.send_request(
-            service="projects",
-            action="get_all",
-            version=self.task_session.request_version("projects", "get_all"),
-            method=Request.def_method,
-            json={"id": [project_id], "search_hidden": True},  # check hidden required?
-        )
+        result = self.task_session.send_api(
+            self.task_session.current(projects_api.GetAllRequest)(id=[project_id], search_hidden=True)
+        ).to_dict()
         # we should not fail here
-        project = result.json().get("data", {}).get("projects", [])[0]
+        project = result.get("projects", [])[0]
         return {"name": project.get("name"), "id": project.get("id")}
 
     def _load_provider_info(self):

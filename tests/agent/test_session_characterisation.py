@@ -10,7 +10,7 @@ import jwt
 import pytest
 import requests
 from cairnml.backend_api.session.session import Session as SdkSession
-from cairnml.backend_api.services import API_LEVEL
+from cairnml.backend_api.services import API_LEVEL, projects as projects_api, users as users_api
 from cairnml.idp.device import save_device_key, secure_folder
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
@@ -65,7 +65,6 @@ def isolated_session_state(monkeypatch, tmp_path):
         "CAIRNML_NO_DEFAULT_SERVER",
         "CAIRNML_API_HOST_VERIFY_CERT",
         "CAIRNML_API_DEFAULT_REQ_METHOD",
-        "CAIRNML_DISABLE_VAULT_SUPPORT",
     ):
         monkeypatch.delenv(var, raising=False)
     yield
@@ -188,7 +187,7 @@ def test_nothing_to_sign_in_with_says_the_machine_is_not_enrolled(monkeypatch, t
 def test_requests_carry_the_bearer_token_and_the_agent_identity_headers(monkeypatch, tmp_path, wire):
     session = make_session(monkeypatch, tmp_path, host=HOST, config_values={})
     wire.calls.clear()
-    session.send_request("projects", "get_all")
+    session.send_api(session.current(projects_api.GetAllRequest)())
 
     headers = wire.calls[-1]["headers"]
     assert headers["Authorization"] == f"Bearer {session.token}"
@@ -201,25 +200,30 @@ def test_the_trains_header_names_are_no_longer_sent(monkeypatch, tmp_path, wire)
     """Characterised as sent before the swap. The SDK sends its own names only; the server reads none of them."""
     session = make_session(monkeypatch, tmp_path, host=HOST)
     wire.calls.clear()
-    session.send_request("projects", "get_all")
+    session.send_api(session.current(projects_api.GetAllRequest)())
 
     headers = wire.calls[-1]["headers"]
     assert "X-Trains-Worker" not in headers
     assert "X-Trains-Agent" not in headers
 
 
-def test_a_version_less_request_has_no_version_in_its_url(monkeypatch, tmp_path, wire):
+def test_a_request_puts_the_negotiated_level_in_its_url(monkeypatch, tmp_path, wire):
     session = make_session(monkeypatch, tmp_path, host=HOST)
     wire.calls.clear()
-    session.send_request("projects", "get_all")
-    assert wire.calls[-1]["url"] == f"{HOST}/projects.get_all"
+    session.send_api(session.current(projects_api.GetAllRequest)())
+    assert wire.calls[-1]["url"] == f"{HOST}/v2.9/projects.get_all"
 
 
-def test_a_versioned_request_puts_the_version_in_its_url(monkeypatch, tmp_path, wire):
-    session = make_session(monkeypatch, tmp_path, host=HOST)
+def test_a_request_built_from_an_older_definition_puts_that_level_in_its_url(monkeypatch, tmp_path, wire):
+    session = make_session(
+        monkeypatch,
+        tmp_path,
+        host=HOST,
+        auth_token=token(api_version="2.1", feature_set="basic", server_version="2.1.0", identity={"user": "u1"}),
+    )
     wire.calls.clear()
-    session.send_request("users", "get_current_user", version="2.1")
-    assert wire.calls[-1]["url"] == f"{HOST}/v2.1/users.get_current_user"
+    session.send_api(session.current(users_api.GetByIdRequest)(user="u1"))
+    assert wire.calls[-1]["url"] == f"{HOST}/v2.1/users.get_by_id"
 
 
 # ---- the start-up sign-in: connection retries ---------------------------------------------------------------------
@@ -382,7 +386,7 @@ def test_the_sdk_offline_switch_does_not_stop_the_agent(monkeypatch, tmp_path, w
     monkeypatch.setattr(SdkSession, "_offline_mode", True, raising=False)
     session = make_session(monkeypatch, tmp_path, host=HOST)
     wire.calls.clear()
-    reply = session.send_request("projects", "get_all")
+    reply = session.send(session.current(projects_api.GetAllRequest)())
     assert reply is not None
     assert len(wire.calls) == 1
 
@@ -392,6 +396,6 @@ def test_after_start_up_a_dropped_connection_is_retried_until_it_answers(monkeyp
     wire.calls.clear()
     wire.errors = [requests.ConnectionError("connection reset")]
     with mock.patch("time.sleep"):
-        reply = session.send_request("projects", "get_all")
-    assert reply.status_code == 200
+        reply = session.send(session.current(projects_api.GetAllRequest)())
+    assert reply.meta.result_code == 200
     assert len(wire.calls) == 2

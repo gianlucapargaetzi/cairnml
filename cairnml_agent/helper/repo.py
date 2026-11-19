@@ -845,7 +845,9 @@ class Hg(VCS):
 
 
 def request_git_token(session, task_id):
-    """The server's answer to the Git credential request for the task's repository, or None when there is no answer."""
+    """The server's answer to the Git credential request for the task's repository, or None when there is no answer.
+    Hand-built: the server answers a url (apiserver/bll/repository_access.py:279) that devices.git_token 2.8 does not declare.
+    """
     return session.send_request(
         service="devices",
         action="git_token",

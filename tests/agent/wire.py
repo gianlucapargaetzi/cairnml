@@ -55,6 +55,8 @@ class WireSession(Session):
         self.answers = dict(answers or {})
         self.calls = []
         self.config = ConfigFactory.from_dict(config or {})
+        # the SDK's batch requests are split at this size (its configured default)
+        self._Session__max_req_size = 15728640
 
     def send_request(self, service, action, version=None, method=None, headers=None, data=None, json=None, params=None):
         call = SimpleNamespace(

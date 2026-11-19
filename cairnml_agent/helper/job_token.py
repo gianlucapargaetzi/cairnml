@@ -6,7 +6,8 @@ import tempfile
 import threading
 from pathlib import Path
 
-from cairnml.backend_api.session.request import Request
+from cairnml.backend_api.services import devices as devices_api
+from cairnml_agent.errors import APIError
 
 TOKEN_FILE_NAME = "job_token"
 # Where docker mode mounts the folder with the file, inside the job container.
@@ -23,20 +24,12 @@ REFUSED_STATUS_CODES = (401, 403, 404)
 def request_job_token(session, task_id):
     """The job's token and its lifetime in seconds, issued by the server to this agent while the task runs here.
     None when the server refuses for good (401, 403 or 404). Any other failure is raised."""
-    res = session.send_request(
-        service="devices",
-        action="job_token",
-        version=session.request_version("devices", "job_token"),
-        method=Request.def_method,
-        json={"task": task_id},
-    )
-    if res is None:
-        raise ConnectionError("no answer to the job token request of task {}".format(task_id))
-    if res.status_code in REFUSED_STATUS_CODES:
-        return None
-    if not res.ok:
-        raise RuntimeError("job token request of task {} failed with HTTP {}".format(task_id, res.status_code))
-    data = res.json()["data"]
+    try:
+        data = session.send_api(session.current(devices_api.JobTokenRequest)(task=task_id)).to_dict()
+    except APIError as ex:
+        if ex.code in REFUSED_STATUS_CODES:
+            return None
+        raise RuntimeError("job token request of task {} failed with HTTP {}".format(task_id, ex.code)) from ex
     return data["access_token"], data.get("expires_in", 3600)
 
 

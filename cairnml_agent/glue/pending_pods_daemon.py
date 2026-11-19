@@ -1,7 +1,9 @@
 from time import sleep
 from typing import Dict, List, Optional
 
+from cairnml.backend_api.services import tasks as tasks_api
 from cairnml.backend_api.session.request import Request
+from cairnml_agent.errors import APIError
 from cairnml_agent.glue.utilities import get_bash_output
 
 from .daemon import K8sDaemon
@@ -102,11 +104,13 @@ class PendingPodsDaemon(K8sDaemon):
                         if reason in ENV_POD_MONITOR_EVICTION_REASONS.get():
                             self.delete_k8s_resource(k8s_resource=pod, msg=reason)
                             try:
-                                self._session.api_client.tasks.failed(
-                                    task=task_id,
-                                    status_reason="K8S glue error: {}".format(msg),
-                                    status_message="Changed by K8S glue",
-                                    force=True,
+                                self._session.send_api(
+                                    self._session.current(tasks_api.FailedRequest)(
+                                        task=task_id,
+                                        status_reason="K8S glue error: {}".format(msg),
+                                        status_message="Changed by K8S glue",
+                                        force=True,
+                                    )
                                 )
                                 self._agent.send_logs(task_id, ["K8S Error: {}".format(msg)], session=self._session)
                             except Exception as ex:
@@ -146,11 +150,11 @@ class PendingPodsDaemon(K8sDaemon):
 
     def _handle_aborted_tasks(self, pending_tasks_details: Dict[str, dict]):
         try:
-            result = self._session.get(
-                service="tasks",
-                action="get_all",
-                json={"id": list(pending_tasks_details), "status": ["stopped"], "only_fields": ["id"]},
-            )
+            result = self._session.send_api(
+                self._session.current(tasks_api.GetAllRequest)(
+                    id=list(pending_tasks_details), status=["stopped"], only_fields=["id"]
+                )
+            ).to_dict()
             aborted_task_ids = list(filter(None, (task.get("id") for task in result["tasks"])))
 
             for task_id in aborted_task_ids:
@@ -170,11 +174,9 @@ class PendingPodsDaemon(K8sDaemon):
                     "deleting pod".format(task_id, resource_name)
                 )
 
-                result = self._session.get(
-                    service="tasks",
-                    action="get_all",
-                    json={"id": [task_id], "status": ["stopped"], "only_fields": ["id"]},
-                )
+                result = self._session.send_api(
+                    self._session.current(tasks_api.GetAllRequest)(id=[task_id], status=["stopped"], only_fields=["id"])
+                ).to_dict()
                 if not result["tasks"]:
                     self.log.debug("K8S Glue pending monitor: task {} is no longer aborted, skipping".format(task_id))
                     continue
@@ -199,33 +201,34 @@ class PendingPodsDaemon(K8sDaemon):
                 pass
             else:
                 # Make sure the task is queued
-                result = self._session.send_request(
-                    service="tasks",
-                    action="get_all",
-                    json={"id": task_id, "only_fields": ["status"]},
-                    method=Request.def_method,
-                )
-                if result.ok:
-                    status = get_path(result.json(), "data", "tasks", 0, "status")
-                    # if task is in progress, change its status to enqueued
-                    if status == "in_progress":
-                        result = self._session.send_request(
-                            service="tasks",
-                            action="enqueue",
-                            json={"task": task_id, "force": True, "queue": self._agent.k8s_pending_queue_id},
-                            method=Request.def_method,
-                        )
-                        if not result.ok:
-                            result_msg = get_path(result.json(), "meta", "result_msg")
-                            self.log.debug(
-                                "K8S Glue pods monitor: failed forcing task status change"
-                                " for pending task {}: {}".format(task_id, result_msg)
+                try:
+                    tasks = self._session.send_api(
+                        self._session.current(tasks_api.GetAllRequest)(id=[task_id], only_fields=["status"])
+                    ).to_dict()
+                except APIError:
+                    tasks = {}
+                status = get_path(tasks, "tasks", 0, "status")
+                if status == "in_progress":
+                    # hand-built: the server reads force (apiserver/services/tasks.py:1025), tasks.enqueue 2.31 does not declare it
+                    result = self._session.send_request(
+                        service="tasks",
+                        action="enqueue",
+                        json={"task": task_id, "force": True, "queue": self._agent.k8s_pending_queue_id},
+                        method=Request.def_method,
+                    )
+                    if not result.ok:
+                        result_msg = get_path(result.json(), "meta", "result_msg")
+                        self.log.debug(
+                            "K8S Glue pods monitor: failed forcing task status change for pending task {}: {}".format(
+                                task_id, result_msg
                             )
+                        )
 
             # Update task status message
             payload = {"task": task_id, "status_message": "K8S glue status: {}".format(msg)}
             if tags:
                 payload["tags"] = tags
+            # hand-built: the server reads status_message (apiserver/services/tasks.py:707-715), tasks.update 2.1 does not declare it
             result = self._session.send_request("tasks", "update", json=payload, method=Request.def_method)
             if not result.ok:
                 result_msg = get_path(result.json(), "meta", "result_msg")

@@ -6,7 +6,7 @@ The agent reads its settings from the environment. Every variable has one name, 
 
 The tests in `tests/test_environment_names.py` check that this table lists exactly the `CAIRNML_` names the code reads, and that no `TRAINS_` name is left.
 
-The five settings that were also named `CAIRNML_AGENT_*` are read under their SDK names only: `CAIRNML_CONFIG_VERBOSE`, `CAIRNML_DISABLE_VAULT_SUPPORT`, `CAIRNML_ENABLE_ENV_CONFIG_SECTION`, `CAIRNML_ENABLE_FILES_CONFIG_SECTION`. The `CAIRNML_AGENT_` forms are not read.
+The four settings that were also named `CAIRNML_AGENT_*` are read under their SDK names only: `CAIRNML_CONFIG_VERBOSE`, `CAIRNML_ENABLE_ENV_CONFIG_SECTION`, `CAIRNML_ENABLE_FILES_CONFIG_SECTION`. The `CAIRNML_AGENT_` forms are not read.
 
 ## Server connection and sign-in
 
@@ -42,7 +42,6 @@ SDK switches the agent does not use: the agent ignores `CAIRNML_OFFLINE_MODE`, a
 | `CAIRNML_CONFIG_FILE` | unset | Configuration file to use instead of the local ones. Set for the task. |
 | `CAIRNML_CONFIG_PATH` | unset | Directory of environment configuration; replaces the default search path. |
 | `CAIRNML_CONFIG_VERBOSE` | `false` | Log which configuration files are read. |
-| `CAIRNML_DISABLE_VAULT_SUPPORT` | unset | Do not read settings from a vault. |
 | `CAIRNML_ENABLE_ENV_CONFIG_SECTION` | unset | Read settings from the environment as a configuration section. |
 | `CAIRNML_ENABLE_FILES_CONFIG_SECTION` | unset | Read settings from files as a configuration section. |
 | `CAIRNML_WORKER_NAME` | unset | Name of this agent (worker) on the server. |

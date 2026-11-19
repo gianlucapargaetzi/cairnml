@@ -1,6 +1,5 @@
 from __future__ import unicode_literals, print_function
 
-import copy
 import re
 import sys
 from abc import abstractmethod
@@ -14,7 +13,7 @@ from cairnml_agent.helper.console import ListFormatter
 from cairnml.backend_api import services
 
 from cairnml_agent.errors import APIError, CommandFailedError
-from cairnml_agent.helper.base import Singleton, return_list, print_parameters, dump_yaml, load_yaml, error, warning
+from cairnml_agent.helper.base import Singleton, return_list, print_parameters, dump_yaml, error, warning
 from cairnml_agent.interface.base import ObjectID
 from cairnml_agent.session import Session
 from typing import Text  # noqa: F401  # named by type comments
@@ -120,16 +119,6 @@ class ServiceCommandSection(BaseCommandSection, metaclass=Singleton):
         """The name of the REST service used by this command"""
         pass
 
-    def get(self, endpoint, *args, service=None, session=None, **kwargs):
-        session = session or self._session
-        service = service or self.service
-        return session.get(service=service, action=endpoint, *args, **kwargs)
-
-    def post(self, endpoint, *args, service=None, session=None, **kwargs):
-        session = session or self._session
-        service = service or self.service
-        return session.post(service=service, action=endpoint, *args, **kwargs)
-
     @property
     def name(self):
         return self.service.title()
@@ -141,29 +130,6 @@ class ServiceCommandSection(BaseCommandSection, metaclass=Singleton):
     @property
     def service_single(self):
         return self.service.rstrip("s")
-
-    @resolve_names
-    def __info(self, id=None, yaml=None, **kwargs):
-        ids = return_list(id)
-        if not ids:
-            return
-
-        yaml_dump = {}
-
-        for i in ids:
-            get_fields = {self.service_single: i}
-            try:
-                info = self.get("get_by_id", **get_fields)
-                yaml_dump[i] = info[self.service_single]
-            except APIError:
-                self.error("Failed retrieving info for {} {}".format(self.service_single, i))
-
-        self.output_info(yaml_dump, yaml_path=yaml, **kwargs)
-        return yaml_dump
-
-    @resolve_names
-    def _info(self, *args, **kwargs):
-        self.__info(*args, **kwargs)
 
     @staticmethod
     def output_info(entries, quiet=False, yaml_path=None, **_):
@@ -190,103 +156,6 @@ class ServiceCommandSection(BaseCommandSection, metaclass=Singleton):
             # does nothing if 'order_by' is not in get_fields
             json["order_by"] = sort.split("#")[0]
         return json, table
-
-    def _get_all(self, endpoint, json, retpoint=None):
-        return self.get(endpoint, **json).get(retpoint or self.service, [])
-
-    @resolve_names
-    def _update(
-        self,
-        endpoint="update",
-        send_diff=False,
-        quiet=False,
-        primary_key="id",
-        override=None,
-        model_desc=None,
-        yaml=None,
-        **kwargs,
-    ):
-
-        if not yaml and primary_key not in kwargs:
-            raise ValueError("Update must supply either yaml file or %s-id" % self.service_single)
-
-        data_entries = {}
-        original_data_entries = {}
-        if yaml:
-            data_entries = load_yaml(yaml)
-
-        if send_diff or (not yaml and primary_key in kwargs):
-            i = kwargs.get(primary_key) or next(iter(data_entries))
-            original_info = self.__info(id=i, quiet=True)[i]
-
-            if send_diff:
-                original_data_entries[i] = copy.deepcopy(original_info)
-            if yaml and i not in data_entries:
-                if len(data_entries) > 1:
-                    raise ValueError("Error: yaml file [%s] contains more than one task id" % yaml)
-                first_key = next(iter(data_entries))
-                if first_key != i:
-                    if kwargs.get("force"):
-                        if not quiet:
-                            print("Warning: overriding yaml task id [%s] with id=%s" % (first_key, i))
-                    else:
-                        raise ValueError(
-                            "Error: yaml task id [%s] != id [%s], use --force to override" % (first_key, i)
-                        )
-                    data_entries = {i: data_entries[first_key]}
-                    data_entries[i][primary_key] = i
-            elif not yaml:
-                data_entries[i] = kwargs
-
-        if model_desc:
-            first_key = next(iter(data_entries))
-            with open(model_desc) as f:
-                proto_data = f.read()
-                info = data_entries[first_key]
-                info["execution"]["model_desc"]["prototxt"] = proto_data
-
-        if override:
-            first_key = next(iter(data_entries))
-            info = data_entries[first_key]
-            for p in override:
-                key, val = p.split("=") if isinstance(p, str) else p
-                info_key = info
-                keys = key.split(".")
-                for k in keys[:-1]:
-                    if not info_key.get(k):
-                        info_key[k] = dict()
-                    info_key = info_key[k]
-                info_key[keys[-1]] = val
-
-            # always make sure tags is a list of strings
-            # split string to tokens ':'
-            # examples tags='auto_generated:draft'
-            if info.get("tags") is not None:
-                # remove empty strings from list
-                info["tags"] = [t for t in info["tags"].split(":") if t]
-
-        # send only change set
-        if send_diff:
-            # only send the values that changed
-            for i, info in data_entries.items():
-                org_info = original_data_entries[i]
-                out_info = {}
-                recursive_diff(org_info, info, out_info)
-                data_entries[i] = out_info
-
-        for i, info in data_entries.items():
-            if not info or len(info) == 0 or list(info) == [primary_key]:
-                if not quiet:
-                    print("Skipping: nothing to update for %s id [%s]" % (self.service_single, i))
-                continue
-            if not quiet:
-                print("Updating %s id [%s]" % (self.service_single, i))
-            info[self.service_single] = i
-            result = self.get(endpoint, **info)
-            if not result["updated"]:
-                raise ValueError("Failed updating %s id [%s]" % (self.service_single, i))
-            if not quiet:
-                print("%s [%s] updated fields: %s" % (self.name_single, i, result.get("fields", "")))
 
     @resolve_names
     def remove(self, ids, **kwargs):

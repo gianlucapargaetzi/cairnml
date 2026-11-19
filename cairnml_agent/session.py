@@ -313,15 +313,6 @@ class Session(_Session):
             )
         )
 
-    def send_api(self, request):
-        # type: (Request) -> Any
-        result = self.send(request)
-        if not result.ok():
-            raise APIError(result)
-        if not result.response:
-            raise APIError(result, extra_info="Invalid response")
-        return result.response
-
     def get(self, service, action, version=None, headers=None, data=None, json=None, **kwargs):
         return self._manual_request(
             service=service,

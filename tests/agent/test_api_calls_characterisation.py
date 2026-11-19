@@ -13,7 +13,6 @@ from types import SimpleNamespace
 import pytest
 
 from cairnml_agent.commands import worker as worker_module
-from cairnml_agent.commands.base import ServiceCommandSection
 from cairnml_agent.commands.events import Events
 from cairnml_agent.commands.resolver import resolve_default_container
 from cairnml_agent.commands.worker import (
@@ -60,7 +59,12 @@ def test_a_task_is_read_with_hidden_ones_searched_and_the_fields_asked_for():
     task = get_task(session, "task-1", only_fields=["status"])
     assert task.id == "task-1"
     [call] = session.of("tasks.get_all")
-    assert call.json == {"id": ["task-1"], "search_hidden": True, "only_fields": ["status"]}
+    assert call.json == {
+        "id": ["task-1"],
+        "search_hidden": True,
+        "only_fields": ["status"],
+        "include_subprojects": False,
+    }
 
 
 def test_a_missing_task_raises_not_found():
@@ -79,7 +83,7 @@ def test_a_refused_task_read_raises_the_servers_error():
 def test_the_next_task_is_the_queues_entry():
     session = WireSession({"queues.get_next_task": answer({"entry": {"task": "task-9", "queue": "q"}})})
     assert get_next_task(session, queue="q") == {"entry": {"task": "task-9", "queue": "q"}}
-    assert [call.json for call in session.of("queues.get_next_task")] == [{"queue": "q"}]
+    assert [call.json for call in session.of("queues.get_next_task")] == [{"queue": "q", "get_task_info": False}]
 
 
 def test_an_empty_queue_answers_an_entry_less_result():
@@ -101,7 +105,12 @@ def test_task_fields_are_read_along_their_dotted_paths():
         "runtime.a": "1",
     }
     [call] = session.of("tasks.get_all")
-    assert call.json == {"id": ["task-1"], "only_fields": ["container.image", "runtime.a"], "search_hidden": True}
+    assert call.json == {
+        "id": ["task-1"],
+        "only_fields": ["container.image", "runtime.a"],
+        "search_hidden": True,
+        "include_subprojects": False,
+    }
 
 
 def test_a_container_is_split_into_its_arguments():
@@ -110,7 +119,12 @@ def test_a_container_is_split_into_its_arguments():
     container = get_task_container(session, "task-1", allow_force_container_rules=False)
     assert container == {"image": "ubuntu", "arguments": ["-v", "/a:/b", "--gpus", "all"], "setup_shell_script": "ls"}
     [call] = session.of("tasks.get_all")
-    assert call.json == {"id": ["task-1"], "only_fields": ["container"], "search_hidden": True}
+    assert call.json == {
+        "id": ["task-1"],
+        "only_fields": ["container"],
+        "search_hidden": True,
+        "include_subprojects": False,
+    }
 
 
 def test_a_refused_container_read_is_no_container():
@@ -157,6 +171,7 @@ def test_a_matching_rule_gives_the_container_it_names():
     assert container["image"] == "vision:1" and container["arguments"] == "--shm-size 2g"
     [tasks_call] = session.of("tasks.get_all")
     assert tasks_call.json == {
+        "include_subprojects": False,
         "id": ["task-1"],
         "only_fields": [
             "script.requirements",
@@ -171,7 +186,12 @@ def test_a_matching_rule_gives_the_container_it_names():
         "search_hidden": True,
     }
     [projects_call] = session.of("projects.get_all")
-    assert projects_call.json == {"id": ["p-1"], "only_fields": ["name"]}
+    assert projects_call.json == {
+        "id": ["p-1"],
+        "only_fields": ["name"],
+        "search_hidden": False,
+        "shallow_search": False,
+    }
 
 
 def test_without_match_rules_the_server_is_not_asked():
@@ -219,7 +239,12 @@ def test_registering_a_callback_stores_its_timeouts_in_the_task_runtime(monkeypa
     session = WireSession({"tasks.get_all": answer({"tasks": [{"runtime": {"keep": "1"}}]}), "tasks.edit": answer({})})
     stop_signal(session).register_bash_callback()
     [read] = session.of("tasks.get_all")
-    assert read.json == {"id": ["task-1"], "only_fields": ["runtime"]}
+    assert read.json == {
+        "id": ["task-1"],
+        "only_fields": ["runtime"],
+        "search_hidden": False,
+        "include_subprojects": False,
+    }
     [edit] = session.of("tasks.edit")
     assert edit.json["task"] == "task-1" and edit.json["force"] is True
     assert edit.json["runtime"]["keep"] == "1"
@@ -234,6 +259,8 @@ def test_the_abort_callback_state_is_read_from_the_task_runtime():
     [call] = session.of("tasks.get_all")
     assert call.json == {
         "id": ["task-1"],
+        "search_hidden": False,
+        "include_subprojects": False,
         "only_fields": [
             "status",
             "status_message",
@@ -270,7 +297,12 @@ def test_a_restart_selector_is_matched_against_the_tasks_field(monkeypatch):
     stub._get_path = Worker._get_path
     assert Worker._get_docker_restart_value(stub, session, "task-1") == "always"
     [call] = session.of("tasks.get_all")
-    assert call.json == {"id": ["task-1"], "only_fields": ["runtime.mode"], "search_hidden": True}
+    assert call.json == {
+        "id": ["task-1"],
+        "only_fields": ["runtime.mode"],
+        "search_hidden": True,
+        "include_subprojects": False,
+    }
 
 
 def test_a_restart_selector_that_does_not_match_gives_no_restart(monkeypatch):
@@ -309,15 +341,14 @@ def test_a_failed_hyper_parameter_read_is_no_environment():
 
 
 def test_a_task_is_dequeued_to_in_progress_and_started_when_it_was_queued():
-    session = WireSession({"tasks.dequeue": answer({"updated": 1})})
-    started = []
-    session.api_client = SimpleNamespace(tasks=SimpleNamespace(started=lambda **kwargs: started.append(kwargs)))
+    session = WireSession({"tasks.dequeue": answer({"updated": 1}), "tasks.started": answer({})})
     stub = SimpleNamespace(_session=session)
     task = SimpleNamespace(id="task-1")
     assert Worker._clone_or_dequeue(stub, "task-1", task, False, True) is task
     [call] = session.of("tasks.dequeue")
-    assert call.json == {"task": "task-1", "new_status": "in_progress"}
-    assert started and started[0]["task"] == "task-1" and started[0]["force"] is True
+    assert call.json == {"task": "task-1", "new_status": "in_progress", "remove_from_all_queues": False}
+    [started] = session.of("tasks.started")
+    assert started.json["task"] == "task-1" and started.json["force"] is True
 
 
 def test_a_task_that_is_not_queued_stops_a_run_that_requires_the_queue():
@@ -343,15 +374,19 @@ def test_the_hostname_is_stored_in_the_task_runtime_before_the_task_starts(monke
     )
     assert Worker.run_one_task(stub, "queue", "task-1", None) is None
     [read] = session.of("tasks.get_all")
-    assert read.json == {"id": ["task-1"], "only_fields": ["runtime"], "search_hidden": True}
+    assert read.json == {
+        "id": ["task-1"],
+        "only_fields": ["runtime"],
+        "search_hidden": True,
+        "include_subprojects": False,
+    }
     [edit] = session.of("tasks.edit")
     assert edit.json["task"] == "task-1" and edit.json["force"] is True
     assert edit.json["runtime"]["keep"] == "1" and edit.json["runtime"]["hostname"]
 
 
 def worker_stub(session):
-    stub = SimpleNamespace(_session=session, service="workers", worker_id="worker-1", log=lambda *a, **k: None)
-    return bind(stub, ServiceCommandSection, "get", "post")
+    return SimpleNamespace(_session=session, service="workers", worker_id="worker-1", log=lambda *a, **k: None)
 
 
 def test_the_worker_registers_with_its_queues():
@@ -360,7 +395,7 @@ def test_the_worker_registers_with_its_queues():
     Worker._register(stub, queues=["q-1"])
     assert stub._worker_registered is True
     [call] = session.of("workers.register")
-    assert call.json == {"worker": "worker-1", "queues": ["q-1"]}
+    assert call.json == {"worker": "worker-1", "queues": ["q-1"], "timeout": 3600}
 
 
 def test_a_refused_registration_is_logged_and_the_worker_is_not_registered():
@@ -380,7 +415,7 @@ def test_the_worker_unregisters_from_its_queues():
     Worker._unregister(stub, queues=["q-1"])
     assert stub._worker_registered is False
     [call] = session.of("workers.unregister")
-    assert call.json == {"worker": "worker-1", "queues": ["q-1"]}
+    assert call.json == {"worker": "worker-1"}
 
 
 def test_the_workers_list_asks_for_every_worker_ever_seen(capsys):
@@ -438,7 +473,7 @@ def test_the_task_runtime_is_read_and_merged_when_it_is_updated():
     assert runtime.get_task_runtime("task-1") == {"a": "1"}
     assert runtime.update_task_runtime("task-1", {"b": "2"}) is True
     [get] = [call for call in session.of("tasks.get_by_id")][:1]
-    assert get.json == {"task": "task-1", "only_fields": ["runtime"]}
+    assert get.json == {"task": "task-1"}
     [edit] = session.of("tasks.edit")
     assert edit.json == {"task": "task-1", "force": True, "runtime": {"a": "1", "b": "2"}}
 
@@ -470,8 +505,12 @@ def test_the_template_loads_the_task_and_its_project():
     resolver = template_resolver(session)
     assert resolver._load_task_info() == {"id": "task-1", "project": "p-1"}
     assert resolver._load_project_info() == {"name": "vision", "id": "p-1"}
-    assert session.of("tasks.get_all")[0].json == {"id": ["task-1"], "search_hidden": True}
-    assert session.of("projects.get_all")[0].json == {"id": ["p-1"], "search_hidden": True}
+    assert session.of("tasks.get_all")[0].json == {
+        "id": ["task-1"],
+        "search_hidden": True,
+        "include_subprojects": False,
+    }
+    assert session.of("projects.get_all")[0].json == {"id": ["p-1"], "search_hidden": True, "shallow_search": False}
 
 
 def test_docker_arguments_are_resolved_against_the_task(monkeypatch):
@@ -497,14 +536,12 @@ def test_the_resource_report_goes_to_the_workers_service():
     monitor.session = session
     monitor._worker_id = "worker-1"
     monitor._worker_tags = ["t"]
-    monitor._report_daemon = True
     monitor._run_mode = "venv"
-    monitor._machine_capacity = lambda: {}
     monitor.get_report = lambda: SimpleNamespace(to_dict=lambda: {"task": "task-1"})
-    assert monitor.send_report(stats={"cpu": 1}) is True
+    assert monitor.send_report(stats={"memory_used": 1.5, "network_tx_mbs": 2.0}) is True
     [call] = session.of("workers.status_report")
     assert call.json["worker"] == "worker-1" and call.json["task"] == "task-1" and call.json["run_mode"] == "venv"
-    assert call.json["tags"] == ["t"] and call.json["machine_stats"] == {"cpu": 1}
+    assert call.json["tags"] == ["t"] and call.json["machine_stats"] == {"memory_used": 1.5}
 
 
 def test_a_refused_resource_report_is_not_sent():
@@ -513,16 +550,13 @@ def test_a_refused_resource_report_is_not_sent():
     monitor.session = session
     monitor._worker_id = "worker-1"
     monitor._worker_tags = []
-    monitor._report_daemon = False
     monitor._run_mode = "venv"
-    monitor._machine_capacity = lambda: {}
     monitor.get_report = lambda: SimpleNamespace(to_dict=lambda: {})
     assert monitor.send_report(stats=None) is False
 
 
 def events_stub(session):
-    stub = SimpleNamespace(_session=session, service="events", max_packet_size=Events.max_packet_size)
-    return bind(stub, ServiceCommandSection, "get", "post")
+    return SimpleNamespace(_session=session, service="events", max_packet_size=Events.max_packet_size)
 
 
 def test_events_are_sent_as_json_lines_and_the_added_count_is_returned():
@@ -572,10 +606,10 @@ def test_a_task_is_pushed_into_the_pending_queue_and_a_stale_queue_is_made_again
     session = WireSession(
         {
             "tasks.get_all": answer({"tasks": [K8S_TASK]}),
+            "queues.remove_task": answer({}),
             "tasks.enqueue": [answer(status=400, msg="invalid queue", subcode=701), answer(status=400, msg="nope")],
         }
     )
-    session.api_client = SimpleNamespace(queues=SimpleNamespace(remove_task=lambda **kwargs: None))
     ensured = []
     glue = k8s_glue(
         session,
@@ -588,7 +622,7 @@ def test_a_task_is_pushed_into_the_pending_queue_and_a_stale_queue_is_made_again
     )
     assert glue.run_one_task("queue-1", "task-1") is None
     [read] = session.of("tasks.get_all")
-    assert read.json == {"id": ["task-1"]}
+    assert read.json == {"id": ["task-1"], "search_hidden": False, "include_subprojects": False}
     first, second = session.of("tasks.enqueue")
     assert (
         first.json
@@ -598,6 +632,7 @@ def test_a_task_is_pushed_into_the_pending_queue_and_a_stale_queue_is_made_again
             "queue": "pending-q",
             "status_reason": "k8s pending scheduler",
             "update_execution_queue": False,
+            "verify_watched_queue": False,
         }
     )
     assert ensured == [True]
@@ -638,7 +673,7 @@ def test_the_runtime_of_a_task_gets_the_glues_values_and_keeps_the_old_ones():
     glue._set_task_user_properties = lambda *a, **k: None
     glue.set_task_info("task-1", session, K8S_TASK, "queue", False, 0, 1)
     [read] = session.of("tasks.get_by_id")
-    assert read.json == {"task": "task-1", "only_fields": ["runtime"]}
+    assert read.json == {"task": "task-1"}
     [edit] = session.of("tasks.edit")
     assert edit.json == {"task": "task-1", "force": True, "runtime": {"old": "1", "new": "2"}}
 
@@ -668,16 +703,23 @@ def test_a_task_of_a_deleted_pod_that_is_stale_is_failed_and_one_that_is_queued_
         "id": ["task-1"],
         "status": ["in_progress", "queued"],
         "only_fields": ["id", "status", "status_reason", "last_change"],
+        "search_hidden": False,
+        "include_subprojects": False,
     }
     [dequeue] = session.of("tasks.dequeue")
     assert dequeue.json == {
+        "task": "task-1",
+        "status_reason": "Pod deleted (not pending or running)",
+        "status_message": "Pod deleted by agent worker-1",
+        "remove_from_all_queues": False,
+    }
+    [failed] = session.of("tasks.failed")
+    assert failed.json == {
         "task": "task-1",
         "force": True,
         "status_reason": "Pod deleted (not pending or running)",
         "status_message": "Pod deleted by agent worker-1",
     }
-    [failed] = session.of("tasks.failed")
-    assert failed.json == dequeue.json
 
 
 def test_a_task_that_could_not_be_put_back_in_its_queue_is_failed_and_moved_to_the_front():
@@ -691,7 +733,7 @@ def test_a_task_that_could_not_be_put_back_in_its_queue_is_failed_and_moved_to_t
     glue = k8s_glue(session)
     glue._re_enqueue_task("queue-1", "task-1")
     [add] = session.of("queues.add_task")
-    assert add.json == {"queue": "queue-1", "task": "task-1"}
+    assert add.json == {"queue": "queue-1", "task": "task-1", "update_execution_queue": True}
     [failed] = session.of("tasks.failed")
     assert failed.json == {
         "task": "task-1",
@@ -723,7 +765,13 @@ def test_the_pending_pod_of_an_aborted_task_is_found_by_the_stopped_status():
     daemon._get_pod_name = lambda pod: "pod-1"
     daemon._handle_aborted_tasks({"task-1": {}, "task-2": {}})
     [call] = session.of("tasks.get_all")
-    assert call.json == {"id": ["task-1", "task-2"], "status": ["stopped"], "only_fields": ["id"]}
+    assert call.json == {
+        "id": ["task-1", "task-2"],
+        "status": ["stopped"],
+        "only_fields": ["id"],
+        "search_hidden": False,
+        "include_subprojects": False,
+    }
 
 
 def test_the_status_message_of_a_pending_task_is_updated_and_an_in_progress_task_is_enqueued_again():
@@ -738,9 +786,11 @@ def test_the_status_message_of_a_pending_task_is_updated_and_an_in_progress_task
     daemon._update_pending_task_msg("task-1", "waiting", ["tag"])
     [read] = session.of("tasks.get_all")
     # the id is a string (when the call is built by hand) or a one-item list (a generated class): the server reads both
-    assert read.json == {"id": "task-1", "only_fields": ["status"]} or read.json == {
+    assert read.json == {
         "id": ["task-1"],
         "only_fields": ["status"],
+        "search_hidden": False,
+        "include_subprojects": False,
     }
     [enqueue] = session.of("tasks.enqueue")
     assert enqueue.json == {"task": "task-1", "force": True, "queue": "pending-q"}

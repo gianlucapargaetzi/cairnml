@@ -13,47 +13,33 @@ from cairnml_agent.commands import worker as worker_module
 from cairnml_agent.commands.worker import Worker
 from cairnml_agent.helper.base import CommandFailedError
 
-
-class Reply:
-    def __init__(self, ok=True, updated=1):
-        self.ok = ok
-        self._updated = updated
-
-    def json(self):
-        return {"data": {"updated": self._updated}}
+from .wire import WireSession, answer
 
 
-class Tasks:
-    def __init__(self, task, fail_lookup=None):
-        self.task = task
-        self.fail_lookup = fail_lookup
-        self.started_calls = []
+class Session(WireSession):
+    """The agent's session with the server's answers the execute path reads: the task lookup, the dequeue, the
+    started mark and the clone."""
 
-    def get_by_id(self, task_id):
-        if self.fail_lookup:
-            raise self.fail_lookup
-        return self.task
+    def __init__(self, task=None, fail_lookup=None, updated=0):
+        found = {"task": _task_dict(task)} if task is not None else {}
+        super().__init__(
+            {
+                "tasks.get_by_id": fail_lookup if fail_lookup is not None else answer(found),
+                "tasks.dequeue": answer({"updated": updated}),
+                "tasks.started": answer({}),
+            },
+            config={"api": {"host": "https://api.example"}},
+        )
 
-    def started(self, **kwargs):
-        self.started_calls.append(kwargs)
-
-
-class Session:
-    def __init__(self, task=None, fail_lookup=None, reply=None):
-        self.api_client = SimpleNamespace(tasks=Tasks(task, fail_lookup))
-        self.reply = reply or Reply(updated=0)
-        self.requests = []
-        self.config = {"api.host": "https://api.example"}
-        self.config_file = "/tmp/unused.conf"
-        self.debug_mode = False
+        self._config_file = "/tmp/unused.conf"
         self.trace = False
-
-    def send_request(self, **kwargs):
-        self.requests.append(kwargs)
-        return self.reply
 
     def print_configuration(self):
         pass
+
+
+def _task_dict(task):
+    return {"id": task.id, "name": task.name, "script": {"binary": task.script.binary}}
 
 
 class Recorder:
@@ -120,12 +106,8 @@ def test_a_task_that_cannot_be_found_is_a_value_error_with_the_host_named():
 
 
 def test_a_lookup_that_returns_no_task_fields_is_a_value_error():
-    class NoAttribute:
-        def get_by_id(self, task_id):
-            raise AttributeError("no id")
-
     session = Session()
-    session.api_client = SimpleNamespace(tasks=NoAttribute())
+    session.answers["tasks.get_by_id"] = answer({})
     with pytest.raises(ValueError, match="Could not find task id=task-1"):
         Worker.execute(Recorder(session), task_id="task-1", log_level="INFO")
 
@@ -166,20 +148,21 @@ def test_docker_mode_still_stops_the_monitor_when_the_run_raises(monkeypatch, no
 
 def test_clone_asks_the_server_for_a_copy_and_does_not_dequeue(monkeypatch, no_bootstrap):
     session = Session(task())
-    session.api_client.tasks.get_by_id = lambda task_id: task(task_id)
-    monkeypatch.setattr(
-        worker_module.tasks_api, "CloneRequest", lambda **kwargs: SimpleNamespace(**kwargs), raising=False
-    )
-    session.send_api = lambda request: SimpleNamespace(id="task-2")
+    session.answers["tasks.clone"] = answer({"id": "task-2"})
+    session.answers["tasks.get_by_id"] = answer({"task": _task_dict(task("task-2"))})
     stub = Recorder(session)
     Worker.execute(stub, task_id="task-1", log_level="INFO", docker="ubuntu:22.04", clone=True)
-    assert session.requests == []  # no dequeue for a clone
+    assert session.of("tasks.dequeue") == []  # no dequeue for a clone
     assert ("run_one_task", "", "task-2", "ubuntu:22.04") in stub.calls
 
 
 def test_a_task_that_must_be_queued_and_is_not_fails(monkeypatch, no_bootstrap):
-    session = Session(task(), reply=Reply(ok=True, updated=0))
+    session = Session(task(), updated=0)
     stub = Recorder(session)
     with pytest.raises(ValueError, match="is not queued"):
         Worker.execute(stub, task_id="task-1", log_level="INFO", require_queue=True)
-    assert session.requests[0]["json"] == {"task": "task-1", "new_status": "in_progress"}
+    assert session.of("tasks.dequeue")[0].json == {
+        "task": "task-1",
+        "new_status": "in_progress",
+        "remove_from_all_queues": False,
+    }

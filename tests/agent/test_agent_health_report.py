@@ -1,19 +1,21 @@
 from collections import deque
 
-
 from cairnml_agent.helper import resource_monitor
 from cairnml_agent.helper.resource_monitor import ResourceMonitor
 from cairnml_agent.version import __version__
 
+from .wire import WireSession, answer
 
-class Recording:
-    """A session stub that records the status reports sent to the server."""
+
+class Recording(WireSession):
+    """The agent's session answering the status reports; sent is what went on the wire, as (service, action, body)."""
 
     def __init__(self):
-        self.sent = []
+        super().__init__({"workers.status_report": answer({})})
 
-    def get(self, service, action, **report):
-        self.sent.append((service, action, report))
+    @property
+    def sent(self):
+        return [(call.service, call.action, call.json) for call in self.calls]
 
 
 def monitor_with(session, report):
@@ -23,7 +25,6 @@ def monitor_with(session, report):
     monitor.queue.appendleft(report)
     monitor._worker_id = "agent-1"
     monitor._worker_tags = ["gpu"]
-    monitor._report_daemon = True
     monitor._run_mode = "docker"
     return monitor
 
@@ -68,19 +69,7 @@ def test_a_report_without_a_known_run_mode_sends_none():
     monitor = monitor_with(session, ResourceMonitor.StatusReport(queues=["default"]))
     monitor._run_mode = None
     monitor.send_report()
-    assert session.sent[0][2]["run_mode"] is None
-
-
-def test_an_unreadable_machine_capacity_does_not_stop_the_report(monkeypatch):
-    def broken(_path):
-        raise OSError("no disk")
-
-    monkeypatch.setattr(resource_monitor.psutil, "disk_usage", broken)
-    session = Recording()
-    monitor = monitor_with(session, ResourceMonitor.StatusReport(queues=["default"]))
-    assert monitor.send_report()
-    capacity = session.sent[0][2]["machine_capacity"]
-    assert "disk_gb" not in capacity and capacity["cpus"] >= 0
+    assert session.sent[0][2].get("run_mode") is None
 
 
 def test_one_failing_round_does_not_end_the_reporting_thread(monkeypatch):

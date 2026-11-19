@@ -5,15 +5,12 @@ import logging
 from cairnml_agent.commands.worker import get_task_fields
 from cairnml_agent.glue.k8s import K8sIntegration
 
-
-class _Response(object):
-    def json(self):
-        return {"data": {"tasks": []}}
+from .wire import WireSession, answer
 
 
-class _Session(object):
-    def send_request(self, **kwargs):
-        return _Response()
+def _Session():
+    """The agent's session, answered with no task."""
+    return WireSession({"tasks.get_all": answer({"tasks": []})})
 
 
 def test_failed_task_field_lookup_logs_its_message(caplog):

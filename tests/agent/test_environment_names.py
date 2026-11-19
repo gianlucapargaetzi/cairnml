@@ -6,7 +6,6 @@ import re
 from pathlib import Path
 
 import pytest
-from cairnml.backend_api.session import defs as sdk_session_defs
 
 from cairnml_agent.backend_api.session import defs as session_defs
 from cairnml_agent.backend_config import defs as config_defs
@@ -52,13 +51,6 @@ def test_the_backward_compatibility_mirror_is_gone():
     "entry, name, value, expected",
     [
         pytest.param(
-            sdk_session_defs.ENV_DISABLE_VAULT_SUPPORT,
-            "CAIRNML_DISABLE_VAULT_SUPPORT",
-            "true",
-            True,
-            id="disable-vault-support",
-        ),
-        pytest.param(
             session_defs.ENV_ENABLE_ENV_CONFIG_SECTION,
             "CAIRNML_ENABLE_ENV_CONFIG_SECTION",
             "true",
@@ -84,12 +76,6 @@ def test_the_shared_knob_is_read_under_its_sdk_name(monkeypatch, entry, name, va
 @pytest.mark.parametrize(
     "entry, name, value",
     [
-        pytest.param(
-            sdk_session_defs.ENV_DISABLE_VAULT_SUPPORT,
-            "CAIRNML_DISABLE_VAULT_SUPPORT",
-            "true",
-            id="disable-vault-support",
-        ),
         pytest.param(
             session_defs.ENV_ENABLE_ENV_CONFIG_SECTION,
             "CAIRNML_ENABLE_ENV_CONFIG_SECTION",

@@ -4,6 +4,7 @@ import json
 import time
 from typing import List, Tuple
 
+from cairnml.backend_api.services import events as events_api
 from cairnml_agent.commands.base import ServiceCommandSection
 from cairnml_agent.helper.base import return_list
 
@@ -21,42 +22,39 @@ class Events(ServiceCommandSection):
         return "events"
 
     def send_events(self, list_events, session=None):
-        def send_packet(jsonlines):
-            if not jsonlines:
-                return 0
-            num_lines = len(jsonlines)
-            jsonlines = "\n".join(jsonlines)
+        session = session or self._session
 
-            new_events = self.post(
-                "add_batch", data=jsonlines, headers={"Content-type": "application/json-lines"}, session=session
-            )
-            if new_events["added"] != num_lines:
+        def send_packet(events):
+            if not events:
+                return 0
+            num_events = len(events)
+            new_events = session.send_api(session.current(events_api.AddBatchRequest)(requests=events))
+            if new_events.added != num_events:
                 print(
                     "Error (%s) sending events only %d of %d registered"
-                    % (new_events["errors"], new_events["added"], num_lines)
+                    % (new_events.errors, new_events.added, num_events)
                 )
-                return int(new_events["added"])
-            # print('Sent %d events' % num_lines)
-            return num_lines
+                return int(new_events.added)
+            # print('Sent %d events' % num_events)
+            return num_events
 
-        # json every line and push into list of json strings
+        # measure every event as its json line, and pack the events into packets of the size limit
         count_bytes = 0
-        lines = []
+        packet = []
         sent_events = 0
         for i, event in enumerate(list_events):
-            line = json.dumps(event)
-            line_len = len(line) + 1
+            line_len = len(json.dumps(event)) + 1
             if count_bytes + line_len > self.max_packet_size:
                 # flush packet, and restart
-                sent_events += send_packet(lines)
+                sent_events += send_packet(packet)
                 count_bytes = 0
-                lines = []
+                packet = []
 
             count_bytes += line_len
-            lines.append(line)
+            packet.append(event)
 
         # flush leftovers
-        sent_events += send_packet(lines)
+        sent_events += send_packet(packet)
         # print('Sending events done: %d / %d events sent' % (sent_events, len(list_events)))
         return sent_events
 

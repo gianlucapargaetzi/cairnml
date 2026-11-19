@@ -14,6 +14,7 @@ import attr
 import psutil
 from pathlib import Path
 
+from cairnml.backend_api.services import workers as workers_api
 from cairnml_agent.definitions import ENV_WORKER_TAGS, ENV_GPU_FRACTIONS
 from cairnml_agent.session import Session
 from cairnml_agent.version import __version__
@@ -61,13 +62,11 @@ class ResourceMonitor(object):
         report_frequency_sec=30.0,
         first_report_sec=None,
         worker_tags=None,
-        report_daemon=False,  # type: bool
         run_mode=None,  # type: str
     ):
         self.session = session
         self.queue = deque(maxlen=1)
         self.queue.appendleft(self.StatusReport())
-        self._report_daemon = report_daemon
         self._run_mode = run_mode
         self._worker_id = worker_id
         self._sample_frequency = sample_frequency_per_sec
@@ -136,30 +135,12 @@ class ResourceMonitor(object):
         self._exit_event.set()
         self.send_report()
 
-    @staticmethod
-    def _machine_capacity() -> dict:
-        """What the machine has in total: CPUs, RAM and disk in GB. Sent with each report, for the monitor.
-        A value that cannot be read is left out, so the report is still sent."""
-        capacity = {}
-        for key, read in (
-            ("cpus", lambda: psutil.cpu_count() or 0),
-            ("ram_gb", lambda: round(psutil.virtual_memory().total / 1024**3, 2)),
-            ("disk_gb", lambda: round(psutil.disk_usage(os.path.expanduser("~")).total / 1024**3, 2)),
-        ):
-            try:
-                capacity[key] = read()
-            except Exception as ex:
-                log.warning("cannot read machine capacity %s: %s", key, ex)
-        return capacity
-
     def send_report(self, stats=None):
         report = dict(
             machine_stats=stats,
-            machine_capacity=self._machine_capacity(),
             timestamp=(int(time()) * 1000),
             worker=self._worker_id,
             tags=self._worker_tags,
-            is_daemon=self._report_daemon,
             # the agent's version, so the server can show which agents are out of date
             agent_version=__version__,
             # where the agent runs jobs: "docker", "venv" or "host"
@@ -170,7 +151,7 @@ class ResourceMonitor(object):
 
         # noinspection PyBroadException
         try:
-            self.session.get(service="workers", action="status_report", **report)
+            self.session.send_api(self.session.current(workers_api.StatusReportRequest)(**report))
         except Exception:
             log.warning("Failed sending report: %s", report)
             return False

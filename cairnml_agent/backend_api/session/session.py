@@ -22,6 +22,7 @@ from cairnml.backend_api.services import UnsupportedApiVersion, resolve
 from cairnml.backend_api.session.session import LoginError
 from cairnml.backend_api.session.session import Session as SdkSession
 
+from ...errors import APIError
 from ...idp import device as agent_device
 from ...version import __version__
 from ..config import load
@@ -130,6 +131,25 @@ class Session(SdkSession):
         """The generated request and response classes of the definition the action is sent with: the newest definition
         at or below the level the requests go out at."""
         return resolve(service, action, cls.request_version(service, action))
+
+    def send_api(self, request):
+        """Send a generated request and return its response object; a refused call raises APIError."""
+        result = self.send(request)
+        if not result.ok():
+            raise APIError(result)
+        if not result.response:
+            raise APIError(result, extra_info="Invalid response")
+        return result.response
+
+    @classmethod
+    def current(cls, request_cls):
+        """The generated request class to build a call with: the definition of the request's action that the requests
+        go out with (see request_version), the newest one of the generated module when the server is that new, an
+        older one for an older server. Build the call as `session.send_api(session.current(tasks_api.GetAllRequest)(...))`
+        so the request names its generated class and the version comes from the level."""
+        service, action = request_cls._service, request_cls._action
+        current_cls, _ = resolve(service, action, cls.request_version(service, action))
+        return current_cls
 
     @classmethod
     def declares(cls, service, action, field):

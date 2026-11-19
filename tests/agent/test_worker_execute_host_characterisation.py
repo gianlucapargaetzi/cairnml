@@ -10,6 +10,8 @@ from types import SimpleNamespace
 
 import pytest
 
+from cairnml.backend_api.services import tasks as tasks_api
+
 from cairnml_agent.commands import worker as worker_module
 from cairnml_agent.commands.worker import Worker
 
@@ -40,22 +42,12 @@ class PackageApi:
         return Argv(self.calls, self.exit_code, "python3", *extra)
 
 
-class Tasks:
+class Session:
+    """The agent's session as the host path uses it: the task lookup, the started mark and the dequeue answer."""
+
     def __init__(self, calls, task):
         self.calls = calls
         self._task = task
-
-    def get_by_id(self, task_id):
-        return self._task
-
-    def started(self, **kwargs):
-        self.calls.append(("tasks.started", kwargs["status_reason"]))
-
-
-class Session:
-    def __init__(self, calls, task):
-        self.calls = calls
-        self.api_client = SimpleNamespace(tasks=Tasks(calls, task))
         self.config = {"agent.venvs_dir": "/tmp/unused-venvs"}
         self.config_file = "/tmp/unused.conf"
         self.debug_mode = False
@@ -63,6 +55,20 @@ class Session:
 
     def print_configuration(self):
         self.calls.append(("print_configuration",))
+
+    def current(self, request_cls):
+        return request_cls
+
+    def send_api(self, request):
+        if isinstance(request, tasks_api.GetByIdRequest):
+            return SimpleNamespace(task=self._task)
+        if isinstance(request, tasks_api.StartedRequest):
+            self.calls.append(("tasks.started", request.status_reason))
+            return SimpleNamespace()
+        raise AssertionError("no answer for {}".format(type(request).__name__))
+
+    def send(self, request):
+        return SimpleNamespace(ok=lambda: True, response_data={"updated": 0})
 
     def send_request(self, **kwargs):
         return SimpleNamespace(ok=True, json=lambda: {"data": {"updated": 0}})
