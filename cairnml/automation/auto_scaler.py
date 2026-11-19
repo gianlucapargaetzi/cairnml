@@ -112,7 +112,6 @@ class AutoScaler:
         # Set up the environment variables for cairnml
         defs.ENV_HOST.set(session.get_api_server_host())
         defs.ENV_WEB_HOST.set(session.get_app_server_host())
-        defs.ENV_FILES_HOST.set(session.get_files_server_host())
         if self.auth_token:
             defs.ENV_AUTH_TOKEN.set(self.auth_token)
 

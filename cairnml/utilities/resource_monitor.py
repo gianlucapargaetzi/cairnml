@@ -4,15 +4,17 @@ import platform
 import sys
 import warnings
 from time import time
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, TYPE_CHECKING
 
 import psutil
 from pathlib2 import Path
 
 from .process.mp import BackgroundMonitor
-from ..backend_api import Session
 from ..binding.frameworks.tensorflow_bind import IsTensorboardInit
 from ..config import config, ENV_MULTI_NODE_SINGLE_TASK
+
+if TYPE_CHECKING:
+    from ..task import Task
 
 try:
     from . import gpu_query as gpustat
@@ -42,7 +44,7 @@ class ResourceMonitor(BackgroundMonitor):
 
     def __init__(
         self,
-        task: Session,
+        task: "Task",
         sample_frequency_per_sec: float = 2.0,
         report_frequency_sec: float = 30.0,
         first_report_sec: float = None,
@@ -436,7 +438,7 @@ class ResourceMonitor(BackgroundMonitor):
         return len(titles) > 0
 
     @classmethod
-    def get_logger_reported_titles(cls, task: Session) -> List[str]:
+    def get_logger_reported_titles(cls, task: "Task") -> List[str]:
         # noinspection PyProtectedMember
         titles = list(task.get_logger()._get_used_title_series().keys())
 

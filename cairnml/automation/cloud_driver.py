@@ -33,7 +33,6 @@ cat << EOF >> ~/cairnml.conf
 EOF
 export CAIRNML_API_HOST={api_server}
 export CAIRNML_WEB_HOST={web_server}
-export CAIRNML_FILES_HOST={files_server}
 export DYNAMIC_INSTANCE_ID=$({instance_id_command})
 export CAIRNML_WORKER_ID={worker_prefix}:$DYNAMIC_INSTANCE_ID
 export CAIRNML_AUTH_TOKEN='{auth_token}'
@@ -67,7 +66,6 @@ class CloudDriver(ABC):
     extra_cairnml_conf = attr.ib()
     api_server = attr.ib()
     web_server = attr.ib()
-    files_server = attr.ib()
     auth_token = attr.ib()
 
     # Other
@@ -137,7 +135,6 @@ class CloudDriver(ABC):
             auth_token=self.auth_token or "",
             api_server=self.api_server,
             cairnml_conf=self.cairnml_conf(),
-            files_server=self.files_server,
             web_server=self.web_server,
             bash_script=(
                 f"export NVIDIA_VISIBLE_DEVICES=none; {self.extra_vm_bash_script}"  # ruff-format-hint
@@ -188,7 +185,6 @@ class CloudDriver(ABC):
             "extra_cairnml_conf": configurations["extra_cairnml_conf"],
             "api_server": session.get_api_server_host(),
             "web_server": session.get_app_server_host(),
-            "files_server": session.get_files_server_host(),
             "auth_token": ENV_AUTH_TOKEN.get(),
             "extra_vm_bash_script": configurations["extra_vm_bash_script"],
             "docker_image": hyper_params["default_docker_image"],
