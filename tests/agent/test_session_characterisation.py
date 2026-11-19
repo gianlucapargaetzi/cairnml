@@ -10,6 +10,7 @@ import jwt
 import pytest
 import requests
 from cairnml.backend_api.session.session import Session as SdkSession
+from cairnml.backend_api.services import API_LEVEL
 from cairnml.idp.device import save_device_key, secure_folder
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
@@ -319,7 +320,7 @@ def test_the_job_token_file_is_read_again_on_every_refresh(monkeypatch, tmp_path
     assert session._do_refresh_token(None) == "second"
 
 
-def test_a_device_exchange_is_sent_at_version_2_8_and_signed_for_the_host(monkeypatch, tmp_path, wire):
+def test_a_device_exchange_is_sent_at_the_negotiated_level_and_signed_for_the_host(monkeypatch, tmp_path, wire):
     key_path = tmp_path / "device.key"
     key = Ed25519PrivateKey.generate()
     save_device_key(key_path, key)
@@ -332,7 +333,8 @@ def test_a_device_exchange_is_sent_at_version_2_8_and_signed_for_the_host(monkey
         session = Session(config=config, host=HOST)
 
     exchange = [c for c in wire.calls if c["url"].endswith("devices.exchange")]
-    assert exchange and exchange[0]["url"] == f"{HOST}/v2.8/devices.exchange"
+    # the server's level (2.9 in the token it grants) is only known after this exchange: the level is API_LEVEL
+    assert exchange and exchange[0]["url"] == f"{HOST}/v{API_LEVEL}/devices.exchange"
     claims = jwt.decode(
         exchange[0]["json"]["assertion"],
         key.public_key(),

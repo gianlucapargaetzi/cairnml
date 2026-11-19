@@ -406,7 +406,7 @@ class TemplateResolver:
         result = self.task_session.send_request(
             service="tasks",
             action="get_all",
-            version="2.20",
+            version=self.task_session.request_version("tasks", "get_all"),
             method=Request.def_method,
             json={"id": [self.task_id], "search_hidden": True},
         )
@@ -418,7 +418,7 @@ class TemplateResolver:
         result = self.task_session.send_request(
             service="projects",
             action="get_all",
-            version="2.20",
+            version=self.task_session.request_version("projects", "get_all"),
             method=Request.def_method,
             json={"id": [project_id], "search_hidden": True},  # check hidden required?
         )

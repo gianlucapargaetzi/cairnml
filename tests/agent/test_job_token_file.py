@@ -70,6 +70,8 @@ class Answer:
 class ServerAnswers:
     """A session whose job token requests get the given answers, one per call."""
 
+    request_version = Session.request_version
+
     def __init__(self, *answers):
         self._answers = list(answers)
 

@@ -98,8 +98,6 @@ class K8sIntegration(Worker):
     DEFAULT_POD_NAME_PREFIX = "cairnml-id-"
     DEFAULT_LIMIT_POD_LABEL = "ai.cairnml.agent.serial=pod-{pod_number}"
 
-    _edit_hyperparams_version = "2.9"
-
     def __init__(
         self,
         k8s_pending_queue_name=None,
@@ -293,7 +291,7 @@ class K8sIntegration(Worker):
             if self._edit_hyperparams_support == self._session.api_version:
                 # tested against latest api_version, not supported
                 return
-            if not self._session.check_min_api_version(self._edit_hyperparams_version):
+            if not self._session.serves("tasks", "edit_hyper_params"):
                 # not supported due to insufficient api_version
                 self._edit_hyperparams_support = self._session.api_version
                 return
@@ -464,7 +462,9 @@ class K8sIntegration(Worker):
     def run_one_task(self, queue: Text, task_id: Text, worker_args=None, task_session=None, **_):
         print("Pulling task {} launching on kubernetes cluster".format(task_id))
         session = task_session or self._session
-        task_data = session.get(service="tasks", action="get_all", version="2.13", id=[task_id])["tasks"][0]
+        task_data = session.get(
+            service="tasks", action="get_all", version=session.request_version("tasks", "get_all"), id=[task_id]
+        )["tasks"][0]
 
         # push task into the k8s queue, so we have visibility on pending tasks in the k8s scheduler
         if self._is_same_tenant(task_session):
@@ -1457,7 +1457,7 @@ class K8sIntegration(Worker):
         result = self._session.send_request(
             service="queues",
             action="add_task",
-            version="2.14",
+            version=self._session.request_version("queues", "add_task"),
             json=request,
             method=Request.def_method,
         )
@@ -1482,7 +1482,7 @@ class K8sIntegration(Worker):
         result = self._session.send_request(
             service="queues",
             action="move_task_to_front",
-            version="2.14",
+            version=self._session.request_version("queues", "move_task_to_front"),
             json=request,
             method=Request.def_method,
         )

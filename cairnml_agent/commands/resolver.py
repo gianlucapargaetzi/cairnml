@@ -10,7 +10,7 @@ from cairnml_agent.helper.package.requirements import (
 
 def resolve_default_container(session, task_id, container_config, ignore_match_rules=False):
     container_lookup = session.config.get("agent.default_docker.match_rules", None)
-    if not session.check_min_api_version("2.13") or not container_lookup:
+    if not session.declares("tasks", "get_all", "search_hidden") or not container_lookup:
         return container_config, None
 
     # check backend support before sending any more requests (because they will fail and crash the Task)
@@ -28,7 +28,7 @@ def resolve_default_container(session, task_id, container_config, ignore_match_r
     result = session.send_request(
         service="tasks",
         action="get_all",
-        version="2.14",
+        version=session.request_version("tasks", "get_all"),
         json={
             "id": [task_id],
             "only_fields": [
@@ -64,7 +64,7 @@ def resolve_default_container(session, task_id, container_config, ignore_match_r
         result = session.send_request(
             service="projects",
             action="get_all",
-            version="2.13",
+            version=session.request_version("projects", "get_all"),
             json={
                 "id": [task_info.get("project")],
                 "only_fields": ["name"],

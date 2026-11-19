@@ -3,6 +3,7 @@ from unittest import mock
 
 import jwt
 import pytest
+from cairnml.backend_api.services import API_LEVEL
 from cairnml.idp.device import save_device_key
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
@@ -59,7 +60,7 @@ def test_an_agent_exchanges_a_signed_assertion_for_a_token(key_file):
         assert session._do_refresh_token(None) == "access-1"
 
     kwargs = send.call_args.kwargs
-    assert (kwargs["service"], kwargs["action"], kwargs["version"]) == ("devices", "exchange", "2.8")
+    assert (kwargs["service"], kwargs["action"], kwargs["version"]) == ("devices", "exchange", API_LEVEL)
     claims = jwt.decode(
         kwargs["json"]["assertion"],
         key.public_key(),

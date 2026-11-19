@@ -7,6 +7,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from cairnml_agent.backend_api.session.session import Session
 from cairnml_agent.helper.repo import Git, fetch_git_token, github_header, scrub_token
 
 TOKEN = "ghs_exampletoken123"
@@ -60,7 +61,7 @@ def test_fetching_the_token_asks_the_server_for_the_tasks_repository():
         def json(self):
             return {"data": {"token": TOKEN}}
 
-    session = SimpleNamespace(send_request=lambda **kwargs: Reply())
+    session = SimpleNamespace(send_request=lambda **kwargs: Reply(), request_version=Session.request_version)
     assert fetch_git_token(session, "task-1") == TOKEN
 
 
@@ -68,7 +69,7 @@ def test_a_missing_token_is_none_so_the_configured_credentials_are_used():
     class Reply:
         ok = False
 
-    session = SimpleNamespace(send_request=lambda **kwargs: Reply())
+    session = SimpleNamespace(send_request=lambda **kwargs: Reply(), request_version=Session.request_version)
     assert fetch_git_token(session, "task-1") is None
 
 

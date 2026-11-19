@@ -473,16 +473,17 @@ class TaskStopReason(object):
 def get_task(session, task_id, **kwargs):
     """Use manual api call so that we can pass 'search_hidden' param from api v2.14"""
     # return session.api_client.tasks.get_all(id=[task_id], **kwargs)[0]
+    request_cls, _ = session.definition("tasks", "get_all")
     res = session.send_request(
         service="tasks",
         action="get_all",
-        version="2.14",
+        version=session.request_version("tasks", "get_all"),
         json={"id": [task_id], "search_hidden": True, **kwargs},
         method=Request.def_method,
     )
     result = CallResult.from_result(
         res=res,
-        request_cls=tasks_api.GetAllRequest,
+        request_cls=request_cls,
         logger=session._logger,
         service="tasks",
         action="get_all",
@@ -508,7 +509,7 @@ def get_next_task(session, queue):
     result = session.send_request(
         service="queues",
         action="get_next_task",
-        version="2.14",
+        version=session.request_version("queues", "get_next_task"),
         json=request,
         method=Request.def_method,
     )
@@ -557,11 +558,11 @@ def get_task_container(session, task_id, ignore_match_rules=False, allow_force_c
     Returns dict with Task docker container setup {container: '', arguments: '', setup_shell_script: ''}
     """
     raw_container = {}
-    if session.check_min_api_version("2.13"):
+    if session.declares("tasks", "get_all", "search_hidden"):
         result = session.send_request(
             service="tasks",
             action="get_all",
-            version="2.14",
+            version=session.request_version("tasks", "get_all"),
             json={"id": [task_id], "only_fields": ["container"], "search_hidden": True},
             method=Request.def_method,
         )
@@ -592,7 +593,7 @@ def get_task_container(session, task_id, ignore_match_rules=False, allow_force_c
                 raw_container["arguments"] = " ".join(shlex.quote(x) for x in raw_container["arguments"])
 
     no_default_container = not container or not container.get("image")
-    if no_default_container or allow_force_container_rules and session.check_min_api_version("2.13"):
+    if no_default_container or allow_force_container_rules and session.declares("tasks", "get_all", "search_hidden"):
         original_container = copy(container or {})
         updated_container, entry = resolve_default_container(
             session=session,
@@ -622,7 +623,7 @@ def get_task_container(session, task_id, ignore_match_rules=False, allow_force_c
             update_back_task = container.pop("update_back_task", None) or updated_container.pop(
                 "update_back_task", None
             )
-            if update_back_task and container != original_container and session.check_min_api_version("2.13"):
+            if update_back_task and container != original_container and session.declares("tasks", "edit", "container"):
                 # update back the task
                 print("INFO: Updating the Task with the selected container with rule")
                 try:
@@ -630,7 +631,7 @@ def get_task_container(session, task_id, ignore_match_rules=False, allow_force_c
                         service="tasks",
                         action="edit",
                         method=Request.def_method,
-                        version="2.13",
+                        version=session.request_version("tasks", "edit"),
                         json={
                             "task": task_id,
                             "force": True,
@@ -663,7 +664,7 @@ def set_task_container(session, task_id, docker_image=None, docker_arguments=Non
     if docker_arguments and isinstance(docker_arguments, str):
         docker_arguments = [docker_arguments]
 
-    if session.check_min_api_version("2.13"):
+    if session.declares("tasks", "edit", "container"):
         container = dict(
             image=docker_image or "",
             arguments=" ".join(docker_arguments) if docker_arguments else "",
@@ -672,14 +673,15 @@ def set_task_container(session, task_id, docker_image=None, docker_arguments=Non
         result = session.send_request(
             service="tasks",
             action="edit",
-            version="2.13",
+            version=session.request_version("tasks", "edit"),
             json={"task": task_id, "container": container, "force": True},
             method=Request.def_method,
         )
         return result.ok
     else:
+        edit_cls, _ = session.definition("tasks", "edit")
         return session.send_api(
-            tasks_api.EditRequest(
+            edit_cls(
                 task_id,
                 force=True,
                 execution=dict(  # noqa
@@ -764,7 +766,11 @@ class TaskStopSignal(object):
         # update the task runtime properties
         try:
             task_info = self.session.get(
-                service="tasks", action="get_all", version="2.13", id=[self.task_id], only_fields=["runtime"]
+                service="tasks",
+                action="get_all",
+                version=self.session.request_version("tasks", "get_all"),
+                id=[self.task_id],
+                only_fields=["runtime"],
             )["tasks"][0]
             runtime_properties = task_info.get("runtime") or {}
             runtime_properties[self.property_abort_callback_timeout] = str(self._bash_callback_timeout)
@@ -772,7 +778,7 @@ class TaskStopSignal(object):
             self.session.post(
                 service="tasks",
                 action="edit",
-                version="2.13",
+                version=self.session.request_version("tasks", "edit"),
                 task=self.task_id,
                 runtime=runtime_properties,
                 force=True,
@@ -832,14 +838,18 @@ class TaskStopSignal(object):
         # update the task runtime properties
         try:
             task_info = self.session.get(
-                service="tasks", action="get_all", version="2.13", id=[self.task_id], only_fields=["runtime"]
+                service="tasks",
+                action="get_all",
+                version=self.session.request_version("tasks", "get_all"),
+                id=[self.task_id],
+                only_fields=["runtime"],
             )["tasks"][0]
             runtime_properties = task_info.get("runtime") or {}
             runtime_properties[self.property_abort_callback_completed] = str(1)
             self.session.post(
                 service="tasks",
                 action="edit",
-                version="2.13",
+                version=self.session.request_version("tasks", "edit"),
                 task=self.task_id,
                 runtime=runtime_properties,
                 force=True,
@@ -881,7 +891,7 @@ class TaskStopSignal(object):
                     task_info = self.session.get(
                         service="tasks",
                         action="get_all",
-                        version="2.13",
+                        version=self.session.request_version("tasks", "get_all"),
                         id=[self.task_id],
                         only_fields=[
                             "status",
@@ -943,7 +953,7 @@ class TaskStopSignal(object):
             task_info = self.session.get(
                 service="tasks",
                 action="get_all",
-                version="2.13",
+                version=self.session.request_version("tasks", "get_all"),
                 id=[self.task_id],
                 only_fields=[
                     "status",
@@ -987,7 +997,7 @@ class TaskStopSignal(object):
         """
         if self._support_callback is None:
             # test if backend support callback
-            self._support_callback = self.session.check_min_api_version("2.13")
+            self._support_callback = self.session.declares("tasks", "edit", "runtime")
 
         task_info = get_task(self.session, self.task_id, only_fields=["status", "status_message"])
         status = task_info.status
@@ -1310,7 +1320,7 @@ class Worker(ServiceCommandSection):
             result = task_session.send_request(
                 service="tasks",
                 action="get_all",
-                version="2.15",
+                version=task_session.request_version("tasks", "get_all"),
                 method=Request.def_method,
                 json={"id": [task_id], "only_fields": ["runtime"], "search_hidden": True},
             )
@@ -2248,8 +2258,9 @@ class Worker(ServiceCommandSection):
             return
         self.log("Updating task commit ID: %s", repo_info.commit)
         try:
+            edit_cls, _ = self._session.definition("tasks", "edit")
             self._session.send_api(
-                tasks_api.EditRequest(task_id, script=dict(binary=None, version_num=repo_info.commit), force=True)
+                edit_cls(task_id, script=dict(binary=None, version_num=repo_info.commit), force=True)
             )
         except Exception:
             pass
@@ -3314,7 +3325,7 @@ class Worker(ServiceCommandSection):
     def _get_task_os_env(self, config, current_task):
         if not config.get("agent.enable_task_env", None):
             return None
-        if not self._session.check_min_api_version("2.9"):
+        if not self._session.serves("tasks", "get_hyper_params"):
             return None
         # noinspection PyBroadException
         try:

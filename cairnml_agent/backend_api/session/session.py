@@ -18,6 +18,7 @@ from random import SystemRandom
 from typing import ClassVar
 
 import requests
+from cairnml.backend_api.services import UnsupportedApiVersion, resolve
 from cairnml.backend_api.session.session import LoginError
 from cairnml.backend_api.session.session import Session as SdkSession
 
@@ -113,6 +114,31 @@ class Session(SdkSession):
     def check_min_api_version(cls, min_api_version):
         """The agent's feature checks compare with the API level of the server it talks to."""
         return cls.check_min_api_server_version(min_api_version)
+
+    @classmethod
+    def serves(cls, service, action):
+        """True when the server serves the action: a definition of it is at or below the level the requests go out at
+        (see request_version)."""
+        try:
+            cls.request_version(service, action)
+        except UnsupportedApiVersion:
+            return False
+        return True
+
+    @classmethod
+    def definition(cls, service, action):
+        """The generated request and response classes of the definition the action is sent with: the newest definition
+        at or below the level the requests go out at."""
+        return resolve(service, action, cls.request_version(service, action))
+
+    @classmethod
+    def declares(cls, service, action, field):
+        """True when the definition the action is sent with declares the field. A field a definition added is only
+        there from that definition on, so a call that sends it needs a server that serves the definition."""
+        if not cls.serves(service, action):
+            return False
+        request_cls, _ = cls.definition(service, action)
+        return field in request_cls._schema.get("properties", {})
 
     @property
     def _startup_connect_retries(self):

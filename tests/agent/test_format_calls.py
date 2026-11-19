@@ -70,7 +70,7 @@ def test_a_failed_template_argument_prints_the_error(monkeypatch, capsys):
 
     monkeypatch.setattr(CustomTemplate, "default_custom_substitute", boom)
     monkeypatch.setattr(CustomTemplate, "get_queue_name", lambda *args, **kwargs: "q")
-    session = SimpleNamespace(check_min_api_version=lambda version: True, config=None)
+    session = SimpleNamespace(declares=lambda service, action, field: True, config=None)
     resolver = DockerArgsTemplateResolver(session, "t1", "q1", "q", "w1", task_info={})
     resolver.resolve_from_docker_cmd(["-e", "${CAIRNML_x}", "image"])
     out = capsys.readouterr().out

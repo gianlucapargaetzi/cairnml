@@ -2,6 +2,7 @@ from pathlib import Path
 
 import jwt
 import pytest
+from cairnml.backend_api.services import API_LEVEL
 from cairnml.idp.device import save_device_key, secure_folder
 from cairnml.idp.enrol import EnrolmentFailed, enrol, revoke_device
 from cairnml.idp.keys import load_public_key
@@ -72,7 +73,7 @@ def test_enrolment_uses_the_servers_public_address_and_registers_the_key(tmp_pat
     assert result.web_url == "http://cairnml:8080"
     assert result.user == "alice"
     url, body, headers = server.calls[-1]
-    assert url == PUBLIC + "/v2.8/devices.enroll"
+    assert url == f"{PUBLIC}/v{API_LEVEL}/devices.enroll"
     assert headers == {"Authorization": "Bearer " + token_for("alice")}
     assert body["kind"] == "client" and body["name"] == "laptop"
     public: Ed25519PublicKey = load_public_key(body["public_key"])
@@ -152,7 +153,7 @@ def test_sign_out_revokes_the_device_with_its_own_key(tmp_path):
     server = FakeServer()
     revoke_device(PUBLIC, "dev_1", key_path=key_path, http=server)
     url, body, headers = server.calls[-1]
-    assert url == PUBLIC + "/v2.8/devices.revoke"
+    assert url == f"{PUBLIC}/v{API_LEVEL}/devices.revoke"
     assert body == {"id": "dev_1"}
     assert headers == {"Authorization": "Bearer device-token"}
 

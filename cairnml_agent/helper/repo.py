@@ -849,7 +849,7 @@ def request_git_token(session, task_id):
     return session.send_request(
         service="devices",
         action="git_token",
-        version="2.8",
+        version=session.request_version("devices", "git_token"),
         method=Request.def_method,
         json={"task": task_id},
     )

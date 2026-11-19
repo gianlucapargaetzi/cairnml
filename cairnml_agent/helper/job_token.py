@@ -26,7 +26,7 @@ def request_job_token(session, task_id):
     res = session.send_request(
         service="devices",
         action="job_token",
-        version="2.8",
+        version=session.request_version("devices", "job_token"),
         method=Request.def_method,
         json={"task": task_id},
     )

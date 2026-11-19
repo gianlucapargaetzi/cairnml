@@ -1,7 +1,10 @@
 from types import SimpleNamespace
 
-from cairnml_agent.commands.worker import Worker
+from cairnml.backend_api.services import API_LEVEL
 from pyhocon import ConfigFactory
+
+from cairnml_agent.backend_api.session.session import Session
+from cairnml_agent.commands.worker import Worker
 
 
 class Reply:
@@ -15,6 +18,8 @@ class Reply:
 
 
 class FakeSession:
+    request_version = Session.request_version
+
     def __init__(self, reply=None, error=None):
         self.reply = reply
         self.error = error
@@ -35,7 +40,7 @@ def test_the_agent_asks_for_the_job_token_of_the_task_with_its_own_session():
     session = FakeSession(Reply(True, {"data": {"access_token": "job-1", "expires_in": 3600}}))
     assert Worker._get_job_token(agent_worker(session), "task-1") == ("job-1", 3600)
     call = session.calls[0]
-    assert (call["service"], call["action"], call["version"]) == ("devices", "job_token", "2.8")
+    assert (call["service"], call["action"], call["version"]) == ("devices", "job_token", API_LEVEL)
     assert call["json"] == {"task": "task-1"}
 
 

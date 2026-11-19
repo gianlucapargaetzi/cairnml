@@ -6,7 +6,9 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from types import SimpleNamespace
 
 import pytest
+from cairnml.backend_api.services import API_LEVEL
 
+from cairnml_agent.backend_api.session.session import Session
 from cairnml_agent.helper.repo import (
     Git,
     basic_auth_header,
@@ -38,7 +40,7 @@ def session_answering(reply):
         calls.append(kwargs)
         return reply
 
-    return SimpleNamespace(send_request=send_request), calls
+    return SimpleNamespace(send_request=send_request, request_version=Session.request_version), calls
 
 
 def test_a_basic_header_carries_the_stored_username_and_secret():
@@ -99,7 +101,7 @@ def test_a_non_github_https_repository_gets_the_stored_credential_of_the_task():
     credential = select_git_credential(session, "https://gitlab.example.com/team/repo.git", "task-1")
     assert credential == ("oauth2", TOKEN)
     assert calls == [
-        dict(service="devices", action="git_token", version="2.8", method=calls[0]["method"], json={"task": "task-1"})
+        dict(service="devices", action="git_token", version=API_LEVEL, method=calls[0]["method"], json={"task": "task-1"})
     ]
 
 
