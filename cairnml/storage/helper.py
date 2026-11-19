@@ -65,7 +65,7 @@ from requests_toolbelt import (
 )
 from .callbacks import UploadProgressReport, DownloadProgressReport
 from .url import quote_url
-from ..backend_api.session.session import Session
+from ..backend_api.services import datachunks
 from ..backend_api.utils import get_http_session_with_retry
 from ..backend_config.bucket_config import (
     S3BucketConfigurations,
@@ -1786,7 +1786,6 @@ class _DatachunkDriver(_Driver):
     scheme = DATACHUNK_SCHEME
     _CHUNK = 1024 * 1024
     KINDS = ("artifact", "dataset", "model", "debug")
-    API_SERVICE = "datachunks"
     TIMEOUT = (60, 3600)
 
     class _Container:
@@ -1817,19 +1816,16 @@ class _DatachunkDriver(_Driver):
         self._containers = {}
 
     @classmethod
-    def _api(cls, action: str, body: dict) -> dict:
+    def _api(cls, request: Any) -> dict:
+        """Sends one generated datachunks request and returns the data of its answer."""
         from ..backend_interface.base import InterfaceBase
 
-        response = InterfaceBase._get_default_session().send_request(
-            service=cls.API_SERVICE,
-            action=action,
-            version=Session.request_version(cls.API_SERVICE, action),
-            method="post",
-            json=body,
-        )
-        if response.status_code != requests_codes.ok:
-            raise StorageError(f"datachunks.{action} failed ({response.status_code}): {response.text[:300]}")
-        return response.json()["data"]
+        result = InterfaceBase._get_default_session().send(request)
+        if not result.ok():
+            raise StorageError(
+                f"datachunks.{request._action} failed ({result.meta.result_code}): {(result.meta.result_msg or '')[:300]}"
+            )
+        return result.response_data
 
     @staticmethod
     def _name(object_name: str) -> str:
@@ -1872,19 +1868,18 @@ class _DatachunkDriver(_Driver):
         content_type = (extra or {}).get("content_type") or mimetypes.guess_type(name)[0] or "application/octet-stream"
 
         grant = self._api(
-            "prepare_upload",
-            {
-                "task": container.task_id,
-                "kind": container.kind,
-                "name": name,
-                "size": size,
-                "sha256": sha256,
-                "content_type": content_type,
-            },
+            datachunks.PrepareUploadRequest(
+                task=container.task_id,
+                kind=container.kind,
+                name=name,
+                size=size,
+                sha256=sha256,
+                content_type=content_type,
+            )
         )
         if grant.get("multipart"):
             etags = self._upload_parts(grant, file_path, name, size, callback)
-            self._api("commit", {"id": grant["id"], "parts": etags})
+            self._api(datachunks.CommitRequest(id=grant["id"], parts=etags))
             return self._Object(container, name, size=size, sha256=sha256)
 
         for attempt in range(1, self._retries + 1):
@@ -1900,7 +1895,7 @@ class _DatachunkDriver(_Driver):
             if response.status_code < 500 or attempt == self._retries:
                 raise StorageError(f"upload of {name} failed ({response.status_code}): {response.text[:300]}")
 
-        self._api("commit", {"id": grant["id"]})
+        self._api(datachunks.CommitRequest(id=grant["id"]))
         if callback:
             callback(size)
         return self._Object(container, name, size=size, sha256=sha256)
@@ -1915,7 +1910,7 @@ class _DatachunkDriver(_Driver):
                 length = min(part_bytes, size - (number - 1) * part_bytes)
                 block = stream.read(length)
                 for attempt in range(1, self._retries + 1):
-                    part = self._api("prepare_part", {"id": grant["id"], "part": number})
+                    part = self._api(datachunks.PreparePartRequest(id=grant["id"], part=number))
                     try:
                         response = requests.put(part["url"], data=block, headers=part["headers"], timeout=self.TIMEOUT)
                     except ConnectionError:
@@ -1959,7 +1954,7 @@ class _DatachunkDriver(_Driver):
     def get_object(self, container_name: str, object_name: str, *args: Any, **kwargs: Any) -> Any:
         container = self.get_container(container_name)
         name = self._name(object_name)
-        info = self._api("prepare_download", {"task": container.task_id, "kind": container.kind, "name": name})
+        info = self._api(datachunks.PrepareDownloadRequest(task=container.task_id, kind=container.kind, name=name))
         return self._Object(container, name, size=info["size"], sha256=info["sha256"], url=info["url"])
 
     def exists_file(self, container_name: str, object_name: str) -> bool:
@@ -2013,7 +2008,7 @@ class _DatachunkDriver(_Driver):
         return length
 
     def delete_object(self, obj: Any, **kwargs: Any) -> bool:
-        self._api("delete", {"task": obj.container.task_id, "kind": obj.container.kind, "name": obj.name})
+        self._api(datachunks.DeleteRequest(task=obj.container.task_id, kind=obj.container.kind, name=obj.name))
         return True
 
 

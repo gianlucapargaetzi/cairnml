@@ -4,8 +4,24 @@ import uuid
 from threading import Thread
 from typing import Optional, Dict, Union, List
 
+from ..backend_api.services import serving
 from ..task import Task
 from ..utilities.resource_monitor import ResourceMonitor
+
+# the fields of the generated requests that come from the container's record (the others are the report's own)
+REGISTER_FIELDS = (
+    "container_id",
+    "endpoint_name",
+    "model_name",
+    "endpoint_url",
+    "model_source",
+    "model_version",
+    "preprocess_artifact",
+    "input_type",
+    "input_size",
+    "reference",
+)
+STATUS_FIELDS = REGISTER_FIELDS + ("uptime_sec", "requests_num", "requests_min", "latency_ms", "machine_stats")
 
 
 class EndpointTelemetry:
@@ -140,9 +156,10 @@ class EndpointTelemetry:
         self.container_info["reference"].extend(list(references_to_add.values()))
 
     def register_container(self) -> None:
-        result = self.session.send_request("serving", "register_container", json=self.container_info)
-        if result.status_code != 200:
-            print(f"Failed registering container: {result.json()}")
+        request = serving.RegisterContainerRequest(**{name: self.container_info.get(name) for name in REGISTER_FIELDS})
+        result = self.session.send(request)
+        if not result.ok():
+            print(f"Failed registering container: {result.meta.result_msg}")
 
     def wait_for_endpoint_url(self) -> None:
         while not self.container_info.get("endpoint_url"):
@@ -220,9 +237,10 @@ class EndpointTelemetry:
         self.requests_num_window = 0
         self.latency_sum_window = 0
         self.latency_num_window = 0
-        result = self.session.send_request("serving", "container_status_report", json=status_report)
-        if result.status_code != 200:
-            print(f"Failed sending status report: {result.json()}")
+        request = serving.ContainerStatusReportRequest(**{name: status_report.get(name) for name in STATUS_FIELDS})
+        result = self.session.send(request)
+        if not result.ok():
+            print(f"Failed sending status report: {result.meta.result_msg}")
 
     def update_last_request_time(self) -> None:
         self.last_request_time = time.time()

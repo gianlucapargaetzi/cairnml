@@ -53,7 +53,6 @@ from .backend_api.session.defs import (
 from .backend_interface.metrics import Metrics
 from .backend_interface.model import Model as BackendModel
 from .backend_interface.base import InterfaceBase
-from .backend_interface.routers import RouterService
 from .backend_interface.task import Task as _Task
 from .backend_interface.task.log import TaskHandler
 from .backend_interface.task.development.worker import DevWorker
@@ -145,6 +144,7 @@ if TYPE_CHECKING:
 # Forward declaration to help linters
 TaskInstance = TypeVar("TaskInstance", bound="Task")
 DEFAULT_ENDPOINT_NAME = ""
+STATIC_ROUTES_REFUSED = "static routes are not supported by this server; remove static_route"
 
 
 class Task(_Task):
@@ -1006,7 +1006,7 @@ class Task(_Task):
         :param wait_interval_seconds: The poll frequency when waiting for the endpoint
         :param wait_timeout_seconds: If this timeout is exceeded while waiting for the endpoint,
             the method will no longer wait and ``None`` will be returned
-        :param static_route: The static route name (not the route path).
+        :param static_route: Not supported by the server: a value raises ``ValueError``. Remove it.
             When set, the external endpoint requested will use this route
             instead of generating it based on the task ID. Useful for creating
             persistent, load balanced routes.
@@ -1021,13 +1021,11 @@ class Task(_Task):
           - ``protocol`` - the protocol used by the endpoint
           - ``name`` - the identifier used for this endpoint
         """
+        if static_route:
+            raise ValueError(STATIC_ROUTES_REFUSED)
         Session.verify_feature_set("advanced")
         if protocol not in self._external_endpoint_port_map.keys():
             raise ValueError(f"Invalid protocol: {protocol}")
-
-        router_service = RouterService()
-        if static_route:
-            router_service.validate_static_route(static_route)
 
         self.reload()
         runtime_props = self._get_runtime_properties()
@@ -1080,15 +1078,6 @@ class Task(_Task):
         internal_port_key = self._external_endpoint_internal_port_map.get(protocol)
         if internal_port_key and internal_port_key != self._external_endpoint_port_map[protocol]:
             runtime_properties_to_set[self._compose_runtime_key(internal_port_key, runtime_key_suffix)] = port
-
-        if static_route:
-            route_type = router_service.get_route_type(static_route)
-            runtime_properties_to_set.update(
-                {
-                    self._compose_runtime_key("_ROUTER_ENDPOINT_MODE", runtime_key_suffix): route_type,
-                    self._compose_runtime_key("_ROUTER_ENDPOINT_MODE_PARAM", runtime_key_suffix): static_route,
-                }
-            )
 
         # noinspection PyProtectedMember
         self._set_runtime_properties(runtime_properties_to_set)

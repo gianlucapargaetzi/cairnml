@@ -1,10 +1,10 @@
 """The storage keys are asked for one dataset and one level, and the answer names the prefix the remote is built from."""
 
-from types import SimpleNamespace
-
 import pytest
 
-from cairnml.backend_api.services import API_LEVEL
+from cairnml.backend_api.services import datachunks
+from cairnml.backend_api.session.callresult import CallResult
+from cairnml.backend_api.session.response import ResponseMeta
 from cairnml.datasets import DatasetError
 from cairnml.datasets.credentials import StorageKeys, fetch_storage_keys
 
@@ -22,28 +22,24 @@ ANSWER = {
 
 class FakeSession:
     def __init__(self, data=None, ok=True):
-        self.calls = []
+        self.sent = []
         self.data = data
         self.ok = ok
 
-    def send_request(self, **kwargs):
-        self.calls.append(kwargs)
-        return SimpleNamespace(ok=self.ok, text="refused", json=lambda: {"data": self.data})
+    def send(self, req_obj, headers=None):
+        self.sent.append(req_obj)
+        meta = ResponseMeta.from_raw_data(status_code=200 if self.ok else 400, text="refused", endpoint="x.y")
+        return CallResult(meta=meta, response_data=self.data)
 
 
-def test_the_request_names_the_repository_and_the_level_at_the_newest_definition():
+def test_the_request_names_the_repository_and_the_level():
     session = FakeSession(ANSWER)
 
     keys = fetch_storage_keys(repository="acme/cars", level="read", session=session)
 
-    assert session.calls == [
-        {
-            "service": "datachunks",
-            "action": "dataset_credentials",
-            "version": API_LEVEL,  # the negotiated level, not the label of the definition (2.40)
-            "json": {"repository": "acme/cars", "level": "read"},
-        }
-    ]
+    (request,) = session.sent
+    assert type(request) is datachunks.DatasetCredentialsRequest
+    assert request.to_dict() == {"repository": "acme/cars", "level": "read"}
     assert keys.prefix == "dataset/c1/acme/cars"
 
 
