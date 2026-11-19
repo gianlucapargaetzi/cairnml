@@ -2,12 +2,11 @@ from pathlib import Path
 
 import jwt
 import pytest
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
-
-from cairnml_agent.idp.enrol import EnrolmentFailed, enrol, enrol_device, revoke_device
-from cairnml_agent.idp.device import save_device_key
+from cairnml.idp.enrol import EnrolmentFailed, enrol, revoke_device
 from cairnml.idp.keys import load_public_key
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
+
+from cairnml_agent.idp.device import save_device_key
 
 PUBLIC = "http://cairnml:8008"
 API = "http://localhost:8008"  # the address typed on the command line; the server's own address wins
@@ -142,8 +141,8 @@ def test_a_refused_enrolment_leaves_no_key_behind(tmp_path):
 
 def test_an_agent_is_enrolled_as_an_agent(tmp_path):
     server = FakeServer()
-    device_id = enrol_device(API, kind="agent", http=server, login=login, key_path=tmp_path / "device.key")
-    assert device_id == "dev_1"
+    result = enrol(API, kind="agent", http=server, login=login, key_path=tmp_path / "device.key")
+    assert result.device_id == "dev_1"
     _, body, _ = server.calls[-1]
     assert body["kind"] == "agent"
 

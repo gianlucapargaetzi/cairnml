@@ -23,10 +23,10 @@ from pathlib import Path
 from typing import List, Optional, Tuple
 
 import requests
+from cairnml.idp import enrol as idp_enrol
+from pyhocon import ConfigFactory
 
 from cairnml_agent.commands.config import default_config_file
-from pyhocon import ConfigFactory
-from cairnml_agent.idp import enrol as idp_enrol
 
 DOCKER_DOCS = "https://docs.docker.com/engine/install/"
 DOCKER_TIMEOUT_SEC = 30

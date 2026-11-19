@@ -1,6 +1,6 @@
-"""Token decoding uses the PyJWT package the agent requires, not a vendored copy of it."""
+"""Token decoding uses the PyJWT package the agent requires, through the SDK's token manager, not a vendored copy."""
 
-import cairnml_agent.backend_api.session.token_manager as token_manager
+from cairnml.backend_api.session import token_manager
 
 
 def test_the_token_manager_decodes_with_pyjwt_not_a_vendored_copy():

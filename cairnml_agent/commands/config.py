@@ -4,20 +4,18 @@ It does what cairnml init of the CairnML SDK does, with one difference: the mach
 not depend on the SDK).
 """
 
-from __future__ import print_function
-
 import os
 import sys
-
-import requests
-
 from pathlib import Path
 from urllib.parse import urlparse
 
-from cairnml_agent.backend_config.defs import LOCAL_CONFIG_FILE_OVERRIDE_VAR, LOCAL_CONFIG_FILES
+import requests
+from cairnml.idp.enrol import EnrolmentFailed, enrol
 from pyhocon import ConfigFactory
+
+from cairnml_agent.backend_config.defs import LOCAL_CONFIG_FILE_OVERRIDE_VAR, LOCAL_CONFIG_FILES
+from cairnml_agent.idp import device as agent_device
 from cairnml_agent.idp.device_login import choose_login
-from cairnml_agent.idp.enrol import EnrolmentFailed, enrol
 
 
 def default_config_file():
@@ -37,12 +35,13 @@ def main(server, name=None, force=False, file=None, device=False):
             force=force,
             previous_device_id=previous_device_id,
             login=choose_login(device),
+            key_path=agent_device.DEVICE_KEY_PATH,
         )
     except EnrolmentFailed as exc:
-        print("error: {}".format(exc), file=sys.stderr)
+        print(f"error: {exc}", file=sys.stderr)
         return 1
     except requests.RequestException as exc:
-        print("error: cannot reach {}: {}".format(api_server or server, exc.__class__.__name__), file=sys.stderr)
+        print(f"error: cannot reach {api_server or server}: {exc.__class__.__name__}", file=sys.stderr)
         return 1
 
     if not write_config(
@@ -54,8 +53,8 @@ def main(server, name=None, force=False, file=None, device=False):
     if queue:
         # the name has a suffix after the machine name: it is the exact name to give as --queue
         print(
-            "queue of this machine: {}\n  use this exact name as --queue; it is also listed under "
-            "Agents & Queues -> Queues in the web app".format(queue)
+            f"queue of this machine: {queue}\n  use this exact name as --queue; it is also listed under "
+            "Agents & Queues -> Queues in the web app"
         )
     return 0
 
@@ -125,7 +124,7 @@ def write_config(conf_file, api_host, web_host, device_id, queue=""):
             )
             f.write(default_conf)
     except Exception:
-        print("Error! Could not write configuration file at: {}".format(str(conf_file)))
+        print(f"Error! Could not write configuration file at: {conf_file!s}")
         return False
     return True
 

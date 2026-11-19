@@ -3,9 +3,9 @@ from types import SimpleNamespace
 from unittest import mock
 
 import pytest
+from cairnml.idp.enrol import EnrolmentFailed
 
 from cairnml_agent.commands import config as init
-from cairnml_agent.idp.enrol import EnrolmentFailed
 
 
 def enrolment(server_url, device_id="dev_agent", web_url=None, queue=""):
@@ -132,6 +132,13 @@ def test_the_agent_keeps_its_own_device_key():
     from cairnml_agent.idp.device import DEVICE_KEY_PATH
 
     assert DEVICE_KEY_PATH == Path.home() / ".cairnml" / "agent" / "device.key"
+
+
+def test_the_enrolment_writes_the_key_to_the_agents_own_path(tmp_path):
+    from cairnml_agent.idp.device import DEVICE_KEY_PATH
+
+    _, enrol_mock = run_init(tmp_path / "cairnml-agent.conf", "http://localhost")
+    assert enrol_mock.call_args.kwargs["key_path"] == DEVICE_KEY_PATH
 
 
 def test_the_server_is_the_first_argument_of_the_command(capsys):

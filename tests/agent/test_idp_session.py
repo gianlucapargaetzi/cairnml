@@ -28,6 +28,8 @@ def agent_session(device_id=DEVICE, job_token=None):
     session._Session__device_id = device_id
     session._Session__job_token = job_token
     session._Session__job_token_file = None
+    session._Session__auth_token = None
+    session._Session__device_key_path = None
     session._verbose = False
     return session
 
@@ -50,11 +52,9 @@ def test_a_job_token_is_used_as_it_is_and_never_exchanged():
 def test_an_agent_exchanges_a_signed_assertion_for_a_token(key_file):
     key, path = key_file
     session = agent_session()
+    session._Session__device_key_path = str(path)
     reply = Response(200, {"data": {"access_token": "access-1", "expires_in": 900}})
-    with (
-        mock.patch("cairnml_agent.idp.device.DEVICE_KEY_PATH", path),
-        mock.patch.object(Session, "_send_request", return_value=reply) as send,
-    ):
+    with mock.patch.object(Session, "_send_request", return_value=reply) as send:
         assert session._do_refresh_token(None) == "access-1"
 
     kwargs = send.call_args.kwargs
@@ -72,17 +72,18 @@ def test_an_agent_exchanges_a_signed_assertion_for_a_token(key_file):
 def test_a_refused_exchange_is_a_login_error(key_file):
     _, path = key_file
     session = agent_session()
+    session._Session__device_key_path = str(path)
     refused = Response(403, {"meta": {"result_msg": "device revoked"}})
     with (
-        mock.patch("cairnml_agent.idp.device.DEVICE_KEY_PATH", path),
         mock.patch.object(Session, "_send_request", return_value=refused),
+        pytest.raises(LoginError, match="device revoked"),
     ):
-        with pytest.raises(LoginError, match="device revoked"):
-            session._do_refresh_token(None)
+        session._do_refresh_token(None)
 
 
 def test_the_auth_token_given_in_the_environment_is_kept():
     session = agent_session(device_id=None)
+    session._Session__auth_token = "given-token"
     assert session._do_refresh_token("given-token") == "given-token"
 
 
@@ -102,10 +103,7 @@ def test_the_assertion_helper_targets_the_host(key_file):
 def test_a_missing_device_key_says_to_enrol_the_machine(tmp_path):
     """D7: the key file is gone, so the exchange fails with the instruction, not a raw Errno 2."""
     session = agent_session()
-    with (
-        mock.patch("cairnml_agent.idp.device.DEVICE_KEY_PATH", tmp_path / "gone.key"),
-        mock.patch.object(Session, "_send_request") as send,
-    ):
-        with pytest.raises(LoginError, match="cairnml-agent init"):
-            session._exchange_device_assertion()
+    session._Session__device_key_path = str(tmp_path / "gone.key")
+    with mock.patch.object(Session, "_send_request") as send, pytest.raises(LoginError, match="cairnml-agent init"):
+        session._exchange_device_assertion()
     send.assert_not_called()
