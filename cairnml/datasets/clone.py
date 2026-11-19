@@ -11,7 +11,8 @@ import shutil
 from pathlib import Path
 from typing import Optional
 
-from .credentials import _person_request
+from ..backend_api.services import repositories
+from .credentials import _person_request, _reason
 from .dataset import Dataset
 from .errors import DatasetError
 from .gitutil import _env
@@ -19,13 +20,10 @@ from . import process
 
 
 def _clone_answer(reference: str, commit: Optional[str], session=None) -> dict:
-    body = {"ref": reference}
-    if commit:
-        body["commit"] = commit
-    response = _person_request(session, "clone", body)
-    if not response.ok:
-        raise DatasetError(f"the server could not clone {reference}: {response.text.strip()}")
-    return response.json().get("data") or {}
+    result = _person_request(session, repositories.CloneRequest(ref=reference, commit=commit or None))
+    if not result.ok():
+        raise DatasetError(f"the server could not clone {reference}: {_reason(result)}")
+    return result.response_data or {}
 
 
 def clone_dataset(reference: str, path: Optional[str] = None, commit: Optional[str] = None, session=None) -> Path:

@@ -3,6 +3,7 @@ from typing import Optional, Callable, Dict, Union, List, Any  # noqa
 from fastapi import Request, Response  # noqa
 
 from .proxy import HttpProxy
+from ..task import STATIC_ROUTES_REFUSED
 
 
 class HttpRouter:
@@ -185,7 +186,7 @@ class HttpRouter:
         :param wait_interval_seconds: The poll frequency when waiting for the endpoint
         :param wait_timeout_seconds: If this timeout is exceeded while waiting for the endpoint,
             the method will no longer wait and None will be returned
-        :param static_route: The static route name (not the route path).
+        :param static_route: Not supported by the server: a value raises ``ValueError``. Remove it.
             When set, the external endpoint requested will use this route
             instead of generating it based on the task ID. Useful for creating
             persistent, load balanced routes.
@@ -197,6 +198,8 @@ class HttpRouter:
             - ``port`` - the port exposed by the application
             - ``protocol`` - the protocol used by the endpoint
         """
+        if static_route:
+            raise ValueError(STATIC_ROUTES_REFUSED)
         self._proxy = self._proxy or HttpProxy(**self._proxy_params)
         return self._task.request_external_endpoint(
             port=self._proxy.port,

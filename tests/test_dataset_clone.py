@@ -5,27 +5,25 @@ from types import SimpleNamespace
 
 import pytest
 
+from cairnml.backend_api.session.callresult import CallResult
+from cairnml.backend_api.session.response import ResponseMeta
 from cairnml.datasets import clone as clone_module
 from cairnml.datasets.errors import DatasetError
 
 
-class Answer:
-    def __init__(self, data, ok=True):
-        self._data = data
-        self.ok = ok
-        self.text = ""
-
-    def json(self):
-        return {"data": self._data}
+def Answer(data, ok=True):
+    """What Session.send returns: a CallResult with the data of the answer."""
+    meta = ResponseMeta.from_raw_data(status_code=200 if ok else 400, text="refused" if not ok else "OK", endpoint="x")
+    return CallResult(meta=meta, response_data=data)
 
 
 def test_a_public_dataset_is_cloned_without_a_token(tmp_path, monkeypatch):
     bare = tmp_path / "server.git"
     subprocess.run(["git", "init", "-q", "--bare", str(bare)], check=True)
     seen = []
-    monkeypatch.setattr(clone_module, "_person_request", lambda session, action, body: (
-        seen.append((action, body)) or Answer({"repository": str(bare), "token": None, "commit": None,
-                                               "dataset": {"name": "cars"}})))
+    monkeypatch.setattr(clone_module, "_person_request", lambda session, request: (
+        seen.append((request._action, request.to_dict())) or Answer({"repository": str(bare), "token": None,
+                                                                    "commit": None, "dataset": {"name": "cars"}})))
     data_folder = tmp_path / "cache" / "data"
     data_folder.mkdir(parents=True)
     (data_folder / "a.txt").write_text("alpha")

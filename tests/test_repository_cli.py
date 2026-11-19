@@ -109,12 +109,13 @@ def test_the_commands_are_listed_by_cairnml(capsys):
 
 
 def test_a_refusal_shows_the_servers_reason_not_the_json_envelope():
-    from types import SimpleNamespace
-
+    from cairnml.backend_api.session.callresult import CallResult
+    from cairnml.backend_api.session.response import ResponseMeta
     from cairnml.datasets.credentials import _reason
 
-    envelope = '{"meta": {"result_msg": "Validation error (the GitHub App x is not installed on a/b)"}, "data": {}}'
-    response = SimpleNamespace(text=envelope, json=lambda: __import__("json").loads(envelope))
-    assert _reason(response) == "the GitHub App x is not installed on a/b"
-    plain = SimpleNamespace(text=" gateway down ", json=lambda: (_ for _ in ()).throw(ValueError()))
+    validation = ResponseMeta.from_raw_data(
+        status_code=400, text="Validation error (the GitHub App x is not installed on a/b)", endpoint="x"
+    )
+    assert _reason(CallResult(meta=validation)) == "the GitHub App x is not installed on a/b"
+    plain = CallResult(meta=ResponseMeta.from_raw_data(status_code=502, text=" gateway down ", endpoint="x"))
     assert _reason(plain) == "gateway down"

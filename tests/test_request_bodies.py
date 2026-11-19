@@ -14,7 +14,9 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from cairnml.backend_api import services
 from cairnml.backend_api.session import Request
+from cairnml.backend_api.session.callresult import CallResult
 from cairnml.backend_api.session.request import CompoundRequest
+from cairnml.backend_api.session.response import ResponseMeta
 from cairnml.cli import devices as cli_devices
 from cairnml.cli import doctor as cli_doctor
 from cairnml.datasets import credentials
@@ -81,20 +83,31 @@ class Reply:
         return {"meta": meta, "data": self._data}
 
 
+def _answer(data, ok=True):
+    """What Session.send returns: a CallResult with the data of the answer."""
+    meta = ResponseMeta.from_raw_data(status_code=200 if ok else 400, text="OK" if ok else "refused", endpoint="x.y")
+    return CallResult(meta=meta, response_data=data)
+
+
 class FakeSession:
-    """Records what the SDK would send through send_request, and answers with the given data."""
+    """Records the generated request objects the SDK sends through Session.send, and answers with the given data."""
 
-    def __init__(self, data=None):
-        self.calls = []
+    def __init__(self, data=None, ok=True):
+        self.sent = []
         self.data = data or {}
+        self.ok = ok
 
-    def send_request(self, **kwargs):
-        self.calls.append(kwargs)
-        return Reply(self.data)
+    def send(self, req_obj, headers=None):
+        self.sent.append(req_obj)
+        return _answer(self.data, self.ok)
+
+    @property
+    def request(self):
+        return self.sent[-1]
 
     @property
     def body(self):
-        return self.calls[-1]["json"]
+        return self.sent[-1].to_dict()
 
 
 DEVICES = [{"id": "dev_1", "name": "laptop", "user": "usr_alice", "kind": "client", "revoked": False}]

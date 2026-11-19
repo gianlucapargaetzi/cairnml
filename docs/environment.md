@@ -25,7 +25,6 @@ Columns: **Name** is the variable; **Read in** is the module that reads it; **De
 | `CAIRNML_IGNORE_MISSING_CONFIG` | `backend_api/session/defs.py` | | Do not fail when a configuration file is missing. |
 | `CAIRNML_ENABLE_ENV_CONFIG_SECTION` | `backend_api/session/defs.py` | | Read settings from the environment as a configuration section. |
 | `CAIRNML_ENABLE_FILES_CONFIG_SECTION` | `backend_api/session/defs.py` | | Read settings from files as a configuration section. |
-| `CAIRNML_DISABLE_VAULT_SUPPORT` | `backend_api/session/defs.py` | | Do not read settings from a vault. |
 | `CAIRNML_JOB_TOKEN` | `datasets/credentials.py` | | The token a job uses to reach the server. |
 | `CAIRNML_JOB_TOKEN_FILE` | `datasets/credentials.py` | | File holding the job token. |
 | `CAIRNML_TASK_ID` | `datasets/dataset.py` | | The task the process belongs to. Set for every job. |

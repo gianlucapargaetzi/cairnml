@@ -8,7 +8,8 @@ from pathlib import Path
 
 import pytest
 
-from cairnml.backend_api.services import API_LEVEL
+from cairnml.backend_api.session.callresult import CallResult
+from cairnml.backend_api.session.response import ResponseMeta
 from cairnml.cli.dataset import __main__ as dataset_cli
 from cairnml.datasets import Dataset, DatasetCache, DatasetError, DatasetRepo, SampleWriter, footprint
 from cairnml.backend_api.session.defs import MissingConfigError
@@ -449,17 +450,10 @@ def test_a_public_repository_is_read_without_any_credential(first, origin, tmp_p
         seen.append(token)
         return real_env(token)
 
-    class Answer:
-        ok = True
-        text = ""
-
-        def json(self):
-            return {"data": {"token": None}}
-
     class Session:
-        def send_request(self, service, action, json, version=None):
-            asked.append((service, action, json))
-            return Answer()
+        def send(self, req_obj, headers=None):
+            asked.append((req_obj._service, req_obj._action, req_obj.to_dict()))
+            return _answer({"token": None})
 
     monkeypatch.setattr(gitutil, "_env", recording_env)
     monkeypatch.setattr(Task, "_get_default_session", staticmethod(lambda: Session()))
@@ -483,17 +477,10 @@ def test_a_job_gets_no_token_for_a_public_repository_and_reads_it_anonymously(fi
     monkeypatch.setenv("CAIRNML_TASK_ID", "task-1")
     asked = []
 
-    class Answer:
-        ok = True
-        text = ""
-
-        def json(self):
-            return {"data": {"token": None}}
-
     class Session:
-        def send_request(self, service, action, json, version=None):
-            asked.append((service, action, json))
-            return Answer()
+        def send(self, req_obj, headers=None):
+            asked.append((req_obj._service, req_obj._action, req_obj.to_dict()))
+            return _answer({"token": None})
 
     monkeypatch.setattr(Task, "_get_default_session", staticmethod(lambda: Session()))
     dataset = Dataset.get(public, sha, cache=cache, record=False)
@@ -577,17 +564,10 @@ def test_the_repository_list_is_asked_of_the_server_with_the_login(monkeypatch):
     asked = []
     listed = {"repositories": [{"path": "acme/cars", "roles": ["dataset"], "access": {"state": "assigned"}}]}
 
-    class Answer:
-        ok = True
-        text = ""
-
-        def json(self):
-            return {"data": listed}
-
     class Session:
-        def send_request(self, service, action, json, version=None):
-            asked.append((service, action, json))
-            return Answer()
+        def send(self, req_obj, headers=None):
+            asked.append((req_obj._service, req_obj._action, req_obj.to_dict()))
+            return _answer(listed)
 
     assert credentials.fetch_repository_list(Session()) == listed["repositories"]
     assert asked == [("repositories", "get_all", {})]
@@ -595,15 +575,12 @@ def test_the_repository_list_is_asked_of_the_server_with_the_login(monkeypatch):
 
 def test_the_repository_list_is_unavailable_without_a_login_or_when_refused(monkeypatch):
     class NoLogin:
-        def send_request(self, service, action, json, version=None):
+        def send(self, req_obj, headers=None):
             raise MissingConfigError("CairnML host was not set")
 
     class Refused:
-        def send_request(self, service, action, json, version=None):
-            def not_json():
-                raise ValueError("no JSON body")
-
-            return type("Answer", (), {"ok": False, "text": "401 unauthorized", "json": staticmethod(not_json)})()
+        def send(self, req_obj, headers=None):
+            return _answer({}, ok=False, text="401 unauthorized")
 
     with pytest.raises(DatasetError, match="could not be asked"):
         credentials.fetch_repository_list(NoLogin())
@@ -653,38 +630,23 @@ def test_a_refusal_to_add_the_new_repository_stops_the_create_with_the_reason(tm
 def test_adding_a_repository_asks_the_server_to_list_it_as_the_users_own_dataset(monkeypatch):
     asked = []
 
-    class Answer:
-        ok = True
-        text = ""
-
-        def json(self):
-            return {"data": {"repository": {}}}
-
     class Session:
-        def send_request(self, service, action, json, version=None):
-            asked.append((service, action, json, version))
-            return Answer()
+        def send(self, req_obj, headers=None):
+            asked.append((req_obj._service, req_obj._action, req_obj.to_dict()))
+            return _answer({"repository": {}})
 
     credentials.register_dataset("https://github.com/acme/cars.git", None, Session())
 
-    # at the negotiated level (the SDK's), not the label of the definition (2.40)
-    assert asked == [("repositories", "add", {"url": "https://github.com/acme/cars.git", "role": "dataset"}, API_LEVEL)]
+    assert asked == [("repositories", "add", {"url": "https://github.com/acme/cars.git", "role": "dataset"})]
 
 
 def test_adding_a_repository_with_a_credential_sends_the_credential_it_is_read_with(monkeypatch):
     asked = []
 
-    class Answer:
-        ok = True
-        text = ""
-
-        def json(self):
-            return {"data": {"repository": {"id": "d1", "path": "acme/cars", "assignments": [{"credential": "cred-1"}]}}}
-
     class Session:
-        def send_request(self, service, action, json, version=None):
-            asked.append(json)
-            return Answer()
+        def send(self, req_obj, headers=None):
+            asked.append(req_obj.to_dict())
+            return _answer({"repository": {"id": "d1", "path": "acme/cars", "assignments": [{"credential": "cred-1"}]}})
 
     dataset = credentials.register_dataset("https://github.com/acme/cars.git", "cred-1", Session())
     assert asked == [{"url": "https://github.com/acme/cars.git", "role": "dataset", "credential": "cred-1"}]
@@ -692,17 +654,10 @@ def test_adding_a_repository_with_a_credential_sends_the_credential_it_is_read_w
 
 
 def test_the_credentials_of_the_person_are_listed_from_the_server(monkeypatch):
-    class Answer:
-        ok = True
-        text = ""
-
-        def json(self):
-            return {"data": {"credentials": [{"id": "c1", "name": "Team token", "type": "Token", "scope": "user"}]}}
-
     class Session:
-        def send_request(self, service, action, json, version=None):
-            assert (service, action) == ("user_access", "get_all")
-            return Answer()
+        def send(self, req_obj, headers=None):
+            assert (req_obj._service, req_obj._action) == ("user_access", "get_all")
+            return _answer({"credentials": [{"id": "c1", "name": "Team token", "type": "Token", "scope": "user"}]})
 
     assert credentials.list_credentials(Session()) == [{"id": "c1", "name": "Team token", "type": "Token", "scope": "user"}]
 
@@ -740,7 +695,7 @@ def test_a_credential_that_cannot_read_the_repository_is_warned_about(tmp_path, 
 
 def test_a_person_without_a_login_is_told_why_datasets_need_one(monkeypatch):
     class NoLogin:
-        def send_request(self, service, action, json, version=None):
+        def send(self, req_obj, headers=None):
             raise MissingConfigError("CairnML host was not set")
 
     with pytest.raises(DatasetError, match="datasets need a CairnML login"):
@@ -989,9 +944,15 @@ def test_commit_and_push_wait_for_the_remote(work, origin, storage):
         repo.push()
 
 
+def _answer(data=None, ok=True, text="OK"):
+    """What Session.send returns: a CallResult with the data of the answer."""
+    meta = ResponseMeta.from_raw_data(status_code=200 if ok else 400, text=text, endpoint="x.y")
+    return CallResult(meta=meta, response_data=data or {})
+
+
 def _failing_session(exc):
     class FailingSession:
-        def send_request(self, **kwargs):
+        def send(self, req_obj, headers=None):
             raise exc
 
     return FailingSession()

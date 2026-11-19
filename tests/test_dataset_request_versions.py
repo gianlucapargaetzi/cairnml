@@ -5,11 +5,11 @@ takes or spells a version of its own."""
 import inspect
 import re
 from pathlib import Path
-from types import SimpleNamespace
-
 import pytest
 
 from cairnml.backend_api.services import API_LEVEL, resolve
+from cairnml.backend_api.session.callresult import CallResult
+from cairnml.backend_api.session.response import ResponseMeta
 from cairnml.datasets import clone as clone_module
 from cairnml.datasets import credentials
 
@@ -36,12 +36,15 @@ ANSWER = {
 
 
 class RecordingSession:
-    def __init__(self):
-        self.calls = []
+    """Records the generated request objects the module sends through Session.send."""
 
-    def send_request(self, **kwargs):
-        self.calls.append(kwargs)
-        return SimpleNamespace(ok=True, text="", json=lambda: {"data": ANSWER})
+    def __init__(self):
+        self.sent = []
+
+    def send(self, req_obj, headers=None):
+        self.sent.append(req_obj)
+        meta = ResponseMeta.from_raw_data(status_code=200, text="OK", endpoint="x.y")
+        return CallResult(meta=meta, response_data=ANSWER)
 
 
 def _operations(session):
@@ -96,17 +99,16 @@ def _operations(session):
     ("fetch_repository_list", "repositories", "get_all"),
     ("clone_answer", "repositories", "clone"),
 ])
-def test_a_request_is_sent_at_the_negotiated_level(name, service, action):
+def test_a_request_is_built_from_its_generated_class(name, service, action):
     session = RecordingSession()
     operation = {op[0]: op for op in _operations(session)}[name]
 
     operation[1]()
 
     resolve(service, action, API_LEVEL)  # the action has a definition at the level
-    assert len(session.calls) == 1, session.calls
-    call = session.calls[0]
-    assert (call["service"], call["action"]) == (service, action)
-    assert call["version"] == API_LEVEL
+    assert len(session.sent) == 1, session.sent
+    request = session.sent[0]
+    assert (request._service, request._action) == (service, action)
 
 
 def test_the_device_git_token_is_sent_at_the_negotiated_level(monkeypatch):
@@ -116,10 +118,8 @@ def test_the_device_git_token_is_sent_at_the_negotiated_level(monkeypatch):
     credentials.fetch_git_token("https://github.com/a/b", "task-1", session=session)
 
     resolve("devices", "git_token", API_LEVEL)
-    assert len(session.calls) == 1
-    call = session.calls[0]
-    assert (call["service"], call["action"]) == ("devices", "git_token")
-    assert call["version"] == API_LEVEL
+    (request,) = session.sent
+    assert (request._service, request._action) == ("devices", "git_token")
 
 
 @pytest.mark.parametrize("function", [
