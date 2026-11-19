@@ -22,7 +22,7 @@ jobs:
       - run: |
           git config --global user.email ci@example.invalid
           git config --global user.name ci
-      - run: python -m pip install -e ".[dataset]" pytest
+      - run: python -m pip install -e ".[dataset,router]" pytest
       - run: python -m pytest tests -q
 
   # Dead code: vulture at 80% confidence, with every deliberate name listed in vulture_whitelist.py. New unused code fails here.
@@ -111,7 +111,7 @@ jobs:
       - run: |
           git config --global user.email ci@example.invalid
           git config --global user.name ci
-      - run: python -m pip install -e ".[dataset]" pytest
+      - run: python -m pip install -e ".[dataset,router]" pytest
       - run: python -m pytest tests -q
 
   package:
