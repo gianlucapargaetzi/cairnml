@@ -6057,6 +6057,272 @@ class StopResponse(Response):
         self._property_fields = value
 
 
+class UpdateRequest(Request):
+    """
+    Update task's runtime parameters
+
+    :param task: ID of the task
+    :type task: str
+    :param name: Task name Unique within the company.
+    :type name: str
+    :param display_name: Label of this experiment. Shown instead of the task name when present
+    :type display_name: str
+    :param tags: User-defined tags list
+    :type tags: Sequence[str]
+    :param system_tags: System tags list. This field is reserved for system use, please don't use it.
+    :type system_tags: Sequence[str]
+    :param comment: Free text comment
+    :type comment: str
+    :param project: Project ID of the project to which this task is assigned
+    :type project: str
+    :param output__error: Free text error
+    :type output__error: str
+    :param created: Task creation time (UTC)
+    :type created: datetime.datetime
+    """
+
+    _service = "tasks"
+    _action = "update"
+    _version = "2.1"
+    _schema = {
+        "definitions": {},
+        "properties": {
+            "comment": {"description": "Free text comment ", "type": "string"},
+            "created": {
+                "description": "Task creation time (UTC) ",
+                "format": "date-time",
+                "type": "string",
+            },
+            "display_name": {
+                "description": "Label of this experiment. Shown instead of the task name when present",
+                "type": "string",
+            },
+            "name": {"description": "Task name Unique within the company.", "type": "string"},
+            "output__error": {"description": "Free text error", "type": "string"},
+            "project": {
+                "description": "Project ID of the project to which this task is assigned",
+                "type": "string",
+            },
+            "system_tags": {
+                "description": "System tags list. This field is reserved for system use, please don't use it.",
+                "items": {"type": "string"},
+                "type": "array",
+            },
+            "tags": {
+                "description": "User-defined tags list",
+                "items": {"type": "string"},
+                "type": "array",
+            },
+            "task": {"description": "ID of the task", "type": "string"},
+        },
+        "required": ["task"],
+        "type": "object",
+    }
+
+    def __init__(
+        self,
+        task: str,
+        name: Optional[str] = None,
+        display_name: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+        system_tags: Optional[List[str]] = None,
+        comment: Optional[str] = None,
+        project: Optional[str] = None,
+        output__error: Optional[str] = None,
+        created: Optional[str] = None,
+        **kwargs: Any
+    ) -> None:
+        super(UpdateRequest, self).__init__(**kwargs)
+        self.task = task
+        self.name = name
+        self.display_name = display_name
+        self.tags = tags
+        self.system_tags = system_tags
+        self.comment = comment
+        self.project = project
+        self.output__error = output__error
+        self.created = created
+
+    @schema_property("task")
+    def task(self) -> str:
+        return self._property_task
+
+    @task.setter
+    def task(self, value: str) -> None:
+        if value is None:
+            self._property_task = None
+            return
+        self.assert_isinstance(value, "task", six.string_types)
+        self._property_task = value
+
+    @schema_property("name")
+    def name(self) -> Optional[str]:
+        return self._property_name
+
+    @name.setter
+    def name(self, value: Optional[str]) -> None:
+        if value is None:
+            self._property_name = None
+            return
+        self.assert_isinstance(value, "name", six.string_types)
+        self._property_name = value
+
+    @schema_property("display_name")
+    def display_name(self) -> Optional[str]:
+        return self._property_display_name
+
+    @display_name.setter
+    def display_name(self, value: Optional[str]) -> None:
+        if value is None:
+            self._property_display_name = None
+            return
+        self.assert_isinstance(value, "display_name", six.string_types)
+        self._property_display_name = value
+
+    @schema_property("tags")
+    def tags(self) -> Optional[List[str]]:
+        return self._property_tags
+
+    @tags.setter
+    def tags(self, value: Optional[List[str]]) -> None:
+        if value is None:
+            self._property_tags = None
+            return
+        self.assert_isinstance(value, "tags", (list, tuple))
+        self.assert_isinstance(value, "tags", six.string_types, is_array=True)
+        self._property_tags = value
+
+    @schema_property("system_tags")
+    def system_tags(self) -> Optional[List[str]]:
+        return self._property_system_tags
+
+    @system_tags.setter
+    def system_tags(self, value: Optional[List[str]]) -> None:
+        if value is None:
+            self._property_system_tags = None
+            return
+        self.assert_isinstance(value, "system_tags", (list, tuple))
+        self.assert_isinstance(value, "system_tags", six.string_types, is_array=True)
+        self._property_system_tags = value
+
+    @schema_property("comment")
+    def comment(self) -> Optional[str]:
+        return self._property_comment
+
+    @comment.setter
+    def comment(self, value: Optional[str]) -> None:
+        if value is None:
+            self._property_comment = None
+            return
+        self.assert_isinstance(value, "comment", six.string_types)
+        self._property_comment = value
+
+    @schema_property("project")
+    def project(self) -> Optional[str]:
+        return self._property_project
+
+    @project.setter
+    def project(self, value: Optional[str]) -> None:
+        if value is None:
+            self._property_project = None
+            return
+        self.assert_isinstance(value, "project", six.string_types)
+        self._property_project = value
+
+    @schema_property("output__error")
+    def output__error(self) -> Optional[str]:
+        return self._property_output__error
+
+    @output__error.setter
+    def output__error(self, value: Optional[str]) -> None:
+        if value is None:
+            self._property_output__error = None
+            return
+        self.assert_isinstance(value, "output__error", six.string_types)
+        self._property_output__error = value
+
+    @schema_property("created")
+    def created(self) -> Optional[str]:
+        return self._property_created
+
+    @created.setter
+    def created(self, value: Optional[str]) -> None:
+        if value is None:
+            self._property_created = None
+            return
+        self.assert_isinstance(value, "created", six.string_types + (datetime,))
+        if not isinstance(value, datetime):
+            value = parse_datetime(value)
+        self._property_created = value
+
+
+class UpdateResponse(Response):
+    """
+    Response of tasks.update endpoint.
+
+    :param updated: Number of tasks updated (0 or 1)
+    :type updated: int
+    :param fields: Updated fields names and values
+    :type fields: dict
+    """
+
+    _service = "tasks"
+    _action = "update"
+    _version = "2.1"
+    _schema = {
+        "definitions": {},
+        "properties": {
+            "fields": {
+                "additionalProperties": True,
+                "description": "Updated fields names and values",
+                "type": ["object", "null"],
+            },
+            "updated": {
+                "description": "Number of tasks updated (0 or 1)",
+                "enum": [0, 1],
+                "type": ["integer", "null"],
+            },
+        },
+        "type": "object",
+    }
+
+    def __init__(
+        self,
+        updated: Optional[int] = None,
+        fields: Optional[dict] = None,
+        **kwargs: Any
+    ) -> None:
+        super(UpdateResponse, self).__init__(**kwargs)
+        self.updated = updated
+        self.fields = fields
+
+    @schema_property("updated")
+    def updated(self) -> Optional[int]:
+        return self._property_updated
+
+    @updated.setter
+    def updated(self, value: Optional[int]) -> None:
+        if value is None:
+            self._property_updated = None
+            return
+        if isinstance(value, float) and value.is_integer():
+            value = int(value)
+        self.assert_isinstance(value, "updated", six.integer_types)
+        self._property_updated = value
+
+    @schema_property("fields")
+    def fields(self) -> Optional[dict]:
+        return self._property_fields
+
+    @fields.setter
+    def fields(self, value: Optional[dict]) -> None:
+        if value is None:
+            self._property_fields = None
+            return
+        self.assert_isinstance(value, "fields", (dict,))
+        self._property_fields = value
+
+
 class UpdateBatchResponse(Response):
     """
     Response of tasks.update_batch endpoint.
@@ -6592,11 +6858,7 @@ class UpdateBatchRequest(BatchRequest):
     _service = "tasks"
     _action = "update_batch"
     _version = "2.1"
-    @property
-    def _batched_request_cls(self):
-        from ...tasks import UpdateRequest
-
-        return UpdateRequest
+    _batched_request_cls = UpdateRequest
 
 
 response_mapping = {
@@ -6607,6 +6869,7 @@ response_mapping = {
     GetByIdRequest: GetByIdResponse,
     ResetRequest: ResetResponse,
     StopRequest: StopResponse,
+    UpdateRequest: UpdateResponse,
     UpdateBatchRequest: UpdateBatchResponse,
     ValidateRequest: ValidateResponse,
 }
