@@ -526,7 +526,7 @@ class CondaAPI(PackageManager):
             cuda_version = 0
 
         # notice 'conda' entry with empty string is a valid conda requirements list, it means pip only
-        # this should happen if experiment was executed on non-conda machine or old trains client
+        # this should happen if experiment was executed on non-conda machine or old SDK client
         conda_supported_req = requirements["pip"] if requirements.get("conda", None) is None else requirements["conda"]
         conda_supported_req_names = []
         pip_requirements = []

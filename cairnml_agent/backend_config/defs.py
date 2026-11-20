@@ -13,7 +13,7 @@ from cairnml.backend_config.defs import (  # noqa: F401  # the SDK's definitions
 from ..backend_config.environment import EnvEntry
 
 LOCAL_CONFIG_FILES = [
-    expanduser("~/trains.conf"),  # used for workstation configuration (end-users, workers)
+    expanduser("~/trains.conf"),  # the ClearML-era name, still read; Config warns about it and names the file to use
     expanduser("~/cairnml-agent.conf"),  # the earlier location, still read so that existing installs keep working
     expanduser(
         "~/.cairnml/agent/cairnml-agent.conf"

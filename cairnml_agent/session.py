@@ -187,7 +187,7 @@ class Session(_Session):
     def get_logger(name):
         logger = logging.getLogger(name)
         logger.propagate = True
-        return TrainsAgentLogger(logger)
+        return AgentLogger(logger)
 
     @staticmethod
     def set_debug_mode(enable):
@@ -395,7 +395,7 @@ class Session(_Session):
 
 
 @attr.s
-class TrainsAgentLogger(object):
+class AgentLogger(object):
     """
     Proxy around logging.Logger because inheriting from it is difficult.
     """

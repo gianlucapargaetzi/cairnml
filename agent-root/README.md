@@ -91,7 +91,7 @@ The **Workers** page of the web app lists this machine once it is running. Send 
 
 ## Configuration
 
-The agent reads its settings from its configuration file and from environment variables. Each environment variable has one `CAIRNML_` name; [docs/environment.md](docs/environment.md) lists every one with its default and meaning. The older `TRAINS_` names are no longer read: rename them to the `CAIRNML_` names.
+The agent reads its settings from its configuration file and from environment variables. Each environment variable has one `CAIRNML_` name; [docs/environment.md](docs/environment.md) lists every one with its default and meaning. The older `TRAINS_` names are no longer read: rename them to the `CAIRNML_` names. The configuration file `~/trains.conf` (from the ClearML-based original) is still read, with a warning once per run; move its settings to `~/.cairnml/agent/cairnml-agent.conf`. The `K8sIntegration` option `trains_conf_file` likewise still works with a warning; use `cairnml_conf_file`.
 
 ## Next steps
 

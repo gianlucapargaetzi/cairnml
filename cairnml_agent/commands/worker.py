@@ -1002,6 +1002,7 @@ class Worker(ServiceCommandSection):
         PriorityPackageRequirement,
         PostRequirement,
         ExternalRequirements,
+        # "trains" is the PyPI name of the old ClearML SDK, which a task recorded in that era can still list
         partial(PackageCollectorRequirement, collect_package=["trains"]),
         partial(PackageCollectorRequirement, collect_package=["cairnml"]),
         partial(PackageCollectorRequirement, collect_package=["nbconvert"]),
@@ -2444,11 +2445,11 @@ class Worker(ServiceCommandSection):
 
         if entry_point == "clone_task" or entry_point == "reuse_task":
             change = (
-                'ENTRYPOINT if [ ! -s "{trains_conf}" ] ; then '
-                "cp {default_trains_conf} {trains_conf} && export CAIRNML_CONFIG_FILE={trains_conf}; "
+                'ENTRYPOINT if [ ! -s "{conf_file}" ] ; then '
+                "cp {default_conf_file} {conf_file} && export CAIRNML_CONFIG_FILE={conf_file}; "
                 " fi ; cairnml-agent execute --id {task_id} --standalone-mode {clone}".format(
-                    default_trains_conf=DOCKER_DEFAULT_CONF_FILE,
-                    trains_conf=DOCKER_ROOT_CONF_FILE,
+                    default_conf_file=DOCKER_DEFAULT_CONF_FILE,
+                    conf_file=DOCKER_ROOT_CONF_FILE,
                     task_id=task_id,
                     clone=("--clone" if entry_point == "clone_task" else ""),
                 )
@@ -5201,7 +5202,7 @@ class Worker(ServiceCommandSection):
                 ),
             ]
 
-    def _run_as_user_patch(self, command, trains_conf, script_dir, venv_folder, sdk_cache_folder, user_uid):
+    def _run_as_user_patch(self, command, conf_file, script_dir, venv_folder, sdk_cache_folder, user_uid):
         class RunasArgv(Argv):
             def __init__(self, *args):
                 super(RunasArgv, self).__init__(*args)
@@ -5261,13 +5262,13 @@ class Worker(ServiceCommandSection):
                 except Exception:
                     pass
 
-        # make sure we could access the trains_conf file
+        # make sure we could access the configuration file
         try:
-            user_trains_conf = os.path.join(home_folder, "cairnml.conf")
-            shutil.copy(trains_conf, user_trains_conf)
-            Path(user_trains_conf).chmod(0o0777)
+            user_conf_file = os.path.join(home_folder, "cairnml.conf")
+            shutil.copy(conf_file, user_conf_file)
+            Path(user_conf_file).chmod(0o0777)
         except Exception:
-            user_trains_conf = trains_conf
+            user_conf_file = conf_file
 
         # patch venv folder to new location
         script_dir = script_dir.replace(venv_folder, new_venv_folder)
@@ -5279,7 +5280,7 @@ class Worker(ServiceCommandSection):
                 home_folder,
                 os.environ.get("PATH", "").replace(venv_folder, new_venv_folder),
                 os.environ.get("PYTHONPATH", "").replace(venv_folder, new_venv_folder),
-                user_trains_conf,
+                user_conf_file,
                 command.serialize().replace(venv_folder, new_venv_folder),
             ),
         )

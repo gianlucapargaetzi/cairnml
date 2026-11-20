@@ -16,6 +16,7 @@ from time import sleep, time
 from datetime import datetime, timedelta, timezone
 from typing import Text, List, Optional, Dict, Tuple, Callable, Any, Collection, Union, Iterable, Set  # noqa: F401  # used in type comments
 
+from cairnml.backend_config.environment import warn_deprecated_once
 from cairnml_agent.commands.events import Events
 from cairnml_agent.commands.worker import Worker, get_task_container, set_task_container, get_next_task
 from cairnml_agent.definitions import (
@@ -46,6 +47,25 @@ from cairnml_agent.glue.definitions import (
     ENV_COMPLETED_POD_DELETION_DELAY_MINUTES,
 )
 import yaml
+
+
+def pod_conf_file_content(cairnml_conf_file, kwargs):
+    """The text of the configuration file the pods use, or None when no file is given.
+
+    The option is `cairnml_conf_file`. The older name `trains_conf_file` is still accepted from a caller that passes it
+    (the option has no command line flag), with a warning: ignoring it would give the pods the agent's own
+    configuration instead of the file the caller named.
+    """
+    legacy = kwargs.get("trains_conf_file")
+    if legacy and not cairnml_conf_file:
+        warn_deprecated_once(
+            "trains_conf_file", "the K8sIntegration option trains_conf_file is deprecated; use cairnml_conf_file"
+        )
+    cairnml_conf_file = cairnml_conf_file or legacy
+    if not cairnml_conf_file:
+        return None
+    with open(os.path.expandvars(os.path.expanduser(str(cairnml_conf_file))), "rt") as f:
+        return f.read()
 
 
 class K8sIntegration(Worker):
@@ -177,7 +197,6 @@ class K8sIntegration(Worker):
         self._edit_hyperparams_support = None
         self._user_props_cb = user_props_cb
         self._runtime_cb = runtime_cb
-        self.conf_file_content = None
         self.overrides_json_string = None
         self.template_dict = None
         self.extra_bash_init_script = extra_bash_init_script or None
@@ -193,11 +212,7 @@ class K8sIntegration(Worker):
         if template_yaml:
             self.template_dict = self._load_template_file(template_yaml)
 
-        cairnml_conf_file = cairnml_conf_file or kwargs.get("trains_conf_file")
-
-        if cairnml_conf_file:
-            with open(os.path.expandvars(os.path.expanduser(str(cairnml_conf_file))), "rt") as f:
-                self.conf_file_content = f.read()
+        self.conf_file_content = pod_conf_file_content(cairnml_conf_file, kwargs)
 
         self._agent_label = None
 

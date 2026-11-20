@@ -14,6 +14,7 @@ import os
 from os.path import expanduser
 
 from cairnml.backend_config.config import Config as SdkConfig
+from cairnml.backend_config.environment import warn_deprecated_once
 from pyhocon import ConfigException, ConfigFactory, ConfigTree
 
 from . import defs
@@ -51,7 +52,25 @@ class Config(SdkConfig):
         if local_config_override:
             print(f"Using custom configuration file from env var: {local_config_override}")
             return [expanduser(local_config_override)]
-        return list(defs.LOCAL_CONFIG_FILES)
+        files = list(defs.LOCAL_CONFIG_FILES)
+        self._warn_about_legacy_file(files)
+        return files
+
+    @staticmethod
+    def _warn_about_legacy_file(files):
+        """Say once that ~/trains.conf, a name from the ClearML-based original, is read, and which file replaces it.
+
+        The SDK warns about the same file, but it tells the user to rename it to cairnml.conf, which the agent does not
+        read. The warning is given under the SDK's key ("trains.conf"), so the SDK's own warning stays quiet.
+        """
+        for path in files:
+            path = expanduser(path)
+            if os.path.basename(path) == "trains.conf" and os.path.isfile(path):
+                warn_deprecated_once(
+                    "trains.conf",
+                    f"the configuration file {path} is deprecated and will be removed; "
+                    f"move its settings to {expanduser(files[-1])}",
+                )
 
     def extra_env_config_values(self):
         """The settings given as CAIRNML_AGENT__<path>__<key> variables (read in name order, later ones win)."""
