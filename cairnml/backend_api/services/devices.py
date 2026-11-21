@@ -378,6 +378,10 @@ class GitTokenResponse(Response):
     :type expires_at: str
     :param username:
     :type username: str
+    :param demo_note:
+    :type demo_note: str
+    :param demo_note_two:
+    :type demo_note_two: str
     """
 
     _service = "devices"
@@ -386,6 +390,8 @@ class GitTokenResponse(Response):
     _schema = {
         "definitions": {},
         "properties": {
+            "demo_note": {"type": ["string", "null"]},
+            "demo_note_two": {"type": ["string", "null"]},
             "expires_at": {
                 "description": "Empty for a stored Git credential, which does not expire",
                 "type": ["string", "null"],
@@ -406,6 +412,8 @@ class GitTokenResponse(Response):
         token: Optional[str] = None,
         expires_at: Optional[str] = None,
         username: Optional[str] = None,
+        demo_note: Optional[str] = None,
+        demo_note_two: Optional[str] = None,
         **kwargs: Any
     ) -> None:
         super(GitTokenResponse, self).__init__(**kwargs)
@@ -413,6 +421,8 @@ class GitTokenResponse(Response):
         self.token = token
         self.expires_at = expires_at
         self.username = username
+        self.demo_note = demo_note
+        self.demo_note_two = demo_note_two
 
     @schema_property("url")
     def url(self) -> Optional[str]:
@@ -461,6 +471,30 @@ class GitTokenResponse(Response):
             return
         self.assert_isinstance(value, "username", six.string_types)
         self._property_username = value
+
+    @schema_property("demo_note")
+    def demo_note(self) -> Optional[str]:
+        return self._property_demo_note
+
+    @demo_note.setter
+    def demo_note(self, value: Optional[str]) -> None:
+        if value is None:
+            self._property_demo_note = None
+            return
+        self.assert_isinstance(value, "demo_note", six.string_types)
+        self._property_demo_note = value
+
+    @schema_property("demo_note_two")
+    def demo_note_two(self) -> Optional[str]:
+        return self._property_demo_note_two
+
+    @demo_note_two.setter
+    def demo_note_two(self, value: Optional[str]) -> None:
+        if value is None:
+            self._property_demo_note_two = None
+            return
+        self.assert_isinstance(value, "demo_note_two", six.string_types)
+        self._property_demo_note_two = value
 
 
 class IdpSettingsRequest(Request):
