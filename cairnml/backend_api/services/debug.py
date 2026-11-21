@@ -42,3 +42,4 @@ class PingResponse(Response):
 response_mapping = {
     PingRequest: PingResponse,
 }
+# throwaway: the sync of the demonstration regenerates this file
