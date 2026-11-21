@@ -19,10 +19,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Pick the SDK's ref
+        id: sdk-ref
+        uses: ./.github/actions/same-named-ref
+        with:
+          repository: gianlucapargaetzi/cairnml
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           repository: gianlucapargaetzi/cairnml
-          ref: main
+          ref: ${{ steps.sdk-ref.outputs.ref }}
           path: sdk
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
@@ -50,24 +55,36 @@ jobs:
   # API contract: the agent's hand-written code must agree with the server's schema. check-callers fails when a request
   # class names an action or a field the schema does not have, when a call names its service and action as strings
   # (session.send_request("tasks", "get_all", ...)) instead of building the generated request class, when an API version
-  # is written by hand, or when a method is called on a session that the Session classes do not have. The server (main,
-  # sparse: only the schema and the generator) is the source of truth, and the SDK (main) supplies the Session class
-  # the agent's Session inherits from (--base). Red here means "the agent and the server disagree": fix the agent.
+  # is written by hand, or when a method is called on a session that the Session classes do not have. The server (sparse:
+  # only the schema and the generator) is the source of truth, and the SDK supplies the Session class the agent's
+  # Session inherits from (--base). Both are read at their main, or at their branch named like this pull request's
+  # branch when there is one (work that spans the repositories: give the pull requests the same branch name).
+  # Red here means "the agent and the server disagree": fix the agent.
   api-contract:
     if: github.event.pull_request.draft == false
     name: api contract
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Pick the SDK's ref
+        id: sdk-ref
+        uses: ./.github/actions/same-named-ref
+        with:
+          repository: gianlucapargaetzi/cairnml
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           repository: gianlucapargaetzi/cairnml
-          ref: main
+          ref: ${{ steps.sdk-ref.outputs.ref }}
           path: sdk
+      - name: Pick the server's ref
+        id: server-ref
+        uses: ./.github/actions/same-named-ref
+        with:
+          repository: gianlucapargaetzi/cairnml-server
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           repository: gianlucapargaetzi/cairnml-server
-          ref: main
+          ref: ${{ steps.server-ref.outputs.ref }}
           path: server
           sparse-checkout: |
             apiserver/__init__.py
@@ -128,10 +145,15 @@ jobs:
         python: ["3.9", "3.10", "3.11", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Pick the SDK's ref
+        id: sdk-ref
+        uses: ./.github/actions/same-named-ref
+        with:
+          repository: gianlucapargaetzi/cairnml
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           repository: gianlucapargaetzi/cairnml
-          ref: main
+          ref: ${{ steps.sdk-ref.outputs.ref }}
           path: sdk
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
@@ -149,10 +171,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Pick the SDK's ref
+        id: sdk-ref
+        uses: ./.github/actions/same-named-ref
+        with:
+          repository: gianlucapargaetzi/cairnml
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           repository: gianlucapargaetzi/cairnml
-          ref: main
+          ref: ${{ steps.sdk-ref.outputs.ref }}
           path: sdk
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
