@@ -207,7 +207,6 @@ class SupportedModesResponse(Response):
                                 "type": "boolean",
                             },
                             "name": {"description": "Guest name", "type": "string"},
-                            "password": {"description": "Guest password", "type": "string"},
                             "username": {"description": "Guest username", "type": "string"},
                         },
                         "type": "object",
