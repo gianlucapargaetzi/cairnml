@@ -1,0 +1,51 @@
+# Coordinated work across repositories: a pull request from branch X reads the other repository's branch X when that
+# exists, else its main. The branch name reaches the script only through env: (never as text of the script), only a
+# name made of letters, digits and . _ / - is looked up, and the match must be exact; anything else (no pull request,
+# an unusual name, no such branch, a failed lookup) gives main. The chosen ref and the reason go to the log and to the
+# step summary. Pull requests from forks are out of scope.
+name: Same-named ref
+description: The branch of another public repository that is named like the pull request's branch, else main.
+inputs:
+  repository:
+    description: Owner and name of the other repository, for example gianlucapargaetzi/cairnml-server.
+    required: true
+outputs:
+  ref:
+    description: The ref to check out, refs/heads/<branch> for a same-named branch, else main.
+    value: ${{ steps.pick.outputs.ref }}
+runs:
+  using: composite
+  steps:
+    - name: Pick the ref
+      id: pick
+      shell: bash
+      env:
+        BRANCH: ${{ github.head_ref }}
+        REPOSITORY: ${{ inputs.repository }}
+        GIT_TERMINAL_PROMPT: "0"
+      run: |
+        ref=main
+        if [ -z "$BRANCH" ]; then
+          reason="this is not a pull request event, so there is no branch name to match"
+        elif ! [[ "$BRANCH" =~ ^[A-Za-z0-9._/-]+$ ]]; then
+          reason="the pull request's branch name has unusual characters, so it is not looked up"
+        else
+          status=0
+          found=$(git ls-remote --exit-code --heads "https://github.com/$REPOSITORY" "refs/heads/$BRANCH") || status=$?
+          if [ "$status" -eq 2 ]; then
+            reason="$REPOSITORY has no branch named like the pull request's branch"
+          elif [ "$status" -ne 0 ]; then
+            reason="the lookup of the branches of $REPOSITORY failed (git exit $status)"
+          else
+            sha=$(printf '%s\n' "$found" | awk -F '\t' '$2 == "refs/heads/" ENVIRON["BRANCH"] { print $1 }')
+            if [ -n "$sha" ]; then
+              ref="refs/heads/$BRANCH"
+              reason="$REPOSITORY has a branch named like the pull request's branch (commit $sha)"
+            else
+              reason="the lookup of $REPOSITORY gave no exact match for the pull request's branch"
+            fi
+          fi
+        fi
+        echo "ref=$ref" >> "$GITHUB_OUTPUT"
+        echo "same-named-ref: $REPOSITORY -> $ref: $reason"
+        printf '### Ref of %s\n\nThis job read `%s`: %s.\n' "$REPOSITORY" "$ref" "$reason" >> "$GITHUB_STEP_SUMMARY"
