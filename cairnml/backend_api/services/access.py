@@ -445,3 +445,4 @@ response_mapping = {
     ShareRequest: ShareResponse,
     UnshareRequest: UnshareResponse,
 }
+# demo: hand edit of a generated file (ci/324 demonstration)
