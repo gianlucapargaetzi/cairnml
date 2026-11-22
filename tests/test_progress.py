@@ -4,6 +4,7 @@ import pathlib
 import signal
 import subprocess
 import sys
+import zipfile
 from types import SimpleNamespace
 
 import pytest
@@ -452,3 +453,47 @@ def test_a_repo_check_that_starts_while_the_reporter_forks_does_not_hold_up_the_
         output, _ = process.communicate()
         pytest.fail(f"the script did not finish within 60 s:\n{output}")
     assert "DETECTION DONE" in output, output
+
+
+# The reporter subprocess keeps the queue pipes it reads from and drops the rest of the inherited descriptors (#172);
+# its records must still reach the offline session: text in the log, a scalar in the metrics, both in the zip at close.
+_RECORDS_SCRIPT = """
+from cairnml import Task
+
+Task.set_offline(True)
+task = Task.init(project_name="p", task_name="t", progress_bar="epochs", auto_connect_frameworks=False)
+task.get_logger().report_text("records-of-the-reporter")
+task.get_logger().report_scalar("series-of-the-reporter", "value", 1.5, 3)
+task.close()
+print("END OF SCRIPT", flush=True)
+"""
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="the log reporter is a forked subprocess (posix only)")
+def test_the_reporter_still_writes_its_log_and_metrics_after_it_drops_the_inherited_descriptors(tmp_path):
+    script = tmp_path / "script.py"
+    script.write_text(_RECORDS_SCRIPT)
+    home = tmp_path / "home"
+    home.mkdir()
+    env = dict(os.environ)
+    env.update(
+        HOME=str(home),
+        CAIRNML_OFFLINE_MODE="1",
+        PYTHONPATH=str(pathlib.Path(cairnml.__file__).resolve().parent.parent),
+    )
+    result = subprocess.run(
+        [sys.executable, str(script)],
+        cwd=str(tmp_path),
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert "END OF SCRIPT" in result.stdout, result.stdout + result.stderr
+    archives = list((home / ".cairnml" / "cache" / "offline").glob("*.zip"))
+    assert len(archives) == 1, result.stdout + result.stderr
+    with zipfile.ZipFile(archives[0]) as archive:
+        log = archive.read("log.jsonl").decode()
+        metrics = archive.read("metrics.jsonl").decode()
+    assert "records-of-the-reporter" in log, log
+    assert "series-of-the-reporter" in metrics, metrics
