@@ -688,6 +688,15 @@ class BackgroundMonitor:
     @staticmethod
     def _reporter_descriptors() -> Set[int]:
         keep = {0, 1, 2}  # stdio
+        try:
+            # the pipe to the multiprocessing resource tracker: a semaphore or event created in the child registers there
+            from multiprocessing import resource_tracker
+
+            tracker_fd = getattr(resource_tracker._resource_tracker, "_fd", None)
+            if tracker_fd is not None:
+                keep.add(tracker_fd)
+        except Exception:
+            pass
         for queue in list(SafeQueue._instances):
             for connection in (queue._q._reader, queue._q._writer):
                 try:
