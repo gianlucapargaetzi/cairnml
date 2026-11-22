@@ -348,9 +348,6 @@ def _run_the_script(mode, tmp_path):
     script.write_text(_QUEUEING_SCRIPT)
     home = tmp_path / "home"
     home.mkdir()
-    # the logger's reporting subprocess can be lost at exit and hang the interpreter (log.py, "HANGS IF RACE HOLDS");
-    # the thread mode is used instead, so the run ends and the output is complete
-    (home / "cairnml.conf").write_text("sdk { development { report_use_subprocess: false } }\n")
     env = dict(os.environ)
     env.update(
         HOME=str(home),
