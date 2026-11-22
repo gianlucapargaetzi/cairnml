@@ -102,7 +102,7 @@ SDK switches the agent does not use: the agent ignores `CAIRNML_OFFLINE_MODE`, a
 | `CAIRNML_AGENT_SKIP_CONTAINER_APT` | unset | Do not run apt inside a container before the task. |
 | `CAIRNML_AGENT_FORCE_SYSTEM_SITE_PACKAGES` | `false` | Give task environments access to the system's site packages. |
 | `CAIRNML_AGENT_PACKAGE_PYTORCH_RESOLVE` | `pip` | How PyTorch wheels are resolved: `pip`, `direct` or `none`. |
-| `CAIRNML_AGENT_LOCAL_SDK_WHEEL` | unset | Path to a local CairnML SDK wheel to install for the task. Set for the task when a local wheel is used. |
+| `CAIRNML_AGENT_LOCAL_SDK_WHEEL` | unset | Path to a local CairnML SDK wheel to install for the task, built from a source tree or repacked from the installed SDK. Set for the task when a local wheel is used. |
 | `CAIRNML_EXTRA_PIP_INSTALL_FLAGS` | unset | Extra flags for every `pip install`, separated by spaces. |
 | `CAIRNML_AGENT_EXTRA_PYTHON_PATH` | unset | Extra directories added to the task's Python path. |
 | `CAIRNML_AGENT_EXEC_USER` | unset | User the task runs as. |

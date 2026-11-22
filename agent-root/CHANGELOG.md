@@ -9,3 +9,4 @@ sections: a release needs its section here.
 - Queue switching (force_workers on or off) is kept; owner impersonation, cluster reports and dynamic GPU allocation are removed.
 - ROCm detection comes from the SDK (cairnml.utilities.gpu_query).
 - Installed from the SDK's main in CI; the release needs a published SDK release that requirements.txt accepts.
+- Docker jobs of an agent and SDK installed from wheels run: their wheels are repacked from the installed files, and a job that cannot be launched ends failed with the reason.

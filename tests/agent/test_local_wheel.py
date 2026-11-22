@@ -73,3 +73,88 @@ def test_a_read_only_source_tree_still_builds(tmp_path):
     wheel = worker.build_local_wheel(source, "cairnml-agent")
     assert wheel.endswith(".whl")
     assert not (source / "cairnml_agent.egg-info").exists()
+
+
+# ---- an installed distribution is repacked, a source tree is built (issue #145) -----------------------------------
+
+
+class FakeDistribution:
+    """An installed distribution as far as the wheel functions look: a name, a version and a root folder."""
+
+    def __init__(self, name, version, root):
+        self.metadata = {"Name": name}
+        self.version = version
+        self._root = root
+
+    def locate_file(self, path):
+        return self._root / path
+
+
+@pytest.fixture
+def fresh_wheels(monkeypatch):
+    monkeypatch.setattr(worker, "_LOCAL_WHEELS", {})
+
+
+def test_an_installed_agent_is_repacked_and_no_source_tree_is_built(monkeypatch, tmp_path, fresh_wheels):
+    dist = FakeDistribution("cairnml-agent", "0.0.6", tmp_path / "site-packages")
+    repacked = []
+    monkeypatch.setattr(worker, "installed_distribution", lambda name, package_dir: dist)
+    monkeypatch.setattr(worker, "wheel_from_installed", lambda d, out: repacked.append(d) or "/x/agent.whl")
+
+    def no_build(*args):
+        raise AssertionError("a source tree was built although the agent is installed")
+
+    monkeypatch.setattr(worker, "build_local_wheel", no_build)
+    assert worker.local_agent_wheel() == "/x/agent.whl"
+    assert repacked == [dist]
+
+
+def test_an_agent_that_is_not_installed_is_built_from_its_source_tree(monkeypatch, fresh_wheels):
+    built = []
+    monkeypatch.setattr(worker, "installed_distribution", lambda name, package_dir: None)
+    monkeypatch.setattr(worker, "build_local_wheel", lambda source, name: built.append((source, name)) or "/x/a.whl")
+    assert worker.local_agent_wheel() == "/x/a.whl"
+    assert built == [(Path(worker.__file__).resolve().parents[2], "cairnml-agent")]
+
+
+def test_an_installed_sdk_is_repacked_even_inside_a_venv_of_its_own_checkout(monkeypatch, tmp_path, fresh_wheels):
+    """A virtual environment sits inside the SDK's checkout: the checkout must not be the one built."""
+    import cairnml
+
+    checkout = tmp_path / "cairnml"
+    checkout.mkdir()
+    (checkout / "pyproject.toml").write_text('[project]\nname = "cairnml"\nversion = "0.0.9"\n')
+    site = checkout / "venv" / "lib" / "python3.12" / "site-packages"
+    dist = FakeDistribution("cairnml", "0.0.9", site)
+    monkeypatch.setattr(cairnml, "__path__", [str(site / "cairnml")])
+    monkeypatch.setattr(worker, "installed_distribution", lambda name, package_dir: dist)
+    monkeypatch.setattr(worker, "wheel_from_installed", lambda d, out: "/x/sdk.whl")
+
+    def no_build(*args):
+        raise AssertionError("the checkout was built although the SDK is installed")
+
+    monkeypatch.setattr(worker, "build_local_wheel", no_build)
+    assert worker.local_sdk_wheel() == "/x/sdk.whl"
+
+
+def test_an_editable_sdk_is_built_from_its_checkout(monkeypatch, tmp_path, fresh_wheels):
+    import cairnml
+
+    checkout = tmp_path / "cairnml"
+    (checkout / "cairnml").mkdir(parents=True)
+    (checkout / "pyproject.toml").write_text('[project]\nname = "cairnml"\nversion = "0.0.9"\n')
+    monkeypatch.setattr(cairnml, "__path__", [str(checkout / "cairnml")])
+    monkeypatch.setattr(worker, "installed_distribution", lambda name, package_dir: None)
+    built = []
+    monkeypatch.setattr(worker, "build_local_wheel", lambda source, name: built.append((source, name)) or "/x/s.whl")
+    assert worker.local_sdk_wheel() == "/x/s.whl"
+    assert built == [(checkout.resolve(), "cairnml")]
+
+
+def test_an_sdk_that_is_neither_installed_nor_a_checkout_says_so(monkeypatch, tmp_path, fresh_wheels):
+    import cairnml
+
+    monkeypatch.setattr(cairnml, "__path__", [str(tmp_path / "nowhere" / "cairnml")])
+    monkeypatch.setattr(worker, "installed_distribution", lambda name, package_dir: None)
+    with pytest.raises(CommandFailedError, match="neither an installed distribution nor a source tree"):
+        worker.local_sdk_wheel()

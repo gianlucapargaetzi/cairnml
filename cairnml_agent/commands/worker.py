@@ -125,6 +125,7 @@ from cairnml_agent.helper.console import print_text, decode_binary_lines
 from cairnml_agent.helper.environment.converters import strtobool
 from cairnml.utilities.gpu_query import detect_rocm_env
 from cairnml_agent.helper.os.daemonize import daemonize_process
+from cairnml_agent.helper.installed_wheel import installed_distribution, wheel_from_installed
 from cairnml_agent.helper.package.base import PackageManager, get_specific_package_version
 from cairnml_agent.helper.package.conda_api import CondaAPI
 from cairnml_agent.helper.package.external_req import ExternalRequirements, OnlyExternalRequirements
@@ -413,13 +414,26 @@ def build_local_wheel(source: Path, name: str) -> str:
     return _LOCAL_WHEELS[key]
 
 
+def installed_wheel(dist) -> str:
+    """The wheel repacked from the installed distribution ``dist``, once per process like ``build_local_wheel``."""
+    key = "installed:{}:{}".format(dist.metadata["Name"], dist.locate_file(""))
+    if key not in _LOCAL_WHEELS:
+        _LOCAL_WHEELS[key] = wheel_from_installed(dist, mkdtemp(prefix="cairnml-wheel-"))
+    return _LOCAL_WHEELS[key]
+
+
 def local_agent_wheel() -> str:
-    """The wheel of this cairnml-agent, built from the source tree it runs from."""
+    """The wheel of this cairnml-agent: repacked from its installed files when it is installed, otherwise built from
+    the source tree it runs from."""
+    dist = installed_distribution("cairnml-agent", Path(__file__).resolve().parents[1])
+    if dist is not None:
+        return installed_wheel(dist)
     return build_local_wheel(Path(__file__).resolve().parents[2], "cairnml-agent")
 
 
 def local_sdk_wheel() -> str:
-    """The wheel of the CairnML SDK this machine has, built from its source tree.
+    """The wheel of the CairnML SDK this machine has: repacked from its installed files when it is installed, otherwise
+    built from its source tree.
 
     The SDK is found through its package path (it can be a namespace package, with no __file__); its source tree is
     the first folder above the package that is a source tree of the SDK (see ``is_source_tree``).
@@ -427,10 +441,17 @@ def local_sdk_wheel() -> str:
     import cairnml
 
     for package_dir in cairnml.__path__:
+        dist = installed_distribution("cairnml", Path(package_dir).resolve())
+        if dist is not None:
+            return installed_wheel(dist)
+    for package_dir in cairnml.__path__:
         for folder in [Path(package_dir).resolve(), *Path(package_dir).resolve().parents]:
             if is_source_tree(folder, "cairnml"):
                 return build_local_wheel(folder, "cairnml")
-    raise CommandFailedError("no source tree of cairnml above the CairnML SDK package: cannot build its wheel")
+    raise CommandFailedError(
+        "neither an installed distribution nor a source tree of cairnml above the CairnML SDK package: "
+        "cannot build its wheel"
+    )
 
 
 def get_repo_auth_string(user, password):
@@ -1285,7 +1306,9 @@ class Worker(ServiceCommandSection):
         job_token, job_token_lifetime = self._get_job_token(task_id)
         if not job_token:
             print("Warning: could not get a job token for task '{}', skipping".format(task_id))
-            return
+            return self._fail_job_launch(
+                task_id, "The job could not be started: no job token could be issued for the task", task_session
+            )
         # the token lives in a file the job reads, and the agent renews it while the job runs
         job_token_dir = Path(mkdtemp(prefix="cairnml_job_token_"))
         job_token_file = job_token_dir / TOKEN_FILE_NAME
@@ -1304,148 +1327,155 @@ class Worker(ServiceCommandSection):
         docker_image = None
         worker_id = "{}:service:{}".format(self.worker_id, task_id) if self._services_mode else self.worker_id
 
-        if self.docker_image_func:
-            # noinspection PyBroadException
-            try:
-                task_container = get_task_container(
-                    task_session, task_id, ignore_match_rules=self._docker_default_cmd_override
-                )
-            except Exception:
-                task_container = {}
-
-            default_docker = self._session.config.get("agent.disable_task_docker_override", False) or not bool(
-                task_container.get("image")
-            )
-            if default_docker:
-                docker_image = self._docker_image
-                docker_arguments = self._docker_arguments
-            else:
-                docker_image = task_container.get("image") or self._docker_image
-                docker_arguments = task_container.get("arguments", self._docker_arguments if default_docker else None)
-
-            docker_setup_script = task_container.get("setup_shell_script")
-
-            self.send_logs(
-                task_id=task_id,
-                lines=[
-                    "Running Task {} inside {}docker: {} arguments: {}\n".format(
-                        task_id,
-                        "default " if default_docker else "",
-                        docker_image,
-                        DockerArgsSanitizer.sanitize_docker_command(self._session, docker_arguments or []),
-                    )
-                ]
-                + (["custom_setup_bash_script:\n{}\n".format(docker_setup_script)] if docker_setup_script else []),
-                level="INFO",
-                session=task_session,
-            )
-
-            # Update docker command
-            docker_params = dict(
-                docker_image=docker_image,
-                docker_arguments=docker_arguments,
-                docker_bash_setup_script=docker_setup_script,
-                restart=self._get_docker_restart_value(task_session, task_id),
-            )
-            docker_params["auth_token"] = job_token
-            docker_params["job_token_dir"] = str(job_token_dir)
-            if self._worker_tags:
-                docker_params["worker_tags"] = self._worker_tags
-            if self._services_mode:
-                # if this is services mode, give the docker a unique worker id, as it will register itself.
-                docker_params["worker_id"] = worker_id
-
-            name_format = self._session.config.get("agent.docker_container_name_format", None)
-            if name_format:
-                custom_fields = {}
-                name_format_fields = self._session.config.get("agent.docker_container_name_format_fields", None)
-                if name_format_fields:
-                    field_values = get_task_fields(task_session, task_id, name_format_fields.values(), log=self.log)
-                    custom_fields = {k: field_values.get(v) for k, v in name_format_fields.items()}
-
-                try:
-                    name = name_format.format(
-                        task_id=re.sub(r"[^a-zA-Z0-9._-]", "-", task_id),
-                        worker_id=re.sub(r"[^a-zA-Z0-9._-]", "-", worker_id),
-                        rand_string="".join(sys_random.choice(string.ascii_lowercase) for _ in range(32)),
-                        **custom_fields,
-                    )
-                except Exception as ex:
-                    print("Warning: failed generating docker container name: {}".format(ex))
-                else:
-                    if self._valid_docker_container_name(name):
-                        docker_params["name"] = name
-                    else:
-                        print("Warning: generated docker container name is invalid: {}".format(name))
-
-            # convert template arguments now (i.e. ${CAIRNML_} ), this is important for the docker arg
-            # resolve the Task's docker arguments before everything else, because
-            # unlike the vault/config these are not running as the agent's user, they are the user's,
-            # we need to filter them post template parsing limitation to happen before the `docker_image_func` call
-            docker_args_template_resolver = DockerArgsTemplateResolver(
-                task_session=self._session,
-                task_id=task_id,
-                queue_id=queue,
-                # todo cache with timout invalidation?!
-                queue_name=self._resolve_id(id=queue, service="queues", search_hidden=True),
-                worker_id=worker_id,
-                task_info=None,
-            )
-            if docker_params.get("docker_arguments"):
-                docker_params["docker_arguments"] = docker_args_template_resolver.resolve_from_docker_cmd(
-                    full_docker_cmd=docker_params["docker_arguments"]
-                )
-
-            full_docker_cmd = self.docker_image_func(env_task_id=task_id, **docker_params)
-
-            # if we are using the default docker, update back the Task:
-            if default_docker:
+        # a launch that cannot be prepared ends the task as failed, with the reason (issue #145)
+        try:
+            if self.docker_image_func:
                 # noinspection PyBroadException
                 try:
-                    set_task_container(
-                        task_session,
-                        task_id=task_id,
-                        docker_image=docker_image,
-                        docker_arguments=docker_arguments,
-                        docker_bash_script=docker_setup_script,
+                    task_container = get_task_container(
+                        task_session, task_id, ignore_match_rules=self._docker_default_cmd_override
                     )
                 except Exception:
-                    pass
+                    task_container = {}
 
-            # convert template arguments now (i.e. ${CAIRNML_} )
-            # Notice we do not parse the last part of the docker cmd because that's
-            # the actual command to be executed inside the docker
-            full_docker_cmd = docker_args_template_resolver.resolve_from_docker_cmd(
-                full_docker_cmd=full_docker_cmd[:-1]
-            ) + [full_docker_cmd[-1]]
+                default_docker = self._session.config.get("agent.disable_task_docker_override", False) or not bool(
+                    task_container.get("image")
+                )
+                if default_docker:
+                    docker_image = self._docker_image
+                    docker_arguments = self._docker_arguments
+                else:
+                    docker_image = task_container.get("image") or self._docker_image
+                    docker_arguments = task_container.get("arguments", self._docker_arguments if default_docker else None)
 
-            # if this is services_mode, change the worker_id to a unique name
-            # abd use full-monitoring, ot it registers itself as a worker for this specific service.
-            # notice, the internal agent will monitor itself once the docker is up and running
-            full_docker_cmd[-1] = full_docker_cmd[-1] + "execute {} {} --id {}".format(
-                "--full-monitoring" if self._services_mode else "--disable-monitoring",
-                "--standalone-mode" if self._standalone_mode else "",
-                task_id,
-            )
+                docker_setup_script = task_container.get("setup_shell_script")
 
-            display_docker_command = DockerArgsSanitizer.sanitize_docker_command(self._session, full_docker_cmd)
+                self.send_logs(
+                    task_id=task_id,
+                    lines=[
+                        "Running Task {} inside {}docker: {} arguments: {}\n".format(
+                            task_id,
+                            "default " if default_docker else "",
+                            docker_image,
+                            DockerArgsSanitizer.sanitize_docker_command(self._session, docker_arguments or []),
+                        )
+                    ]
+                    + (["custom_setup_bash_script:\n{}\n".format(docker_setup_script)] if docker_setup_script else []),
+                    level="INFO",
+                    session=task_session,
+                )
 
-            # send the actual used command line to the backend
-            self.send_logs(
-                task_id=task_id,
-                lines=["Executing: {}\n".format(display_docker_command)],
-                level="INFO",
-                session=task_session,
-            )
+                # Update docker command
+                docker_params = dict(
+                    docker_image=docker_image,
+                    docker_arguments=docker_arguments,
+                    docker_bash_setup_script=docker_setup_script,
+                    restart=self._get_docker_restart_value(task_session, task_id),
+                )
+                docker_params["auth_token"] = job_token
+                docker_params["job_token_dir"] = str(job_token_dir)
+                if self._worker_tags:
+                    docker_params["worker_tags"] = self._worker_tags
+                if self._services_mode:
+                    # if this is services mode, give the docker a unique worker id, as it will register itself.
+                    docker_params["worker_id"] = worker_id
 
-            cmd = Argv(*full_docker_cmd, display_argv=display_docker_command)
+                name_format = self._session.config.get("agent.docker_container_name_format", None)
+                if name_format:
+                    custom_fields = {}
+                    name_format_fields = self._session.config.get("agent.docker_container_name_format_fields", None)
+                    if name_format_fields:
+                        field_values = get_task_fields(task_session, task_id, name_format_fields.values(), log=self.log)
+                        custom_fields = {k: field_values.get(v) for k, v in name_format_fields.items()}
 
-            print("Running Docker:\n{}\n".format(str(cmd)))
-        else:
-            cmd = worker_args.get_argv_for_command("execute") + (
-                "--full-monitoring" if self._services_mode else "--disable-monitoring",
-                "--id",
-                task_id,
+                    try:
+                        name = name_format.format(
+                            task_id=re.sub(r"[^a-zA-Z0-9._-]", "-", task_id),
+                            worker_id=re.sub(r"[^a-zA-Z0-9._-]", "-", worker_id),
+                            rand_string="".join(sys_random.choice(string.ascii_lowercase) for _ in range(32)),
+                            **custom_fields,
+                        )
+                    except Exception as ex:
+                        print("Warning: failed generating docker container name: {}".format(ex))
+                    else:
+                        if self._valid_docker_container_name(name):
+                            docker_params["name"] = name
+                        else:
+                            print("Warning: generated docker container name is invalid: {}".format(name))
+
+                # convert template arguments now (i.e. ${CAIRNML_} ), this is important for the docker arg
+                # resolve the Task's docker arguments before everything else, because
+                # unlike the vault/config these are not running as the agent's user, they are the user's,
+                # we need to filter them post template parsing limitation to happen before the `docker_image_func` call
+                docker_args_template_resolver = DockerArgsTemplateResolver(
+                    task_session=self._session,
+                    task_id=task_id,
+                    queue_id=queue,
+                    # todo cache with timout invalidation?!
+                    queue_name=self._resolve_id(id=queue, service="queues", search_hidden=True),
+                    worker_id=worker_id,
+                    task_info=None,
+                )
+                if docker_params.get("docker_arguments"):
+                    docker_params["docker_arguments"] = docker_args_template_resolver.resolve_from_docker_cmd(
+                        full_docker_cmd=docker_params["docker_arguments"]
+                    )
+
+                full_docker_cmd = self.docker_image_func(env_task_id=task_id, **docker_params)
+
+                # if we are using the default docker, update back the Task:
+                if default_docker:
+                    # noinspection PyBroadException
+                    try:
+                        set_task_container(
+                            task_session,
+                            task_id=task_id,
+                            docker_image=docker_image,
+                            docker_arguments=docker_arguments,
+                            docker_bash_script=docker_setup_script,
+                        )
+                    except Exception:
+                        pass
+
+                # convert template arguments now (i.e. ${CAIRNML_} )
+                # Notice we do not parse the last part of the docker cmd because that's
+                # the actual command to be executed inside the docker
+                full_docker_cmd = docker_args_template_resolver.resolve_from_docker_cmd(
+                    full_docker_cmd=full_docker_cmd[:-1]
+                ) + [full_docker_cmd[-1]]
+
+                # if this is services_mode, change the worker_id to a unique name
+                # abd use full-monitoring, ot it registers itself as a worker for this specific service.
+                # notice, the internal agent will monitor itself once the docker is up and running
+                full_docker_cmd[-1] = full_docker_cmd[-1] + "execute {} {} --id {}".format(
+                    "--full-monitoring" if self._services_mode else "--disable-monitoring",
+                    "--standalone-mode" if self._standalone_mode else "",
+                    task_id,
+                )
+
+                display_docker_command = DockerArgsSanitizer.sanitize_docker_command(self._session, full_docker_cmd)
+
+                # send the actual used command line to the backend
+                self.send_logs(
+                    task_id=task_id,
+                    lines=["Executing: {}\n".format(display_docker_command)],
+                    level="INFO",
+                    session=task_session,
+                )
+
+                cmd = Argv(*full_docker_cmd, display_argv=display_docker_command)
+
+                print("Running Docker:\n{}\n".format(str(cmd)))
+            else:
+                cmd = worker_args.get_argv_for_command("execute") + (
+                    "--full-monitoring" if self._services_mode else "--disable-monitoring",
+                    "--id",
+                    task_id,
+                )
+        except Exception as ex:
+            reason = "The job could not be started: {}: {}".format(type(ex).__name__, ex)[:400]
+            return self._fail_job_launch(
+                task_id, reason, task_session, job_token_dir=job_token_dir, stdout_path=temp_stdout_name
             )
 
         events_service = self.get_service(Events)
@@ -1533,6 +1563,32 @@ class Worker(ServiceCommandSection):
                     self._unregister()
 
         return status
+
+    def _fail_job_launch(self, task_id, reason, session=None, job_token_dir=None, stdout_path=None):
+        """End a task whose job could not be launched: the task is set to failed with the reason, the reason goes to
+        the task log, the job token folder and the console log file are removed. Returns the launch's exit status.
+        The agent goes on taking jobs: nothing here raises (issue #145)."""
+        session = session or self._session
+        print(reason)
+        try:
+            self.send_logs(task_id=task_id, lines=[reason + "\n"], level="ERROR", session=session)
+        except Exception as ex:
+            print("Warning: could not send the launch failure to the task log: {}".format(ex))
+        if job_token_dir:
+            shutil.rmtree(job_token_dir, ignore_errors=True)
+        safe_remove_file(stdout_path)
+        if not self._get_node_rank():
+            try:
+                session.send_api(
+                    tasks_api.FailedRequest(
+                        task=task_id,
+                        status_reason="the job could not be started",
+                        status_message=reason,
+                    )
+                )
+            except Exception as ex:
+                print("Warning: could not set status=failed for task '{}': {}".format(task_id, ex))
+        return ExitStatus.failure
 
     @staticmethod
     def _queue_is_pulled_from(queue):
