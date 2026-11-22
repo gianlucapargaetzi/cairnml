@@ -1,3 +1,6 @@
+from pathlib import Path
+
+import cairnml
 import pytest
 import requests
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
@@ -271,3 +274,58 @@ def test_a_warning_does_not_fail_the_command(tmp_path, capsys):
     with _patched(doctor, key, FakeServer(workers=[])):
         assert doctor.doctor_main(["--file", str(conf)]) == 0
     assert "warn" in capsys.readouterr().out
+
+
+DEFAULTS = Path(cairnml.__file__).parent / "config" / "default"
+PACKAGED_SDK_KEYS = 45
+
+
+def copy_of_defaults(path, default_base_dir=None):
+    """A file as an older cairnml init wrote it: the api block, then the packaged sdk.conf (the copy's 'sdk {' line)."""
+    sdk = (DEFAULTS / "sdk.conf").read_text()
+    if default_base_dir is not None:
+        sdk = sdk.replace('default_base_dir: "~/.cairnml/cache"', f'default_base_dir: "{default_base_dir}"', 1)
+    path.write_text(
+        f'# CairnML SDK configuration file\napi {{ api_server: "{SERVER}"\n idp {{ device_id: "dev_1" }} }}\n'
+        "sdk " + sdk
+    )
+    return path
+
+
+def test_a_file_that_repeats_the_defaults_is_a_warning_with_the_step(tmp_path, capsys):
+    conf = copy_of_defaults(tmp_path / "old.conf")
+
+    config = by_name(doctor.run_checks(conf, key_path=make_key(tmp_path / "device.key"), http=FakeServer()))["config"]
+
+    assert config.ok is True and config.warning is True
+    assert config.line().startswith("warn config")
+    assert f"repeats {PACKAGED_SDK_KEYS} default settings" in config.message
+    assert "do not follow upgrades" in config.message
+    assert "delete everything from the line 'sdk {' to the end of the file" in config.message
+    with _patched(doctor, make_key(tmp_path / "other.key"), FakeServer()):
+        assert doctor.doctor_main(["--file", str(conf)]) == 0
+
+
+def test_a_copy_that_pins_a_value_names_the_key_and_this_versions_default(tmp_path):
+    conf = copy_of_defaults(tmp_path / "old.conf", default_base_dir="/old/cache")
+
+    config = by_name(doctor.run_checks(conf, key_path=make_key(tmp_path / "device.key"), http=FakeServer()))["config"]
+
+    assert config.warning is True
+    assert "sdk.storage.cache.default_base_dir" in config.message
+    assert '"/old/cache"' in config.message
+    assert '"~/.cairnml/cache"' in config.message
+
+
+def test_a_file_from_init_or_with_a_few_hand_set_keys_is_not_a_warning(tmp_path):
+    from cairnml.cli.config.__main__ import write_config
+
+    written = tmp_path / "written.conf"
+    write_config(written, SERVER, PUBLIC, "dev_1")
+    hand = write_conf(tmp_path / "hand.conf")
+    hand.write_text(hand.read_text() + 'sdk { storage { cache { default_base_dir: "/mine" } } }\n')
+    key = make_key(tmp_path / "device.key")
+
+    for conf in (written, hand):
+        config = by_name(doctor.run_checks(conf, key_path=key, http=FakeServer()))["config"]
+        assert config.ok is True and config.warning is False, config.line()
