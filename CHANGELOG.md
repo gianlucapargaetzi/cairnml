@@ -3,12 +3,6 @@
 Each release has a section headed "## <version>". The server's "What's new" bundle and the release check read these
 sections: a release needs its section here.
 
-## 0.0.10
-
-- init writes only the enrolment's settings to the configuration file, not a copy of the packaged defaults, so an
-  upgrade changes the defaults; `cairnml doctor` warns about a file an older version wrote with the copy and names the
-  step to remove it.
-
 ## 0.0.9
 
 - Every API call of the SDK is sent as its generated request class, at the API level negotiated with the server, with
@@ -27,6 +21,7 @@ sections: a release needs its section here.
 - Built for the server release 0.0.6 (API 2.41): the client CI compares with the server's schema and the publish
   workflow refuses a client generated from an unreleased server schema. The SDK's real-server checks run as integration
   tests.
+- `cairnml init` writes only the enrolment's settings to the configuration file, not a copy of the packaged defaults, so an upgrade changes the defaults; `cairnml doctor` warns about a file an older version wrote with the copy and names the step to remove it.
 
 ## 0.0.8
 
