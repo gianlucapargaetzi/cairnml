@@ -128,7 +128,7 @@ class HyperParams:
         res = self.task.session.send(
             tasks.EditHyperParamsRequest(
                 task=self.task.task_id,
-                hyperparams=props.values(),
+                hyperparams=list(props.values()),
                 replace_hyperparams=replace,
             ),
         )

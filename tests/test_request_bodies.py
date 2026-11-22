@@ -4,19 +4,23 @@ Generated requests send exactly the fields of their schema (no HTTP verb as a fi
 send the bodies those requests produce, equal to the bodies they sent before the callers used the generated classes.
 """
 
+import contextlib
 import importlib
 import pkgutil
 from pathlib import Path
+from unittest import mock
 
 import jwt
 import pytest
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
+from cairnml import Task
 from cairnml.backend_api import services
 from cairnml.backend_api.session import Request
 from cairnml.backend_api.session.callresult import CallResult
 from cairnml.backend_api.session.request import CompoundRequest
 from cairnml.backend_api.session.response import ResponseMeta
+from cairnml.backend_interface.task.hyperparams import HyperParams
 from cairnml.cli import devices as cli_devices
 from cairnml.cli import doctor as cli_doctor
 from cairnml.datasets import credentials
@@ -329,3 +333,40 @@ def test_sharing_sends_the_flag_even_when_it_is_false():
     assert session.body == {"ref": "R", "shared": False}
     credentials.set_repository_shared("R", True, credential="c1", session=session)
     assert session.body == {"ref": "R", "shared": True, "credential": "c1"}
+
+
+# The hyper-parameter edit: the generated request accepts a list or a tuple only, never a dict view (issue #166).
+
+
+@pytest.fixture
+def hyper_params_task():
+    """A task that talks to a recording session, with no server: (task, session)."""
+    session = FakeSession()
+    task = Task.__new__(Task)
+    task._hyper_params_manager = HyperParams(task)
+    task.reload = mock.MagicMock()
+    with contextlib.ExitStack() as stack:  # a parenthesised `with` needs Python 3.10; the SDK supports 3.9
+        stack.enter_context(mock.patch.object(Task, "session", new_callable=mock.PropertyMock, return_value=session))
+        stack.enter_context(mock.patch.object(Task, "task_id", new_callable=mock.PropertyMock, return_value="t1"))
+        stack.enter_context(mock.patch.object(Task, "is_offline", return_value=False))
+        yield task, session
+
+
+def test_set_user_properties_sends_the_properties_as_a_list(hyper_params_task):
+    task, session = hyper_params_task
+    assert task.set_user_properties(version="1") is True
+    assert isinstance(session.request, services.tasks.EditHyperParamsRequest)
+    assert isinstance(session.request.hyperparams, list)
+    assert all(isinstance(item, services.tasks.ParamsItem) for item in session.request.hyperparams)
+    assert session.body == {
+        "task": "t1",
+        "hyperparams": [{"section": "properties", "name": "version", "value": "1"}],
+        "replace_hyperparams": "none",
+    }
+
+
+def test_editing_hyper_params_from_a_dict_sends_them_as_a_list(hyper_params_task):
+    task, session = hyper_params_task
+    assert task._hyper_params_manager.edit_hyper_params({"a": "b"}, default_section="s") is True
+    assert isinstance(session.request.hyperparams, list)
+    assert session.body["hyperparams"] == [{"section": "s", "name": "a", "value": "b"}]
