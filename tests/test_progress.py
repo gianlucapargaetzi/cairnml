@@ -389,7 +389,11 @@ import threading
 
 from cairnml import Task
 
-real_fork_exec = subprocess._fork_exec
+import _posixsubprocess
+
+# Python 3.12 calls subprocess._fork_exec; earlier versions call _posixsubprocess.fork_exec directly
+hook_owner, hook_name = (subprocess, "_fork_exec") if hasattr(subprocess, "_fork_exec") else (_posixsubprocess, "fork_exec")
+real_fork_exec = getattr(hook_owner, hook_name)
 real_fork = os.fork
 spawned = threading.Event()
 reporter_forked = threading.Event()
@@ -410,7 +414,7 @@ def fork_then_signal():
     return pid
 
 
-subprocess._fork_exec = paused_fork_exec
+setattr(hook_owner, hook_name, paused_fork_exec)
 os.fork = fork_then_signal
 
 Task.set_offline(True)
