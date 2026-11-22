@@ -1,6 +1,8 @@
 import subprocess
+from pathlib import Path
 from types import SimpleNamespace
 
+import cairnml_agent
 import requests
 
 from cairnml_agent.commands import doctor
@@ -167,3 +169,54 @@ def test_doctor_is_a_subcommand_of_the_agent():
 
     assert "doctor" in COMMANDS
     assert "--file" in COMMANDS["doctor"]["args"]
+
+
+DEFAULTS = Path(cairnml_agent.__file__).parent / "backend_api" / "config" / "default"
+DEFAULT_IMAGE = "nvidia/cuda:12.6.3-cudnn-runtime-ubuntu24.04"
+PINNED_IMAGE = "nvidia/cuda:12.6.3-cudnn-runtime-ubuntu20.04"
+
+
+def copy_of_defaults(path, image=DEFAULT_IMAGE):
+    """A file as init wrote it before the change: the api block, then the packaged agent.conf and sdk.conf."""
+    agent = (DEFAULTS / "agent.conf").read_text().replace(DEFAULT_IMAGE, image)
+    sdk = (DEFAULTS / "sdk.conf").read_text()
+    path.write_text(
+        f'api {{ api_server: "{SERVER}"\n idp {{ device_id: "dev_agent" }} }}\n' + "agent " + agent + "\nsdk " + sdk
+    )
+    return path
+
+
+def test_a_file_that_repeats_the_defaults_is_a_warning_that_names_the_pinned_image(tmp_path, capsys):
+    conf = copy_of_defaults(tmp_path / "old.conf", image=PINNED_IMAGE)
+
+    config = run(conf)["config"]
+
+    assert config.ok is True and config.warning is True
+    assert config.line().startswith("warn config")
+    assert "agent.default_docker.image" in config.message
+    assert PINNED_IMAGE in config.message
+    assert DEFAULT_IMAGE in config.message
+    assert "delete everything from the line 'agent {' to the end of the file" in config.message
+    assert (
+        doctor.doctor_main(file=str(conf), http=FakeServer(), which=lambda name: "/usr/bin/docker", run=docker_ok) == 0
+    )
+
+
+def test_a_copy_made_now_is_a_warning_that_names_no_differing_key(tmp_path):
+    config = run(copy_of_defaults(tmp_path / "now.conf"))["config"]
+
+    assert config.ok is True and config.warning is True
+    assert "repeats" in config.message and "do not follow upgrades" in config.message
+    assert "agent.default_docker.image" not in config.message
+
+
+def test_a_configuration_written_by_init_is_not_a_warning(tmp_path):
+    from cairnml_agent.commands import config as init
+
+    conf = tmp_path / "slim.conf"
+    assert init.write_config(conf, SERVER, SERVER, "dev_agent", queue="q-1")
+    assert run(conf)["config"].warning is False
+
+    conf.write_text(conf.read_text() + 'agent.default_docker.image: "my/own:1"\n')
+    config = run(conf)["config"]
+    assert config.ok is True and config.warning is False

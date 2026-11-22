@@ -1,10 +1,14 @@
+import re
 from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
 
+import cairnml_agent
 import pytest
 from cairnml.idp.enrol import EnrolmentFailed
+from pyhocon import ConfigFactory, ConfigTree
 
+from cairnml_agent.backend_api.config import load
 from cairnml_agent.commands import config as init
 
 
@@ -168,3 +172,86 @@ def test_no_queue_line_is_printed_for_an_enrolment_without_a_queue(tmp_path, cap
 
     assert code == 0
     assert "queue of this machine" not in capsys.readouterr().out
+
+
+def written_file(folder, queue="q-1"):
+    conf = folder / "cairnml-agent.conf"
+    assert init.write_config(conf, "http://cairnml/cairnml/api", "http://cairnml/cairnml", "dev_x", queue=queue)
+    return conf
+
+
+def leaf_keys(tree, prefix=""):
+    keys = set()
+    for key, value in tree.items():
+        if isinstance(value, ConfigTree):
+            keys |= leaf_keys(value, f"{prefix}{key}.")
+        else:
+            keys.add(f"{prefix}{key}")
+    return keys
+
+
+def packaged_default_keys():
+    defaults = Path(cairnml_agent.__file__).parent / "backend_api" / "config" / "default"
+    keys = set()
+    for name in ("agent", "sdk"):
+        keys |= {f"{name}.{key}" for key in leaf_keys(ConfigFactory.parse_file(str(defaults / f"{name}.conf")))}
+    return keys
+
+
+def test_the_file_written_by_init_holds_no_copy_of_the_defaults(tmp_path):
+    conf = written_file(tmp_path)
+
+    parsed = ConfigFactory.parse_file(str(conf))
+    assert "default_docker" not in parsed.get("agent", {})
+    assert not (leaf_keys(parsed) & packaged_default_keys())
+    assert len(conf.read_text().splitlines()) < 40
+
+
+def test_an_upgrade_changes_the_job_image_of_a_written_file(tmp_path, monkeypatch):
+    conf = written_file(tmp_path)
+    newer = tmp_path / "newer" / "config" / "default"
+    newer.mkdir(parents=True)
+    (newer / "agent.conf").write_text('default_docker {\n    image: "new/default:2"\n}\n')
+    monkeypatch.setenv("CAIRNML_CONFIG_FILE", str(conf))
+    monkeypatch.delenv("CAIRNML_CONFIG_PATH", raising=False)
+
+    config = load(str(tmp_path / "newer" / "module.py"))
+
+    assert config.get("agent.default_docker.image") == "new/default:2"
+
+
+def test_a_hand_written_image_and_git_user_are_honoured(tmp_path, monkeypatch):
+    conf = written_file(tmp_path)
+    conf.write_text(conf.read_text() + 'agent.default_docker.image: "my/own:1"\nagent.git_user="bob"\n')
+    monkeypatch.setenv("CAIRNML_CONFIG_FILE", str(conf))
+    monkeypatch.delenv("CAIRNML_CONFIG_PATH", raising=False)
+
+    config = load()
+
+    assert config.get("agent.default_docker.image") == "my/own:1"
+    assert config.get("agent.git_user") == "bob"
+    assert config.get("agent.queue") == "q-1"
+    assert config.get("api.idp.device_id") == "dev_x"
+
+
+def test_the_header_keeps_the_lines_the_other_tools_read(tmp_path):
+    text = written_file(tmp_path / "queued").read_text()
+    assert "api_server: http://cairnml/cairnml/api" in text
+    assert "web_server: http://cairnml/cairnml" in text
+    assert 'device_id: "dev_x"' in text
+    assert re.search(r'agent\.queue\s*=\s*"([^"]+)"', text).group(1) == "q-1"
+
+    unqueued = written_file(tmp_path / "unqueued", queue="").read_text()
+    assert "agent.queue" not in unqueued
+
+
+def test_the_git_credentials_and_package_index_are_hints_not_settings(tmp_path):
+    conf = written_file(tmp_path)
+    parsed = ConfigFactory.parse_file(str(conf))
+    assert parsed.get("agent.git_user", None) is None
+    assert parsed.get("agent.git_pass", None) is None
+    assert parsed.get("agent.package_manager.extra_index_url", None) is None
+
+    lines = conf.read_text().splitlines()
+    for name in ("agent.git_user", "agent.git_pass", "extra_index_url"):
+        assert any(line.startswith("#") and name in line for line in lines), name

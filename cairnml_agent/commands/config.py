@@ -78,20 +78,11 @@ def _device_id_in(conf_file):
 
 
 def write_config(conf_file, api_host, web_host, device_id, queue=""):
-    """Write the agent configuration. It names the device; it holds no credentials."""
-    # noinspection PyBroadException
-    try:
-        conf_folder = Path(__file__).parent.absolute() / ".." / "backend_api" / "config" / "default"
-        default_conf = ""
-        for conf in (
-            "agent.conf",
-            "sdk.conf",
-        ):
-            with open(str(conf_folder / conf), "rt") as f:
-                default_conf += conf.split(".")[0] + " " + f.read() + "\n"
-    except Exception:
-        print("Error! Could not read default configuration file")
-        return False
+    """Write the agent configuration: what the enrolment decides and comments on what you may set by hand.
+
+    It names the device and holds no credentials. It does not copy the packaged defaults: those come from the installed
+    version, so an upgrade changes them (a copy would pin the values of the version that wrote it).
+    """
     # noinspection PyBroadException
     try:
         conf_file.parent.mkdir(parents=True, exist_ok=True)
@@ -112,17 +103,15 @@ def write_config(conf_file, api_host, web_host, device_id, queue=""):
             if queue:
                 # the agent's own queue: the one it serves when no --queue is given (set by the server at enrolment)
                 f.write('agent.queue="%s"\n\n' % queue)
-            # Git credentials and extra package indexes are left blank; edit this file to set them.
+            # Git credentials and extra package indexes are not set; uncomment and edit these lines to set them.
             f.write(
-                "# Set GIT user/pass credentials\n"
-                "# leave blank for GIT SSH credentials\n"
-                'agent.git_user=""\n'
-                'agent.git_pass=""\n'
+                "# Set GIT user/pass credentials (leave both unset for GIT SSH credentials)\n"
+                '# agent.git_user: "<user>"\n'
+                '# agent.git_pass: "<token>"\n'
                 "\n"
-                '# extra_index_url: ["https://cairnml.jfrog.io/cairnml/api/pypi/public/simple"]\n'
-                "agent.package_manager.extra_index_url= [\n\n]\n\n"
+                "# Extra package indexes\n"
+                '# agent.package_manager.extra_index_url: ["https://cairnml.jfrog.io/cairnml/api/pypi/public/simple"]\n'
             )
-            f.write(default_conf)
     except Exception:
         print(f"Error! Could not write configuration file at: {conf_file!s}")
         return False

@@ -4,7 +4,7 @@
 
 The checks run in this order; each failure names the next step:
 
-    config   the configuration file names a server
+    config   the configuration file names a server (a warning when it repeats the packaged defaults)
     server   the server answers at that address
     docker   Docker is installed (the docker command is on the PATH)
     daemon   the Docker daemon runs and answers to this user
@@ -20,11 +20,11 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 
 import requests
 from cairnml.idp import enrol as idp_enrol
-from pyhocon import ConfigFactory
+from pyhocon import ConfigFactory, ConfigTree
 
 from cairnml_agent.commands.config import default_config_file
 
@@ -62,7 +62,65 @@ def check_config(conf: Path, server: Optional[str]) -> Check:
         return _fail("config", f"no configuration file at {conf}", "cairnml-agent init <server address>")
     if not server:
         return _fail("config", f"{conf} names no server", "cairnml-agent init <server address>")
+    repeated, differing = _copied_defaults(conf)
+    if repeated:
+        return Check("config", True, _copy_message(conf, server, repeated, differing), warning=True)
     return Check("config", True, f"{conf} names {server}")
+
+
+def _leaves(tree: ConfigTree, prefix: str = "") -> dict:
+    out = {}
+    for key, value in tree.items():
+        if isinstance(value, ConfigTree):
+            out.update(_leaves(value, f"{prefix}{key}."))
+        else:
+            out[f"{prefix}{key}"] = value
+    return out
+
+
+def _packaged_defaults() -> dict:
+    """The default agent.* and sdk.* settings of this version, as the file names them."""
+    folder = Path(__file__).resolve().parent.parent / "backend_api" / "config" / "default"
+    defaults = {}
+    for name in ("agent", "sdk"):
+        for key, value in _leaves(ConfigFactory.parse_file(str(folder / f"{name}.conf"))).items():
+            defaults[f"{name}.{key}"] = value
+    return defaults
+
+
+def _copied_defaults(conf: Path) -> Tuple[int, List[Tuple[str, Any, Any]]]:
+    """How many packaged defaults the file repeats (when at least half of them), and those whose value differs from
+    this version's default. An init that copied the defaults wrote the whole packaged files, so the count is high; a
+    file written by this version or edited by hand has few or none of them."""
+    try:
+        user = _leaves(ConfigFactory.parse_file(str(conf)))
+        defaults = _packaged_defaults()
+    except Exception:
+        return 0, []
+    repeated = sorted(key for key in user if key in defaults)
+    if len(repeated) * 2 < len(defaults):
+        return 0, []
+    differing = [(key, user[key], defaults[key]) for key in repeated if user[key] != defaults[key]]
+    differing.sort(key=lambda item: item[0] != "agent.default_docker.image")  # the image is the one people hit first
+    return len(repeated), differing
+
+
+def _copy_message(conf: Path, server: str, repeated: int, differing: List[Tuple[str, Any, Any]]) -> str:
+    message = (
+        f"{conf} names {server}; it repeats {repeated} default settings that an older cairnml-agent init copied "
+        "into it, so they do not follow upgrades"
+    )
+    if differing:
+        shown = "; ".join(
+            f'{key} is "{pinned}" (this version\'s default is "{default}")' for key, pinned, default in differing[:3]
+        )
+        if len(differing) > 3:
+            shown += f" and {len(differing) - 3} more"
+        message += f"; {shown}"
+    return message + (
+        " - next: delete everything from the line 'agent {' to the end of the file and keep any setting you changed "
+        "on purpose"
+    )
 
 
 def check_server(server: Optional[str], http=None) -> Tuple[Check, dict]:
