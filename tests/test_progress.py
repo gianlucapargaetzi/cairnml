@@ -1,8 +1,15 @@
 import io
+import os
+import pathlib
+import signal
+import subprocess
+import sys
+import zipfile
 from types import SimpleNamespace
 
 import pytest
 
+import cairnml
 from cairnml.binding import progress
 from cairnml.binding.progress import IDLE, PatchTqdm, ProgressBar, ProgressReporter, ProgressTracker
 
@@ -341,9 +348,6 @@ def _run_the_script(mode, tmp_path):
     script.write_text(_QUEUEING_SCRIPT)
     home = tmp_path / "home"
     home.mkdir()
-    # the logger's reporting subprocess can be lost at exit and hang the interpreter (log.py, "HANGS IF RACE HOLDS");
-    # the thread mode is used instead, so the run ends and the output is complete
-    (home / "cairnml.conf").write_text("sdk { development { report_use_subprocess: false } }\n")
     env = dict(os.environ)
     env.update(
         HOME=str(home),
@@ -374,3 +378,123 @@ def test_a_never_started_bar_in_a_script_that_does_not_queue_still_warns(tmp_pat
     output = _run_the_script("local", tmp_path)
     assert "No progress bar named 'epochs' was started" in output, output
     assert "END OF SCRIPT" in output, output
+
+
+# A repository check that is still running when the log reporter forks: the check's spawn of git holds an exec-error
+# pipe until the spawn returns. The reporter inherits that pipe, so the wait for the check runs to its timeout (#172).
+_REPORTER_FORK_WINDOW_SCRIPT = """
+import os
+import subprocess
+import threading
+
+from cairnml import Task
+
+import _posixsubprocess
+
+# Python 3.12 calls subprocess._fork_exec; earlier versions call _posixsubprocess.fork_exec directly
+hook_owner, hook_name = (subprocess, "_fork_exec") if hasattr(subprocess, "_fork_exec") else (_posixsubprocess, "fork_exec")
+real_fork_exec = getattr(hook_owner, hook_name)
+real_fork = os.fork
+spawned = threading.Event()
+reporter_forked = threading.Event()
+
+
+def paused_fork_exec(*args, **kwargs):
+    pid = real_fork_exec(*args, **kwargs)
+    if threading.current_thread() is not threading.main_thread():
+        spawned.set()
+        reporter_forked.wait(10)
+    return pid
+
+
+def fork_then_signal():
+    pid = real_fork()
+    if pid != 0 and spawned.is_set():
+        reporter_forked.set()
+    return pid
+
+
+setattr(hook_owner, hook_name, paused_fork_exec)
+os.fork = fork_then_signal
+
+Task.set_offline(True)
+task = Task.init(project_name="p", task_name="t", progress_bar="epochs", auto_connect_frameworks=False)
+thread = task._detect_repo_async_thread
+task._wait_for_repo_detection(timeout=10)
+print("DETECTION STILL RUNNING AFTER WAIT" if thread and thread.is_alive() else "DETECTION DONE", flush=True)
+"""
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="the log reporter is a forked subprocess (posix only)")
+def test_a_repo_check_that_starts_while_the_reporter_forks_does_not_hold_up_the_exit(tmp_path):
+    script = tmp_path / "script.py"
+    script.write_text(_REPORTER_FORK_WINDOW_SCRIPT)
+    home = tmp_path / "home"
+    home.mkdir()
+    env = dict(os.environ)
+    env.update(
+        HOME=str(home),
+        CAIRNML_OFFLINE_MODE="1",
+        PYTHONPATH=str(pathlib.Path(cairnml.__file__).resolve().parent.parent),
+    )
+    # own session, so a hung reporter subprocess is killed with the script
+    process = subprocess.Popen(
+        [sys.executable, str(script)],
+        cwd=str(tmp_path),
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        start_new_session=True,
+    )
+    try:
+        output, _ = process.communicate(timeout=60)
+    except subprocess.TimeoutExpired:
+        os.killpg(process.pid, signal.SIGKILL)
+        output, _ = process.communicate()
+        pytest.fail(f"the script did not finish within 60 s:\n{output}")
+    assert "DETECTION DONE" in output, output
+
+
+# The reporter subprocess keeps the queue pipes it reads from and drops the rest of the inherited descriptors (#172);
+# its records must still reach the offline session: text in the log, a scalar in the metrics, both in the zip at close.
+_RECORDS_SCRIPT = """
+from cairnml import Task
+
+Task.set_offline(True)
+task = Task.init(project_name="p", task_name="t", progress_bar="epochs", auto_connect_frameworks=False)
+task.get_logger().report_text("records-of-the-reporter")
+task.get_logger().report_scalar("series-of-the-reporter", "value", 1.5, 3)
+task.close()
+print("END OF SCRIPT", flush=True)
+"""
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="the log reporter is a forked subprocess (posix only)")
+def test_the_reporter_still_writes_its_log_and_metrics_after_it_drops_the_inherited_descriptors(tmp_path):
+    script = tmp_path / "script.py"
+    script.write_text(_RECORDS_SCRIPT)
+    home = tmp_path / "home"
+    home.mkdir()
+    env = dict(os.environ)
+    env.update(
+        HOME=str(home),
+        CAIRNML_OFFLINE_MODE="1",
+        PYTHONPATH=str(pathlib.Path(cairnml.__file__).resolve().parent.parent),
+    )
+    result = subprocess.run(
+        [sys.executable, str(script)],
+        cwd=str(tmp_path),
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert "END OF SCRIPT" in result.stdout, result.stdout + result.stderr
+    archives = list((home / ".cairnml" / "cache" / "offline").glob("*.zip"))
+    assert len(archives) == 1, result.stdout + result.stderr
+    with zipfile.ZipFile(archives[0]) as archive:
+        log = archive.read("log.jsonl").decode()
+        metrics = archive.read("metrics.jsonl").decode()
+    assert "records-of-the-reporter" in log, log
+    assert "series-of-the-reporter" in metrics, metrics

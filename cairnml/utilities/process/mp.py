@@ -2,12 +2,13 @@ import os
 import pickle
 import struct
 import sys
+import weakref
 from functools import partial
 from multiprocessing import Process, Semaphore, Event as ProcessEvent
 from threading import Thread, Event as TrEvent, RLock as ThreadRLock
 from time import sleep, time
 from types import TracebackType
-from typing import List, Dict, Optional, Type, TYPE_CHECKING, Any
+from typing import List, Dict, Optional, Set, Type, TYPE_CHECKING, Any
 
 import psutil
 from six.moves.queue import Empty, Queue as TrQueue
@@ -291,6 +292,8 @@ class SafeQueue:
     """
 
     __thread_pool = SingletonThreadPool()
+    # every queue alive in this process, so a forked child knows the pipes it has to keep (#172)
+    _instances: "weakref.WeakSet[SafeQueue]" = weakref.WeakSet()
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         self._reader_thread = None
@@ -311,6 +314,7 @@ class SafeQueue:
         self._internal_q = None
         # Note we should Never! assign a new object to `self._q_size`, just work with the initial object
         self._q_size = []  # list of PIDs we pushed, so this is atomic.
+        SafeQueue._instances.add(self)
 
     def empty(self) -> bool:
         return self._q.empty() and (not self._internal_q or self._internal_q.empty())
@@ -665,6 +669,9 @@ class BackgroundMonitor:
             # update to the child process pid
             BackgroundMonitor._main_process = os.getpid()
             BackgroundMonitor._main_process_proc_obj = psutil.Process(BackgroundMonitor._main_process)
+            # the child inherited every descriptor of the parent, including pipes another thread is still using
+            # (a repository check's exec-error pipe): keep only stdio and the reporter's queue pipes (#172)
+            cls._close_inherited_descriptors(keep=cls._reporter_descriptors())
             cls._background_process_start(*process_args)
             # force to leave the subprocess
             leave_process(0)
@@ -677,6 +684,46 @@ class BackgroundMonitor:
         except Exception:
             # if we fail for some reason, do not crash, switch to thread mode when you can
             BackgroundMonitor._main_process_proc_obj = None
+
+    @staticmethod
+    def _reporter_descriptors() -> Set[int]:
+        keep = {0, 1, 2}  # stdio
+        try:
+            # the pipe to the multiprocessing resource tracker: a semaphore or event created in the child registers there
+            from multiprocessing import resource_tracker
+
+            tracker_fd = getattr(resource_tracker._resource_tracker, "_fd", None)
+            if tracker_fd is not None:
+                keep.add(tracker_fd)
+        except Exception:
+            pass
+        for queue in list(SafeQueue._instances):
+            for connection in (queue._q._reader, queue._q._writer):
+                try:
+                    keep.add(connection.fileno())
+                except (OSError, ValueError):
+                    # already closed in this process
+                    pass
+        return keep
+
+    @staticmethod
+    def _close_inherited_descriptors(keep: Set[int]) -> None:
+        # the descriptors open in this process, read from the OS; fall back to a bounded range without /proc or /dev/fd
+        numbers: Set[int] = set()
+        for folder in ("/proc/self/fd", "/dev/fd"):
+            try:
+                numbers = {int(name) for name in os.listdir(folder) if name.isdigit()}
+                break
+            except OSError:
+                continue
+        if not numbers:
+            numbers = set(range(3, min(os.sysconf("SC_OPEN_MAX"), 4096)))
+        for fd in numbers - keep:
+            try:
+                os.close(fd)
+            except OSError:
+                # not open, or closed meanwhile
+                pass
 
     @classmethod
     def __start_subprocess_forkprocess(cls, task_obj_id: int) -> None:
