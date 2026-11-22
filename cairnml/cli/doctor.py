@@ -4,7 +4,7 @@
 
 The checks run in this order, each with the next step when it fails:
 
-    config       the configuration file names a server
+    config       the configuration file names a server (a warning when it repeats the packaged defaults)
     server       the server answers at that address
     version      this SDK is at least the server's minimum version (warning when the server sends an upgrade notice)
     sign-in      this machine's device key signs in as a user on the server
@@ -22,10 +22,11 @@ import socket
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, List, Optional, Tuple
 from urllib.parse import urlparse
 
 import requests
+from pyhocon import ConfigFactory, ConfigTree
 
 from cairnml.backend_api.services import queues as queues_api
 from cairnml.backend_api.services import workers as workers_api
@@ -59,12 +60,65 @@ def _fail(name: str, message: str, next_step: str) -> Check:
     return Check(name, False, f"{message} - next: {next_step}")
 
 
+def _leaves(tree: ConfigTree, prefix: str = "") -> dict:
+    out = {}
+    for key, value in tree.items():
+        if isinstance(value, ConfigTree):
+            out.update(_leaves(value, f"{prefix}{key}."))
+        else:
+            out[f"{prefix}{key}"] = value
+    return out
+
+
+def _packaged_defaults() -> dict:
+    """The default sdk.* settings of this version, as a file with an sdk block names them."""
+    packaged = Path(__file__).resolve().parents[1] / "config" / "default" / "sdk.conf"
+    return {f"sdk.{key}": value for key, value in _leaves(ConfigFactory.parse_file(str(packaged))).items()}
+
+
+def _copied_defaults(conf: Path) -> Tuple[int, List[Tuple[str, Any, Any]]]:
+    """How many packaged defaults the file repeats (when at least half of them), and those whose value differs from
+    this version's default. An init of an older version copied the whole packaged file, so the count is high; a file
+    written by this version or edited by hand has few or none of them."""
+    try:
+        user = _leaves(ConfigFactory.parse_file(str(conf)))
+        defaults = _packaged_defaults()
+    except Exception:
+        return 0, []
+    repeated = sorted(key for key in user if key in defaults)
+    if len(repeated) * 2 < len(defaults):
+        return 0, []
+    differing = [(key, user[key], defaults[key]) for key in repeated if user[key] != defaults[key]]
+    return len(repeated), differing
+
+
+def _copy_message(conf: Path, server: str, repeated: int, differing: List[Tuple[str, Any, Any]]) -> str:
+    message = (
+        f"{conf} names {server}; it repeats {repeated} default settings that an older cairnml init copied "
+        "into it, so they do not follow upgrades"
+    )
+    if differing:
+        shown = "; ".join(
+            f'{key} is "{pinned}" (this version\'s default is "{default}")' for key, pinned, default in differing[:3]
+        )
+        if len(differing) > 3:
+            shown += f" and {len(differing) - 3} more"
+        message += f"; {shown}"
+    return message + (
+        " - next: delete everything from the line 'sdk {' to the end of the file and keep any setting you changed "
+        "on purpose"
+    )
+
+
 def check_config(conf: Path) -> Check:
     if not conf.is_file():
         return _fail("config", f"no configuration file at {conf}", "cairnml init <server address>")
     server, _, _ = read_enrolment(conf)
     if not server:
         return _fail("config", f"{conf} names no server", "cairnml init <server address>")
+    repeated, differing = _copied_defaults(conf)
+    if repeated:
+        return Check("config", True, _copy_message(conf, server, repeated, differing), warning=True)
     return Check("config", True, f"{conf} names {server}")
 
 
