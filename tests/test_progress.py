@@ -1,8 +1,14 @@
 import io
+import os
+import pathlib
+import signal
+import subprocess
+import sys
 from types import SimpleNamespace
 
 import pytest
 
+import cairnml
 from cairnml.binding import progress
 from cairnml.binding.progress import IDLE, PatchTqdm, ProgressBar, ProgressReporter, ProgressTracker
 
@@ -374,3 +380,75 @@ def test_a_never_started_bar_in_a_script_that_does_not_queue_still_warns(tmp_pat
     output = _run_the_script("local", tmp_path)
     assert "No progress bar named 'epochs' was started" in output, output
     assert "END OF SCRIPT" in output, output
+
+
+# A repository check that is still running when the log reporter forks: the check's spawn of git holds an exec-error
+# pipe until the spawn returns. The reporter inherits that pipe, so the wait for the check runs to its timeout (#172).
+_REPORTER_FORK_WINDOW_SCRIPT = """
+import os
+import subprocess
+import threading
+
+from cairnml import Task
+
+real_fork_exec = subprocess._fork_exec
+real_fork = os.fork
+spawned = threading.Event()
+reporter_forked = threading.Event()
+
+
+def paused_fork_exec(*args, **kwargs):
+    pid = real_fork_exec(*args, **kwargs)
+    if threading.current_thread() is not threading.main_thread():
+        spawned.set()
+        reporter_forked.wait(10)
+    return pid
+
+
+def fork_then_signal():
+    pid = real_fork()
+    if pid != 0 and spawned.is_set():
+        reporter_forked.set()
+    return pid
+
+
+subprocess._fork_exec = paused_fork_exec
+os.fork = fork_then_signal
+
+Task.set_offline(True)
+task = Task.init(project_name="p", task_name="t", progress_bar="epochs", auto_connect_frameworks=False)
+thread = task._detect_repo_async_thread
+task._wait_for_repo_detection(timeout=10)
+print("DETECTION STILL RUNNING AFTER WAIT" if thread and thread.is_alive() else "DETECTION DONE", flush=True)
+"""
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="the log reporter is a forked subprocess (posix only)")
+def test_a_repo_check_that_starts_while_the_reporter_forks_does_not_hold_up_the_exit(tmp_path):
+    script = tmp_path / "script.py"
+    script.write_text(_REPORTER_FORK_WINDOW_SCRIPT)
+    home = tmp_path / "home"
+    home.mkdir()
+    env = dict(os.environ)
+    env.update(
+        HOME=str(home),
+        CAIRNML_OFFLINE_MODE="1",
+        PYTHONPATH=str(pathlib.Path(cairnml.__file__).resolve().parent.parent),
+    )
+    # own session, so a hung reporter subprocess is killed with the script
+    process = subprocess.Popen(
+        [sys.executable, str(script)],
+        cwd=str(tmp_path),
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        start_new_session=True,
+    )
+    try:
+        output, _ = process.communicate(timeout=60)
+    except subprocess.TimeoutExpired:
+        os.killpg(process.pid, signal.SIGKILL)
+        output, _ = process.communicate()
+        pytest.fail(f"the script did not finish within 60 s:\n{output}")
+    assert "DETECTION DONE" in output, output
