@@ -12,20 +12,16 @@ from pathlib2 import Path
 
 
 def write_config(conf_file, api_host: str, web_host: str, device_id: Optional[str]) -> None:
-    """Write the SDK configuration. It names the device; it holds no credentials."""
-    # noinspection PyBroadException
-    try:
-        default_sdk_conf = Path(__file__).absolute().parents[2] / "config/default/sdk.conf"
-        with open(str(default_sdk_conf), "rt") as f:
-            default_sdk = f.read()
-    except Exception:
-        print("Error! Could not read default configuration file")
-        return
+    """Write the SDK configuration: what the enrolment decides and comments on what you may set by hand.
+
+    It names the device and holds no credentials. It does not copy the packaged defaults: those come from the installed
+    version, so an upgrade changes them (a copy would pin the values of the version that wrote it).
+    """
     # noinspection PyBroadException
     try:
         Path(str(conf_file)).parent.mkdir(parents=True, exist_ok=True)
         with open(str(conf_file), "wt") as f:
-            header = (
+            f.write(
                 "# CairnML SDK configuration file\n"
                 "api {\n"
                 "    # Notice: 'api_server' is the api server (<address>/cairnml/api), not the web server.\n"
@@ -36,10 +32,11 @@ def write_config(conf_file, api_host: str, web_host: str, device_id: Optional[st
                 '        device_id: "%s"\n'
                 "    }\n"
                 "}\n"
-                "sdk " % (api_host, web_host, device_id or "")
+                "\n"
+                "# Other settings (storage, logging, ...) come from the installed cairnml version and follow its upgrades.\n"
+                "# To change one, add it to an sdk block in this file; the rest of the defaults stay as they are.\n"
+                % (api_host, web_host, device_id or "")
             )
-            f.write(header)
-            f.write(default_sdk)
     except Exception:
         print(f"Error! Could not write configuration file at: {conf_file}")
         return
