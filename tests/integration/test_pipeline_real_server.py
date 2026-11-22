@@ -65,6 +65,8 @@ def test_a_local_two_step_pipeline_runs_to_its_last_step(tmp_path):
     assert out.returncode == 0, output[-2000:]
     assert out.stdout.strip().splitlines()[-1] == "pipeline done: 8", output[-2000:]
 
-    controller = Task.get_task(project_name=project, task_name=name)
+    # the controller lives in a hidden project "<project>/.pipelines/<name>", so it is found by its unique name
+    controllers = Task.get_tasks(task_name=name)
+    controller = controllers[0] if controllers else None
     assert controller is not None, "the pipeline controller task was not found on the server"
     assert controller.get_user_properties(value_only=True).get("version") == PIPELINE_VERSION
