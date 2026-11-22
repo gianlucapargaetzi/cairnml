@@ -25,10 +25,25 @@ else:
     _GPU_IMPORT_ERROR = None
 
 
+_NVIDIA_PACKAGES = ("gpustat", "pynvml")
+
+
+def _import_errors_in_chain(error: BaseException):
+    """The error and the errors it was raised from: gpustat re-raises a missing pynvml without its name."""
+    seen = set()
+    while error is not None and id(error) not in seen:
+        seen.add(id(error))
+        yield error
+        error = error.__cause__ if error.__cause__ is not None else error.__context__
+
+
 def gpu_unavailable_message(import_error: Optional[ImportError]) -> str:
-    """What the task log says when GPU monitoring is off. A missing NVIDIA binding names the extra that installs it."""
+    """What the task log says when GPU monitoring is off. A missing NVIDIA package names the extra that installs it."""
     message = "CairnML Monitor: GPU monitoring is not available"
-    if import_error is not None and getattr(import_error, "name", None) == "pynvml":
+    if import_error is not None and any(
+        (getattr(error, "name", None) or "").split(".")[0] in _NVIDIA_PACKAGES
+        for error in _import_errors_in_chain(import_error)
+    ):
         message += ', because the NVIDIA bindings are missing: pip install "cairnml[gpu]"'
     return message
 

@@ -3593,6 +3593,10 @@ class Task(_Task):
         # look the queue up before anything is stopped, closed or cloned: a run that cannot be enqueued is a failed run
         queue_id = self._find_queue_or_fail(queue_name) if queue_name else None
 
+        # this process leaves below: say so before closing, or the close reports a progress bar that never started
+        if exit_process:
+            _progress.hand_over()
+
         # make sure we analyze the process
         if self.status in (Task.TaskStatusEnum.in_progress,):
             if clone:
@@ -3635,7 +3639,6 @@ class Task(_Task):
             LoggerRoot.get_base_logger().warning(
                 "CairnML Terminating local execution process - continuing execution remotely"
             )
-            _progress.hand_over()
             leave_process(0)
 
         return task

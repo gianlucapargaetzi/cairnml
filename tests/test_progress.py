@@ -298,3 +298,79 @@ def test_no_warning_when_the_run_was_queued_for_an_agent(tracker, monkeypatch, w
     progress.hand_over()
     progress.detach()
     assert not any("No progress bar" in m for m in warnings_of_the_run.messages)
+
+
+# A script that queues itself and leaves: the real Task.init, close and exit run offline; only the calls that talk to
+# the server are replaced. A live run is in_progress on the server, an offline one stays "created".
+_QUEUEING_SCRIPT = """
+import sys
+from cairnml import Task
+
+Task.set_offline(True)
+task = Task.init(project_name="p", task_name="t", progress_bar="epochs", auto_connect_frameworks=False)
+Task.status = property(lambda self: Task.TaskStatusEnum.in_progress)
+task._find_queue_or_fail = lambda name: "queue-id"
+task.mark_stopped = lambda *a, **k: None
+task.get_output_log_web_page = lambda: "http://stub/log"
+task.get_system_tags = lambda: []
+task.set_system_tags = lambda *a, **k: None
+task.reset = lambda *a, **k: None
+Task.clone = classmethod(lambda cls, *a, **k: task)
+Task.enqueue = staticmethod(lambda *a, **k: print("ENQUEUED", flush=True))
+
+mode = sys.argv[1]
+if mode == "queue":
+    task.execute_remotely(queue_name="q")
+elif mode == "queue_clone":
+    task.execute_remotely(queue_name="q", clone=True)
+elif mode == "reset_and_exit":
+    task.execute_remotely()
+print("END OF SCRIPT", flush=True)
+"""
+
+
+def _run_the_script(mode, tmp_path):
+    import os
+    import pathlib
+    import subprocess
+    import sys
+
+    import cairnml
+
+    script = tmp_path / "script.py"
+    script.write_text(_QUEUEING_SCRIPT)
+    home = tmp_path / "home"
+    home.mkdir()
+    # the logger's reporting subprocess can be lost at exit and hang the interpreter (log.py, "HANGS IF RACE HOLDS");
+    # the thread mode is used instead, so the run ends and the output is complete
+    (home / "cairnml.conf").write_text("sdk { development { report_use_subprocess: false } }\n")
+    env = dict(os.environ)
+    env.update(
+        HOME=str(home),
+        CAIRNML_OFFLINE_MODE="1",
+        PYTHONPATH=str(pathlib.Path(cairnml.__file__).resolve().parent.parent),
+    )
+    result = subprocess.run(
+        [sys.executable, str(script), mode],
+        cwd=str(tmp_path),
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=180,
+    )
+    return result.stdout + result.stderr
+
+
+@pytest.mark.parametrize("mode", ["queue", "queue_clone", "reset_and_exit"])
+def test_no_warning_when_a_script_queues_itself_with_execute_remotely(mode, tmp_path):
+    output = _run_the_script(mode, tmp_path)
+    assert "No progress bar named" not in output, output
+    assert "END OF SCRIPT" not in output, output
+    if mode != "reset_and_exit":
+        assert "Switching to remote execution" in output, output
+
+
+def test_a_never_started_bar_in_a_script_that_does_not_queue_still_warns(tmp_path):
+    output = _run_the_script("local", tmp_path)
+    assert "No progress bar named 'epochs' was started" in output, output
+    assert "END OF SCRIPT" in output, output
