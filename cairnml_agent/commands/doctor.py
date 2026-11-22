@@ -8,7 +8,7 @@ The checks run in this order; each failure names the next step:
     server   the server answers at that address
     docker   Docker is installed (the docker command is on the PATH)
     daemon   the Docker daemon runs and answers to this user
-    github   the server has a GitHub App (a warning when not: jobs from github.com repositories are refused)
+    github   the server has a GitHub App (a warning when not: a private github.com repository needs a credential)
 
 A warning prints as "warn" and does not change the exit status. The checks change nothing. The exit status is 0 when
 no check fails, 1 otherwise.
@@ -120,7 +120,7 @@ def _daemon_step() -> str:
 
 
 def check_github(settings: dict, server_check: Check) -> Check:
-    """Jobs from github.com repositories need the server's GitHub App; without it they are refused at submission."""
+    """The company GitHub App lets jobs read github.com repositories; without it a credential of the owner is needed."""
     if server_check.ok is not True:
         return Check("github", None, "skipped: the server did not answer")
     if settings.get("github_app") is True:
@@ -130,8 +130,9 @@ def check_github(settings: dict, server_check: Check) -> Check:
     return Check(
         "github",
         True,
-        "no GitHub App on the server: jobs from github.com repositories are refused "
-        "- next: set up the GitHub App (see the server README, section GitHub App)",
+        "no GitHub App on the server: a private github.com repository needs a credential of the project owner "
+        "(the web app, Settings > Access) - next: add a credential there, or ask an admin to set up the "
+        "company GitHub App (see the server README, section GitHub App)",
         warning=True,
     )
 

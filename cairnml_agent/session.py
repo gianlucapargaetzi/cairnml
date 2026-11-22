@@ -252,7 +252,20 @@ class Session(_Session):
                 # a cache that is not needed must not stop the agent, but the person is told why it is missing
                 self.log.warning(f"Could not create the folder {folder} ({key}): {ex}")
 
-    def print_configuration(self):
+    def print_configuration(self, full=None):
+        """Print a short summary, or the full configuration with the secrets hidden when ``full`` (default: debug mode)."""
+        if full is None:
+            full = self.debug_mode
+        if not full:
+            server = self.config.get("api.api_server", None) or self.config.get("api.host", None) or "not set"
+            print(
+                "cairnml_agent v{}, configuration {}, server {}\n"
+                "Run with --debug, or use 'cairnml-agent config', to print every setting.".format(
+                    self.version, self._config_file, sanitize_urls(server)[0]
+                )
+            )
+            return
+
         def load_config(key, default):
             return [re.compile(x) for x in self.config.get(f"agent.sanitize_config_printout.{key}", default=default)]
 

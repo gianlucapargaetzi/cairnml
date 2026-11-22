@@ -38,7 +38,7 @@ def test_the_packages_export_only_the_names_that_are_used_through_them():
     # the session package holds the agent's session definitions only; the SDK's names come from the SDK
     assert not getattr(session, "__all__", None)
     # __main__ looks these up by name on the commands package
-    assert set(commands.__all__) == {"Worker", "Config", "install_bootstrap"}
+    assert set(commands.__all__) == {"Worker", "Config"}
     for module, name in [
         (session, "Session"),
         (session, "CallResult"),

@@ -18,12 +18,6 @@ def run_command(parser, args, command_name):
     debug = args.debug
     session.Session.set_debug_mode(debug)
 
-    # install-bootstrap does not require a server session
-    if command_name and command_name.lower() in ("install-bootstrap",):
-        args_dict = dict(vars(args))
-        parser.remove_top_level_results(args_dict)
-        return commands.install_bootstrap(**args_dict)
-
     # doctor only reads the configuration and checks the machine; it needs no session of its own
     if command_name and command_name.lower() in ("doctor",):
         from cairnml_agent.commands import doctor

@@ -126,11 +126,6 @@ DAEMON_ARGS = dict(
             "nargs": "*",
             "default": False,
         },
-        "--check-bootstrap": {
-            "help": "On daemon startup, check whether the installed cairnml-agent-bootstrap package is the "
-            "latest released version and print a warning if not. Has no effect if bootstrap is not detected.",
-            "action": "store_true",
-        },
     },
     **WORKER_ARGS,
 )
@@ -271,27 +266,6 @@ COMMANDS = {
             "--file": {
                 "help": "Configuration file (default: the agent's ~/.cairnml/agent/cairnml-agent.conf)",
                 "aliases": ["-F"],
-                "default": None,
-            },
-        },
-    },
-    "install-bootstrap": {
-        "help": "Install or update the cairnml-agent-bootstrap package (default from GitHub Releases)",
-        "args": {
-            "--check": {
-                "help": "Preview what would be installed without making changes",
-                "action": "store_true",
-            },
-            "--force": {
-                "help": "Force reinstall even if already installed",
-                "action": "store_true",
-            },
-            "--version": {
-                "help": "Install a specific release version (e.g. v0.3.0, 0.3.0rc0-42)",
-                "default": None,
-            },
-            "--from-file": {
-                "help": "Install from a local .whl file instead of downloading the latest published release",
                 "default": None,
             },
         },

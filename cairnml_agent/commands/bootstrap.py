@@ -1,9 +1,6 @@
 from pathlib import Path
 
 
-BOOTSTRAP_REPO_URL = "https://github.com/clearml/clearml-agent-bootstrap"
-
-
 def check_bootstrap_package_install(config):
     if not config.get("agent.bootstrap.use_bootstrap", None):
         return False
@@ -18,35 +15,6 @@ def check_bootstrap_package_install(config):
     except Exception:
         print("WARNING: importing cairnml-agent-bootstrap failed")
     return False
-
-
-def print_bootstrap_missing_notice():
-    print("INFO: cairnml-agent-bootstrap was not detected.")
-    print("      We recommend installing it to significantly reduce agent job start-up time.")
-    print("      To install, run: cairnml-agent install-bootstrap")
-    print("      See: {}".format(BOOTSTRAP_REPO_URL))
-
-
-def check_latest_bootstrap_version(timeout: float = 5):
-    """Compare installed bootstrap version with the latest GitHub release and print the result."""
-    from cairnml_agent.commands.install_bootstrap import (
-        get_installed_bootstrap_version,
-        get_latest_bootstrap_version,
-    )
-
-    current = get_installed_bootstrap_version()
-    if not current:
-        print("INFO: cairnml-agent-bootstrap is not installed; skipping version check")
-        return
-    latest = get_latest_bootstrap_version(timeout=timeout)
-    if not latest:
-        print("INFO: could not determine latest cairnml-agent-bootstrap version (network error or timeout)")
-        return
-    if current == latest:
-        print("INFO: cairnml-agent-bootstrap v{} is up-to-date".format(current))
-    else:
-        print("WARNING: cairnml-agent-bootstrap v{} is installed, latest is v{}".format(current, latest))
-        print("         To update, run: cairnml-agent install-bootstrap")
 
 
 def update_bootstrap(config, force=False):

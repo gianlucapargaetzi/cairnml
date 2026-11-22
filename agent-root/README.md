@@ -58,7 +58,7 @@ The agent enrols as its own device, with its own key (`~/.cairnml/agent/device.k
 cairnml-agent doctor
 ```
 
-It prints one line per check and the next step for each failure: the configuration names a server, the server answers, Docker is installed, the Docker daemon runs for this user, and the server has a GitHub App. A missing GitHub App is a warning: jobs from github.com repositories are refused until it is set up. Warnings do not change the exit status (0 when no check fails, 1 otherwise). The checks change nothing. `-F <file>` checks another configuration file.
+It prints one line per check and the next step for each failure: the configuration names a server, the server answers, Docker is installed, the Docker daemon runs for this user, and the server has a GitHub App. A missing GitHub App is a warning: a private github.com repository then needs a credential of the project owner (Settings > Access in the web app), or the App set up by an admin. Warnings do not change the exit status (0 when no check fails, 1 otherwise). The checks change nothing. `-F <file>` checks another configuration file.
 
 ## Start the agent
 

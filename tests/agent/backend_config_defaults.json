@@ -6,8 +6,6 @@
     "bootstrap": {
       "always_install_ca_cert": true,
       "always_use_static_git": false,
-      "check_for_latest": false,
-      "check_for_latest_timeout": 5,
       "host_bootstrap_cache_dir": "~/.cairnml.bootstrap.cache",
       "host_bootstrap_dir": "~/.cairnml.bootstrap",
       "skip_git_installation": true,

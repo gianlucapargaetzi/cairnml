@@ -1813,17 +1813,8 @@ class Worker(ServiceCommandSection):
 
         # check if we have bootstrap package installed
         if bootstrap.check_bootstrap_package_install(config=self._session.config):
-            check_latest = kwargs.get("check_bootstrap", False) or self._session.config.get(
-                "agent.bootstrap.check_for_latest", False
-            )
-            if check_latest:
-                bootstrap.check_latest_bootstrap_version(
-                    timeout=self._session.config.get("agent.bootstrap.check_for_latest_timeout", 5)
-                )
             if bootstrap.update_bootstrap(config=self._session.config):
                 self._bootstrap = True
-        else:
-            bootstrap.print_bootstrap_missing_notice()
 
         self.check(**kwargs)
         self.log.debug("starting resource monitor thread")

@@ -116,9 +116,27 @@ def test_a_daemon_that_does_not_answer_in_time_fails(tmp_path):
 def test_no_github_app_is_a_warning_with_the_remedy_and_passes(tmp_path):
     checks = run(write_conf(tmp_path / "a.conf"), http=FakeServer(github_app=False))
     assert checks["github"].ok is True and checks["github"].warning is True
-    assert "jobs from github.com repositories are refused" in checks["github"].message
+    assert "are refused" not in checks["github"].message
+    assert "Settings > Access" in checks["github"].message
+    assert "credential" in checks["github"].message
     assert "GitHub App" in checks["github"].message
     assert checks["github"].line().startswith("warn")
+
+
+def test_the_github_line_with_the_app_present_is_ok_without_warning():
+    server_ok = doctor.Check("server", True, "answered")
+    check = doctor.check_github({"github_app": True}, server_ok)
+    assert check.ok is True and check.warning is False
+    assert "has a GitHub App" in check.message
+
+
+def test_the_github_line_with_the_app_absent_names_the_credential_and_the_app():
+    server_ok = doctor.Check("server", True, "answered")
+    check = doctor.check_github({}, server_ok)
+    assert check.ok is True and check.warning is True
+    assert "are refused" not in check.message
+    assert "Settings > Access" in check.message and "credential" in check.message
+    assert "GitHub App" in check.message
 
 
 def test_a_configured_github_app_passes_without_warning(tmp_path):
