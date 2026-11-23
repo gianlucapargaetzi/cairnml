@@ -1346,7 +1346,9 @@ class Worker(ServiceCommandSection):
                     docker_arguments = self._docker_arguments
                 else:
                     docker_image = task_container.get("image") or self._docker_image
-                    docker_arguments = task_container.get("arguments", self._docker_arguments if default_docker else None)
+                    docker_arguments = task_container.get(
+                        "arguments", self._docker_arguments if default_docker else None
+                    )
 
                 docker_setup_script = task_container.get("setup_shell_script")
 
