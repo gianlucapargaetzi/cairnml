@@ -111,7 +111,7 @@ class K8sIntegration(Worker):
         "[ ! -z $CAIRNML_AGENT_NO_UPDATE ] || $LOCAL_PYTHON -m pip --version > /dev/null || export LOCAL_PYTHON=$(PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin command -v python3)",
         "rm -f /usr/lib/python3.*/EXTERNALLY-MANAGED",  # remove PEP 668
         "{extra_bash_init_cmd}",
-        "[ ! -z $CAIRNML_AGENT_NO_UPDATE ] || $LOCAL_PYTHON -m pip install cairnml-agent{agent_install_args}",
+        '[ ! -z $CAIRNML_AGENT_NO_UPDATE ] || $LOCAL_PYTHON -m pip install "cairnml[agent]"{agent_install_args}',
         "{extra_docker_bash_script}",
         "$LOCAL_PYTHON -m cairnml_agent execute {default_execution_agent_args} --id {task_id}",
     ]

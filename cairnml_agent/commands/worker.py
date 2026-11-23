@@ -423,12 +423,12 @@ def installed_wheel(dist) -> str:
 
 
 def local_agent_wheel() -> str:
-    """The wheel of this cairnml-agent: repacked from its installed files when it is installed, otherwise built from
-    the source tree it runs from."""
-    dist = installed_distribution("cairnml-agent", Path(__file__).resolve().parents[1])
+    """The wheel of this agent: the cairnml distribution, which contains cairnml_agent (the cairnml[agent] extra).
+    Repacked from its installed files when it is installed, otherwise built from the source tree it runs from."""
+    dist = installed_distribution("cairnml", Path(__file__).resolve().parents[1])
     if dist is not None:
         return installed_wheel(dist)
-    return build_local_wheel(Path(__file__).resolve().parents[2], "cairnml-agent")
+    return build_local_wheel(Path(__file__).resolve().parents[2], "cairnml")
 
 
 def local_sdk_wheel() -> str:
@@ -5079,14 +5079,12 @@ class Worker(ServiceCommandSection):
         docker_wheel = "/tmp/{}".format(basename(local_wheel))
         base_cmd += ["-v", local_wheel + ":" + docker_wheel]
         run.cairnml_agent_wheel = docker_wheel if self._bootstrap else '"{}"'.format(docker_wheel)
+        run.cairnml_agent_wheel_path = docker_wheel
         sdk_wheel = local_sdk_wheel()
         docker_sdk_wheel = "/tmp/{}".format(basename(sdk_wheel))
-        base_cmd += [
-            "-v",
-            sdk_wheel + ":" + docker_sdk_wheel,
-            "-e",
-            "{}={}".format(LOCAL_SDK_WHEEL_ENV, docker_sdk_wheel),
-        ]
+        if sdk_wheel != local_wheel:  # the agent and the SDK are one wheel: a second mount of it would be refused
+            base_cmd += ["-v", sdk_wheel + ":" + docker_sdk_wheel]
+        base_cmd += ["-e", "{}={}".format(LOCAL_SDK_WHEEL_ENV, docker_sdk_wheel)]
 
     def _docker_mount_defaults(self, run, base_cmd):
         """mdef part of the docker run command (see _get_docker_cmd)."""
@@ -5145,12 +5143,12 @@ class Worker(ServiceCommandSection):
                 # The job installs the SDK of this machine first, so pip never takes cairnml from PyPI for the
                 # agent's requirement (the agent wheel asks for cairnml<0.1).
                 + '$LOCAL_PYTHON -m pip install -U "$CAIRNML_AGENT_LOCAL_SDK_WHEEL" ; '
-                + "$LOCAL_PYTHON -m pip install -U {cairnml_agent_wheel} ; "
+                + '$LOCAL_PYTHON -m pip install -U "{cairnml_agent_wheel_path}[agent]" ; '
             ).format(
                 python_single_digit=run.python_version.split(".")[0],
                 python=run.python_version,
                 pip_version=" ".join(PackageManager.get_pip_versions(wrap='"')),
-                cairnml_agent_wheel=run.cairnml_agent_wheel,
+                cairnml_agent_wheel_path=run.cairnml_agent_wheel_path,
                 mount_ssh_ro=run.mount_ssh_ro,
                 mount_ssh=run.mount_ssh,
                 mount_git_ro=run.mount_git_ro,

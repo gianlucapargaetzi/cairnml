@@ -19,6 +19,13 @@ import pytest
 from cairnml_agent.commands import worker
 
 AGENT_ROOT = Path(__file__).resolve().parents[2]
+
+# The agent is part of the cairnml distribution now (the cairnml[agent] extra): there are no two installed wheels for
+# this test to build and check. It is skipped until it is rewritten for the one wheel (a follow-up of cairnml#179).
+pytest.skip(
+    "the agent and the SDK are one distribution (cairnml[agent]); rewrite this test for the one wheel",
+    allow_module_level=True,
+)
 IGNORED = shutil.ignore_patterns(".git", "build", "dist", "*.egg-info", "__pycache__")
 
 

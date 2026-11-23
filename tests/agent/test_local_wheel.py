@@ -114,7 +114,20 @@ def test_an_agent_that_is_not_installed_is_built_from_its_source_tree(monkeypatc
     monkeypatch.setattr(worker, "installed_distribution", lambda name, package_dir: None)
     monkeypatch.setattr(worker, "build_local_wheel", lambda source, name: built.append((source, name)) or "/x/a.whl")
     assert worker.local_agent_wheel() == "/x/a.whl"
-    assert built == [(Path(worker.__file__).resolve().parents[2], "cairnml-agent")]
+    assert built == [(Path(worker.__file__).resolve().parents[2], "cairnml")]
+
+
+def test_the_agent_and_the_sdk_are_one_wheel_and_it_is_mounted_once(monkeypatch):
+    """The agent is part of the cairnml distribution (the cairnml[agent] extra): one wheel, one mount."""
+    from types import SimpleNamespace
+
+    wheel = "/x/cairnml-0.0.9-py3-none-any.whl"
+    monkeypatch.setattr(worker, "local_agent_wheel", lambda: wheel)
+    monkeypatch.setattr(worker, "local_sdk_wheel", lambda: wheel)
+    base_cmd = []
+    worker.Worker._docker_wheel_args(SimpleNamespace(_bootstrap=False), SimpleNamespace(), base_cmd)
+    assert base_cmd.count("-v") == 1
+    assert "{}:/tmp/cairnml-0.0.9-py3-none-any.whl".format(wheel) in base_cmd
 
 
 def test_an_installed_sdk_is_repacked_even_inside_a_venv_of_its_own_checkout(monkeypatch, tmp_path, fresh_wheels):
