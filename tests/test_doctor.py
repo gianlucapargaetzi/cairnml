@@ -362,3 +362,21 @@ def test_without_the_old_agent_package_the_check_passes(monkeypatch):
     check = doctor.check_agent_package()
     assert check.ok is True and not check.warning
     assert check.line().startswith("ok")
+
+
+def test_the_message_column_is_the_same_for_every_check_name():
+    assert doctor.Check("config", True, "x").line().index("x") == 19
+    assert doctor.Check("agent package", True, "x").line().index("x") == 19
+
+
+@pytest.mark.parametrize("name", ["a" * 13, "a" * 14, "a" * 15, "a" * 20])
+def test_a_name_longer_than_the_column_keeps_a_space_before_its_message(name):
+    assert doctor.Check(name, True, "x").line() == f"ok   {name} x"
+
+
+def test_every_line_of_a_healthy_run_has_its_message_in_the_same_column(tmp_path):
+    conf = write_conf(tmp_path / "cairnml.conf")
+    key = make_key(tmp_path / "device.key")
+    checks = doctor.run_checks(conf, key_path=key, http=FakeServer())
+    for check in checks:
+        assert check.line()[18] == " " and check.line()[19:] == check.message, check.line()
