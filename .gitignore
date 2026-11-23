@@ -19,6 +19,13 @@ venv/
 .workspace/
 .vscode/
 
+# Agent tooling and folders of the former agent repository
+.zed
+.rules
+.mirrord
+.sops.yaml
+virtualenv
+
 # Claude Code: its settings, skills, project instructions and plans stay on the author's machine, not in the repository
 .claude/
 CLAUDE.md

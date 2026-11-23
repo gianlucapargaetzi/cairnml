@@ -1,3 +1,4 @@
 include requirements.txt LICENSE NOTICE THIRD_PARTY_NOTICES DISCLAIMER.md README.md
 recursive-include cairnml *.svg *.conf py.typed
+recursive-include cairnml_agent *.conf *.json
 prune tests

@@ -25,3 +25,11 @@ bars  # draw_bars(bars) renderer hook: signature from the mplexporter interface
 # Imports kept on purpose.
 omegaconf  # import probe: hydra_bind uses it only to detect the optional package
 HTTPConnection  # compatibility re-export of requests_toolbelt (kept for callers importing it from _compat)
+
+# cairnml_agent (the agent extra): parameters fixed by an interface or an override, and imports kept on purpose.
+# Parameters fixed by an interface or an override: the signature must stay, the body does not need them.
+old_token  # noqa: F821  # TokenManager._do_refresh_token(old_token, exp): subclasses override it with this signature
+pool_kwargs  # noqa: F821  # TLSv1HTTPAdapter.init_poolmanager(**pool_kwargs): HTTPAdapter override signature
+kwds  # noqa: F821  # custom_template.Template.substitute/safe_substitute(**kwds): string.Template signature callers use
+type_  # noqa: F821  # LockFile.__exit__(type_, value, tb): context-manager protocol signature; the body does not need it
+force_current_version  # noqa: F821  # Worker._get_docker_cmd keyword: kept until cairnml-agent#46 splits that method

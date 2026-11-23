@@ -27,7 +27,7 @@ python3 -m pip install -U pip
 python3 -m pip install virtualenv
 python3 -m virtualenv cairnml_agent_venv
 source cairnml_agent_venv/bin/activate
-python -m pip install cairnml-agent
+python -m pip install "cairnml[agent]"
 cat << EOF >> ~/cairnml.conf
 {cairnml_conf}
 EOF

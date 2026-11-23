@@ -18,6 +18,10 @@ Works with server release 0.0.6 (API 2.41) and later.
 - A script whose log reporter process starts while the repository check is still running no longer waits for the check's full 300-second timeout when its task closes.
 - The packages that the function of a pipeline step imports are recorded again when the SDK, or another package the function imports, is installed from a local folder (pip install -e); before, only cairnml was recorded and the step failed on the agent with a missing module.
 - When the scan of a pipeline step's imports fails or misses an import of the function, the SDK logs an error that says which import and to pass packages= on the component, instead of a cut-off warning or nothing.
+- Agent: the agent is the cairnml[agent] extra; uninstall the old cairnml-agent package before installing it (pip uninstall cairnml-agent).
+- Agent: queue switching (force_workers on or off) is kept; owner impersonation, cluster reports and dynamic GPU allocation are removed.
+- Agent: cairnml-agent init writes only the enrolment's settings to the agent configuration, not a copy of the packaged defaults, so an upgrade changes the defaults (job image included); cairnml-agent doctor warns about a file an older version wrote with the copy and names the step to remove it.
+- Agent: Docker jobs of an agent and SDK installed from wheels run: their wheels are repacked from the installed files, and a job that cannot be launched ends failed with the reason.
 
 ## 0.0.8
 

@@ -96,7 +96,9 @@ def test_a_healthy_machine_passes_every_check(tmp_path):
     conf = write_conf(tmp_path / "cairnml.conf")
     key = make_key(tmp_path / "device.key")
     checks = doctor.run_checks(conf, key_path=key, http=FakeServer())
-    assert [c.name for c in checks] == ["config", "server", "version", "sign-in", "device key", "queues", "storage"]
+    assert [c.name for c in checks] == [
+        "config", "server", "version", "sign-in", "device key", "queues", "storage", "agent package",
+    ]
     assert all(c.ok is True for c in checks), [c.line() for c in checks]
     assert "alice (admin)" in by_name(checks)["sign-in"].message
 
@@ -164,7 +166,7 @@ def test_the_command_prints_one_line_per_check_and_exits_zero_when_all_pass(tmp_
     with _patched(doctor, key, FakeServer()):
         assert doctor.doctor_main(["--file", str(conf)]) == 0
     lines = capsys.readouterr().out.strip().splitlines()
-    assert len(lines) == 7
+    assert len(lines) == 8
     assert lines[0].startswith("ok")
     assert all(line.startswith("ok") for line in lines)
 
@@ -329,3 +331,34 @@ def test_a_file_from_init_or_with_a_few_hand_set_keys_is_not_a_warning(tmp_path)
     for conf in (written, hand):
         config = by_name(doctor.run_checks(conf, key_path=key, http=FakeServer()))["config"]
         assert config.ok is True and config.warning is False, config.line()
+
+
+def test_the_old_agent_package_next_to_the_sdk_is_a_warning(monkeypatch):
+    import importlib.metadata
+
+    real = importlib.metadata.distribution
+
+    def old_agent_installed(name, *args, **kwargs):
+        return real("cairnml") if name == "cairnml-agent" else real(name, *args, **kwargs)
+
+    monkeypatch.setattr(importlib.metadata, "distribution", old_agent_installed)
+    check = doctor.check_agent_package()
+    assert check.ok is True and check.warning is True
+    assert "pip uninstall cairnml-agent" in check.message
+    assert check.line().startswith("warn")
+
+
+def test_without_the_old_agent_package_the_check_passes(monkeypatch):
+    import importlib.metadata
+
+    real = importlib.metadata.distribution
+
+    def no_old_agent(name, *args, **kwargs):
+        if name == "cairnml-agent":
+            raise importlib.metadata.PackageNotFoundError(name)
+        return real(name, *args, **kwargs)
+
+    monkeypatch.setattr(importlib.metadata, "distribution", no_old_agent)
+    check = doctor.check_agent_package()
+    assert check.ok is True and not check.warning
+    assert check.line().startswith("ok")

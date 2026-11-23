@@ -5,6 +5,9 @@ useDefault = true
 
 [allowlist]
 description = "Public defaults inherited from ClearML (refused at startup by the server) and key-handling code that is not a secret"
+# The first commit of the agent's history (the open source Trains agent, 2019) holds the public demo key and secret of
+# the Trains project as defaults. They are not credentials of this project.
+commits = ["787a6c3d025ddf2c4d4b41123284cd9aab3a64c5"]
 paths = [
   '''apiserver/config/default/.*\.conf''',
   '''fileserver/config/default/.*\.conf''',

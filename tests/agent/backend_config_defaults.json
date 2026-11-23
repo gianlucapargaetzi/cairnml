@@ -1,0 +1,327 @@
+{
+  "agent": {
+    "abort_callback_max_timeout": 1800,
+    "apply_environment": true,
+    "apply_files": true,
+    "bootstrap": {
+      "always_install_ca_cert": true,
+      "always_use_static_git": false,
+      "host_bootstrap_cache_dir": "~/.cairnml.bootstrap.cache",
+      "host_bootstrap_dir": "~/.cairnml.bootstrap",
+      "skip_git_installation": true,
+      "use_bootstrap": true
+    },
+    "custom_build_script": "",
+    "default_docker": {
+      "image": "nvidia/cuda:12.6.3-cudnn-runtime-ubuntu24.04",
+      "match_rules": [
+        {
+          "arguments": "--ipc=host",
+          "image": "python:3.6-bullseye",
+          "match": {
+            "script": {
+              "binary": "python3.6$"
+            }
+          },
+          "update_back_task": true
+        },
+        {
+          "arguments": "--ipc=host",
+          "image": "python:3.7-bullseye",
+          "match": {
+            "script": {
+              "binary": "python3.7$"
+            }
+          },
+          "update_back_task": true
+        },
+        {
+          "arguments": "--ipc=host",
+          "image": "python:3.8-bullseye",
+          "match": {
+            "script": {
+              "binary": "python3.8$"
+            }
+          }
+        },
+        {
+          "arguments": "--ipc=host",
+          "image": "python:3.9-bullseye",
+          "match": {
+            "script": {
+              "binary": "python3.9$"
+            }
+          }
+        },
+        {
+          "arguments": "--ipc=host",
+          "image": "python:3.10-bullseye",
+          "match": {
+            "script": {
+              "binary": "python3.10$"
+            }
+          }
+        },
+        {
+          "arguments": "--ipc=host",
+          "image": "python:3.11-bullseye",
+          "match": {
+            "script": {
+              "binary": "python3.11$"
+            }
+          }
+        },
+        {
+          "arguments": "--ipc=host",
+          "image": "python:3.12-bullseye",
+          "match": {
+            "script": {
+              "binary": "python3.12$"
+            }
+          }
+        },
+        {
+          "arguments": "--ipc=host",
+          "image": "python:3.13-bullseye",
+          "match": {
+            "script": {
+              "binary": "python3.13$"
+            }
+          }
+        }
+      ],
+      "update_back_task": true
+    },
+    "disable_task_docker_override": false,
+    "docker_apt_cache": "~/.cairnml/apt-cache",
+    "docker_force_pull": false,
+    "docker_internal_mounts": {
+      "apt_cache": "/var/cache/apt/archives",
+      "bootstrap_cache": "/.cairnml.bootstrap.cache",
+      "bootstrap_folder": "/.cairnml.bootstrap",
+      "pip_cache": "/root/.cache/pip",
+      "pip_download": "/root/.cairnml/pip-download-cache",
+      "poetry_cache": "/root/.cache/pypoetry",
+      "sdk_cache": "/cairnml_agent_cache",
+      "ssh_folder": "~/.ssh",
+      "ssh_ro_folder": "/.ssh",
+      "vcs_cache": "/root/.cairnml/vcs-cache",
+      "venv_build": "~/.cairnml/venvs-builds",
+      "venvs_cache": "/root/.cairnml/venvs-cache"
+    },
+    "docker_pip_cache": "~/.cairnml/pip-cache",
+    "enable_task_env": false,
+    "forbidden_docker_args": [
+      "entrypoint",
+      "privileged",
+      "cap-add",
+      "device",
+      "device-cgroup-rule",
+      "security-opt",
+      "pid",
+      "ipc",
+      "userns",
+      "uts",
+      "cgroupns",
+      "network",
+      "net",
+      "mount",
+      "volume",
+      "v",
+      "volumes-from",
+      "add-host",
+      "sysctl",
+      "tmpfs",
+      "env-file",
+      "label-file",
+      "log-driver",
+      "log-opt",
+      "cidfile",
+      "group-add"
+    ],
+    "force_git_ssh_protocol": false,
+    "git_fetch_args": [
+      "--all",
+      "--tags",
+      "--recurse-submodules"
+    ],
+    "hide_docker_command_env_vars": {
+      "enabled": true,
+      "extra_keys": [],
+      "parse_embedded_urls": true
+    },
+    "package_manager": {
+      "conda_channels": [
+        "pytorch",
+        "conda-forge",
+        "nvidia",
+        "defaults"
+      ],
+      "force_upgrade": false,
+      "pip_legacy_resolver": [
+        ">=20.3,<24.3"
+      ],
+      "pip_version": [
+        "<20.2 ; python_version < '3.10'",
+        "<22.3 ; python_version >= '3.10' and python_version <= '3.11'",
+        ">=23,<26 ; python_version >= '3.12'"
+      ],
+      "poetry_files_from_repo_working_dir": false,
+      "priority_optional_packages": [
+        "pygobject"
+      ],
+      "system_site_packages": false,
+      "torch_nightly": false,
+      "type": "pip",
+      "uv_files_from_repo_working_dir": false,
+      "uv_sync_locked_if_lock_file": true
+    },
+    "pip_download_cache": {
+      "enabled": true,
+      "path": "~/.cairnml/pip-download-cache"
+    },
+    "python_binary": "",
+    "reload_config": false,
+    "sanitize_config_printout": {
+      "docker_commands": [
+        "^extra_docker_arguments$"
+      ],
+      "dont_hide_secrets": [
+        "^enable_git_ask_pass$"
+      ],
+      "hide_secrets": [
+        "^sanitize_config_printout$",
+        "secret",
+        "pass",
+        "token",
+        "account_key",
+        "contents"
+      ],
+      "hide_secrets_recursive": [
+        "^environment$"
+      ],
+      "urls": [
+        "^extra_index_url$"
+      ]
+    },
+    "translate_ssh": true,
+    "translate_ssl_replacement_scheme": "https",
+    "vcs_cache": {
+      "enabled": true,
+      "path": "~/.cairnml/vcs-cache"
+    },
+    "venvs_cache": {
+      "free_space_threshold_gb": 2.0,
+      "max_entries": 10,
+      "path": "~/.cairnml/venvs-cache"
+    },
+    "venvs_dir": "~/.cairnml/venvs-builds",
+    "worker_id": "",
+    "worker_name": ""
+  },
+  "api": {
+    "auth": {
+      "token_expiration_threshold_sec": 43200
+    },
+    "default_version": 1.5,
+    "http": {
+      "max_req_size": 15728640,
+      "pool_connections": 512,
+      "pool_maxsize": 512,
+      "retries": {
+        "backoff_factor": 1.0,
+        "backoff_max": 120.0,
+        "connect": 240,
+        "read": 240,
+        "redirect": 240,
+        "status": 240,
+        "total": 240
+      },
+      "wait_on_maintenance_forever": true
+    },
+    "verify_certificate": true,
+    "version": 1.5
+  },
+  "logging": {
+    "loggers": {
+      "urllib3": {
+        "level": "ERROR"
+      }
+    },
+    "version": 1
+  },
+  "sdk": {
+    "aws": {
+      "boto3": {
+        "max_multipart_concurrency": 16,
+        "pool_connections": 512
+      },
+      "s3": {
+        "credentials": [],
+        "key": "",
+        "region": "",
+        "secret": ""
+      }
+    },
+    "azure": {
+      "storage": {}
+    },
+    "development": {
+      "default_output_uri": "",
+      "detect_with_pip_freeze": false,
+      "force_analyze_entire_repo": false,
+      "store_uncommitted_code_diff": true,
+      "support_stopping": true,
+      "suppress_update_message": false,
+      "task_reuse_time_window_in_hours": 72.0,
+      "vcs_repo_detect_async": true,
+      "worker": {
+        "log_stdout": true,
+        "ping_period_sec": 30,
+        "report_global_mem_used": false,
+        "report_period_sec": 2
+      }
+    },
+    "google": {
+      "storage": {}
+    },
+    "log": {
+      "disable_urllib3_info": true,
+      "null_log_propagate": false,
+      "task_log_buffer_capacity": 66
+    },
+    "metrics": {
+      "file_history_size": 100,
+      "images": {
+        "format": "JPEG",
+        "quality": 87,
+        "subsampling": 0
+      },
+      "matplotlib_untitled_history_size": 100,
+      "tensorboard_single_series_per_graph": false
+    },
+    "network": {
+      "iteration": {
+        "max_retries_on_server_error": 5,
+        "retry_backoff_factor_sec": 10
+      },
+      "metrics": {
+        "file_upload_starvation_warning_sec": 120,
+        "file_upload_threads": 4
+      }
+    },
+    "storage": {
+      "cache": {
+        "default_base_dir": "~/.cairnml/cache",
+        "size": {
+          "min_free_bytes": "10GB"
+        }
+      },
+      "direct_access": [
+        {
+          "url": "file://*"
+        }
+      ]
+    }
+  }
+}
