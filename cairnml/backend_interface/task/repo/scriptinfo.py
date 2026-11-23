@@ -80,7 +80,9 @@ class ScriptRequirements:
                         reqs[k] = guess[k]
             return self.create_requirements_txt(reqs, local_pks, detailed=detailed_req_report)
         except Exception as ex:
-            self._get_logger().warning(f"Failed auto-generating package requirements: {ex}")
+            self._get_logger().error(
+                f"Failed auto-generating package requirements: {ex}. Pass packages= on the component, or install pigar."
+            )
             return "", ""
 
     @staticmethod

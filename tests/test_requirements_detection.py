@@ -3,6 +3,10 @@
 The table is fixed so the expectations do not depend on what the test machine has installed.
 """
 
+import logging
+
+import pytest
+
 from cairnml.utilities.project_requirements import GenerateReqs
 
 IGNORES = [".git", ".hg", ".idea", "__pycache__", ".ipynb_checkpoints", "site-packages", "dist-packages"]
@@ -119,3 +123,61 @@ def test_a_scan_leaves_the_sys_path_and_sys_modules_of_the_calling_process_uncha
     scan(tmp_path)
     assert sys.path == path_before
     assert set(sys.modules) == modules_before
+
+
+# --- a failed scan is reported as an error with its cause (AC-2) -------------------------------------------------------
+LOGGER = "cairnml.Repository Detection"
+
+
+def _worker_stub(tmp_path, monkeypatch, stderr_text):
+    from cairnml.utilities import project_requirements
+
+    stub = tmp_path / "failing_worker.py"
+    stub.write_text("import sys\nsys.stderr.write({!r})\nsys.exit(1)\n".format(stderr_text))
+    monkeypatch.setattr(project_requirements, "WORKER", str(stub))
+
+
+@pytest.fixture
+def scan_log():
+    """The records of the detection logger, captured on the logger itself (the SDK sets its own propagation)."""
+    records = []
+
+    class _Collect(logging.Handler):
+        def emit(self, record):
+            records.append(record)
+
+    handler = _Collect(level=logging.DEBUG)
+    logger = logging.getLogger(LOGGER)
+    logger.addHandler(handler)
+    yield records
+    logger.removeHandler(handler)
+
+
+def _errors(records):
+    return [r for r in records if r.levelno == logging.ERROR]
+
+
+def test_worker_failure_is_logged_as_error(tmp_path, monkeypatch, scan_log):
+    from cairnml.backend_interface.task.repo.scriptinfo import ScriptRequirements
+
+    write(tmp_path / "train.py", "import numpy\n")
+    _worker_stub(tmp_path, monkeypatch, "Traceback (most recent call last):\nRuntimeError: scanner broke\n")
+    result = ScriptRequirements(str(tmp_path)).get_requirements(entry_point_filename="train.py")
+    assert result == ("", "")
+    errors = _errors(scan_log)
+    assert len(errors) == 1
+    assert "RuntimeError: scanner broke" in errors[0].getMessage()
+    assert "pass packages=" in errors[0].getMessage().lower()
+
+
+def test_pigar_missing_in_child_is_logged_as_error(tmp_path, monkeypatch, scan_log):
+    from cairnml.backend_interface.task.repo.scriptinfo import ScriptRequirements
+
+    write(tmp_path / "train.py", "import numpy\n")
+    _worker_stub(tmp_path, monkeypatch, "ModuleNotFoundError: No module named 'pigar'\n")
+    result = ScriptRequirements(str(tmp_path)).get_requirements(entry_point_filename="train.py")
+    assert result == ("", "")
+    errors = _errors(scan_log)
+    assert len(errors) == 1
+    assert "No module named 'pigar'" in errors[0].getMessage()
+    assert "install pigar" in errors[0].getMessage()

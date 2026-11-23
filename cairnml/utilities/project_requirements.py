@@ -126,7 +126,13 @@ def _run_worker(payload: Dict[str, Any]) -> Dict[str, Any]:
     except subprocess.TimeoutExpired as err:
         raise RuntimeError("the requirement scan did not finish in {} seconds".format(SCAN_TIMEOUT_SECONDS)) from err
     if proc.returncode != 0:
-        raise RuntimeError("the requirement scan failed: {}".format(proc.stderr.decode("utf-8", "replace")[-500:]))
+        # the exception is the last line of the worker's output; the lines before it are the context
+        detail = proc.stderr.decode("utf-8", "replace")[-4000:].strip()
+        lines = detail.splitlines()
+        cause = lines[-1] if lines else "the worker printed nothing"
+        if len(lines) > 1:
+            cause += " (worker output: {})".format(" | ".join(lines))
+        raise RuntimeError("the requirement scan failed: {}".format(cause))
     return json.loads(proc.stdout.decode("utf-8"))
 
 
