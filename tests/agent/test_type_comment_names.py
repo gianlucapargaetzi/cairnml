@@ -13,7 +13,7 @@ import re
 import tokenize
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[2]
 PACKAGE = ROOT / "cairnml_agent"
 EXCLUDED = ("_vendor", "/external/", "backend_api/services")
 # Files (or directories) that agent#47 and the cairnml[gpu] work replace by SDK or package imports: a fix here would

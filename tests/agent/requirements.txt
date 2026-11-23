@@ -1,5 +1,5 @@
 pytest
--r ../requirements.txt
+-r ../../agent-root/requirements.txt
 PyYAML
 furl
 attrs

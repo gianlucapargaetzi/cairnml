@@ -49,7 +49,7 @@ def test_the_real_source_tree_of_this_agent_is_recognised():
     root = Path(worker.__file__).resolve().parents[2]
     if not (root / "pyproject.toml").is_file():
         pytest.skip("not run from a source tree")
-    assert worker.is_source_tree(root, "cairnml-agent")
+    assert worker.is_source_tree(root, "cairnml")
 
 
 def test_a_read_only_source_tree_still_builds(tmp_path):

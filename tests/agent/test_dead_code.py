@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[2]
 EXCLUDE = "*_vendor*,*/external/*,*backend_api/services*,*/tests/*"
 
 
@@ -33,7 +33,7 @@ def test_nothing_in_the_package_names_the_update_service():
 
 def test_vulture_at_80_percent_finds_nothing_the_whitelist_does_not_name():
     pytest.importorskip("vulture")
-    assert (ROOT / "vulture_whitelist.py").is_file()
+    assert (ROOT / "agent-root" / "vulture_whitelist.py").is_file()
 
     result = subprocess.run(
         [
@@ -41,7 +41,7 @@ def test_vulture_at_80_percent_finds_nothing_the_whitelist_does_not_name():
             "-m",
             "vulture",
             "cairnml_agent",
-            "vulture_whitelist.py",
+            "agent-root/vulture_whitelist.py",
             "--min-confidence",
             "80",
             "--exclude",

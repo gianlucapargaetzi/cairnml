@@ -11,7 +11,7 @@ from cairnml_agent.backend_config import defs
 from cairnml_agent.backend_config.config import Config
 from cairnml_agent.glue import k8s
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 
 
 @pytest.fixture

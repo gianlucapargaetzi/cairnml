@@ -9,7 +9,7 @@ def _shipped_defaults():
     from pathlib import Path
 
     text = (
-        Path(__file__).resolve().parents[1] / "cairnml_agent" / "backend_api" / "config" / "default" / "agent.conf"
+        Path(__file__).resolve().parents[2] / "cairnml_agent" / "backend_api" / "config" / "default" / "agent.conf"
     ).read_text()
     block = re.search(r"forbidden_docker_args: \[(.*?)\]", text, re.S).group(1)
     return {
@@ -128,7 +128,7 @@ def test_no_shipped_docker_mount_covers_the_agent_key_folder():
     from cairnml_agent.idp.device import DEVICE_KEY_PATH
 
     text = (
-        Path(__file__).resolve().parents[1] / "cairnml_agent" / "backend_api" / "config" / "default" / "agent.conf"
+        Path(__file__).resolve().parents[2] / "cairnml_agent" / "backend_api" / "config" / "default" / "agent.conf"
     ).read_text()
     key_folder = str(DEVICE_KEY_PATH.parent.relative_to(Path.home()))
     for path in re.findall(r"~/(\.cairnml[^\s\"']*)", text):

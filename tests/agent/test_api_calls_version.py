@@ -100,7 +100,7 @@ def test_the_commit_of_a_task_is_written_with_the_definition_the_server_serves(s
     assert call.json["script"]["version_num"] == "abc123"
 
 
-AGENT = Path(__file__).resolve().parent.parent / "cairnml_agent"
+AGENT = Path(__file__).resolve().parents[2] / "cairnml_agent"
 VERSION_TEXT = re.compile(r"^\d+\.\d+$|^v\d+\.\d+$")
 
 

@@ -18,7 +18,7 @@ import pytest
 
 from cairnml_agent.commands import worker
 
-AGENT_ROOT = Path(__file__).resolve().parents[1]
+AGENT_ROOT = Path(__file__).resolve().parents[2]
 IGNORED = shutil.ignore_patterns(".git", "build", "dist", "*.egg-info", "__pycache__")
 
 

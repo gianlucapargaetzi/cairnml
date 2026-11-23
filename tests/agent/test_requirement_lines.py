@@ -11,7 +11,7 @@ from packaging.version import Version
 from cairnml_agent import definitions
 from cairnml_agent.helper.package.requirement_lines import Requirement, parse
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 
 
 @pytest.fixture
@@ -27,6 +27,7 @@ def _declared():
     return {r.name: r for r in (PackagingRequirement(line) for line in lines if line)}
 
 
+@pytest.mark.skip(reason="moved to slice 3: the agent extra in pyproject.toml")
 def test_the_dependency_is_declared():
     declared = _declared()
     assert "requirements-parser" in declared, "requirements-parser is not in requirements.txt"

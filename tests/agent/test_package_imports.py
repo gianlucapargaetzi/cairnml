@@ -10,7 +10,7 @@ from cairnml.backend_api.session.request import Request
 from cairnml_agent.backend_api.session.session import Session
 from cairnml_agent.backend_config.config import Config
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[2]
 
 
 def test_the_names_are_defined_in_their_own_modules():

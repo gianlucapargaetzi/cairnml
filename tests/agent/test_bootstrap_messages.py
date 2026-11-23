@@ -6,7 +6,7 @@ import pytest
 
 from cairnml_agent.interface import get_parser
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[2]
 PACKAGE = ROOT / "cairnml_agent"
 DEAD_REFERENCES = ["clear.ml", "github.com/clearml", "install-bootstrap", "check-bootstrap", "check_for_latest"]
 

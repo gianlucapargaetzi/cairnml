@@ -11,10 +11,10 @@ from cairnml_agent.backend_api.session import defs as session_defs
 from cairnml_agent.backend_config import defs as config_defs
 from cairnml_agent.backend_config import environment
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[2]
 PACKAGE = ROOT / "cairnml_agent"
 DOCKER = ROOT / "docker"
-DOCUMENTATION = ROOT / "docs" / "environment.md"
+DOCUMENTATION = ROOT / "docs" / "agent" / "environment.md"
 
 CAIRNML_NAME = re.compile(r"CAIRNML_[A-Z][A-Z0-9_]*[A-Z0-9]")
 # Strings that look like a name but are a prefix built at run time, not a variable.
