@@ -239,3 +239,65 @@ def test_cross_check_does_not_log(tmp_path, scan_log, case):
     assert scanner.found_names is not None
     assert log_step_imports_not_scanned("train", source, scanned=scanner.found_names) == []
     assert _errors(scan_log) == []
+
+
+# --- an installed package that is local (editable) must not replace the entry script's imports (AC-1) -------------
+def _fake_worker(monkeypatch, entry_result, project_result):
+    """Replaces the child process: the call with an entry returns ``entry_result``, the project call ``project_result``."""
+    from cairnml.utilities import project_requirements
+
+    calls = []
+
+    def fake(payload):
+        calls.append(payload)
+        return entry_result if "entry" in payload else project_result
+
+    monkeypatch.setattr(project_requirements, "_run_worker", fake)
+    return calls
+
+
+EDITABLE_LOCAL = {"somelib": {"local": "/elsewhere/somelib/__init__.py"}}
+ENTRY_IMPORTS = {
+    "imports": [["torch", False, "step.py", 2], ["pandas", False, "step.py", 3]],
+    "origins": {"torch": "installed", "pandas": "installed", **EDITABLE_LOCAL},
+}
+NO_IMPORTS = {"imports": [], "origins": {}}
+
+
+def test_an_editable_local_package_does_not_replace_the_entry_imports_of_a_step_file(tmp_path, monkeypatch):
+    # project_path is the generated step file itself, not a folder
+    step = tmp_path / "step.py"
+    write(step, "import torch\nimport pandas\n")
+    calls = _fake_worker(monkeypatch, ENTRY_IMPORTS, NO_IMPORTS)
+    generator = GenerateReqs(project_path=str(step), ignores=IGNORES, installed_pkgs=INSTALLED)
+    _, _, guess, _ = generator.extract_reqs(entry_point_filename=str(step))
+    assert {"torch", "pandas"} <= set(generator.found_names)
+    assert {"torch", "pandas"} <= set(guess.keys())
+    assert len(calls) == 1
+
+
+def test_an_editable_local_package_outside_the_project_does_not_trigger_the_project_scan(tmp_path, monkeypatch):
+    project = tmp_path / "project"
+    write(project / "train.py", "import torch\nimport pandas\n")
+    calls = _fake_worker(monkeypatch, ENTRY_IMPORTS, NO_IMPORTS)
+    generator = GenerateReqs(project_path=str(project), ignores=IGNORES, installed_pkgs=INSTALLED)
+    generator.extract_reqs(entry_point_filename="train.py")
+    assert len(calls) == 1
+    assert {"torch", "pandas"} <= set(generator.found_names)
+
+
+def test_an_entry_importing_a_module_inside_the_project_still_scans_the_project(tmp_path, monkeypatch):
+    project = tmp_path / "project"
+    write(project / "train.py", "import utils\n")
+    write(project / "utils.py", "import yaml\n")
+    entry = {
+        "imports": [["utils", False, "train.py", 1]],
+        "origins": {"utils": {"local": str(project / "utils.py")}},
+    }
+    project_scan = {"imports": [["yaml", False, "utils.py", 1]], "origins": {"yaml": "installed"}}
+    calls = _fake_worker(monkeypatch, entry, project_scan)
+    GenerateReqs(project_path=str(project), ignores=IGNORES, installed_pkgs=INSTALLED).extract_reqs(
+        entry_point_filename="train.py"
+    )
+    assert len(calls) == 2
+    assert "entry" not in calls[1]

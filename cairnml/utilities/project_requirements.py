@@ -228,9 +228,17 @@ class GenerateReqs(object):
         entry = self._entry_path(entry_point_filename)
         if entry:
             data = _run_worker({"project_root": self._project_path, "ignores": self._ignores, "entry": entry})
-            uses_project = any(isinstance(origin, dict) for origin in data.get("origins", {}).values())
+            # only a module of the project itself makes the scan whole-project; a package installed elsewhere (an
+            # editable install) is local too, but it does not
+            uses_project = any(
+                isinstance(origin, dict)
+                and bool(origin.get("local"))
+                and _is_inside(origin["local"], self._project_path)
+                for origin in data.get("origins", {}).values()
+            )
             relative = any(name and name.startswith(".") for name, *_ in data["imports"])
-            if not uses_project and not relative:
+            # the whole-project scan needs a folder; for a step file or a single script the entry's result stands
+            if not (uses_project or relative) or not os.path.isdir(self._project_path):
                 return data
         return _run_worker({"project_root": self._project_path, "ignores": self._ignores})
 
