@@ -21,7 +21,7 @@ from cairnml_agent.errors import APIError
 from cairnml_agent.helper.base import HOCONEncoder
 from cairnml_agent.helper.process import Argv
 from cairnml_agent.helper.docker_args import DockerArgsSanitizer, sanitize_urls
-from .version import __version__
+from cairnml.version import __version__
 from typing import Any, Callable  # noqa: F401  # named by type comments
 
 POETRY = "poetry"

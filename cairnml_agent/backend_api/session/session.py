@@ -24,7 +24,7 @@ from cairnml.backend_api.session.session import Session as SdkSession
 
 from ...errors import APIError
 from ...idp import device as agent_device
-from ...version import __version__
+from cairnml.version import __version__
 from ..config import load
 from .defs import (
     ENV_AUTH_TOKEN,

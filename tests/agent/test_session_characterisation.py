@@ -17,7 +17,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from cairnml_agent.backend_api.config import load
 from cairnml_agent.backend_api.session.session import LoginError, Session
 from cairnml_agent.idp import device as agent_device
-from cairnml_agent.version import __version__
+from cairnml.version import __version__
 
 HOST = "https://api.example/cairnml/api"
 TOKEN_EXP = 4102444800

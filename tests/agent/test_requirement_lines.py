@@ -1,8 +1,8 @@
+import importlib.metadata
 import os
 import subprocess
 import sys
 import warnings
-from pathlib import Path
 
 import pytest
 from packaging.requirements import Requirement as PackagingRequirement
@@ -10,8 +10,6 @@ from packaging.version import Version
 
 from cairnml_agent import definitions
 from cairnml_agent.helper.package.requirement_lines import Requirement, parse
-
-ROOT = Path(__file__).resolve().parents[2]
 
 
 @pytest.fixture
@@ -23,11 +21,16 @@ def extra_indices():
 
 
 def _declared():
-    lines = (line.split("#")[0].strip() for line in (ROOT / "requirements.txt").read_text().splitlines())
-    return {r.name: r for r in (PackagingRequirement(line) for line in lines if line)}
+    """The agent extra, as the installed cairnml distribution declares it."""
+    lines = importlib.metadata.requires("cairnml") or []
+    requirements = [PackagingRequirement(line) for line in lines]
+    return {
+        r.name: r
+        for r in requirements
+        if r.marker is not None and "extra" in str(r.marker) and r.marker.evaluate({"extra": "agent"})
+    }
 
 
-@pytest.mark.skip(reason="moved to slice 3: the agent extra in pyproject.toml")
 def test_the_dependency_is_declared():
     declared = _declared()
     assert "requirements-parser" in declared, "requirements-parser is not in requirements.txt"

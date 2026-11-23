@@ -17,7 +17,7 @@ from pathlib import Path
 from cairnml.backend_api.services import workers as workers_api
 from cairnml_agent.definitions import ENV_WORKER_TAGS, ENV_GPU_FRACTIONS
 from cairnml_agent.session import Session
-from cairnml_agent.version import __version__
+from cairnml.version import __version__
 
 try:
     from cairnml.utilities import gpu_query

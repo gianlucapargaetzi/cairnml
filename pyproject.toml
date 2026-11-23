@@ -46,9 +46,32 @@ dataset = ["dvc[s3]>=3.50", "pyarrow>=14"]
 gpu = ["nvidia-ml-py>=13.615.71", "gpustat>=1.1.1,<2"]
 plot = ["plotly>=7.1.0"]
 router = ["fastapi>=0.115.2", "uvicorn>=0.31.1", "httpx>=0.27.2"]
+agent = [
+    "psutil>=3.4.2,<7.3",
+    "urllib3>=1.21.1,<3",
+    "virtualenv>=16,<21",
+    "requests>=2.20.0,<2.33",
+    "setuptools<82.0.0",
+    "pywin32; sys_platform == 'win32'",
+    "pyjwt>=2.4.0,<3.0.0",
+    "cryptography>=43.0.0",
+    "pyyaml>=6.0,<7",
+    "python-dateutil>=2.8,<3",
+    "furl>=2.1,<3",
+    "pyparsing>=3,<4",
+    "attrs>=21.3,<26",
+    "pyhocon>=0.3.60,<0.4",
+    "jsonmodels>=2.7,<3",
+    "nvidia-ml-py>=11.450.129,<14",
+    "gpustat>=1.1.1,<2",
+    "jsonschema>=4.17,<5",
+    "packaging>=23.2",
+    "requirements-parser>=0.13.1,<0.14",
+]
 
 [project.scripts]
 cairnml = "cairnml.cli.__main__:main"
+cairnml-agent = "cairnml.agent_launcher:main"
 
 [tool.setuptools.dynamic]
 version = { attr = "cairnml.version.__version__" }
@@ -64,3 +87,4 @@ exclude = ["contrib*", "docs*", "data*", "examples*", "tests*"]
 
 [tool.setuptools.package-data]
 cairnml = ["config/default/*.conf", "backend_api/config/default/*.conf", "py.typed", "idp/*.svg"]
+cairnml_agent = ["backend_api/config/default/*.conf"]

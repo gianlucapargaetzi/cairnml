@@ -1,5 +1,9 @@
 from __future__ import print_function, unicode_literals, absolute_import
 
+from cairnml.agent_launcher import require_agent_extra
+
+require_agent_extra()
+
 import argparse
 import sys
 import warnings

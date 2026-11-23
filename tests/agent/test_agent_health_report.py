@@ -2,7 +2,7 @@ from collections import deque
 
 from cairnml_agent.helper import resource_monitor
 from cairnml_agent.helper.resource_monitor import ResourceMonitor
-from cairnml_agent.version import __version__
+from cairnml.version import __version__
 
 from .wire import WireSession, answer
 
