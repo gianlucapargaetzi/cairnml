@@ -61,7 +61,7 @@ jobs:
       - name: Check every SDK file
         run: |
           # The exclusions are the vendored and generated code: the generated API client is checked by the api-contract job.
-          EXCLUDE='_vendor|/external/|backend_api/services|astor_unparse|/pigar|plotlympl|requests_toolbelt'
+          EXCLUDE='_vendor|/external/|backend_api/services'
           git ls-files -- 'cairnml/*.py' 'cairnml_agent/*.py' | grep -Ev "$EXCLUDE" > all.txt
           xargs -a all.txt -r ruff check --isolated --select F,B904,E722,B006,B023,PLE --line-length 120
           xargs -a all.txt -r ruff format --check --isolated --line-length 120
