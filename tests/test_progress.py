@@ -498,3 +498,56 @@ def test_the_reporter_still_writes_its_log_and_metrics_after_it_drops_the_inheri
         metrics = archive.read("metrics.jsonl").decode()
     assert "records-of-the-reporter" in log, log
     assert "series-of-the-reporter" in metrics, metrics
+
+
+# The reporter child drops the descriptors it inherited (#172) but keeps their numbers occupied (#181): a pipe that
+# the child creates later must not take the number of a parent-side Connection that is still a Python object.
+# The stale objects get the lowest numbers, so the new pipe would take one of them without the placeholders.
+_STALE_PIPE_SCRIPT = """
+import multiprocessing
+import os
+import sys
+
+from cairnml.utilities.process.mp import BackgroundMonitor
+
+stale = [multiprocessing.Pipe() for _ in range(3)]  # parent-side Connections, not SafeQueues
+pid = os.fork()
+if pid == 0:
+    try:
+        BackgroundMonitor._close_inherited_descriptors(keep=BackgroundMonitor._reporter_descriptors())
+        queue = multiprocessing.get_context("fork").SimpleQueue()
+        for reader, writer in stale:
+            # what the garbage collector does with the stale objects of the parent
+            reader.close()
+            writer.close()
+        queue.put("payload")
+        if not queue._reader.poll(2):
+            print("the new pipe of the child delivers nothing", file=sys.stderr)
+            os._exit(3)
+        if queue.get() != "payload":
+            print("the new pipe of the child delivers another value", file=sys.stderr)
+            os._exit(4)
+    except BaseException as error:
+        print(f"the new pipe of the child is broken: {type(error).__name__}: {error}", file=sys.stderr)
+        os._exit(2)
+    os._exit(0)
+_, status = os.waitpid(pid, 0)
+sys.exit(os.waitstatus_to_exitcode(status))
+"""
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="the log reporter is a forked subprocess (posix only)")
+def test_the_reporter_child_keeps_the_numbers_of_pipes_it_does_not_own(tmp_path):
+    script = tmp_path / "script.py"
+    script.write_text(_STALE_PIPE_SCRIPT)
+    env = dict(os.environ)
+    env.update(PYTHONPATH=str(pathlib.Path(cairnml.__file__).resolve().parent.parent))
+    result = subprocess.run(
+        [sys.executable, str(script)],
+        cwd=str(tmp_path),
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert result.returncode == 0, result.stderr
