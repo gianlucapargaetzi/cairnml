@@ -5,23 +5,17 @@ sections: a release needs its section here.
 
 ## 0.0.9
 
-- Every API call of the SDK is sent as its generated request class, at the API level negotiated with the server, with
-  exactly the fields of the schema. The hand-built request paths and bodies are gone.
-- The client is regenerated from the server's schema (API 2.41): each endpoint's definition is picked by version from
-  the generated client, and the generated modules no longer import what they do not use.
-- The job's device git token is sent at its generated version, and `cairnml init` takes the API version of its
-  enrolment calls from the request classes.
-- A forked process gets its own HTTP connection pool; a subclass can set the connection retries of the start-up
-  sign-in; `dvc` next to the interpreter is preferred to the one on the PATH.
-- The configuration applies file modes and keeps false environment values as the agent does (the agent's copy of this
-  code is gone); the working directory of local repositories is defaulted once; offline export and import no longer read
-  the removed version setting.
-- Defects found by the static check against the schema are fixed, and dead plumbing (the async header, the old header
-  names, the client's version attribute) is removed.
-- Built for the server release 0.0.6 (API 2.41): the client CI compares with the server's schema and the publish
-  workflow refuses a client generated from an unreleased server schema. The SDK's real-server checks run as integration
-  tests.
-- `cairnml init` writes only the enrolment's settings to the configuration file, not a copy of the packaged defaults, so an upgrade changes the defaults; `cairnml doctor` warns about a file an older version wrote with the copy and names the step to remove it.
+Works with server release 0.0.6 (API 2.41) and later.
+
+- cairnml init writes only the enrolment's settings to the configuration file, not a copy of the packaged defaults, so an upgrade changes the defaults; cairnml doctor warns about a file an older version wrote with the copy and names the step to remove it.
+- A process forked by Task.init, such as the resource monitor, no longer sends its requests on the parent's keep-alive connections, so a response could reach the wrong request (models.create received the body of tasks.get_by_id).
+- The dvc next to the Python interpreter is used first, then the one on the PATH; when neither has one, the error names both places searched.
+- A false value in the environment settings of the configuration is set as its text, "0" or "False", not as an empty value.
+- A configuration entry can set the permission bits of the file it writes with mode, as octal digits: 600 or "0600"; a mode that cannot be applied is reported and the file is kept.
+- set_user_properties sends its hyper-parameters as a list; before, a pipeline failed when it set its version.
+- A script that queues itself with execute_remotely no longer prints "No progress bar named ... was started" right before "Switching to remote execution".
+- When gpustat is the missing import, the message to install cairnml[gpu] is shown.
+- A script whose log reporter process starts while the repository check is still running no longer waits for the check's full 300-second timeout when its task closes.
 
 ## 0.0.8
 
