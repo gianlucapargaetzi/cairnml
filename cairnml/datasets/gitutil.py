@@ -6,7 +6,7 @@ import os
 import subprocess
 import tarfile
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Union
+from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 from . import process
 from .errors import DatasetError
@@ -175,9 +175,20 @@ class Git:
         self.run("push", "-q", "origin", f"{source}:refs/heads/{branch}")
 
     def remote_heads(self) -> List[str]:
-        """Branch names that exist on origin."""
-        out = self.run("ls-remote", "--heads", "origin", check=False)
-        return [line.split("refs/heads/", 1)[1] for line in out.splitlines() if "refs/heads/" in line]
+        """Branch names that exist on origin; none when origin cannot be read."""
+        return self.remote_heads_or_error()[0]
+
+    def remote_heads_or_error(self) -> Tuple[List[str], Optional[str]]:
+        """Branch names on origin, and the first line git printed when origin cannot be read (None when it can)."""
+        try:
+            result = process.run(self._base() + ["ls-remote", "--heads", "origin"], env=_env(self.token))
+        except FileNotFoundError:
+            raise GitError("git is not installed") from None
+        if result.returncode != 0:
+            lines = [line.strip() for line in (result.stderr or "").splitlines() if line.strip()]
+            return [], lines[0] if lines else f"git exited with code {result.returncode}"
+        heads = [line.split("refs/heads/", 1)[1] for line in result.stdout.splitlines() if "refs/heads/" in line]
+        return heads, None
 
     def default_branch(self) -> str:
         """The branch origin treats as its default; main if that cannot be told."""

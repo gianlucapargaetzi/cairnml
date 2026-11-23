@@ -22,6 +22,7 @@ Works with server release 0.0.6 (API 2.41) and later.
 - Agent: queue switching (force_workers on or off) is kept; owner impersonation, cluster reports and dynamic GPU allocation are removed.
 - Agent: cairnml-agent init writes only the enrolment's settings to the agent configuration, not a copy of the packaged defaults, so an upgrade changes the defaults (job image included); cairnml-agent doctor warns about a file an older version wrote with the copy and names the step to remove it.
 - Agent: Docker jobs of an agent and SDK installed from wheels run: their wheels are repacked from the installed files, and a job that cannot be launched ends failed with the reason.
+- cairnml dataset doctor reports a repository that git cannot read as a failed check that names the cause and the sign-in step, instead of calling it empty (the check shipped in 0.0.8).
 
 ## 0.0.8
 
