@@ -12,7 +12,7 @@ CairnML records machine-learning work and keeps it in one place. A training scri
 |---|---|---|---|
 | **Server** | [cairnml-server](https://github.com/gianlucapargaetzi/cairnml-server) | Stores runs, artifacts, datasets and queues, and serves the API, the sign-in service, object storage and the web app. | **Required.** Everything else connects to it. |
 | **SDK** | [cairnml](https://github.com/gianlucapargaetzi/cairnml) (`pip install cairnml`) | The Python library in your training scripts. It records a run and can send a run to a queue. | **Required** for tracking from code. |
-| **Agent** | [cairnml-agent](https://github.com/gianlucapargaetzi/cairnml-agent) (`pip install cairnml-agent`) | Runs on another machine. It takes jobs from a queue, runs them in Docker and reports the results back. | **Optional.** Needed only to run jobs remotely. |
+| **Agent** | [cairnml-agent](agent/README.md) (`pip install "cairnml[agent]"`) | Runs on another machine. It takes jobs from a queue, runs them in Docker and reports the results back. | **Optional.** Needed only to run jobs remotely. |
 | **Web app** | [cairnml-web](https://github.com/gianlucapargaetzi/cairnml-web) | The browser interface: projects, experiments, datasets, workers and queues. | Included. The server serves it at `http://<server-ip>/cairnml/`; there is nothing to install. |
 
 Two further pieces are optional:
@@ -46,7 +46,7 @@ flowchart LR
 2. **Sign in.** Open `http://<server-ip>/cairnml/` and sign in as the admin named in `deploy/.env`. Other accounts are created by an administrator in Keycloak.
 3. **Connect the SDK.** Run `pip install cairnml`, then `cairnml init http://<server-ip>`. Your browser opens the sign-in page; when the command prints `enrolled as ...`, this machine is connected.
 4. **First run.** Track a script with `Task.init(...)`. The run appears in the web app under its project. No agent is needed yet.
-5. **Optional: add an agent.** On the machine that should run jobs, install `cairnml-agent`, run `cairnml-agent init http://<server-ip>` (an admin signs in), then `cairnml-agent daemon --queue default --docker`. Send a task with `Task.enqueue(task, queue_name="default")`. The agent's machine appears under **Workers & Queues**.
+5. **Optional: add an agent.** On the machine that should run jobs, install the agent with `pip install "cairnml[agent]"`, run `cairnml-agent init http://<server-ip>` (an admin signs in), then `cairnml-agent daemon --queue default --docker`. Send a task with `Task.enqueue(task, queue_name="default")`. The agent's machine appears under **Workers & Queues**.
 
 If a machine has no browser, `cairnml init` and `cairnml-agent init` show a short code and an address instead. Open the address on another device, sign in, and enter the code.
 
@@ -70,5 +70,5 @@ If a machine has no browser, `cairnml init` and `cairnml-agent init` show a shor
 
 - Server: [cairnml-server/README.md](https://github.com/gianlucapargaetzi/cairnml-server#readme)
 - SDK: [README.md](../README.md) and [docs/datasets.md](datasets.md)
-- Agent: [cairnml-agent README](https://github.com/gianlucapargaetzi/cairnml-agent#readme)
+- Agent: [agent README](agent/README.md)
 - Examples: [cairnml-examples README](https://github.com/gianlucapargaetzi/cairnml-examples#readme)

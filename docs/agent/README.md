@@ -1,23 +1,14 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/cairnml-logo-dark.svg">
-    <source media="(prefers-color-scheme: light)" srcset="assets/cairnml-logo.svg">
-    <img src="assets/cairnml-logo.svg" alt="CairnML" width="480">
+    <source media="(prefers-color-scheme: dark)" srcset="../../assets/cairnml-logo-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="../../assets/cairnml-logo.svg">
+    <img src="../../assets/cairnml-logo.svg" alt="CairnML" width="480">
   </picture>
-</p>
-
-<p align="center">
-  <a href="https://github.com/gianlucapargaetzi/cairnml-agent/actions/workflows/ci.yml"><img src="https://github.com/gianlucapargaetzi/cairnml-agent/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://pypi.org/project/cairnml-agent/"><img src="https://img.shields.io/pypi/v/cairnml-agent?style=flat-square&logo=pypi&logoColor=white" alt="PyPI"></a>
-  <a href="https://pypi.org/project/cairnml-agent/"><img src="https://img.shields.io/pypi/dm/cairnml-agent?style=flat-square&label=monthly%20downloads" alt="Monthly downloads"></a>
-  <a href="https://pypi.org/project/cairnml-agent/"><img src="https://img.shields.io/pypi/pyversions/cairnml-agent?style=flat-square&logo=python&logoColor=white" alt="Python"></a>
-  <a href="https://github.com/gianlucapargaetzi/cairnml-agent/stargazers"><img src="https://img.shields.io/github/stars/gianlucapargaetzi/cairnml-agent?style=flat-square&logo=github" alt="GitHub stars"></a>
-  <a href="https://github.com/gianlucapargaetzi/cairnml-agent/blob/main/LICENSE"><img src="https://img.shields.io/github/license/gianlucapargaetzi/cairnml-agent?style=flat-square&color=green" alt="License"></a>
 </p>
 
 # CairnML Agent
 
-CairnML Agent runs the jobs of a CairnML queue on this machine. It takes one job at a time from its queue, prepares the job's environment, runs it and reports the result back to the server.
+The agent is the `cairnml[agent]` extra of the [SDK](../../README.md). It runs the jobs of a CairnML queue on this machine. It takes one job at a time from its queue, prepares the job's environment, runs it and reports the result back to the server.
 
 ## Features
 
@@ -39,8 +30,10 @@ CairnML Agent runs the jobs of a CairnML queue on this machine. It takes one job
 ```bash
 python3 -m venv .venv
 . .venv/bin/activate
-pip install cairnml-agent
+pip install "cairnml[agent]"
 ```
+
+If the old `cairnml-agent` package is installed, uninstall it first (`pip uninstall cairnml-agent`): the old package and the extra install the same files.
 
 ## Connect to your server
 
@@ -91,7 +84,7 @@ The **Workers** page of the web app lists this machine once it is running. Send 
 
 ## Configuration
 
-The agent reads its settings from its configuration file and from environment variables. Each environment variable has one `CAIRNML_` name; [docs/environment.md](docs/environment.md) lists every one with its default and meaning. The older `TRAINS_` names are no longer read: rename them to the `CAIRNML_` names. The configuration file `~/trains.conf` (from the ClearML-based original) is still read, with a warning once per run; move its settings to `~/.cairnml/agent/cairnml-agent.conf`. The `K8sIntegration` option `trains_conf_file` likewise still works with a warning; use `cairnml_conf_file`.
+The agent reads its settings from its configuration file and from environment variables. Each environment variable has one `CAIRNML_` name; [environment.md](environment.md) lists every one with its default and meaning. The older `TRAINS_` names are no longer read: rename them to the `CAIRNML_` names. The configuration file `~/trains.conf` (from the ClearML-based original) is still read, with a warning once per run; move its settings to `~/.cairnml/agent/cairnml-agent.conf`. The `K8sIntegration` option `trains_conf_file` likewise still works with a warning; use `cairnml_conf_file`.
 
 ## Next steps
 
@@ -99,13 +92,13 @@ Continue with the [CairnML examples](https://github.com/gianlucapargaetzi/cairnm
 
 ## Development
 
-A pull request is checked with [ruff](https://docs.astral.sh/ruff/) on the Python files it adds or changes (vendored and generated code is skipped). Run the same checks locally with `pip install -r lint-requirements.txt`, then `ruff check --config ruff.toml --select F,B904,E722,B006,B023,PLE <files>` and, for a new file, `ruff format --check --config ruff.toml <file>`.
+The agent's tests and checks are the SDK's: see [CONTRIBUTING.md](CONTRIBUTING.md) in this folder for the test commands, and the repository's [CONTRIBUTING.md](../../CONTRIBUTING.md) for the lint commands.
 
 ## Having problems
 
-1. Check the [open issues](https://github.com/gianlucapargaetzi/cairnml-agent/issues).
-2. If your problem is not listed, [open a new issue](https://github.com/gianlucapargaetzi/cairnml-agent/issues/new) with the command you ran and the full error message.
+1. Check the [open issues](https://github.com/gianlucapargaetzi/cairnml/issues).
+2. If your problem is not listed, [open a new issue](https://github.com/gianlucapargaetzi/cairnml/issues/new) with the command you ran and the full error message.
 
 ## License
 
-Apache License 2.0, see [LICENSE](LICENSE). Unofficial fork of ClearML Agent, see [DISCLAIMER.md](DISCLAIMER.md).
+Apache License 2.0, see [LICENSE](../../LICENSE). Unofficial fork of ClearML Agent, see [DISCLAIMER.md](../../DISCLAIMER.md).

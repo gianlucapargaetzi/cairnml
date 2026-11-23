@@ -26,7 +26,7 @@ if [ -z "$CAIRNML_AGENT_NO_UPDATE" ]; then
   if [ -n "$CAIRNML_AGENT_UPDATE_REPO" ]; then
     python3 -m pip install -q -U $CAIRNML_AGENT_UPDATE_REPO
   else
-    python3 -m pip install -q -U "cairnml-agent${CAIRNML_AGENT_UPDATE_VERSION}"
+    python3 -m pip install -q -U "cairnml[agent]${CAIRNML_AGENT_UPDATE_VERSION}"
   fi
 fi
 

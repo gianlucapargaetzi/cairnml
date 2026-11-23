@@ -50,6 +50,7 @@ Two more extras add optional features:
 
 - `cairnml[gpu]` reads NVIDIA GPU utilisation, memory and power for the resource monitor (NVIDIA's bindings and `gpustat`). AMD GPUs need the ROCm installation; see `docs/amd-gpu-monitoring.md`.
 - `cairnml[plot]` sends matplotlib figures as interactive plotly plots. Without it, figures are sent as images.
+- `cairnml[agent]` installs the agent, the `cairnml-agent` command that runs queued jobs on another machine. See [docs/agent/README.md](docs/agent/README.md).
 
 To run the SDK's tests from a checkout, install it into a virtual environment together with pytest, then run the tests (the same commands CI runs):
 

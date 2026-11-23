@@ -17,6 +17,7 @@ when no check fails, 1 otherwise.
 """
 
 import argparse
+import importlib.metadata
 import os
 import socket
 import sys
@@ -215,6 +216,21 @@ def check_version(server_check: Check, client) -> Check:
     return Check("version", True, f"SDK {__version__} is at or above the server's minimum")
 
 
+def check_agent_package() -> Check:
+    """The old cairnml-agent package and the agent extra both install cairnml_agent/: having both is a warning."""
+    try:
+        importlib.metadata.distribution("cairnml-agent")
+    except importlib.metadata.PackageNotFoundError:
+        return Check("agent package", True, "no old cairnml-agent package is installed")
+    return Check(
+        "agent package",
+        True,
+        "cairnml-agent is installed next to cairnml, and both own cairnml_agent/ files: "
+        'pip uninstall cairnml-agent, then pip install "cairnml[agent]"',
+        warning=True,
+    )
+
+
 def check_queues(server: Optional[str], device: Optional[str], sign_in: Check, key_path: Path, http=None) -> Check:
     """Every queue of the server should have a worker listening to it; a queue without one is a warning."""
     if not server:
@@ -272,7 +288,7 @@ def run_checks(conf: Path, key_path: Path = DEVICE_KEY_PATH, http=None) -> List[
     key = check_device_key(Path(key_path))
     sign_in = check_sign_in(server, device, key, Path(key_path), http=client)
     queues = check_queues(server, device, sign_in, Path(key_path), http=client)
-    return [config, server_check, version, sign_in, key, queues, check_storage(server)]
+    return [config, server_check, version, sign_in, key, queues, check_storage(server), check_agent_package()]
 
 
 def doctor_main(argv=None) -> int:

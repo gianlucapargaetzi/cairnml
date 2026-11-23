@@ -11,9 +11,9 @@ fi
 
 echo "CAIRNML_AGENT_UPDATE_VERSION = $LOWER_CAIRNML_AGENT_UPDATE_VERSION"
 if [ "$LOWER_CAIRNML_AGENT_UPDATE_VERSION" = "yes" ] || [ "$LOWER_CAIRNML_AGENT_UPDATE_VERSION" = "true" ] ; then
-    python3 -m pip install cairnml-agent -U
+    python3 -m pip install "cairnml[agent]" -U
 elif [ ! -z "$LOWER_CAIRNML_AGENT_UPDATE_VERSION" ] ; then
-    python3 -m pip install cairnml-agent$LOWER_CAIRNML_AGENT_UPDATE_VERSION ;
+    python3 -m pip install "cairnml[agent]$LOWER_CAIRNML_AGENT_UPDATE_VERSION" ;
 fi
 
 python3 -m cairnml_agent daemon --docker "${CAIRNML_AGENT_DEFAULT_BASE_DOCKER}" --force-current-version ${CAIRNML_AGENT_EXTRA_ARGS}

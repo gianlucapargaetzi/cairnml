@@ -4,17 +4,23 @@
 
 The unit tests mock the server and need nothing else:
 
+The agent's tests are in `tests/agent/` of the SDK repository, next to the SDK's own tests in `tests/`. They run from the
+repository root with the agent extra installed:
+
 ```bash
-python -m pip install -e "." -r tests/requirements.txt
-python -m pytest tests -q --ignore=tests/requirements --ignore=tests/package
+python -m pip install -e ".[agent,dataset,router]" -r tests/agent/requirements.txt
+python -m pytest tests --ignore=tests/agent -q
+python -m pytest tests/agent -q --ignore=tests/agent/requirements --ignore=tests/agent/package
+python -m pytest tests/agent/package -q
 ```
 
-Tests marked `integration` are skipped in that run.
+Tests marked `integration` are skipped in those runs. The `tests/agent/package` folder needs no built wheel; CI runs it
+in the same step as the rest of the agent tests.
 
 ## Integration tests
 
 The integration tests run the agent against a real CairnML server: an agent enrols, its daemon registers as a worker on
-its own queue, and a job from a git repository runs to `completed`. They are in `tests/integration/` and carry the
+its own queue, and a job from a git repository runs to `completed`. They are in `tests/agent/integration/` and carry the
 `integration` marker. They are skipped unless these variables are set:
 
 | Variable | What it is |
@@ -37,7 +43,7 @@ Run them with the environment of the agent under test, from the repository root:
 ```bash
 CAIRNML_TEST_SERVER=http://localhost/cairnml \
 CAIRNML_TEST_ADMIN_USER=<admin> CAIRNML_TEST_ADMIN_PASSWORD=<password> \
-python -m pytest -m integration tests/integration -v -s
+python -m pytest -m integration tests/agent/integration -v -s
 ```
 
 The tests run in file order and form one chain: a later check needs what an earlier one leaves, and fails with the
