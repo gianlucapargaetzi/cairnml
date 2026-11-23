@@ -165,6 +165,8 @@ class GenerateReqs(object):
         self._project_path = project_path
         self._ignores = ignores
         self._installed_pkgs = installed_pkgs
+        # the names the last scan found in the code, before the module callback (None before a scan)
+        self.found_names: Optional[Set[str]] = None
 
     def extract_reqs(
         self,
@@ -182,6 +184,7 @@ class GenerateReqs(object):
         modules = ImportedModules()
         data = self._scan(entry_point_filename, modules)
         relative, try_imports = _imports_into(data, modules)
+        self.found_names = set(modules.keys())
         origins = data.get("origins", {})
 
         if module_callback:

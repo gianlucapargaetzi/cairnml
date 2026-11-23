@@ -181,3 +181,61 @@ def test_pigar_missing_in_child_is_logged_as_error(tmp_path, monkeypatch, scan_l
     assert len(errors) == 1
     assert "No module named 'pigar'" in errors[0].getMessage()
     assert "install pigar" in errors[0].getMessage()
+
+
+# --- the imports of a function step are cross-checked against the scan (AC-3) -----------------------------------------
+def _step_source(body):
+    return "def train():\n" + body + "\n"
+
+
+def test_function_body_imports_are_scanned(tmp_path):
+    # guard: the scan itself sees an import inside a function body (green before the cross-check)
+    write(tmp_path / "step.py", _step_source("    import numpy\n    return numpy"))
+    assert scan(tmp_path, entry="step.py")["reqs"] == {"numpy": "1.26.4"}
+
+
+def test_cross_check_flags_a_missing_import(scan_log):
+    from cairnml.backend_interface.task.populate import log_step_imports_not_scanned
+
+    source = _step_source("    import torch\n    return torch")
+    missing = log_step_imports_not_scanned("train", source, scanned=set())
+    assert missing == ["torch"]
+    errors = _errors(scan_log)
+    assert len(errors) == 1
+    assert "torch" in errors[0].getMessage()
+    assert "packages=" in errors[0].getMessage().lower()
+
+
+MUST_NOT_LOG = {
+    "sklearn_renamed_by_callback": (
+        "    import sklearn\n    from sklearn.linear_model import Ridge\n    return Ridge",
+        {},
+    ),
+    "try_except_import_error": (
+        "    try:\n        import ujson\n    except ImportError:\n        ujson = None\n    return ujson",
+        {},
+    ),
+    "stdlib": ("    import json\n    from pathlib import Path\n    return json, Path", {}),
+    "relative": ("    from . import helper\n    return helper", {}),
+    "dotted": ("    import google.protobuf.message\n    return google", {}),
+    "cairnml_itself": ("    import cairnml.datasets\n    return cairnml", {}),
+    "nested_in_if": ("    if FLAG:\n        import requests\n    return 1", {}),
+    "local_module": ("    from helpers import clean\n    return clean", {"helpers.py": "def clean():\n    return 1\n"}),
+}
+
+
+@pytest.mark.parametrize("case", sorted(MUST_NOT_LOG))
+def test_cross_check_does_not_log(tmp_path, scan_log, case):
+    from cairnml.backend_interface.task.populate import log_step_imports_not_scanned
+    from cairnml.backend_interface.task.repo.scriptinfo import ScriptRequirements
+
+    body, extra = MUST_NOT_LOG[case]
+    source = _step_source(body)
+    write(tmp_path / "step.py", source)
+    for name, text in extra.items():
+        write(tmp_path / name, text)
+    scanner = ScriptRequirements(str(tmp_path))
+    scanner.get_requirements(entry_point_filename="step.py")
+    assert scanner.found_names is not None
+    assert log_step_imports_not_scanned("train", source, scanned=scanner.found_names) == []
+    assert _errors(scan_log) == []
