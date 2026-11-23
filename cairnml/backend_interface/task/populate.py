@@ -1,12 +1,14 @@
+import ast
 import inspect
 import json
 import os
 import re
+import sys
 import tempfile
 from functools import reduce
 from logging import getLogger
 from sys import platform
-from typing import Optional, Sequence, Union, Tuple, List, Callable, Dict, Any
+from typing import Optional, Sequence, Union, Tuple, List, Callable, Dict, Any, Set
 
 from pathlib2 import Path
 from six.moves.urllib.parse import urlparse
@@ -15,6 +17,8 @@ from .args import _Arguments
 from .repo import ScriptInfo
 from ...task import Task
 from ...config import deferred_config, DEVELOPMENT_DEFAULT_SHELL_BINARY_PATH
+from ...debugging import get_logger
+from ...utilities.project_requirements import counted_names
 
 
 class CreateAndPopulate:
@@ -136,6 +140,8 @@ class CreateAndPopulate:
         else:
             self.packages = packages
         self.requirements_file = Path(requirements_file) if requirements_file else None
+        # the names the requirement scan found in the script, None when no scan ran
+        self.scanned_names: Optional[Set[str]] = None
         self.base_task_id = base_task_id
         self.docker = dict(image=docker, args=docker_args, bash_script=docker_bash_setup_script)
         self.add_task_init_call = add_task_init_call
@@ -223,6 +229,7 @@ class CreateAndPopulate:
                     detailed_req_report=False,
                     force_single_script=self.force_single_script_file,
                 )
+                self.scanned_names = requirements.found_names if requirements else None
             else:
                 repo_info, requirements = None, None
 
@@ -404,6 +411,7 @@ class CreateAndPopulate:
                     detailed_req_report=False,
                     force_single_script=True,
                 )
+                self.scanned_names = requirements.found_names if requirements else None
                 task_state["script"]["binary"] = self.binary or (
                     str(self._DEFAULT_SHELL_BINARY_PATH)
                     if (
@@ -702,6 +710,60 @@ class CreateAndPopulate:
                 break
 
         return found_index if found_index < 0 else lines[found_index][0]
+
+
+def _is_type_checking(test: ast.AST) -> bool:
+    return (isinstance(test, ast.Name) and test.id == "TYPE_CHECKING") or (
+        isinstance(test, ast.Attribute) and test.attr == "TYPE_CHECKING"
+    )
+
+
+def _runtime_imports(node: ast.AST) -> List[str]:
+    """The top-level module names imported when the node runs; an ``if TYPE_CHECKING`` body is not run."""
+    if isinstance(node, ast.If) and _is_type_checking(node.test):
+        return [name for child in node.orelse for name in _runtime_imports(child)]
+    names: List[str] = []
+    if isinstance(node, ast.Import):
+        names = [alias.name for alias in node.names]
+    elif isinstance(node, ast.ImportFrom) and node.module and not node.level:
+        names = [node.module]
+    for child in ast.iter_child_nodes(node):
+        names.extend(_runtime_imports(child))
+    return names
+
+
+def log_step_imports_not_scanned(step_name: str, source: str, scanned: Set[str]) -> List[str]:
+    """Logs an ERROR for each import in a function step's body that the requirement scan did not find.
+
+    Returns the names found missing. Creation continues: the image may already hold the package.
+    """
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return []
+    step = next(
+        (
+            node
+            for node in tree.body
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == step_name
+        ),
+        None,
+    )
+    if step is None:
+        return []
+    std_names = getattr(sys, "stdlib_module_names", frozenset())  # Python 3.10+; the scan lists them all anyway
+    missing: List[str] = []
+    for module in _runtime_imports(step):
+        for name in counted_names(module):
+            if name == "cairnml" or name in std_names or name in scanned or name in missing:
+                continue
+            missing.append(name)
+    for name in missing:
+        get_logger("Repository Detection").error(
+            f"Step {step_name} imports {name} in its body, but the requirement scan did not find it. "
+            "Pass packages= on the component."
+        )
+    return missing
 
 
 class CreateFromFunction:
@@ -1026,6 +1088,8 @@ if __name__ == '__main__':
             )
             entry_point = f"{function_name}.py"
             task = populate.create_task(dry_run=dry_run)
+            if populate.scanned_names is not None:
+                log_step_imports_not_scanned(function_name, task_template, populate.scanned_names)
 
             if dry_run:
                 task["script"]["diff"] = task_template

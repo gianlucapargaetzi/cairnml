@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from functools import partial
 from tempfile import gettempdir, mkdtemp
 from types import TracebackType
-from typing import Optional, Tuple, Union, Dict, List, Any
+from typing import Optional, Set, Tuple, Union, Dict, List, Any
 from urllib.parse import urlparse
 
 import attr
@@ -45,6 +45,8 @@ class ScriptRequirements:
 
     def __init__(self, root_folder: str) -> None:
         self._root_folder = root_folder
+        # the names the scan found in the code, None when no scan succeeded
+        self.found_names: Optional[Set[str]] = None
 
     def get_requirements(
         self,
@@ -74,13 +76,16 @@ class ScriptRequirements:
                 module_callback=ScriptRequirements.add_trains_used_packages,
                 entry_point_filename=entry_point_filename,
             )
+            self.found_names = gr.found_names
             if add_missing_installed_packages and guess:
                 for k in guess:
                     if k not in reqs:
                         reqs[k] = guess[k]
             return self.create_requirements_txt(reqs, local_pks, detailed=detailed_req_report)
         except Exception as ex:
-            self._get_logger().warning(f"Failed auto-generating package requirements: {ex}")
+            self._get_logger().error(
+                f"Failed auto-generating package requirements: {ex}. Pass packages= on the component, or install pigar."
+            )
             return "", ""
 
     @staticmethod

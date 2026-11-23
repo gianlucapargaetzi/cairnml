@@ -16,6 +16,8 @@ Works with server release 0.0.6 (API 2.41) and later.
 - A script that queues itself with execute_remotely no longer prints "No progress bar named ... was started" right before "Switching to remote execution".
 - When gpustat is the missing import, the message to install cairnml[gpu] is shown.
 - A script whose log reporter process starts while the repository check is still running no longer waits for the check's full 300-second timeout when its task closes.
+- The packages that the function of a pipeline step imports are recorded again when the SDK, or another package the function imports, is installed from a local folder (pip install -e); before, only cairnml was recorded and the step failed on the agent with a missing module.
+- When the scan of a pipeline step's imports fails or misses an import of the function, the SDK logs an error that says which import and to pass packages= on the component, instead of a cut-off warning or nothing.
 
 ## 0.0.8
 

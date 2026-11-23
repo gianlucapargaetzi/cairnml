@@ -3,6 +3,10 @@
 The table is fixed so the expectations do not depend on what the test machine has installed.
 """
 
+import logging
+
+import pytest
+
 from cairnml.utilities.project_requirements import GenerateReqs
 
 IGNORES = [".git", ".hg", ".idea", "__pycache__", ".ipynb_checkpoints", "site-packages", "dist-packages"]
@@ -119,3 +123,181 @@ def test_a_scan_leaves_the_sys_path_and_sys_modules_of_the_calling_process_uncha
     scan(tmp_path)
     assert sys.path == path_before
     assert set(sys.modules) == modules_before
+
+
+# --- a failed scan is reported as an error with its cause (AC-2) -------------------------------------------------------
+LOGGER = "cairnml.Repository Detection"
+
+
+def _worker_stub(tmp_path, monkeypatch, stderr_text):
+    from cairnml.utilities import project_requirements
+
+    stub = tmp_path / "failing_worker.py"
+    stub.write_text("import sys\nsys.stderr.write({!r})\nsys.exit(1)\n".format(stderr_text))
+    monkeypatch.setattr(project_requirements, "WORKER", str(stub))
+
+
+@pytest.fixture
+def scan_log():
+    """The records of the detection logger, captured on the logger itself (the SDK sets its own propagation)."""
+    records = []
+
+    class _Collect(logging.Handler):
+        def emit(self, record):
+            records.append(record)
+
+    handler = _Collect(level=logging.DEBUG)
+    logger = logging.getLogger(LOGGER)
+    logger.addHandler(handler)
+    yield records
+    logger.removeHandler(handler)
+
+
+def _errors(records):
+    return [r for r in records if r.levelno == logging.ERROR]
+
+
+def test_worker_failure_is_logged_as_error(tmp_path, monkeypatch, scan_log):
+    from cairnml.backend_interface.task.repo.scriptinfo import ScriptRequirements
+
+    write(tmp_path / "train.py", "import numpy\n")
+    _worker_stub(tmp_path, monkeypatch, "Traceback (most recent call last):\nRuntimeError: scanner broke\n")
+    result = ScriptRequirements(str(tmp_path)).get_requirements(entry_point_filename="train.py")
+    assert result == ("", "")
+    errors = _errors(scan_log)
+    assert len(errors) == 1
+    assert "RuntimeError: scanner broke" in errors[0].getMessage()
+    assert "pass packages=" in errors[0].getMessage().lower()
+
+
+def test_pigar_missing_in_child_is_logged_as_error(tmp_path, monkeypatch, scan_log):
+    from cairnml.backend_interface.task.repo.scriptinfo import ScriptRequirements
+
+    write(tmp_path / "train.py", "import numpy\n")
+    _worker_stub(tmp_path, monkeypatch, "ModuleNotFoundError: No module named 'pigar'\n")
+    result = ScriptRequirements(str(tmp_path)).get_requirements(entry_point_filename="train.py")
+    assert result == ("", "")
+    errors = _errors(scan_log)
+    assert len(errors) == 1
+    assert "No module named 'pigar'" in errors[0].getMessage()
+    assert "install pigar" in errors[0].getMessage()
+
+
+# --- the imports of a function step are cross-checked against the scan (AC-3) -----------------------------------------
+def _step_source(body):
+    return "def train():\n" + body + "\n"
+
+
+def test_function_body_imports_are_scanned(tmp_path):
+    # guard: the scan itself sees an import inside a function body (green before the cross-check)
+    write(tmp_path / "step.py", _step_source("    import numpy\n    return numpy"))
+    assert scan(tmp_path, entry="step.py")["reqs"] == {"numpy": "1.26.4"}
+
+
+def test_cross_check_flags_a_missing_import(scan_log):
+    from cairnml.backend_interface.task.populate import log_step_imports_not_scanned
+
+    source = _step_source("    import torch\n    return torch")
+    missing = log_step_imports_not_scanned("train", source, scanned=set())
+    assert missing == ["torch"]
+    errors = _errors(scan_log)
+    assert len(errors) == 1
+    assert "torch" in errors[0].getMessage()
+    assert "packages=" in errors[0].getMessage().lower()
+
+
+MUST_NOT_LOG = {
+    "sklearn_renamed_by_callback": (
+        "    import sklearn\n    from sklearn.linear_model import Ridge\n    return Ridge",
+        {},
+    ),
+    "try_except_import_error": (
+        "    try:\n        import ujson\n    except ImportError:\n        ujson = None\n    return ujson",
+        {},
+    ),
+    "stdlib": ("    import json\n    from pathlib import Path\n    return json, Path", {}),
+    "relative": ("    from . import helper\n    return helper", {}),
+    "dotted": ("    import google.protobuf.message\n    return google", {}),
+    "cairnml_itself": ("    import cairnml.datasets\n    return cairnml", {}),
+    "nested_in_if": ("    if FLAG:\n        import requests\n    return 1", {}),
+    "local_module": ("    from helpers import clean\n    return clean", {"helpers.py": "def clean():\n    return 1\n"}),
+}
+
+
+@pytest.mark.parametrize("case", sorted(MUST_NOT_LOG))
+def test_cross_check_does_not_log(tmp_path, scan_log, case):
+    from cairnml.backend_interface.task.populate import log_step_imports_not_scanned
+    from cairnml.backend_interface.task.repo.scriptinfo import ScriptRequirements
+
+    body, extra = MUST_NOT_LOG[case]
+    source = _step_source(body)
+    write(tmp_path / "step.py", source)
+    for name, text in extra.items():
+        write(tmp_path / name, text)
+    scanner = ScriptRequirements(str(tmp_path))
+    scanner.get_requirements(entry_point_filename="step.py")
+    assert scanner.found_names is not None
+    assert log_step_imports_not_scanned("train", source, scanned=scanner.found_names) == []
+    assert _errors(scan_log) == []
+
+
+# --- an installed package that is local (editable) must not replace the entry script's imports (AC-1) -------------
+def _fake_worker(monkeypatch, entry_result, project_result):
+    """Replaces the child process: the call with an entry returns ``entry_result``, the project call ``project_result``."""
+    from cairnml.utilities import project_requirements
+
+    calls = []
+
+    def fake(payload):
+        calls.append(payload)
+        return entry_result if "entry" in payload else project_result
+
+    monkeypatch.setattr(project_requirements, "_run_worker", fake)
+    return calls
+
+
+EDITABLE_LOCAL = {"somelib": {"local": "/elsewhere/somelib/__init__.py"}}
+ENTRY_IMPORTS = {
+    "imports": [["torch", False, "step.py", 2], ["pandas", False, "step.py", 3]],
+    "origins": {"torch": "installed", "pandas": "installed", **EDITABLE_LOCAL},
+}
+NO_IMPORTS = {"imports": [], "origins": {}}
+
+
+def test_an_editable_local_package_does_not_replace_the_entry_imports_of_a_step_file(tmp_path, monkeypatch):
+    # project_path is the generated step file itself, not a folder
+    step = tmp_path / "step.py"
+    write(step, "import torch\nimport pandas\n")
+    calls = _fake_worker(monkeypatch, ENTRY_IMPORTS, NO_IMPORTS)
+    generator = GenerateReqs(project_path=str(step), ignores=IGNORES, installed_pkgs=INSTALLED)
+    _, _, guess, _ = generator.extract_reqs(entry_point_filename=str(step))
+    assert {"torch", "pandas"} <= set(generator.found_names)
+    assert {"torch", "pandas"} <= set(guess.keys())
+    assert len(calls) == 1
+
+
+def test_an_editable_local_package_outside_the_project_does_not_trigger_the_project_scan(tmp_path, monkeypatch):
+    project = tmp_path / "project"
+    write(project / "train.py", "import torch\nimport pandas\n")
+    calls = _fake_worker(monkeypatch, ENTRY_IMPORTS, NO_IMPORTS)
+    generator = GenerateReqs(project_path=str(project), ignores=IGNORES, installed_pkgs=INSTALLED)
+    generator.extract_reqs(entry_point_filename="train.py")
+    assert len(calls) == 1
+    assert {"torch", "pandas"} <= set(generator.found_names)
+
+
+def test_an_entry_importing_a_module_inside_the_project_still_scans_the_project(tmp_path, monkeypatch):
+    project = tmp_path / "project"
+    write(project / "train.py", "import utils\n")
+    write(project / "utils.py", "import yaml\n")
+    entry = {
+        "imports": [["utils", False, "train.py", 1]],
+        "origins": {"utils": {"local": str(project / "utils.py")}},
+    }
+    project_scan = {"imports": [["yaml", False, "utils.py", 1]], "origins": {"yaml": "installed"}}
+    calls = _fake_worker(monkeypatch, entry, project_scan)
+    GenerateReqs(project_path=str(project), ignores=IGNORES, installed_pkgs=INSTALLED).extract_reqs(
+        entry_point_filename="train.py"
+    )
+    assert len(calls) == 2
+    assert "entry" not in calls[1]

@@ -126,7 +126,13 @@ def _run_worker(payload: Dict[str, Any]) -> Dict[str, Any]:
     except subprocess.TimeoutExpired as err:
         raise RuntimeError("the requirement scan did not finish in {} seconds".format(SCAN_TIMEOUT_SECONDS)) from err
     if proc.returncode != 0:
-        raise RuntimeError("the requirement scan failed: {}".format(proc.stderr.decode("utf-8", "replace")[-500:]))
+        # the exception is the last line of the worker's output; the lines before it are the context
+        detail = proc.stderr.decode("utf-8", "replace")[-4000:].strip()
+        lines = detail.splitlines()
+        cause = lines[-1] if lines else "the worker printed nothing"
+        if len(lines) > 1:
+            cause += " (worker output: {})".format(" | ".join(lines))
+        raise RuntimeError("the requirement scan failed: {}".format(cause))
     return json.loads(proc.stdout.decode("utf-8"))
 
 
@@ -159,6 +165,8 @@ class GenerateReqs(object):
         self._project_path = project_path
         self._ignores = ignores
         self._installed_pkgs = installed_pkgs
+        # the names the last scan found in the code, before the module callback (None before a scan)
+        self.found_names: Optional[Set[str]] = None
 
     def extract_reqs(
         self,
@@ -176,6 +184,7 @@ class GenerateReqs(object):
         modules = ImportedModules()
         data = self._scan(entry_point_filename, modules)
         relative, try_imports = _imports_into(data, modules)
+        self.found_names = set(modules.keys())
         origins = data.get("origins", {})
 
         if module_callback:
@@ -219,9 +228,17 @@ class GenerateReqs(object):
         entry = self._entry_path(entry_point_filename)
         if entry:
             data = _run_worker({"project_root": self._project_path, "ignores": self._ignores, "entry": entry})
-            uses_project = any(isinstance(origin, dict) for origin in data.get("origins", {}).values())
+            # only a module of the project itself makes the scan whole-project; a package installed elsewhere (an
+            # editable install) is local too, but it does not
+            uses_project = any(
+                isinstance(origin, dict)
+                and bool(origin.get("local"))
+                and _is_inside(origin["local"], self._project_path)
+                for origin in data.get("origins", {}).values()
+            )
             relative = any(name and name.startswith(".") for name, *_ in data["imports"])
-            if not uses_project and not relative:
+            # the whole-project scan needs a folder; for a step file or a single script the entry's result stands
+            if not (uses_project or relative) or not os.path.isdir(self._project_path):
                 return data
         return _run_worker({"project_root": self._project_path, "ignores": self._ignores})
 
