@@ -4489,13 +4489,17 @@ class Worker(ServiceCommandSection):
             # update the venvs cache path to the container scope
             temp_config.put("agent.venvs_cache.path", venvs_cache_path)
 
+        # the agent's SSH forwarding is kept apart from the admin's extra arguments: it is appended after the
+        # docker argument check (see _docker_user_args), so the check strips only what a task or admin passes
+        self._ssh_forwarding_args = []
         if (ENV_SSH_AUTH_SOCK.get() or "").strip():
             self._host_ssh_cache = None
-            ssh_auth_sock_env = "SSH_AUTH_SOCK={}".format(ENV_SSH_AUTH_SOCK.get())
+            ssh_auth_sock = ENV_SSH_AUTH_SOCK.get()
+            ssh_auth_sock_env = "SSH_AUTH_SOCK={}".format(ssh_auth_sock)
             if not self._extra_docker_arguments or ssh_auth_sock_env not in self._extra_docker_arguments:
-                self._extra_docker_arguments = (self._extra_docker_arguments or []) + [
+                self._ssh_forwarding_args = [
                     "-v",
-                    "{}:{}".format(ENV_SSH_AUTH_SOCK.get(), ENV_SSH_AUTH_SOCK.get()),
+                    "{}:{}".format(ssh_auth_sock, ssh_auth_sock),
                     "-e",
                     ssh_auth_sock_env,
                 ]
@@ -4639,6 +4643,7 @@ class Worker(ServiceCommandSection):
             # docker_image=docker_image,
             # docker_arguments=docker_arguments,
             extra_docker_arguments=self._extra_docker_arguments,
+            ssh_forwarding_args=self._ssh_forwarding_args,
             extra_shell_script=extra_shell_script_str,
             python_version="python3",
             conf_file=self.temp_config_path,
@@ -4903,6 +4908,8 @@ class Worker(ServiceCommandSection):
             extra_docker_arguments=run.extra_docker_arguments,
         )
         base_cmd += merged
+        # the agent's own SSH agent socket: not a task or admin argument, so it bypasses the check (issue #182)
+        base_cmd += [a for a in (run.ssh_forwarding_args or []) if a]
 
         if stripped_switches:
             warn_msg = (
