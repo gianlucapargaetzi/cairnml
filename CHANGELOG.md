@@ -12,6 +12,7 @@ Works with server release 0.0.6 (API 2.41) and later.
 - The dvc next to the Python interpreter is used first, then the one on the PATH; when neither has one, the error names both places searched.
 - A false value in the environment settings of the configuration is set as its text, "0" or "False", not as an empty value.
 - A configuration entry can set the permission bits of the file it writes with mode, as octal digits: 600 or "0600"; a mode that cannot be applied is reported and the file is kept.
+- cairnml dataset doctor reports a repository that git cannot read as a failed check that names the cause and the sign-in step, instead of calling it empty (the check shipped in 0.0.8).
 - set_user_properties sends its hyper-parameters as a list; before, a pipeline failed when it set its version.
 - A script that queues itself with execute_remotely no longer prints "No progress bar named ... was started" right before "Switching to remote execution".
 - When gpustat is the missing import, the message to install cairnml[gpu] is shown.
@@ -22,7 +23,6 @@ Works with server release 0.0.6 (API 2.41) and later.
 - Agent: queue switching (force_workers on or off) is kept; owner impersonation, cluster reports and dynamic GPU allocation are removed.
 - Agent: cairnml-agent init writes only the enrolment's settings to the agent configuration, not a copy of the packaged defaults, so an upgrade changes the defaults (job image included); cairnml-agent doctor warns about a file an older version wrote with the copy and names the step to remove it.
 - Agent: Docker jobs of an agent and SDK installed from wheels run: their wheels are repacked from the installed files, and a job that cannot be launched ends failed with the reason.
-- cairnml dataset doctor reports a repository that git cannot read as a failed check that names the cause and the sign-in step, instead of calling it empty (the check shipped in 0.0.8).
 
 ## 0.0.8
 
