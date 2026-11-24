@@ -45,6 +45,10 @@ def _open_port(host: str, port: int):
     return socket.create_connection((host, port), timeout=5)
 
 
+# The longest check name is 13 characters; the padded name keeps one space before the message, even for a longer name.
+NAME_WIDTH = 14
+
+
 @dataclass
 class Check:
     name: str
@@ -54,7 +58,7 @@ class Check:
 
     def line(self) -> str:
         status = "skip" if self.ok is None else ("FAIL" if not self.ok else ("warn" if self.warning else "ok"))
-        return f"{status:<5}{self.name:<12}{self.message}"
+        return f"{status:<5}{self.name + ' ':<{NAME_WIDTH}}{self.message}"
 
 
 def _fail(name: str, message: str, next_step: str) -> Check:
