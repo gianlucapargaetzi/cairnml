@@ -172,6 +172,7 @@ def _end_search_after_first_report(optimizer, search):
     _start_and_wait_for_first_report(optimizer)
     sleep(0.5)
     search.done.set()
+    # the timeout of wait() is in minutes: 30 seconds
     assert optimizer.wait(timeout=0.5), "wait() did not return after the search ended"
 
 
