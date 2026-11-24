@@ -31,7 +31,7 @@ Every embedded copy is replaced by its official upstream package:
 
 ## Consequences
 
-- Every install now carries `gpustat`, which has no wheel on PyPI, so pip builds it (a pure-Python package; it was built without trouble on Linux with Python 3.12, and CI builds it on every run). Importing it adds about 45 ms to `import cairnml`. The monitor checks once at start whether the machine has an NVIDIA or AMD driver; a machine with none is left unmonitored and the monitor says nothing, so a laptop or a CI runner sees no new message.
+- Every install now carries `gpustat`, which has no wheel on PyPI, so pip builds it (a pure-Python package; it was built without trouble on Linux with Python 3.12, and CI builds it on every run). `nvidia-ml-py` has no upper bound as a base dependency (the agent extra capped it below 14); add one if a major release breaks the install. Importing it adds about 45 ms to `import cairnml`. The monitor checks once at start whether the machine has an NVIDIA or AMD driver; a machine with none is left unmonitored and the monitor says nothing, so a laptop or a CI runner sees no new message.
 - A GPU query takes about 100 ms with `gpustat`, against about 1 ms with the embedded copy. The monitor samples about twice a second, so the cost is a sleep in the monitor thread, not CPU time. Accepted.
 - Interactive plot JSON changes slightly: the trace types and counts match, but some layout keys differ. The plots were checked against the embedded copy's output on five reference figures; a browser check of the web app was not run in this environment.
 - The HOCON text the SDK writes changes its list form (one item per line). Both forms read back to the same configuration.

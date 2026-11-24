@@ -31,7 +31,11 @@ def query() -> GPUStatCollection:
 def no_gpu_driver() -> bool:
     """True when this machine has neither an NVIDIA driver (NVML cannot be loaded) nor an AMD one: there is no GPU to
     monitor, and the resource monitor then says nothing about it. Any other NVML error is not "no driver": it is left
-    to the normal readings, which report it."""
+    to the normal readings, which report it.
+
+    NVML is initialised and shut down again here, before any monitor subprocess exists, so the subprocess's own use is
+    still the first use of NVML in its process (see ResourceMonitor._fix_active_gpus). Never raises: this runs while a
+    task starts."""
     import pynvml
 
     try:
@@ -40,7 +44,10 @@ def no_gpu_driver() -> bool:
         return not amd_available()
     except Exception:
         return False
-    pynvml.nvmlShutdown()
+    try:
+        pynvml.nvmlShutdown()
+    except Exception:
+        pass
     return False
 
 

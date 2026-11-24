@@ -44,7 +44,7 @@ def gpu_unavailable_message(import_error: Optional[ImportError]) -> str:
         (getattr(error, "name", None) or "").split(".")[0] in _NVIDIA_PACKAGES
         for error in _import_errors_in_chain(import_error)
     ):
-        message += ", because the NVIDIA bindings are missing: pip install nvidia-ml-py gpustat"
+        message += ', because the NVIDIA bindings are missing: pip install nvidia-ml-py "gpustat<2"'
     return message
 
 

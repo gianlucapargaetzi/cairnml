@@ -21,11 +21,11 @@ def test_the_gpu_reader_uses_the_installed_nvidia_bindings_not_a_copy():
 def test_a_missing_nvidia_binding_names_the_packages():
     error = ModuleNotFoundError("No module named 'pynvml'", name="pynvml")
     assert gpu_unavailable_message(error) == (
-        "CairnML Monitor: GPU monitoring is not available, because the NVIDIA bindings are missing: pip install nvidia-ml-py gpustat"
+        "CairnML Monitor: GPU monitoring is not available, because the NVIDIA bindings are missing: pip install nvidia-ml-py \"gpustat<2\""
     )
 
 
-HINT = "CairnML Monitor: GPU monitoring is not available, because the NVIDIA bindings are missing: pip install nvidia-ml-py gpustat"
+HINT = "CairnML Monitor: GPU monitoring is not available, because the NVIDIA bindings are missing: pip install nvidia-ml-py \"gpustat<2\""
 
 
 def test_a_missing_gpustat_names_the_packages():

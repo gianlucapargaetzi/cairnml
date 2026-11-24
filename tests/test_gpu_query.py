@@ -127,6 +127,11 @@ def test_a_working_nvidia_driver_is_a_gpu_driver_and_nvml_is_shut_down_again(nvm
     nvml_without_driver.nvmlShutdown.assert_called_once()
 
 
+def test_a_failing_nvml_shutdown_does_not_fail_the_check(nvml_without_driver):
+    nvml_without_driver.nvmlShutdown.side_effect = RuntimeError("NVML was torn down")
+    assert gpu_query.no_gpu_driver() is False
+
+
 def test_any_other_nvml_error_is_left_to_the_normal_path(nvml_without_driver):
     nvml_without_driver.nvmlInit.side_effect = RuntimeError("driver/library version mismatch")
     assert gpu_query.no_gpu_driver() is False
