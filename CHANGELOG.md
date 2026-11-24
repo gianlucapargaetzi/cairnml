@@ -9,6 +9,7 @@ Works with server release 0.0.6 (API 2.41) and later.
 
 - cairnml init writes only the enrolment's settings to the configuration file, not a copy of the packaged defaults, so an upgrade changes the defaults; cairnml doctor warns about a file an older version wrote with the copy and names the step to remove it.
 - A process forked by Task.init, such as the resource monitor, no longer sends its requests on the parent's keep-alive connections, so a response could reach the wrong request (models.create received the body of tasks.get_by_id).
+- HyperParameterOptimizer.stop() called after wait() no longer waits for the reporter's next report period (5 minutes by default); it returns at once.
 - The dvc next to the Python interpreter is used first, then the one on the PATH; when neither has one, the error names both places searched.
 - A false value in the environment settings of the configuration is set as its text, "0" or "False", not as an empty value.
 - A configuration entry can set the permission bits of the file it writes with mode, as octal digits: 600 or "0600"; a mode that cannot be applied is reported and the file is kept.
