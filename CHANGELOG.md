@@ -12,6 +12,7 @@ Works with server release 0.0.6 (API 2.41) and later.
 - The dvc next to the Python interpreter is used first, then the one on the PATH; when neither has one, the error names both places searched.
 - A false value in the environment settings of the configuration is set as its text, "0" or "False", not as an empty value.
 - A configuration entry can set the permission bits of the file it writes with mode, as octal digits: 600 or "0600"; a mode that cannot be applied is reported and the file is kept.
+- cairnml dataset doctor reports a repository that git cannot read as a failed check that names the cause and the sign-in step, instead of calling it empty (the check shipped in 0.0.8).
 - set_user_properties sends its hyper-parameters as a list; before, a pipeline failed when it set its version.
 - A script that queues itself with execute_remotely no longer prints "No progress bar named ... was started" right before "Switching to remote execution".
 - When gpustat is the missing import, the message to install cairnml[gpu] is shown.

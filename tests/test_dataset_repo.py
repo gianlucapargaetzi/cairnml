@@ -5,6 +5,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -514,6 +515,39 @@ def test_doctor_says_when_the_repository_has_no_origin(tmp_path):
     subprocess.run(['git', 'init', '-q', str(local)], check=True)
     checks = checks_by_name(DatasetRepo(local))
     assert checks['origin']['ok'] is False
+
+
+def unreadable_origin(work, monkeypatch, tmp_path):
+    """An origin on github.com that git cannot read: the address is rewritten to a missing local path, so git fails
+    as it does without a login, and no network is used."""
+    subprocess.run(["git", "-C", str(work), "remote", "add", "origin", "https://github.com/acme/cars.git"], check=True)
+    monkeypatch.setenv("GIT_CONFIG_COUNT", "1")
+    monkeypatch.setenv("GIT_CONFIG_KEY_0", f"url.{tmp_path / 'missing.git'}.insteadOf")
+    monkeypatch.setenv("GIT_CONFIG_VALUE_0", "https://github.com/acme/cars.git")
+
+
+def test_doctor_says_a_repository_it_cannot_read(work, tmp_path, monkeypatch):
+    unreadable_origin(work, monkeypatch, tmp_path)
+    default = checks_by_name(DatasetRepo(work))["default branch"]
+    assert default["ok"] is False
+    assert "cannot read origin" in default["message"]
+    assert "sign in" in default["message"] and "gh auth login" in default["message"]
+    assert "the repository is empty" not in default["message"]
+
+
+def test_doctor_says_an_empty_repository_is_empty(linked):
+    default = checks_by_name(DatasetRepo(linked))["default branch"]
+    assert default["ok"] is None
+    assert default["message"].startswith("the repository is empty: the first push creates its default branch")
+
+
+def test_doctor_command_fails_on_an_unreadable_repository(work, tmp_path, monkeypatch, capsys):
+    unreadable_origin(work, monkeypatch, tmp_path)
+    with pytest.raises(DatasetError, match=r"\d+ check\(s\) failed"):
+        dataset_cli.do_doctor(SimpleNamespace(path=str(work)))
+    out = capsys.readouterr().out
+    assert "FAIL default branch: cannot read origin" in out
+    assert "Nothing failed." not in out
 
 
 def test_doctor_finds_a_set_up_repository_and_names_a_missing_gh(first, work, monkeypatch):

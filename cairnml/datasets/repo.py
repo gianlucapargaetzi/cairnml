@@ -600,7 +600,16 @@ class DatasetRepo:
             else "missing or from another version: run cairnml dataset check, then commit the change",
         )
 
-        if not self.git.remote_heads():
+        heads, unreadable = self.git.remote_heads_or_error()
+        if unreadable:
+            check(
+                "default branch",
+                False,
+                f"cannot read origin: {unreadable}. Next: sign in to git for github.com, for example gh auth login, "
+                "then run doctor again",
+            )
+            return checks
+        if not heads:
             check(
                 "default branch",
                 None,
