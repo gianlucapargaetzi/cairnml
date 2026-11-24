@@ -28,6 +28,8 @@ class DockerRun:
     mounted_venvs_cache: Any
     standalone_mode: Any = False
     extra_docker_arguments: Any = None
+    # the agent's own forwarding (SSH agent socket), appended after the docker argument check
+    ssh_forwarding_args: Any = None
     extra_shell_script: Any = None
     force_current_version: Any = None
     host_git_credentials: Any = None
