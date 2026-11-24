@@ -354,6 +354,19 @@ class _Arguments:
                         "",
                     ):
                         arg_parser_arguments[k] = const_value
+                elif current_action and isinstance(current_action, getattr(argparse, "BooleanOptionalAction", ())):
+                    # --flag/--no-flag takes no value on the command line (nargs=0, an int), so it must not reach the
+                    # branch below for options that take values: the stored string is a boolean, not a list
+                    strip_v = str(v).lower().strip()
+                    # an empty value means "not set": the option keeps its default
+                    if strip_v:
+                        bool_value = cast_to_bool_int(strip_v)
+                        if bool_value is not None:
+                            arg_parser_arguments[k] = bool(bool_value)
+                        elif self._task and self._task.log:
+                            self._task.log.warning(
+                                f'Failed parsing task parameter {k}="{v}" keeping default {k}={current_action.default}'
+                            )
                 elif current_action and (
                     current_action.nargs in ("+", "*")
                     or isinstance(current_action.nargs, int)
