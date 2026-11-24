@@ -1,7 +1,8 @@
 """GPU statistics for the resource monitor (and the agent): NVIDIA through the PyPI package gpustat, which reads NVIDIA's
-own bindings (nvidia-ml-py, provides the module ``pynvml``). Both come with the extra ``cairnml[gpu]``.
+own bindings (nvidia-ml-py, provides the module ``pynvml``). Both are base dependencies of cairnml.
 
-The import fails when the extra is not installed; the resource monitor turns that into a message in the task log.
+The import fails only when one of them was removed from the environment; the resource monitor turns that into a message
+in the task log.
 """
 
 import atexit

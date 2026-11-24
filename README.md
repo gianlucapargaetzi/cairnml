@@ -46,9 +46,12 @@ For the dataset tools as well:
 pip install "cairnml[dataset]"
 ```
 
+GPU monitoring needs no extra: the resource monitor reads NVIDIA GPU utilisation, memory and power with the packages that
+`pip install cairnml` installs (NVIDIA's bindings and `gpustat`). AMD GPUs need the ROCm installation; see
+`docs/amd-gpu-monitoring.md`. The extra `gpu` of earlier instructions still installs and adds nothing.
+
 Two more extras add optional features:
 
-- `cairnml[gpu]` reads NVIDIA GPU utilisation, memory and power for the resource monitor (NVIDIA's bindings and `gpustat`). AMD GPUs need the ROCm installation; see `docs/amd-gpu-monitoring.md`.
 - `cairnml[plot]` sends matplotlib figures as interactive plotly plots. Without it, figures are sent as images.
 - `cairnml[agent]` installs the agent, the `cairnml-agent` command that runs queued jobs on another machine. See [docs/agent/README.md](docs/agent/README.md).
 

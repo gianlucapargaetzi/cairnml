@@ -16,7 +16,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 PACKAGE = ROOT / "cairnml_agent"
 EXCLUDED = ("_vendor", "/external/", "backend_api/services")
-# Files (or directories) that agent#47 and the cairnml[gpu] work replace by SDK or package imports: a fix here would
+# Files (or directories) that agent#47 and the replacement of the GPU helper replace by SDK or package imports: a fix here would
 # be thrown away. The change that replaces one must remove its entry (test_the_allowlist_has_no_stale_entry).
 PENDING_REPLACEMENT = ("backend_api/session/",)
 TYPE_COMMENT = re.compile(r"#\s*type:\s*(?!ignore\b)(?P<body>[^#]*)")
