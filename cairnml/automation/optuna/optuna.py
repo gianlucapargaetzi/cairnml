@@ -22,6 +22,21 @@ except ImportError as err:
     ) from err
 
 
+# A job that ends is noticed within this many seconds; the objective is still read once per pool period.
+JOB_END_CHECK_SECONDS = 5.0
+
+
+def _wait_for_job(job: Any, seconds: float) -> None:
+    """Sleep up to ``seconds``, checking the job every few seconds and returning early once it has stopped."""
+    remaining = seconds
+    while remaining > 0:
+        step = min(remaining, JOB_END_CHECK_SECONDS)
+        sleep(step)
+        remaining -= step
+        if job.is_stopped():
+            return
+
+
 class OptunaObjective:
     def __init__(
         self,
@@ -102,7 +117,7 @@ class OptunaObjective:
 
             if not self.optimizer.monitor_job(current_job):
                 break
-            sleep(self.sleep_interval)
+            _wait_for_job(current_job, self.sleep_interval)
 
         # noinspection PyProtectedMember
         objective_metric = self.optimizer._objective_metric.get_objective(current_job)

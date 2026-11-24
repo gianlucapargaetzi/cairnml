@@ -144,3 +144,15 @@ def test_status_is_checked_at_most_once_per_slice_of_a_period(opt, monkeypatch):
     _, job, _, _ = run_objective(opt, monkeypatch, finish_at=10000)
     checks_in_first_period = [t for t in job.status_check_times if 0 < t <= 120]
     assert 1 <= len(checks_in_first_period) <= 120 / 5 + 2
+
+
+def test_finished_job_frees_its_slot_within_a_slice(opt, monkeypatch):
+    clock, _, _, returned = run_objective(opt, monkeypatch, finish_at=5)
+    assert clock.now <= 35, f"objective returned at {clock.now}s, job ended at 5s"
+    assert returned == FakeMetric.FINAL_VALUE
+
+
+def test_long_job_is_read_at_each_period_and_at_its_end(opt, monkeypatch):
+    _, _, metric, returned = run_objective(opt, monkeypatch, finish_at=300)
+    assert metric.read_times == [0.0, 120.0, 240.0, 300.0]
+    assert returned == FakeMetric.FINAL_VALUE
