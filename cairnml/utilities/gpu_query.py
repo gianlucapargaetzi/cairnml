@@ -28,6 +28,22 @@ def query() -> GPUStatCollection:
         raise
 
 
+def no_gpu_driver() -> bool:
+    """True when this machine has neither an NVIDIA driver (NVML cannot be loaded) nor an AMD one: there is no GPU to
+    monitor, and the resource monitor then says nothing about it. Any other NVML error is not "no driver": it is left
+    to the normal readings, which report it."""
+    import pynvml
+
+    try:
+        pynvml.nvmlInit()
+    except (pynvml.NVMLError_LibraryNotFound, pynvml.NVMLError_DriverNotLoaded):
+        return not amd_available()
+    except Exception:
+        return False
+    pynvml.nvmlShutdown()
+    return False
+
+
 def driver_cuda_version() -> Optional[str]:
     """The CUDA version the NVIDIA driver supports, as ``major.minor``; None when the driver cannot tell."""
     import pynvml

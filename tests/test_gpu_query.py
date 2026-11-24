@@ -90,3 +90,43 @@ def test_a_process_without_readable_gpu_memory_counts_as_zero():
     stub = SimpleNamespace(query=mock.Mock(return_value=_Collection([gpu])))
     stats = _monitor(stub)._get_gpu_stats()
     assert stats["gpu_0_mem_used_gb"] == 0.0
+
+
+class _LibraryNotFound(Exception):
+    pass
+
+
+class _DriverNotLoaded(Exception):
+    pass
+
+
+@pytest.fixture
+def nvml_without_driver(fake_pynvml, monkeypatch):
+    """A pynvml that has the exception classes of the real one; nvmlInit is set by each test."""
+    fake_pynvml.NVMLError_LibraryNotFound = _LibraryNotFound
+    fake_pynvml.NVMLError_DriverNotLoaded = _DriverNotLoaded
+    monkeypatch.setattr(gpu_query, "amd_available", lambda: False)
+    return fake_pynvml
+
+
+@pytest.mark.parametrize("error", [_LibraryNotFound("NVML Shared Library Not Found"), _DriverNotLoaded("no driver")])
+def test_a_machine_without_an_nvidia_driver_has_no_gpu_driver(nvml_without_driver, error):
+    nvml_without_driver.nvmlInit.side_effect = error
+    assert gpu_query.no_gpu_driver() is True
+
+
+def test_an_amd_driver_counts_as_a_gpu_driver(nvml_without_driver, monkeypatch):
+    nvml_without_driver.nvmlInit.side_effect = _LibraryNotFound("NVML Shared Library Not Found")
+    monkeypatch.setattr(gpu_query, "amd_available", lambda: True)
+    assert gpu_query.no_gpu_driver() is False
+
+
+def test_a_working_nvidia_driver_is_a_gpu_driver_and_nvml_is_shut_down_again(nvml_without_driver):
+    assert gpu_query.no_gpu_driver() is False
+    nvml_without_driver.nvmlInit.assert_called_once()
+    nvml_without_driver.nvmlShutdown.assert_called_once()
+
+
+def test_any_other_nvml_error_is_left_to_the_normal_path(nvml_without_driver):
+    nvml_without_driver.nvmlInit.side_effect = RuntimeError("driver/library version mismatch")
+    assert gpu_query.no_gpu_driver() is False

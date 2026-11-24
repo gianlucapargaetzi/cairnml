@@ -130,6 +130,9 @@ class ResourceMonitor(BackgroundMonitor):
 
         if not self._gpustat:
             self._task.get_logger().report_text(gpu_unavailable_message(_GPU_IMPORT_ERROR))
+        elif self._gpustat.no_gpu_driver():
+            # the packages are always installed; a machine without a GPU driver has no GPU to monitor, and says nothing
+            self._gpustat = None
         else:  # if running_remotely():
             # noinspection PyBroadException
             try:
