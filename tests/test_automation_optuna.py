@@ -156,3 +156,9 @@ def test_long_job_is_read_at_each_period_and_at_its_end(opt, monkeypatch):
     _, _, metric, returned = run_objective(opt, monkeypatch, finish_at=300)
     assert metric.read_times == [0.0, 120.0, 240.0, 300.0]
     assert returned == FakeMetric.FINAL_VALUE
+
+
+def test_job_without_objective_value_is_polled_once_per_period(opt, monkeypatch):
+    _, _, metric, returned = run_objective(opt, monkeypatch, finish_at=400, value_from=250)
+    assert metric.read_times == [0.0, 120.0, 240.0, 360.0, 400.0]
+    assert returned == FakeMetric.FINAL_VALUE

@@ -92,6 +92,7 @@ class OptunaObjective:
                 if not iteration_value:
                     if not self.optimizer.monitor_job(current_job):
                         break
+                    _wait_for_job(current_job, self.sleep_interval)
                     continue
 
                 # make sure we skip None objective values
