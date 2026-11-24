@@ -709,6 +709,8 @@ class BackgroundMonitor:
     @staticmethod
     def _close_inherited_descriptors(keep: Set[int]) -> None:
         # the descriptors open in this process, read from the OS; fall back to a bounded range without /proc or /dev/fd
+        # the placeholder is opened first, so that its own number is not in the listing
+        placeholder = os.open(os.devnull, os.O_RDWR)
         numbers: Set[int] = set()
         for folder in ("/proc/self/fd", "/dev/fd"):
             try:
@@ -718,12 +720,18 @@ class BackgroundMonitor:
                 continue
         if not numbers:
             numbers = set(range(3, min(os.sysconf("SC_OPEN_MAX"), 4096)))
-        for fd in numbers - keep:
+        # a Connection object of the parent still owns its number: the number is occupied by /dev/null instead of
+        # being left free, so a pipe created later in this process cannot take it (#181)
+        for fd in numbers - keep - {placeholder}:
             try:
-                os.close(fd)
+                # only a number that is open now: the listing's own directory is closed already, and must not
+                # come back as a new placeholder
+                os.fstat(fd)
+                os.dup2(placeholder, fd)
             except OSError:
                 # not open, or closed meanwhile
                 pass
+        os.close(placeholder)
 
     @classmethod
     def __start_subprocess_forkprocess(cls, task_obj_id: int) -> None:

@@ -498,3 +498,110 @@ def test_the_reporter_still_writes_its_log_and_metrics_after_it_drops_the_inheri
         metrics = archive.read("metrics.jsonl").decode()
     assert "records-of-the-reporter" in log, log
     assert "series-of-the-reporter" in metrics, metrics
+
+
+# The reporter child drops the descriptors it inherited (#172) but keeps their numbers occupied (#181): a pipe that
+# the child creates later must not take the number of a parent-side Connection that is still a Python object.
+# The stale objects get the lowest numbers, so the new pipe would take one of them without the placeholders.
+_STALE_PIPE_SCRIPT = """
+import multiprocessing
+import os
+import sys
+
+from cairnml.utilities.process.mp import BackgroundMonitor
+
+stale = [multiprocessing.Pipe() for _ in range(3)]  # parent-side Connections, not SafeQueues
+pid = os.fork()
+if pid == 0:
+    try:
+        BackgroundMonitor._close_inherited_descriptors(keep=BackgroundMonitor._reporter_descriptors())
+        queue = multiprocessing.get_context("fork").SimpleQueue()
+        for reader, writer in stale:
+            # what the garbage collector does with the stale objects of the parent
+            reader.close()
+            writer.close()
+        queue.put("payload")
+        if not queue._reader.poll(2):
+            print("the new pipe of the child delivers nothing", file=sys.stderr)
+            os._exit(3)
+        if queue.get() != "payload":
+            print("the new pipe of the child delivers another value", file=sys.stderr)
+            os._exit(4)
+    except BaseException as error:
+        print(f"the new pipe of the child is broken: {type(error).__name__}: {error}", file=sys.stderr)
+        os._exit(2)
+    os._exit(0)
+_, status = os.waitpid(pid, 0)
+sys.exit(os.waitstatus_to_exitcode(status))
+"""
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="the log reporter is a forked subprocess (posix only)")
+def test_the_reporter_child_keeps_the_numbers_of_pipes_it_does_not_own(tmp_path):
+    script = tmp_path / "script.py"
+    script.write_text(_STALE_PIPE_SCRIPT)
+    env = dict(os.environ)
+    env.update(PYTHONPATH=str(pathlib.Path(cairnml.__file__).resolve().parent.parent))
+    result = subprocess.run(
+        [sys.executable, str(script)],
+        cwd=str(tmp_path),
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert result.returncode == 0, result.stderr
+
+
+# The sweep of the reporter child keeps the queue pipes as they are, points every other number at /dev/null, and
+# leaves as many descriptors open as it had (#181).
+_PLACEHOLDER_SCRIPT = """
+import multiprocessing
+import os
+import sys
+
+from cairnml.utilities.process.mp import BackgroundMonitor, SafeQueue
+
+queue = SafeQueue()  # a queue pipe of the reporter: kept
+stale = [multiprocessing.Pipe() for _ in range(2)]  # parent-side Connections: dropped, numbers kept
+pid = os.fork()
+if pid == 0:
+    failures = []
+    before = len(os.listdir("/proc/self/fd"))
+    BackgroundMonitor._close_inherited_descriptors(keep=BackgroundMonitor._reporter_descriptors())
+    after = len(os.listdir("/proc/self/fd"))
+    if after != before:
+        failures.append(f"open descriptors {before} before the sweep, {after} after")
+    for connection in (queue._q._reader, queue._q._writer):
+        target = os.readlink(f"/proc/self/fd/{connection.fileno()}")
+        if target == os.devnull:
+            failures.append(f"a queue pipe was replaced: fd {connection.fileno()}")
+    for reader, writer in stale:
+        for connection in (reader, writer):
+            target = os.readlink(f"/proc/self/fd/{connection.fileno()}")
+            if target != os.devnull:
+                failures.append(f"a dropped number is not a placeholder: fd {connection.fileno()} is {target}")
+    if failures:
+        print("\\n".join(failures), file=sys.stderr)
+        os._exit(1)
+    os._exit(0)
+_, status = os.waitpid(pid, 0)
+sys.exit(os.waitstatus_to_exitcode(status))
+"""
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="the log reporter is a forked subprocess (posix only)")
+def test_the_reporter_child_keeps_its_queue_pipes_and_replaces_the_dropped_numbers_by_devnull(tmp_path):
+    script = tmp_path / "script.py"
+    script.write_text(_PLACEHOLDER_SCRIPT)
+    env = dict(os.environ)
+    env.update(PYTHONPATH=str(pathlib.Path(cairnml.__file__).resolve().parent.parent))
+    result = subprocess.run(
+        [sys.executable, str(script)],
+        cwd=str(tmp_path),
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert result.returncode == 0, result.stderr
