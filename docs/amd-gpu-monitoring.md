@@ -1,7 +1,7 @@
 # AMD GPU monitoring
 
-The resource monitor reports GPU utilisation, memory and power for NVIDIA GPUs through the extra `cairnml[gpu]`, which
-installs NVIDIA's bindings and the `gpustat` package.
+The resource monitor reports GPU utilisation, memory and power for NVIDIA GPUs with NVIDIA's bindings and the `gpustat`
+package, which `pip install cairnml` installs. No extra is needed.
 
 AMD GPUs are read through AMD's own Python API, `amdsmi`. It is **not** a pip dependency of cairnml: it comes with the
 ROCm installation on the host, and the monitor imports it only when the host has the ROCm kernel driver (`/dev/kfd`).
@@ -26,7 +26,7 @@ yet been run on AMD hardware.
 
 When a `gpustat` release with AMD support (through `rocmi`) is on PyPI, the AMD reader can be replaced by it:
 
-1. Raise the `gpu` extra to that release.
+1. Raise the `gpustat` pin in `requirements.txt` to that release.
 2. Replace the reader in `cairnml/utilities/gpu_query.py` by `gpustat.new_query()`, and delete the AMD tests.
 3. Keep `driver_cuda_version()`: upstream does not report the CUDA driver version.
 4. Check on an AMD host that unified-memory devices (whose total memory may be unknown) are handled.

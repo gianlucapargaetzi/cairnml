@@ -38,13 +38,13 @@ def _import_errors_in_chain(error: BaseException):
 
 
 def gpu_unavailable_message(import_error: Optional[ImportError]) -> str:
-    """What the task log says when GPU monitoring is off. A missing NVIDIA package names the extra that installs it."""
+    """What the task log says when GPU monitoring is off. A missing NVIDIA package is named, with the command that installs it."""
     message = "CairnML Monitor: GPU monitoring is not available"
     if import_error is not None and any(
         (getattr(error, "name", None) or "").split(".")[0] in _NVIDIA_PACKAGES
         for error in _import_errors_in_chain(import_error)
     ):
-        message += ', because the NVIDIA bindings are missing: pip install "cairnml[gpu]"'
+        message += ', because the NVIDIA bindings are missing: pip install nvidia-ml-py "gpustat<2"'
     return message
 
 
@@ -130,6 +130,9 @@ class ResourceMonitor(BackgroundMonitor):
 
         if not self._gpustat:
             self._task.get_logger().report_text(gpu_unavailable_message(_GPU_IMPORT_ERROR))
+        elif self._gpustat.no_gpu_driver():
+            # the packages are always installed; a machine without a GPU driver has no GPU to monitor, and says nothing
+            self._gpustat = None
         else:  # if running_remotely():
             # noinspection PyBroadException
             try:

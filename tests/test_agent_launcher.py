@@ -11,8 +11,6 @@ AGENT_ONLY_NAMES = (
     "requirements-parser",
     "setuptools",
     "packaging",
-    "nvidia-ml-py",
-    "gpustat",
 )
 
 

@@ -16,7 +16,7 @@ Works with server release 0.0.6 (API 2.41) and later.
 - cairnml dataset doctor reports a repository that git cannot read as a failed check that names the cause and the sign-in step, instead of calling it empty (the check shipped in 0.0.8).
 - set_user_properties sends its hyper-parameters as a list; before, a pipeline failed when it set its version.
 - A script that queues itself with execute_remotely no longer prints "No progress bar named ... was started" right before "Switching to remote execution".
-- When gpustat is the missing import, the message to install cairnml[gpu] is shown.
+- NVIDIA GPU monitoring needs no extra: nvidia-ml-py and gpustat are installed with cairnml, so a task on a machine with an NVIDIA GPU reports its GPU curves after a plain pip install. The extra gpu still installs and adds nothing. gpustat has no wheel on PyPI, so pip builds it during the install. When one of the two packages is missing from the environment, the task log says which command installs them. A machine with no NVIDIA or AMD driver is left unmonitored and the monitor says nothing about it.
 - A script whose log reporter process starts while the repository check is still running no longer waits for the check's full 300-second timeout when its task closes.
 - The packages that the function of a pipeline step imports are recorded again when the SDK, or another package the function imports, is installed from a local folder (pip install -e); before, only cairnml was recorded and the step failed on the agent with a missing module.
 - When the scan of a pipeline step's imports fails or misses an import of the function, the SDK logs an error that says which import and to pass packages= on the component, instead of a cut-off warning or nothing.

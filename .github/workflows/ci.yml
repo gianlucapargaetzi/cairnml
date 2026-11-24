@@ -153,6 +153,8 @@ jobs:
           python -m venv /tmp/clean
           /tmp/clean/bin/pip install "$WHEEL"
           /tmp/clean/bin/python -I -c "import cairnml"
+          # GPU monitoring is part of the base install: both packages import in the clean environment
+          /tmp/clean/bin/python -I -c "import gpustat, pynvml"
           /tmp/clean/bin/cairnml init --help > /dev/null
       - name: The agent extra runs the agent; without it the agent stops with one line that names the extra
         run: |

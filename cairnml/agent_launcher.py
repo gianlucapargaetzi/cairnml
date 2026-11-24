@@ -4,7 +4,7 @@ import importlib.metadata
 import sys
 
 # the distributions the agent needs that the SDK's base install does not bring
-AGENT_ONLY = ["virtualenv", "requirements-parser", "setuptools", "packaging", "nvidia-ml-py", "gpustat"]
+AGENT_ONLY = ["virtualenv", "requirements-parser", "setuptools", "packaging"]
 if sys.platform == "win32":
     AGENT_ONLY.append("pywin32")
 

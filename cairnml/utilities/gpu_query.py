@@ -1,7 +1,8 @@
 """GPU statistics for the resource monitor (and the agent): NVIDIA through the PyPI package gpustat, which reads NVIDIA's
-own bindings (nvidia-ml-py, provides the module ``pynvml``). Both come with the extra ``cairnml[gpu]``.
+own bindings (nvidia-ml-py, provides the module ``pynvml``). Both are base dependencies of cairnml.
 
-The import fails when the extra is not installed; the resource monitor turns that into a message in the task log.
+The import fails only when one of them was removed from the environment; the resource monitor turns that into a message
+in the task log.
 """
 
 import atexit
@@ -25,6 +26,29 @@ def query() -> GPUStatCollection:
         if amd_available():
             return _amd_query()
         raise
+
+
+def no_gpu_driver() -> bool:
+    """True when this machine has neither an NVIDIA driver (NVML cannot be loaded) nor an AMD one: there is no GPU to
+    monitor, and the resource monitor then says nothing about it. Any other NVML error is not "no driver": it is left
+    to the normal readings, which report it.
+
+    NVML is initialised and shut down again here, before any monitor subprocess exists, so the subprocess's own use is
+    still the first use of NVML in its process (see ResourceMonitor._fix_active_gpus). Never raises: this runs while a
+    task starts."""
+    import pynvml
+
+    try:
+        pynvml.nvmlInit()
+    except (pynvml.NVMLError_LibraryNotFound, pynvml.NVMLError_DriverNotLoaded):
+        return not amd_available()
+    except Exception:
+        return False
+    try:
+        pynvml.nvmlShutdown()
+    except Exception:
+        pass
+    return False
 
 
 def driver_cuda_version() -> Optional[str]:

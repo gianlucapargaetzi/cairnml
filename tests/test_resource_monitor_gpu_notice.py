@@ -5,6 +5,7 @@ from unittest import mock
 
 import pytest
 
+from cairnml.utilities import resource_monitor
 from cairnml.utilities.resource_monitor import ResourceMonitor
 
 
@@ -40,3 +41,29 @@ def test_gpu_notice_is_logged_without_printing_to_console(monitor_without_gpu, c
     assert notices[0][1].get("print_console") is False
     assert monitor._gpustat is None
     assert "GPU monitoring" not in capsys.readouterr().out
+
+
+def _start_monitor(monkeypatch, no_gpu_driver):
+    """Build a monitor the way Task.init does, with a reader whose driver check gives ``no_gpu_driver``."""
+    logger = _Logger()
+    task = SimpleNamespace(id="t", is_main_task=lambda: True, get_logger=lambda: logger)
+    reader = SimpleNamespace(no_gpu_driver=lambda: no_gpu_driver, query=mock.Mock())
+    monkeypatch.setattr(resource_monitor, "gpustat", reader)
+    monkeypatch.setattr(ResourceMonitor, "_resource_monitor_instances", [])
+    return ResourceMonitor(task), logger
+
+
+def test_a_machine_without_a_gpu_driver_has_no_gpu_monitoring_and_says_nothing(monkeypatch, caplog, capsys):
+    monitor, logger = _start_monitor(monkeypatch, no_gpu_driver=True)
+
+    assert monitor._gpustat is None
+    assert logger.calls == []
+    assert caplog.records == []
+    assert capsys.readouterr().out == ""
+
+
+def test_a_machine_with_a_gpu_driver_keeps_its_gpu_monitoring(monkeypatch):
+    monitor, logger = _start_monitor(monkeypatch, no_gpu_driver=False)
+
+    assert monitor._gpustat is not None
+    assert logger.calls == []
