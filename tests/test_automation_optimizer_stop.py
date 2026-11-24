@@ -1,7 +1,7 @@
 """HyperParameterOptimizer.stop() and its reporter thread, with a fake search (cairnml#189)."""
 
 import threading
-from time import time
+from time import sleep, time
 from types import SimpleNamespace
 
 import pytest
@@ -96,6 +96,8 @@ def make_optimizer():
 
     for optimizer, search in created:
         search.done.set()
+        if optimizer._stop_event is not None:
+            optimizer._stop_event.set()  # wake a reporter that is still in its report period
         if optimizer._thread_reporter is not None:
             optimizer._thread_reporter.join(timeout=JOIN_TIMEOUT)
 
@@ -163,3 +165,33 @@ def test_stop_without_waiting_for_reporter_returns_without_joining(make_optimize
     # the reporter still ends on its own once it has been woken
     reporter.join(timeout=JOIN_TIMEOUT)
     assert not reporter.is_alive()
+
+
+def _end_search_after_first_report(optimizer, search):
+    """The search ends after the reporter's first report, so the reporter is in its 5-minute wait."""
+    _start_and_wait_for_first_report(optimizer)
+    sleep(0.5)
+    search.done.set()
+    assert optimizer.wait(timeout=0.5), "wait() did not return after the search ended"
+
+
+def test_stop_after_wait_returns_promptly_with_default_period(make_optimizer):
+    optimizer, search = make_optimizer()
+    _end_search_after_first_report(optimizer, search)
+    reporter = optimizer._thread_reporter
+
+    elapsed = _run_with_timeout(optimizer.stop, JOIN_TIMEOUT)
+
+    assert elapsed < 5
+    assert not reporter.is_alive()
+
+
+def test_stop_after_wait_sends_final_report_after_search_ended(make_optimizer):
+    optimizer, search = make_optimizer()
+    _end_search_after_first_report(optimizer, search)
+    reports_before_stop = len(optimizer.reports)
+
+    _run_with_timeout(optimizer.stop, JOIN_TIMEOUT)
+
+    assert len(optimizer.reports) > reports_before_stop
+    assert optimizer.reports[-1]["search_done"] is True

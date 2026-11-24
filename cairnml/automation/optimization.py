@@ -1747,6 +1747,9 @@ class HyperParameterOptimizer:
         :param wait_for_reporter: Wait for reporter to flush data.
         """
         if not self._thread or not self._stop_event or not self.optimizer:
+            if self._stop_event:
+                # the search has already ended: wake the reporter so it makes its last report now
+                self._stop_event.set()
             if self._thread_reporter and wait_for_reporter:
                 self._thread_reporter.join()
             return
