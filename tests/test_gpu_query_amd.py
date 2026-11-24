@@ -3,8 +3,6 @@
 from unittest import mock
 
 import pytest
-
-pytest.importorskip("gpustat", reason="needs the cairnml[gpu] extra")
 from gpustat import GPUStatCollection
 
 from cairnml.utilities import gpu_query

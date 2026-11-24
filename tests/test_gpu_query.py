@@ -6,8 +6,6 @@ from unittest import mock
 
 import pytest
 
-pytest.importorskip("gpustat", reason="needs the cairnml[gpu] extra")
-
 from cairnml.utilities import gpu_query
 from cairnml.utilities.resource_monitor import ResourceMonitor
 

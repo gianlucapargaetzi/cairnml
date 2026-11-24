@@ -1,8 +1,4 @@
-import pytest
-
-pytest.importorskip("gpustat", reason="needs the cairnml[gpu] extra")
-
-from cairnml.utilities import gpu_query  # noqa: E402
+from cairnml.utilities import gpu_query
 
 
 def _detect(monkeypatch, existing):
