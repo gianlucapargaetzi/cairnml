@@ -140,7 +140,7 @@ def test_default_pool_period_is_two_minutes(opt):
     assert default == 2.0
 
 
-def test_status_is_checked_at_most_once_per_slice_of_a_period(opt, monkeypatch):
+def test_status_is_checked_a_bounded_number_of_times_per_period(opt, monkeypatch):
     _, job, _, _ = run_objective(opt, monkeypatch, finish_at=10000)
     checks_in_first_period = [t for t in job.status_check_times if 0 < t <= 120]
     assert 1 <= len(checks_in_first_period) <= 120 / 5 + 2
