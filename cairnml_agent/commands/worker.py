@@ -56,15 +56,10 @@ from cairnml_agent.definitions import (
     ENV_TASK_EXECUTE_AS_USER,
     ENV_DOCKER_HOST_MOUNT,
     ENV_TASK_EXTRA_PYTHON_PATH,
-    ENV_AGENT_GIT_USER,
-    ENV_AGENT_GIT_PASS,
-    ENV_AGENT_GIT_HOST,
     ENV_WORKER_ID,
     ENV_WORKER_TAGS,
     ENV_DOCKER_SKIP_GPUS_FLAG,
     ENV_AGENT_AUTH_TOKEN,
-    ENV_AGENT_DISABLE_SSH_MOUNT,
-    ENV_SSH_AUTH_SOCK,
     ENV_AGENT_SKIP_PIP_VENV_INSTALL,
     ENV_EXTRA_DOCKER_ARGS,
     ENV_CUSTOM_BUILD_SCRIPT,
@@ -1131,7 +1126,6 @@ class Worker(ServiceCommandSection):
         self._force_current_version = None
         self._redirected_stdout_file_no = None
         self._suppress_cr = self._session.config.get("agent.suppress_carriage_return", True)
-        self._host_ssh_cache = None
         self._truncate_task_output_files = bool(self._session.config.get("agent.truncate_task_output_files", False))
         self._use_podman = False
         self._run_mode = None  # "docker", "venv" or "host", set when the daemon starts
@@ -4463,16 +4457,10 @@ class Worker(ServiceCommandSection):
         temp_config.put("agent.cuda_version", "")
         temp_config.put("agent.cudnn_version", "")
         temp_config.put("agent.venvs_dir", mounted_venv_dir)
-        temp_config.put(
-            "agent.git_user", (ENV_AGENT_GIT_USER.get() or self._session.config.get("agent.git_user", None))
-        )
-        temp_config.put(
-            "agent.git_pass", (ENV_AGENT_GIT_PASS.get() or self._session.config.get("agent.git_pass", None))
-        )
-        temp_config.put(
-            "agent.git_host", (ENV_AGENT_GIT_HOST.get() or self._session.config.get("agent.git_host", None))
-        )
-        temp_config.put("agent.git", self._session.config.get("agent.git", None))
+        # no Git credential of the agent's own goes into the job: the job's repository is read with the token the server
+        # issues for it, or anonymously (cairnml#194)
+        for credential_setting in ("agent.git_user", "agent.git_pass", "agent.git_host", "agent.git"):
+            temp_config.put(credential_setting, None)
 
         force_system_site_packages = ENV_FORCE_SYSTEM_SITE_PACKAGES.get()
         force_system_site_packages = force_system_site_packages if force_system_site_packages is not None else True
@@ -4488,26 +4476,6 @@ class Worker(ServiceCommandSection):
                 temp_config.put("agent.docker_internal_mounts.venvs_cache", venvs_cache_path)
             # update the venvs cache path to the container scope
             temp_config.put("agent.venvs_cache.path", venvs_cache_path)
-
-        # the agent's SSH forwarding is kept apart from the admin's extra arguments: it is appended after the
-        # docker argument check (see _docker_user_args), so the check strips only what a task or admin passes
-        self._ssh_forwarding_args = []
-        if (ENV_SSH_AUTH_SOCK.get() or "").strip():
-            self._host_ssh_cache = None
-            ssh_auth_sock = ENV_SSH_AUTH_SOCK.get()
-            ssh_auth_sock_env = "SSH_AUTH_SOCK={}".format(ssh_auth_sock)
-            if not self._extra_docker_arguments or ssh_auth_sock_env not in self._extra_docker_arguments:
-                self._ssh_forwarding_args = [
-                    "-v",
-                    "{}:{}".format(ssh_auth_sock, ssh_auth_sock),
-                    "-e",
-                    ssh_auth_sock_env,
-                ]
-        elif ENV_AGENT_DISABLE_SSH_MOUNT.get() or self._session.config.get("agent.disable_ssh_mount", None):
-            self._host_ssh_cache = None
-        else:
-            self._host_ssh_cache = mkdtemp(prefix="cairnml_agent.ssh.")
-            self._temp_cleanup_list.append(self._host_ssh_cache)
 
         return temp_config, partial(self._get_docker_config_cmd, temp_config=temp_config)
 
@@ -4529,9 +4497,6 @@ class Worker(ServiceCommandSection):
 
         host_venvs_cache = load_path("agent.venvs_cache.path")
         self.debug("host_venvs_cache: {}".format(host_venvs_cache))
-
-        host_ssh_cache = self._host_ssh_cache
-        self.debug("host_ssh_cache: {}".format(host_ssh_cache))
 
         host_apt_cache = load_path("agent.docker_apt_cache", default="~/.cairnml/apt-cache")
         self.debug("host_apt_cache: {}".format(host_apt_cache))
@@ -4569,40 +4534,8 @@ class Worker(ServiceCommandSection):
             Path(host_pip_dl).mkdir(parents=True, exist_ok=True)
         if host_vcs_cache:
             Path(host_vcs_cache).mkdir(parents=True, exist_ok=True)
-        if host_ssh_cache:
-            Path(host_ssh_cache).mkdir(parents=True, exist_ok=True)
         if host_venvs_cache:
             Path(host_venvs_cache).mkdir(parents=True, exist_ok=True)
-
-        if host_ssh_cache:
-            # copy the .ssh folder to a temp folder, to be mapped into docker
-            # noinspection PyBroadException
-            try:
-                if Path(host_ssh_cache).is_dir():
-                    shutil.rmtree(host_ssh_cache, ignore_errors=True)
-                shutil.copytree(Path("~/.ssh").expanduser().as_posix(), host_ssh_cache)
-            except Exception:
-                # if we failed to copy / delete, let's see if we
-                self.log.warning(
-                    "Failed creating temporary copy of ~/.ssh for git credential, creating a new temp folder"
-                )
-                # noinspection PyBroadException
-                try:
-                    host_ssh_cache = mkdtemp(prefix="cairnml_agent.ssh.")
-                    shutil.copytree(Path("~/.ssh").expanduser().as_posix(), host_ssh_cache)
-                except Exception:
-                    self.log.warning("Failed creating temporary copy of ~/.ssh for git credential, removing mount!")
-                    host_ssh_cache = None
-
-        # check if the .git credentials exist:
-        try:
-            host_git_credentials = [
-                f.as_posix()
-                for f in [Path("~/.git-credentials").expanduser(), Path("~/.gitconfig").expanduser()]
-                if f.is_file()
-            ]
-        except Exception:
-            host_git_credentials = None
 
         extra_shell_script_str = ""
         if self._extra_shell_script:
@@ -4627,8 +4560,6 @@ class Worker(ServiceCommandSection):
         mounted_pip_dl_dir = temp_config.get("agent.pip_download_cache.path")
         mounted_vcs_cache = temp_config.get("agent.vcs_cache.path")
         mounted_venvs_cache = temp_config.get("agent.docker_internal_mounts.venvs_cache", "")
-        mount_ssh = temp_config.get("agent.docker_internal_mounts.ssh_folder", None)
-        mount_ssh_ro = temp_config.get("agent.docker_internal_mounts.ssh_ro_folder", None)
         mount_apt_cache = temp_config.get("agent.docker_internal_mounts.apt_cache", None)
         mount_pip_cache = temp_config.get("agent.docker_internal_mounts.pip_cache", None)
         mount_poetry_cache = temp_config.get("agent.docker_internal_mounts.poetry_cache", None)
@@ -4643,15 +4574,12 @@ class Worker(ServiceCommandSection):
             # docker_image=docker_image,
             # docker_arguments=docker_arguments,
             extra_docker_arguments=self._extra_docker_arguments,
-            ssh_forwarding_args=self._ssh_forwarding_args,
             extra_shell_script=extra_shell_script_str,
             python_version="python3",
             conf_file=self.temp_config_path,
             host_apt_cache=host_apt_cache,
             host_pip_cache=host_pip_cache,
             host_poetry_cache=host_poetry_cache,
-            host_ssh_cache=host_ssh_cache,
-            host_git_credentials=host_git_credentials,
             host_cache=host_cache,
             mounted_cache=mounted_cache_dir,
             host_pip_dl=host_pip_dl,
@@ -4665,8 +4593,6 @@ class Worker(ServiceCommandSection):
             bash_script=bash_script,
             preprocess_bash_script=preprocess_bash_script,
             install_opencv_libs=install_opencv_libs,
-            mount_ssh=mount_ssh,
-            mount_ssh_ro=mount_ssh_ro,
             mount_apt_cache=mount_apt_cache,
             mount_pip_cache=mount_pip_cache,
             mount_poetry_cache=mount_poetry_cache,
@@ -4908,8 +4834,6 @@ class Worker(ServiceCommandSection):
             extra_docker_arguments=run.extra_docker_arguments,
         )
         base_cmd += merged
-        # the agent's own SSH agent socket: not a task or admin argument, so it bypasses the check (issue #182)
-        base_cmd += [a for a in (run.ssh_forwarding_args or []) if a]
 
         if stripped_switches:
             warn_msg = (
@@ -5025,18 +4949,6 @@ class Worker(ServiceCommandSection):
 
             self.debug("Config file target: {}, host: {}".format(new_conf_file, run.conf_file), context="docker")
 
-            if run.host_ssh_cache:
-                new_ssh_cache = os.path.join(k8s_pod_mnt, ".cairnml_agent.{}.ssh".format(quote(run.worker_id, safe="")))
-                try:
-                    rm_tree(new_ssh_cache)
-                    shutil.copytree(run.host_ssh_cache, new_ssh_cache)
-                    run.host_ssh_cache = new_ssh_cache.replace(k8s_pod_mnt, k8s_node_mnt)
-                except Exception as ex:
-                    raise ValueError("Error: could not copy .ssh directory into: {}".format(new_ssh_cache)) from ex
-                self.debug(
-                    "Copied host SSH cache to: {}, host {}".format(new_ssh_cache, run.host_ssh_cache), context="docker"
-                )
-
     def _docker_env_args(self, run, base_cmd):
         """env part of the docker run command (see _get_docker_cmd)."""
         base_cmd += [
@@ -5097,12 +5009,9 @@ class Worker(ServiceCommandSection):
 
     def _docker_mount_defaults(self, run, base_cmd):
         """mdef part of the docker run command (see _get_docker_cmd)."""
-        run.mount_ssh = run.mount_ssh or "/root/.ssh"
-        run.mount_ssh_ro = run.mount_ssh_ro or "{}_ro".format(run.mount_ssh.rstrip("/"))
         run.mount_apt_cache = run.mount_apt_cache or "/var/cache/apt/archives"
         run.mount_pip_cache = run.mount_pip_cache or "/root/.cache/pip"
         run.mount_poetry_cache = run.mount_poetry_cache or "/root/.cache/pypoetry"
-        run.mount_git_ro = "{}.git".format(run.mount_ssh_ro.rstrip("/"))
 
     def _docker_standalone_script(self, run, base_cmd):
         """std part of the docker run command (see _get_docker_cmd)."""
@@ -5117,8 +5026,6 @@ class Worker(ServiceCommandSection):
                     'export CAIRNML_APT_INSTALL="$CAIRNML_APT_INSTALL{}"'.format(
                         " libsm6 libxext6 libxrender-dev libglib2.0-0" if run.install_opencv_libs else ""
                     ),
-                    "cp -Rf {mount_ssh_ro} -T {mount_ssh}" if run.host_ssh_cache else "",
-                    "cp -Rf {mount_git_ro} -T ~/" if run.host_git_credentials else "",
                     '[ ! -z $(which git 2> /dev/null || command -v git) ] || export CAIRNML_APT_INSTALL="$CAIRNML_APT_INSTALL git"',
                     "declare LOCAL_PYTHON",
                     "[ ! -z $LOCAL_PYTHON ] || for i in {{20..5}}; do (which {python_single_digit}.$i 2> /dev/null || command -v {python_single_digit}.$i) && "
@@ -5158,17 +5065,10 @@ class Worker(ServiceCommandSection):
                 python=run.python_version,
                 pip_version=" ".join(PackageManager.get_pip_versions(wrap='"')),
                 cairnml_agent_wheel_path=run.cairnml_agent_wheel_path,
-                mount_ssh_ro=run.mount_ssh_ro,
-                mount_ssh=run.mount_ssh,
-                mount_git_ro=run.mount_git_ro,
             )
 
     def _docker_setup_script(self, run, base_cmd):
         """git part of the docker run command (see _get_docker_cmd)."""
-        if run.host_git_credentials:
-            for git_credentials in run.host_git_credentials:
-                base_cmd += ["-v", "{}:{}/{}".format(git_credentials, run.mount_git_ro, Path(git_credentials).name)]
-
         if run.docker_bash_setup_script and run.docker_bash_setup_script.strip("\n "):
             run.extra_shell_script = (
                 (run.extra_shell_script or "")
@@ -5183,9 +5083,8 @@ class Worker(ServiceCommandSection):
     def _docker_log_mounts(self, run, base_cmd):
         """dbg part of the docker run command (see _get_docker_cmd)."""
         self.debug(
-            "Adding mounts: host_ssh_cache={}, host_apt_cache={}, host_pip_cache={}, host_poetry_cache={}, "
+            "Adding mounts: host_apt_cache={}, host_pip_cache={}, host_poetry_cache={}, "
             "host_pip_dl={}, host_cache={}, host_vcs_cache={}, host_venvs_cache={}".format(
-                run.host_ssh_cache,
                 run.host_apt_cache,
                 run.host_pip_cache,
                 run.host_poetry_cache,
@@ -5228,7 +5127,6 @@ class Worker(ServiceCommandSection):
             (["--name", run.name] if run.name else [])
             + ["-v", run.conf_file + ":" + DOCKER_ROOT_CONF_FILE]
             + ["-e", "CAIRNML_CONFIG_FILE={}".format(DOCKER_ROOT_CONF_FILE)]
-            + (["-v", run.host_ssh_cache + ":" + run.mount_ssh_ro] if run.host_ssh_cache else [])
             + (["-v", run.host_apt_cache + ":" + run.mount_apt_cache] if run.host_apt_cache else [])
             + (["-v", run.host_pip_cache + ":" + run.mount_pip_cache] if run.host_pip_cache else [])
             + (["-v", run.host_poetry_cache + ":" + run.mount_poetry_cache] if run.host_poetry_cache else [])

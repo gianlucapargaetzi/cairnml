@@ -103,8 +103,6 @@
       "pip_download": "/root/.cairnml/pip-download-cache",
       "poetry_cache": "/root/.cache/pypoetry",
       "sdk_cache": "/cairnml_agent_cache",
-      "ssh_folder": "~/.ssh",
-      "ssh_ro_folder": "/.ssh",
       "vcs_cache": "/root/.cairnml/vcs-cache",
       "venv_build": "~/.cairnml/venvs-builds",
       "venvs_cache": "/root/.cairnml/venvs-cache"

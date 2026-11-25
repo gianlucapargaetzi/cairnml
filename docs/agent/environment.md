@@ -119,7 +119,6 @@ SDK switches the agent does not use: the agent ignores `CAIRNML_OFFLINE_MODE`, a
 | `CAIRNML_AGENT_EXTRA_DOCKER_LABELS` | unset | Labels added to every task's container, separated by spaces. |
 | `CAIRNML_AGENT_DOCKER_ARGS_FILTERS` | unset | Whitelist of the Docker arguments a task may use. |
 | `CAIRNML_AGENT_DOCKER_ARGS_HIDE_ENV` | unset | Extra variable names whose values are hidden in the Docker command, separated by spaces. |
-| `CAIRNML_AGENT_DISABLE_SSH_MOUNT` | `false` | Do not mount the SSH agent socket into the task's container. |
 | `CAIRNML_AGENT_DOCKER_HOST_MOUNT` | unset | Host directories mounted into task containers. |
 | `CAIRNML_AGENT_K8S_HOST_MOUNT` | unset | Host directories mounted into task containers on Kubernetes. |
 | `CAIRNML_DOCKER_IMAGE` | unset | Docker image of the task. Set for the task. |
