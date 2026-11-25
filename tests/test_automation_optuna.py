@@ -70,8 +70,11 @@ class FakeMetric:
 
 
 class FakeTrial:
+    def __init__(self):
+        self.reports = []
+
     def report(self, value, step):
-        pass
+        self.reports.append((step, value))
 
     def should_prune(self):
         return False
@@ -126,7 +129,9 @@ def run_objective(opt_module, monkeypatch, finish_at, value_from=0.0, sleep_inte
         sleep_interval=sleep_interval,
         config_space={},
     )
-    returned = objective.objective(FakeTrial())
+    trial = FakeTrial()
+    returned = objective.objective(trial)
+    run_objective.last_trial = trial
     return clock, job, metric, returned
 
 
@@ -162,3 +167,23 @@ def test_job_without_objective_value_is_polled_once_per_period(opt, monkeypatch)
     _, _, metric, returned = run_objective(opt, monkeypatch, finish_at=400, value_from=250)
     assert metric.read_times == [0.0, 120.0, 240.0, 360.0, 400.0]
     assert returned == FakeMetric.FINAL_VALUE
+
+
+def test_a_step_of_a_trial_is_reported_to_optuna_once_however_often_it_is_read(opt, monkeypatch):
+    """Optuna warns "The reported value is ignored because this step is already reported" for a repeated step."""
+    _, _, metric, _ = run_objective(opt, monkeypatch, finish_at=300)
+    assert len(metric.read_times) == 4
+    assert run_objective.last_trial.reports == [(1, 0.5)]
+
+
+def test_a_later_iteration_is_reported_again_and_no_step_twice(opt, monkeypatch):
+    original = FakeMetric.get_current_raw_objective
+
+    def advancing(self, job):
+        original(self, job)
+        return [(1 + int(self.clock.now // 120), 0.5 + self.clock.now / 1000)]
+
+    monkeypatch.setattr(FakeMetric, "get_current_raw_objective", advancing)
+    run_objective(opt, monkeypatch, finish_at=300)
+    steps = [step for step, _ in run_objective.last_trial.reports]
+    assert steps == [1, 2, 3]

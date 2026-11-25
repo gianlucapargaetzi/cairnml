@@ -82,6 +82,8 @@ class OptunaObjective:
             return None
         iteration_value = None
         is_pending = True
+        # Optuna takes one value per step and warns about a step that is reported again, so a step is reported once
+        last_reported_step = None
         while True:
             if is_pending and not current_job.is_pending():
                 is_pending = False
@@ -102,7 +104,9 @@ class OptunaObjective:
                     # noinspection PyProtectedMember
                     if self.optimizer._objective_metric.len == 1:
                         # update budget
-                        trial.report(value=iteration_value[0][1], step=iteration)
+                        if last_reported_step is None or iteration > last_reported_step:
+                            trial.report(value=iteration_value[0][1], step=iteration)
+                            last_reported_step = iteration
 
                         # Handle pruning based on the intermediate value.
                         if trial.should_prune() and (
