@@ -51,6 +51,8 @@ token, or a credential stored for another host), so the host's credentials were 
   address; there is no agent-side substitute.
 - In virtual-environment mode the job's code runs as the agent's own user and can read that user's `~/.ssh` and use an
   SSH agent directly; the agent cannot prevent that. Docker mode is the isolated mode.
+- pip installs of a `git+...` requirement in virtual-environment mode run git with the agent's own environment, outside the
+  isolation of the clone; in Docker mode the container has none of the host's credentials.
 - A cached repository made by an earlier agent may hold credentials in its origin address; the origin is reset to this
   run's address before every pull.
 - The vcs cache folder is shared by the tasks of one agent; sharing a private repository's files between tasks is

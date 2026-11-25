@@ -596,7 +596,7 @@ class Git(VCS):
         self._header_username = username
         self.COMMAND_ENV.update(
             GIT_CONFIG_COUNT="1",
-            GIT_CONFIG_KEY_0="http.{}://{}/.extraheader".format(address.scheme, address.netloc),
+            GIT_CONFIG_KEY_0="http.{}/.extraheader".format(address.origin),
             GIT_CONFIG_VALUE_0=basic_auth_header(username, token),
         )
 
@@ -745,7 +745,12 @@ def request_git_token(session, task_id):
     server refuses it. The answer's clone url (apiserver/bll/repository_access.py:279) is read from its data, not from
     the typed response: the definitions before 2.41 do not declare it, and the typed response would drop it.
     """
-    result = session.send(session.current(devices_api.GitTokenRequest)(task=task_id))
+    try:
+        result = session.send(session.current(devices_api.GitTokenRequest)(task=task_id))
+    except Exception as ex:
+        # a server that cannot be reached, or that does not serve the call, gives no answer (the job then fails)
+        print("The credential request for the repository failed: {}".format(ex))
+        return None
     if result is None or not result.ok():
         return None
     return result
@@ -793,10 +798,18 @@ ASSIGN_OR_INSTALL = (
 )
 
 
+def _address_without_password(repository_url):
+    """The address for a message: without a password it may carry."""
+    try:
+        return furl(repository_url).remove(password=True).tostr()
+    except ValueError:
+        return repository_url
+
+
 def repository_access_message(repository_url, reason):
     """The message of a repository that cannot be read: the repository, why, and the two remedies."""
     return "The repository {} could not be read: {}. If it is private, {}.".format(
-        furl(repository_url).remove(password=True).tostr() if repository_url else "(none)", reason, ASSIGN_OR_INSTALL
+        _address_without_password(repository_url) if repository_url else "(none)", reason, ASSIGN_OR_INSTALL
     )
 
 
@@ -860,8 +873,8 @@ def wants_stored_credential(repository_url):
     """
     Whether the agent asks the server for a Git credential for this repository URL. GitHub is always asked, in
     any form of address (the server answers with the GitHub App or the stored credential). Any other host is
-    asked only over HTTPS, so a credential is never sent in clear text; over other schemes (ssh, plain http)
-    the configured credentials are used.
+    asked only over HTTPS, so a credential is never sent in clear text; over other schemes (ssh, plain http,
+    git://) the repository is read without a credential, and an ssh address is refused (see resolve_git_clone).
     """
     if is_github_repository(repository_url):
         return True
@@ -887,11 +900,12 @@ def is_ssh_address(repository_url):
 
 def github_https_address(repository_url):
     """The https address of a GitHub repository given in any form (see is_github_repository)."""
-    return (
-        VCS.replace_ssh_url(repository_url, replacement_scheme="https")
-        if is_ssh_address(repository_url)
-        else (repository_url)
-    )
+    if not is_ssh_address(repository_url):
+        return repository_url
+    https_address = furl(VCS.replace_ssh_url(repository_url, replacement_scheme="https"))
+    # an ssh port (ssh://git@github.com:22/...) is not an https port
+    https_address.set(port=None)
+    return https_address.url
 
 
 def resolve_git_clone(session, repository_url, task_id):
@@ -913,7 +927,7 @@ def resolve_git_clone(session, repository_url, task_id):
             raise RepositoryAccessError(
                 "The repository {} is given as an ssh address, and the agent never uses ssh. Use its https address "
                 "instead (https://<host>/<owner>/<name>.git) and make sure the server has a credential for it if "
-                "it is private.".format(url)
+                "it is private.".format(_address_without_password(url))
             )
         clone_url = github_https_address(url)
     if not task_id or not wants_stored_credential(clone_url or url):

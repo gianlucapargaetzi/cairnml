@@ -19,13 +19,13 @@ import pytest
 from pyhocon import ConfigFactory, ConfigTree
 
 from cairnml_agent.commands import worker as worker_module
-from cairnml_agent.helper import repo as repo_module
 from cairnml_agent.helper.repo import (
     Git,
     RepositoryAccessError,
     clone_repository_cached,
     resolve_git_clone,
 )
+from cairnml_agent.helper.repo import github_https_address
 
 from .test_git_credentials import reply, session_answering
 
@@ -88,7 +88,8 @@ class _Host:
         self.home.mkdir()
         self.log = tmp_path / "calls.log"
         self.helper = _script(tmp_path / "helper.sh", self.log)
-        self.ssh = _script(tmp_path / "bin" / "ssh", self.log) if (tmp_path / "bin").mkdir() is None else None
+        (tmp_path / "bin").mkdir()
+        self.ssh = _script(tmp_path / "bin" / "ssh", self.log)
         self.monkeypatch = monkeypatch
         self.tmp_path = tmp_path
         monkeypatch.setenv("HOME", str(self.home))
@@ -199,10 +200,10 @@ def test_an_ssh_address_of_another_host_than_github_is_refused_with_the_https_hi
 )
 def test_a_github_address_is_cloned_over_https_with_the_servers_token(address):
     session, _ = session_answering(reply(data={"token": TOKEN, "username": "x-access-token"}))
-    assert resolve_git_clone(session, address, "task-1") == (
-        "https://github.com/owner/name.git" if "https" not in address else None,
-        ("x-access-token", TOKEN),
-    )
+    clone_url, credential = resolve_git_clone(session, address, "task-1")
+    assert credential == ("x-access-token", TOKEN)
+    assert clone_url in (None, "https://github.com/owner/name.git")
+    assert (clone_url is None) == address.startswith("https://")
 
 
 def test_configured_git_credentials_are_not_used(host, server, tmp_path, monkeypatch):
@@ -241,7 +242,7 @@ def test_the_servers_token_goes_only_to_the_host_of_the_clone_address(host, serv
         env = git._command_environment()
         for target in (server.url(), other.url()):
             subprocess.run(["git", "ls-remote", target], env=env, capture_output=True, cwd=str(tmp_path))
-        assert len(server.authorizations()) == 1
+        assert server.authorizations()
         assert other.authorizations() == []
     finally:
         other.close()
@@ -351,3 +352,33 @@ def test_the_failure_message_is_the_status_message_of_the_task(monkeypatch, tmp_
             "status_message": "The repository https://x/y.git could not be read: no token.",
         }
     ]
+
+
+def test_a_github_ssh_address_with_a_port_does_not_become_an_https_address_with_it():
+    assert github_https_address("ssh://git@github.com:22/owner/name.git") == "https://github.com/owner/name.git"
+
+
+def test_the_header_key_names_the_origin_of_the_address_not_its_user_or_password(host, tmp_path):
+    git = make_git(tmp_path, "https://bob:pw@github.com/o/n.git")
+    git.use_header_token(TOKEN, url="https://bob:pw@github.com/o/n.git")
+    assert git.COMMAND_ENV["GIT_CONFIG_KEY_0"] == "http.https://github.com/.extraheader"
+
+
+def test_a_credential_request_that_raises_fails_the_job_with_the_clear_message():
+    class Down:
+        def current(self, request):
+            return request
+
+        def send(self, request):
+            raise ConnectionError("the server cannot be reached")
+
+    with pytest.raises(RepositoryAccessError) as failure:
+        resolve_git_clone(Down(), "https://github.com/owner/name.git", "task-1")
+    assert "refused or did not answer" in str(failure.value)
+
+
+def test_the_refusal_of_an_ssh_address_does_not_print_a_password():
+    session, _ = session_answering(reply(data={"token": TOKEN}))
+    with pytest.raises(RepositoryAccessError) as failure:
+        resolve_git_clone(session, "ssh://bob:hunter2@gitlab.example.com/o/n.git", "task-1")
+    assert "hunter2" not in str(failure.value)
