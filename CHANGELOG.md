@@ -11,6 +11,7 @@ Works with server release 0.0.6 (API 2.41) and later.
 - A process forked by Task.init, such as the resource monitor, no longer sends its requests on the parent's keep-alive connections, so a response could reach the wrong request (models.create received the body of tasks.get_by_id).
 - HyperParameterOptimizer.stop() called after wait() no longer waits for the reporter's next report period (5 minutes by default); it returns at once.
 - The dvc next to the Python interpreter is used first, then the one on the PATH; when neither has one, the error names both places searched.
+- cairnml-agent doctor words its GitHub warning as a fact (the server has no company GitHub App) and says it is moot when the project owner has a credential, instead of telling every user to add one.
 - A false value in the environment settings of the configuration is set as its text, "0" or "False", not as an empty value.
 - A configuration entry can set the permission bits of the file it writes with mode, as octal digits: 600 or "0600"; a mode that cannot be applied is reported and the file is kept.
 - cairnml dataset doctor reports a repository that git cannot read as a failed check that names the cause and the sign-in step, instead of calling it empty (the check shipped in 0.0.8).

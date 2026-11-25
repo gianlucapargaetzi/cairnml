@@ -188,9 +188,10 @@ def check_github(settings: dict, server_check: Check) -> Check:
     return Check(
         "github",
         True,
-        "no GitHub App on the server: a private github.com repository needs a credential of the project owner "
-        "(the web app, Settings > Access) - next: add a credential there, or ask an admin to set up the "
-        "company GitHub App (see the server README, section GitHub App)",
+        "the server has no company GitHub App: a private github.com repository is read with the credential of "
+        "the project owner (the web app, Settings > Access), which is all it needs when the owner has one; "
+        "otherwise add a credential there, or ask an admin to set up the company GitHub App "
+        "(see the server README, section GitHub App)",
         warning=True,
     )
 
