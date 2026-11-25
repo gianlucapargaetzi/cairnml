@@ -136,6 +136,9 @@ def test_enqueue_warns_when_no_worker_listens_to_the_queue(fake_server):
     assert len(warnings) == 1
     assert 'queue "gpu-1"' in warnings[0]
     assert "No worker is listening" in warnings[0]
+    # an agent serves only the queue made when it was enrolled, so a queue named in the call is not a --queue to start
+    assert "serves only the queue" in warnings[0]
+    assert "--queue" not in warnings[0]
 
 
 def test_enqueue_does_not_warn_when_a_worker_listens(fake_server):

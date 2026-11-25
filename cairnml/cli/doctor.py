@@ -275,8 +275,9 @@ def check_queues(server: Optional[str], device: Optional[str], sign_in: Check, k
         return Check(
             "queues",
             True,
-            f"no worker listens to {', '.join(unserved)} - next: run "
-            f"cairnml-agent daemon --queue <name> on a machine with Docker",
+            f"no worker listens to {', '.join(unserved)} - next: start cairnml-agent daemon on the machine that "
+            "owns the queue (an agent serves only the queue made when it was enrolled; Agents & Queues > Queues "
+            "lists them)",
             warning=True,
         )
     return Check("queues", True, f"{len(names)} queue(s), each with a listening worker")

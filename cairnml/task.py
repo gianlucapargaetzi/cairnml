@@ -1930,8 +1930,9 @@ class Task(_Task):
         if (res.response_data or {}).get("queue_watched") is False:
             LoggerRoot.get_base_logger().warning(
                 f'No worker is listening to queue "{queue_name or queue_id}", so the task will wait in the queue. '
-                "Check the queue name, or start an agent for it with "
-                f"`cairnml-agent daemon --queue {queue_name or queue_id}`."
+                "An agent serves only the queue that was made when it was enrolled (cairnml-agent init prints it, "
+                "Agents & Queues > Queues lists it): check the queue name, or start cairnml-agent daemon on the "
+                "machine that owns that queue."
             )
         resp = res.response
         return resp
