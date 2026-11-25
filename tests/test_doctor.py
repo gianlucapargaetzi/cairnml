@@ -257,7 +257,10 @@ def test_a_queue_without_a_listening_worker_is_a_warning_with_the_remedy(tmp_pat
     checks = by_name(doctor.run_checks(conf, key_path=key, http=server))
     assert checks["queues"].ok is True and checks["queues"].warning is True
     assert "no worker listens to gpu" in checks["queues"].message
-    assert "cairnml-agent daemon --queue" in checks["queues"].message
+    # an agent serves only the queue made when it was enrolled: the hint must not advise --queue for another queue
+    assert "serves only the queue" in checks["queues"].message
+    assert "cairnml-agent daemon" in checks["queues"].message
+    assert "--queue" not in checks["queues"].message
     assert checks["queues"].line().startswith("warn")
 
 

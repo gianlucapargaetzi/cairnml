@@ -56,12 +56,14 @@ It prints one line per check and the next step for each failure: the configurati
 ## Start the agent
 
 ```bash
-cairnml-agent daemon --queue default
+cairnml-agent daemon --docker
 ```
+
+Enrolling the agent (`cairnml-agent init`) made a queue for this machine and printed its name; `daemon` without `--queue` serves it. The server lets an agent serve only that queue, so send its jobs there: **Agents & Queues > Queues** lists the name.
 
 | Option | What it does |
 |---|---|
-| `--queue NAME` | The queue to take jobs from |
+| `--queue NAME` | The queue to take jobs from. The server accepts only the queue made for this machine when it was enrolled, which is the default |
 | `--docker` | Run each job in a container (required unless `--allow-venv` is given) |
 | `--allow-venv` | Allow jobs in a Python virtual environment on this host. Off by default: such a job can read the agent's device key |
 | `--gpus 0` | The GPUs the agent may use |
