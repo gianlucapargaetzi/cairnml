@@ -139,6 +139,8 @@ def test_the_github_line_with_the_app_absent_names_the_credential_and_the_app():
     assert "are refused" not in check.message
     assert "Settings > Access" in check.message and "credential" in check.message
     assert "GitHub App" in check.message
+    assert "when the owner has one" in check.message  # a working credential makes the warning moot
+    assert "no GitHub App on the server" not in check.message
 
 
 def test_a_configured_github_app_passes_without_warning(tmp_path):
