@@ -119,7 +119,6 @@ SDK switches the agent does not use: the agent ignores `CAIRNML_OFFLINE_MODE`, a
 | `CAIRNML_AGENT_EXTRA_DOCKER_LABELS` | unset | Labels added to every task's container, separated by spaces. |
 | `CAIRNML_AGENT_DOCKER_ARGS_FILTERS` | unset | Whitelist of the Docker arguments a task may use. |
 | `CAIRNML_AGENT_DOCKER_ARGS_HIDE_ENV` | unset | Extra variable names whose values are hidden in the Docker command, separated by spaces. |
-| `CAIRNML_AGENT_DISABLE_SSH_MOUNT` | `false` | Do not mount the SSH agent socket into the task's container. |
 | `CAIRNML_AGENT_DOCKER_HOST_MOUNT` | unset | Host directories mounted into task containers. |
 | `CAIRNML_AGENT_K8S_HOST_MOUNT` | unset | Host directories mounted into task containers on Kubernetes. |
 | `CAIRNML_DOCKER_IMAGE` | unset | Docker image of the task. Set for the task. |
@@ -128,17 +127,25 @@ SDK switches the agent does not use: the agent ignores `CAIRNML_OFFLINE_MODE`, a
 
 ## Git and packages
 
+The agent has no Git credentials of its own. A job's repository is read with the short-lived token the server issues for
+that repository (a credential assigned in the web app, or the GitHub App), or without a credential when it is public.
+The agent never uses the machine's SSH keys, SSH agent, `~/.gitconfig` or credential helpers, and a job container gets
+none of them. A repository that is private and has no token fails the job, with a message that names the repository.
+The one credential a task carries itself is a password written in its own repository address
+(`https://user:<token>@host/...`).
+
 | Variable | Default | Meaning |
 |---|---|---|
-| `CAIRNML_GIT_USERNAME` | unset | User name for cloning Git repositories over HTTPS. |
-| `CAIRNML_GIT_PASSWORD` | unset | Password or token for cloning Git repositories over HTTPS. |
-| `CAIRNML_AGENT_GIT_USER` | unset | User name for Git, set in the configuration for every clone. |
-| `CAIRNML_AGENT_GIT_PASS` | unset | Password for Git, set in the configuration for every clone. |
-| `CAIRNML_AGENT_GIT_HOST` | unset | Git host the credentials apply to. |
+| `CAIRNML_GIT_USERNAME` | unset | Set by the agent for its own askpass helper, from the user in the task's repository address. Setting it yourself has no effect. |
+| `CAIRNML_GIT_PASSWORD` | unset | Set by the agent for its own askpass helper, from the password in the task's repository address. Setting it yourself has no effect. |
+| `CAIRNML_AGENT_GIT_USER` | unset | Removed. Ignored, and the agent warns when it is set. |
+| `CAIRNML_AGENT_GIT_PASS` | unset | Removed. Ignored, and the agent warns when it is set. |
+| `CAIRNML_AGENT_GIT_HOST` | unset | Removed. Ignored, and the agent warns when it is set. |
+| `CAIRNML_AGENT_DISABLE_SSH_MOUNT` | unset | Removed: no job container gets the machine's SSH setup any more. Ignored, and the agent warns when it is set. |
 | `CAIRNML_AGENT_GIT_CLONE_VERBOSE` | `false` | Show the output of `git clone`. |
 | `CAIRNML_AGENT_GIT_USE_MS_ENTRA_TOKEN` | `false` | Use a Microsoft Entra token for Git over HTTPS. |
 | `CAIRNML_AGENT_GIT_USE_AZURE_PAT` | `false` | Use an Azure DevOps personal access token for Git over HTTPS. |
-| `CAIRNML_AGENT_SSH_URL_REPLACEMENT_SCHEME` | unset | Scheme that replaces `git@` SSH repository URLs, for example `https`. |
+| `CAIRNML_AGENT_SSH_URL_REPLACEMENT_SCHEME` | unset | Removed. A GitHub address in ssh form is cloned over https; any other ssh address fails and asks for the https address. Ignored, and the agent warns when it is set. |
 
 ## Kubernetes glue
 

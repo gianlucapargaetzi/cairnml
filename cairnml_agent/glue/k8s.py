@@ -21,9 +21,6 @@ from cairnml_agent.commands.events import Events
 from cairnml_agent.commands.worker import Worker, get_task_container, set_task_container, get_next_task
 from cairnml_agent.definitions import (
     ENV_DOCKER_IMAGE,
-    ENV_AGENT_GIT_USER,
-    ENV_AGENT_GIT_PASS,
-    ENV_AGENT_GIT_HOST,
     ENV_FORCE_SYSTEM_SITE_PACKAGES,
 )
 from cairnml_agent.errors import APIError, UsageError
@@ -463,16 +460,8 @@ class K8sIntegration(Worker):
         return str(ENV_DOCKER_IMAGE.get() or session.config.get("agent.default_docker.image", "nvidia/cuda"))
 
     def _get_extra_task_config(self):
-        git_user = ENV_AGENT_GIT_USER.get() or self._session.config.get("agent.git_user", None)
-        git_pass = ENV_AGENT_GIT_PASS.get() or self._session.config.get("agent.git_pass", None)
-        git_host = ENV_AGENT_GIT_HOST.get() or self._session.config.get("agent.git_host", None)
-        git_section = self._session.config.get("agent.git", None)
         return [
             "agent.package_manager.system_site_packages: true" if self._force_system_site_packages else "",
-            'agent.git_user: "{}"'.format(git_user) if git_user else "",
-            'agent.git_pass: "{}"'.format(git_pass) if git_pass else "",
-            'agent.git_host: "{}"'.format(git_host) if git_host else "",
-            "agent.git: {}".format(json.dumps(git_section)) if git_section else "",
         ]
 
     def run_one_task(self, queue: Text, task_id: Text, worker_args=None, task_session=None, **_):

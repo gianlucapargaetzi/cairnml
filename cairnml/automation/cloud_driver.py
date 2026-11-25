@@ -1,6 +1,5 @@
 import logging
 from abc import ABC, abstractmethod
-import os
 from typing import List, Tuple, Any
 
 import attr
@@ -8,8 +7,6 @@ import attr
 from ..backend_api import Session
 from ..backend_api.session.defs import ENV_AUTH_TOKEN
 
-env_git_user = "CAIRNML_AUTOSCALER_GIT_USER"
-env_git_pass = "CAIRNML_AUTOSCALER_GIT_PASSWORD"
 
 bash_script_template = """\
 #!/bin/bash
@@ -50,18 +47,12 @@ shutdown
 """
 
 cairnml_conf_template = """\
-agent.git_user="{git_user}"
-agent.git_pass="{git_pass}"
 {extra_cairnml_conf}
 """
 
 
 @attr.s
 class CloudDriver(ABC):
-    # git
-    git_user = attr.ib()
-    git_pass = attr.ib()
-
     # cairnml
     extra_cairnml_conf = attr.ib()
     api_server = attr.ib()
@@ -151,20 +142,7 @@ class CloudDriver(ABC):
         )
 
     def cairnml_conf(self) -> str:
-        git_user = (
-            os.environ.get(env_git_user)  # ruff-format-hint
-            or self.git_user
-            or ""
-        )
-        git_pass = (
-            os.environ.get(env_git_pass)  # ruff-format-hint
-            or self.git_pass
-            or ""
-        )
-
         return cairnml_conf_template.format(
-            git_user=git_user,
-            git_pass=git_pass,
             extra_cairnml_conf=self.extra_cairnml_conf,
         )
 
@@ -180,8 +158,6 @@ class CloudDriver(ABC):
         session = Session()
         hyper_params, configurations = config["hyper_params"], config["configurations"]
         opts = {
-            "git_user": hyper_params["git_user"],
-            "git_pass": hyper_params["git_pass"],
             "extra_cairnml_conf": configurations["extra_cairnml_conf"],
             "api_server": session.get_api_server_host(),
             "web_server": session.get_app_server_host(),

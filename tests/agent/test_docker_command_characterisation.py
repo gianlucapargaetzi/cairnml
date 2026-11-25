@@ -147,7 +147,6 @@ def test_the_kubernetes_branch_maps_host_folders_to_the_node_path(common, monkey
             conf_file=str(conf),
             host_apt_cache=f"{pod}/apt",
             host_pip_cache=f"{pod}/pip",
-            host_ssh_cache=None,
         ),
     )
     node_path = str(node)

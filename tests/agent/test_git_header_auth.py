@@ -40,8 +40,9 @@ def test_a_header_token_is_only_in_the_environment_of_git():
     vcs = Git.__new__(Git)
     vcs.COMMAND_ENV = dict(Git.COMMAND_ENV)
     vcs._header_token = None
-    vcs.use_header_token(TOKEN)
+    vcs.use_header_token(TOKEN, url="https://github.com/acme/repo.git")
     assert vcs.COMMAND_ENV["GIT_CONFIG_COUNT"] == "1"
+    assert vcs.COMMAND_ENV["GIT_CONFIG_KEY_0"] == "http.https://github.com/.extraheader"
     assert vcs.COMMAND_ENV["GIT_CONFIG_VALUE_0"] == github_header(TOKEN)
     assert "GIT_ASKPASS" not in vcs.COMMAND_ENV
     assert TOKEN not in Git.COMMAND_ENV.values()
@@ -61,7 +62,7 @@ def test_fetching_the_token_asks_the_server_for_the_tasks_repository():
     assert call.json == {"task": "task-1"}
 
 
-def test_a_missing_token_is_none_so_the_configured_credentials_are_used():
+def test_a_missing_token_is_none():
     session = WireSession({"devices.git_token": answer(status=400, msg="refused")})
     assert fetch_git_token(session, "task-1") is None
 
@@ -86,7 +87,7 @@ def test_real_git_sends_the_header_and_never_the_token_in_the_url(tmp_path):
     vcs = Git.__new__(Git)
     vcs.COMMAND_ENV = dict(Git.COMMAND_ENV)
     vcs._header_token = None
-    vcs.use_header_token(TOKEN)
+    vcs.use_header_token(TOKEN, url=url)
     env = {**os.environ, **vcs.COMMAND_ENV, "GIT_CONFIG_GLOBAL": os.devnull}
     subprocess.run(["git", "ls-remote", url], env=env, capture_output=True)
     server.server_close()

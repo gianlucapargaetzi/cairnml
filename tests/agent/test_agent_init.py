@@ -220,7 +220,7 @@ def test_an_upgrade_changes_the_job_image_of_a_written_file(tmp_path, monkeypatc
     assert config.get("agent.default_docker.image") == "new/default:2"
 
 
-def test_a_hand_written_image_and_git_user_are_honoured(tmp_path, monkeypatch):
+def test_a_hand_written_image_is_honoured_and_an_old_git_user_is_only_kept_in_the_file(tmp_path, monkeypatch):
     conf = written_file(tmp_path)
     conf.write_text(conf.read_text() + 'agent.default_docker.image: "my/own:1"\nagent.git_user="bob"\n')
     monkeypatch.setenv("CAIRNML_CONFIG_FILE", str(conf))
@@ -229,6 +229,7 @@ def test_a_hand_written_image_and_git_user_are_honoured(tmp_path, monkeypatch):
     config = load()
 
     assert config.get("agent.default_docker.image") == "my/own:1"
+    # the line stays in the file the user wrote; the agent no longer reads it (it warns about it at start)
     assert config.get("agent.git_user") == "bob"
     assert config.get("agent.queue") == "q-1"
     assert config.get("api.idp.device_id") == "dev_x"
@@ -245,13 +246,12 @@ def test_the_header_keeps_the_lines_the_other_tools_read(tmp_path):
     assert "agent.queue" not in unqueued
 
 
-def test_the_git_credentials_and_package_index_are_hints_not_settings(tmp_path):
+def test_the_package_index_is_a_hint_and_the_file_offers_no_git_credential(tmp_path):
     conf = written_file(tmp_path)
     parsed = ConfigFactory.parse_file(str(conf))
-    assert parsed.get("agent.git_user", None) is None
-    assert parsed.get("agent.git_pass", None) is None
     assert parsed.get("agent.package_manager.extra_index_url", None) is None
 
-    lines = conf.read_text().splitlines()
-    for name in ("agent.git_user", "agent.git_pass", "extra_index_url"):
-        assert any(line.startswith("#") and name in line for line in lines), name
+    text = conf.read_text()
+    assert any(line.startswith("#") and "extra_index_url" in line for line in text.splitlines())
+    # the agent has no Git credentials of its own, so the file offers no place to put one
+    assert "git_user" not in text and "git_pass" not in text and "ssh" not in text.lower()
