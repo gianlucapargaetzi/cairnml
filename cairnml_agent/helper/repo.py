@@ -1,4 +1,5 @@
 import abc
+import atexit
 import os
 import re
 import shutil
@@ -18,13 +19,9 @@ from pathlib import Path
 
 
 from cairnml_agent.definitions import (
-    ENV_AGENT_GIT_USER,
-    ENV_AGENT_GIT_PASS,
-    ENV_AGENT_GIT_HOST,
     ENV_AGENT_GIT_USE_MS_ENTRA_TOKEN,
     ENV_AGENT_GIT_USE_AZURE_PAT,
     ENV_GIT_CLONE_VERBOSE,
-    ENV_SSH_URL_REPLACEMENT_SCHEME,
 )
 from cairnml_agent.helper.console import ensure_text, ensure_binary
 from cairnml.backend_api.services import devices as devices_api
@@ -150,16 +147,16 @@ class VCS(object, metaclass=abc.ABCMeta):
     @property
     def url_with_auth(self):
         """
-        Return URL with configured user/password
+        The URL as the task gave it, with the user and password it carries (the agent adds none of its own)
         """
-        return self.add_auth(self.session.config, self.url, log=self.log)
+        return self.url
 
     @property
     def url_without_auth(self):
         """
-        Return URL without configured user/password
+        The URL without any user and password
         """
-        return self.add_auth(self.session.config, self.url, reset_auth=True, log=self.log)
+        return self.add_auth(self.url, reset_auth=True)
 
     @abc.abstractmethod
     def executable_name(self):
@@ -284,149 +281,13 @@ class VCS(object, metaclass=abc.ABCMeta):
             ).url
         return url
 
-    @classmethod
-    def replace_http_url(cls, url, port=None, username=None):
-        # type: (Text, Optional[int], Optional[str]) -> Text
-        """
-        Replace HTTPS URL with SSH URL when applicable
-        """
-        parsed_url = furl(url)
-        if parsed_url.scheme == "https":
-            parsed_url.scheme = "ssh"
-            parsed_url.username = username or "git"
-            parsed_url.password = None
-            # make sure there is no port in the final url (safe_furl support)
-            # the original port was an https port, and we do not know if there is a different ssh port,
-            # so we have to clear the original port specified (https) and use the default ssh schema port.
-            parsed_url.port = port or None
-            url = parsed_url.url
-        return url
-
-    @classmethod
-    def rewrite_ssh_url(cls, url, port=None, username=None):
-        # type: (Text, Optional[int], Optional[str]) -> Text
-        """
-        Rewrite SSH URL with custom port and username
-        """
-        parsed_url = furl(url)
-        if parsed_url.scheme == "ssh":
-            parsed_url.username = username or "git"
-            parsed_url.port = port or None
-            return parsed_url.url
-
-    def _set_ssh_url(self):
-        """
-        Replace instance URL with SSH substitution result and report to log.
-        According to ``man ssh-add``, ``SSH_AUTH_SOCK`` must be set in order for ``ssh-add`` to work.
-        """
-        if self.session.config.get("agent.force_git_ssh_protocol", None) and self.url:
-            parsed_url = furl(self.url)
-            # only apply to a specific domain (if requested)
-            config_domain = ENV_AGENT_GIT_HOST.get() or self.session.config.get("agent.git_host", None)
-            if config_domain and config_domain != parsed_url.host:
-                return
-            if parsed_url.scheme == "https":
-                new_url = self.replace_http_url(
-                    self.url,
-                    port=self.session.config.get("agent.force_git_ssh_port", None),
-                    username=self.session.config.get("agent.force_git_ssh_user", None),
-                )
-                if new_url != self.url:
-                    print(
-                        "Using SSH credentials - replacing https url '{}' with ssh url '{}'".format(self.url, new_url)
-                    )
-                    self.url = new_url
-                return
-
-            # rewrite ssh URLs only if either ssh port or ssh user are forced in config
-            # TODO: fix, when url is in the form of `git@domain.com:user/project.git` we will fail to get scheme
-            # need to add ssh:// and replace first ":" with / , unless port is specified
-            if parsed_url.scheme == "ssh" and (
-                self.session.config.get("agent.force_git_ssh_port", None)
-                or self.session.config.get("agent.force_git_ssh_user", None)
-            ):
-                new_url = self.rewrite_ssh_url(
-                    self.url,
-                    port=self.session.config.get("agent.force_git_ssh_port", None),
-                    username=self.session.config.get("agent.force_git_ssh_user", None),
-                )
-                if new_url != self.url:
-                    print("Using SSH credentials - ssh url '{}' with ssh url '{}'".format(self.url, new_url))
-                    self.url = new_url
-                return
-            elif parsed_url.scheme == "ssh":
-                return
-
-        if not self.session.config.agent.translate_ssh:
-            return
-
-        # Try obtaining git credentials from configuration.
-        # Make sure config matched host if we have a git host configured and it's different than the URL host,
-        # however, we should make sure to pass the correct host if is an ssh@ URL that furl failed to parse
-        ssh_git_url_match = self.SSH_URL_GIT_SYNTAX.match(self.url)
-        config_user, config_pass = self._get_config_creds(
-            config=self.session.config,
-            full_url=self.url
-            if not ssh_git_url_match
-            else f"{ssh_git_url_match.groupdict().get('host')}:{ssh_git_url_match.groupdict().get('path')}",
-            url_host=(ssh_git_url_match and ssh_git_url_match.groupdict().get("host")) or furl(self.url).host,
-            log=self.log,
-        )
-        if not (config_user and config_pass):
-            return
-
-        # If we have git_user / git_pass replace ssh credentials with https authentication
-
-        repl_scheme = (
-            ENV_SSH_URL_REPLACEMENT_SCHEME.get()
-            or self.session.config.get("agent.translate_ssl_replacement_scheme")
-            or "https"
-        )
-        new_url = self.replace_ssh_url(self.url, replacement_scheme=repl_scheme)
-        if new_url != self.url:
-            print("Using user/pass credentials - replacing ssh url '{}' with https url '{}'".format(self.url, new_url))
-            self.url = new_url
-
-        # # if we have git_user / git_pass replace ssh credentials with https authentication
-        # if (ENV_AGENT_GIT_USER.get() or self.session.config.get('agent.git_user', None)) and \
-        #         (ENV_AGENT_GIT_PASS.get() or self.session.config.get('agent.git_pass', None)):
-        #
-        #     # only apply to a specific domain (if requested)
-        #     config_domain = \
-        #         ENV_AGENT_GIT_HOST.get() or self.session.config.get("agent.git_host", None)
-        #     if config_domain:
-        #         if config_domain != furl(self.url).host:
-        #             # bail out here if we have a git_host configured and it's different than the URL host
-        #             # however, we should make sure this is not an ssh@ URL that furl failed to parse
-        #             ssh_git_url_match = self.SSH_URL_GIT_SYNTAX.match(self.url)
-        #             if not ssh_git_url_match or config_domain != ssh_git_url_match.groupdict().get("host"):
-        #                 # do not replace to ssh url
-        #                 return
-        #
-        #     repl_scheme = (
-        #         ENV_SSH_URL_REPLACEMENT_SCHEME.get()
-        #         or self.session.config.get("agent.translate_ssl_replacement_scheme")
-        #         or "https"
-        #     )
-        #     new_url = self.replace_ssh_url(self.url, replacement_scheme=repl_scheme)
-        #     if new_url != self.url:
-        #         print("Using user/pass credentials - replacing ssh url '{}' with https url '{}'".format(
-        #             self.url, new_url))
-        #         self.url = new_url
-
     def clone(self, branch=None):
         # type: (Text) -> None
         """
         Clone repository to destination and checking out `branch`.
         If not in debug mode, filter VCS password from output.
         """
-        self._set_ssh_url()
-        # if we are on linux no need for the full auth url because we use GIT_ASKPASS
-        url = (
-            self.url_without_auth
-            if self._use_ask_pass or self._use_ms_entra_token or self._use_azure_pat or self._header_token
-            else self.url_with_auth
-        )
+        url = self._remote_url()
         clone_command = ("clone", url, self.location) + self.clone_flags()
         # clone all branches regardless of when we want to later checkout
         # if branch:
@@ -535,7 +396,7 @@ class VCS(object, metaclass=abc.ABCMeta):
                 cwd=cwd,
                 stdin=DEVNULL,
                 stdout=DEVNULL,
-                env=dict(self.COMMAND_ENV, **environ),
+                env=self._command_environment(),
             ),
             **kwargs,
         )
@@ -543,68 +404,32 @@ class VCS(object, metaclass=abc.ABCMeta):
         self.log.debug("Running: %s", list(command))
         return command.call_subprocess(func, **kwargs)
 
+    def _command_environment(self):
+        """The environment of a command: the process's, with the values this class needs on top."""
+        return dict(environ, **self.COMMAND_ENV)
+
+    def _remote_url(self):
+        """The address a clone or fetch is made from."""
+        return self.url_with_auth
+
     def _get_vcs_command(self, argv):
         # type: (Iterable[PathLike]) -> Argv
         return Argv(self.executable_name, *argv)
 
-    @classmethod
-    def _get_config_creds(cls, config, full_url, url_host, log=None) -> Tuple[Optional[str], Optional[str]]:
-        config_user = ENV_AGENT_GIT_USER.get() or config.get(f"agent.{cls.executable_name}_user", None)
-        config_pass = ENV_AGENT_GIT_PASS.get() or config.get(f"agent.{cls.executable_name}_pass", None)
-        config_host = ENV_AGENT_GIT_HOST.get() or config.get(f"agent.{cls.executable_name}_host", None)
-
-        url_host = (url_host or "").lower()
-
-        def match_host(h):
-            nonlocal url_host
-            return (
-                full_url.startswith(h.lower())
-                if config.get("agent.git_host_match_prefix", False)
-                else url_host == h.lower()
-            )
-
-        result = (config_user, config_pass) if not config_host or match_host(config_host) else (None, None)
-
-        extra_credentials = config.get(f"agent.{cls.executable_name}.extra_credentials", None)
-        if extra_credentials and log:
-            log.info(f"Scanning extra {cls.executable_name} credentials")
-        for i, creds in enumerate(extra_credentials or []):
-            username = creds.get("user", creds.get("username", None))
-            password = creds.get("pass", creds.get("password", None))
-            host = creds.get("host", None)
-            if not (username and password and host):
-                if log:
-                    log.warning("Git extra credentials entry #{i} does not contain user, pass or host, skipping")
-                continue
-            if match_host(host):
-                if log:
-                    log.info(f"Matched extra {cls.executable_name} credentials for host {host} user {username}")
-                return username, password
-
-        return result
-
-    @classmethod
-    def add_auth(cls, config, url, reset_auth=False, log=None):
+    @staticmethod
+    def add_auth(url, reset_auth=False):
         """
-        Add username and password to URL if missing from URL and present in config.
-        Does not modify ssh URLs.
-
-        :param reset_auth: If true remove the user/pass from the URL (default False)
+        The URL, or with reset_auth the URL without the user and password it carries. Never adds a credential: the
+        agent has none of its own (see resolve_git_clone).
         """
         try:
             parsed_url = furl(url)
         except ValueError:
             return url
-        if parsed_url.scheme in ["", "ssh"] or (parsed_url.scheme or "").startswith("git"):
-            return parsed_url.url
-        if reset_auth:
+        if reset_auth and parsed_url.scheme not in ["", "ssh"] and not (parsed_url.scheme or "").startswith("git"):
             parsed_url.set(username=None, password=None)
             return parsed_url.url
-
-        config_user, config_pass = cls._get_config_creds(config=config, full_url=url, url_host=parsed_url.host, log=log)
-        if (not (parsed_url.username and parsed_url.password)) and config_user and config_pass:
-            parsed_url.set(username=config_user, password=config_pass)
-        return parsed_url.url
+        return url
 
     @abc.abstractmethod
     def info_commands(self):
@@ -627,6 +452,46 @@ class VCS(object, metaclass=abc.ABCMeta):
         return RepoInfo(type=self.executable_name, **commands_result)
 
 
+# What a git command of the agent must not take from the machine it runs on: an SSH agent, ssh itself, askpass
+# helpers and every git configuration the host or the user set, since each can hand the host's own credentials to
+# the clone. The agent's commands run with the values of Git.COMMAND_ENV instead (see Git._command_environment).
+_GIT_ENV_BLOCKED = frozenset(
+    {
+        "SSH_AUTH_SOCK",
+        "SSH_ASKPASS",
+        "SSH_ASKPASS_REQUIRE",
+        "GIT_ASKPASS",
+        "GIT_SSH",
+        "GIT_SSH_COMMAND",
+        "GIT_CONFIG",
+        "GIT_CONFIG_GLOBAL",
+        "GIT_CONFIG_SYSTEM",
+        "GIT_CONFIG_NOSYSTEM",
+        "GIT_CONFIG_PARAMETERS",
+        "GIT_CONFIG_COUNT",
+    }
+)
+_GIT_ENV_BLOCKED_PREFIXES = ("GIT_CONFIG_KEY_", "GIT_CONFIG_VALUE_")
+# ssh is never used for a job's repository: an address in ssh form is refused (see resolve_git_clone), and a
+# submodule or redirect that asks for it fails here
+_REFUSING_SSH_COMMAND = "false"
+
+_agent_gitconfig_file = None
+
+
+def agent_gitconfig():
+    """
+    The agent's own global git configuration, a file of its own (removed at exit) that stands in for the host's
+    ~/.gitconfig, ~/.config/git/config and the system configuration. It holds what the agent writes (safe.directory).
+    """
+    global _agent_gitconfig_file
+    if _agent_gitconfig_file is None or not os.path.exists(_agent_gitconfig_file):
+        handle, _agent_gitconfig_file = tempfile.mkstemp(prefix="cairnml_gitconfig_")
+        os.close(handle)
+        atexit.register(safe_remove_file, _agent_gitconfig_file)
+    return _agent_gitconfig_file
+
+
 class Git(VCS):
     executable_name = "git"
     main_branch = ("master", "main")
@@ -634,14 +499,17 @@ class Git(VCS):
     COMMAND_ENV = {
         # do not prompt for password
         "GIT_TERMINAL_PROMPT": "0",
-        # do not prompt for ssh key passphrase
-        "GIT_SSH_COMMAND": "ssh -oBatchMode=yes",
+        # no host or system git configuration (credential helpers, url rewrites, an ssh command): the agent's own
+        # file stands in for it, see agent_gitconfig(); this value is set per instance
+        "GIT_CONFIG_NOSYSTEM": "1",
+        # never ssh: the host's keys are not the job's credential
+        "GIT_SSH_COMMAND": _REFUSING_SSH_COMMAND,
     }
 
     def __init__(self, *args, **kwargs):
         super(Git, self).__init__(*args, **kwargs)
         # this instance's own environment, so a token given to it is not shared with other repositories
-        self.COMMAND_ENV = dict(self.COMMAND_ENV)
+        self.COMMAND_ENV = dict(self.COMMAND_ENV, GIT_CONFIG_GLOBAL=agent_gitconfig())
 
         self._use_ask_pass = (
             False if not self.session.config.get("agent.enable_git_ask_pass", True) else sys.platform == "linux"
@@ -664,6 +532,24 @@ class Git(VCS):
         except:  # noqa
             pass
 
+    def _command_environment(self):
+        """The process's environment without what could carry the host's credentials, plus COMMAND_ENV."""
+        env = {
+            name: value
+            for name, value in environ.items()
+            if name not in _GIT_ENV_BLOCKED and not name.startswith(_GIT_ENV_BLOCKED_PREFIXES)
+        }
+        env.update(self.COMMAND_ENV)
+        return env
+
+    def _remote_url(self):
+        # if we are on linux no need for the full auth url because we use GIT_ASKPASS
+        return (
+            self.url_without_auth
+            if self._use_ask_pass or self._use_ms_entra_token or self._use_azure_pat or self._header_token
+            else self.url_with_auth
+        )
+
     @staticmethod
     def remote_branch_name(branch):
         return ["origin/{}".format(b) for b in ([branch] if isinstance(branch, str) else branch)]
@@ -681,7 +567,11 @@ class Git(VCS):
         )
 
     def pull(self):
-        self._set_ssh_url()
+        # a cached clone made by an earlier agent can hold credentials in its origin address: use this run's address
+        try:
+            self.call("remote", "set-url", "origin", self._remote_url(), cwd=self.location)
+        except subprocess.CalledProcessError:
+            pass
         fetch_args = self.session.config.get("agent.git_fetch_args")
         if not isinstance(fetch_args, (list, tuple)):
             self.log.warning(
@@ -691,17 +581,22 @@ class Git(VCS):
             fetch_args = []
         self.call("fetch", *fetch_args, cwd=self.location)
 
-    def use_header_token(self, token, username=GITHUB_APP_USERNAME):
+    def use_header_token(self, token, username=GITHUB_APP_USERNAME, url=None):
         """
-        Authenticate every git command with a token sent as HTTP basic auth in an HTTP header in the environment
-        (GIT_CONFIG_COUNT). The token is never in the URL, on the command line or in a file, and no askpass
-        helper is used. A GitHub App token uses the username x-access-token; a stored Git credential uses its own.
+        Authenticate the git commands that reach the repository's own host with a token sent as HTTP basic auth in
+        an HTTP header in the environment (GIT_CONFIG_COUNT). The header is scoped to the origin of the clone
+        address (http.<origin>/.extraheader), so a submodule or a redirect on another host never receives it. The
+        token is never in the URL, on the command line or in a file, and no askpass helper is used. A GitHub App
+        token uses the username x-access-token; a stored Git credential uses its own.
         """
+        address = furl(url or self.url)
+        if address.scheme not in ("http", "https") or not address.host:
+            raise ValueError("a token can only be sent to an http(s) address, not to {}".format(address.scheme))
         self._header_token = token
         self._header_username = username
         self.COMMAND_ENV.update(
             GIT_CONFIG_COUNT="1",
-            GIT_CONFIG_KEY_0="http.extraheader",
+            GIT_CONFIG_KEY_0="http.{}://{}/.extraheader".format(address.scheme, address.netloc),
             GIT_CONFIG_VALUE_0=basic_auth_header(username, token),
         )
 
@@ -856,6 +751,22 @@ def request_git_token(session, task_id):
     return result
 
 
+class RepositoryAccessError(Exception):
+    """The job's repository cannot be read with what the agent may use; the message says what to do about it."""
+
+
+ASSIGN_OR_INSTALL = (
+    "assign a credential to it under Repositories & Datasets in the web app, or install the GitHub App on it"
+)
+
+
+def repository_access_message(repository_url, reason):
+    """The message of a repository that cannot be read: the repository, why, and the two remedies."""
+    return "The repository {} could not be read: {}. If it is private, {}.".format(
+        furl(repository_url).remove(password=True).tostr() if repository_url else "(none)", reason, ASSIGN_OR_INSTALL
+    )
+
+
 def git_credential_from_answer(res):
     """
     (username, secret) from a successful answer. A public repository is answered with a null token: it has no
@@ -933,37 +844,61 @@ def _is_http_address(repository_url):
         return False
 
 
+def is_ssh_address(repository_url):
+    """Whether the address is in ssh form: ssh://..., or git@host:owner/name (scp-like)."""
+    url = (repository_url or "").strip()
+    if "://" in url:
+        return (furl(url).scheme or "").lower() in ("ssh", "git+ssh")
+    return bool(SCP_LIKE_URL_RE.match(url)) and not os.path.isabs(url)
+
+
+def github_https_address(repository_url):
+    """The https address of a GitHub repository given in any form (see is_github_repository)."""
+    return (
+        VCS.replace_ssh_url(repository_url, replacement_scheme="https")
+        if is_ssh_address(repository_url)
+        else (repository_url)
+    )
+
+
 def resolve_git_clone(session, repository_url, task_id):
     """
-    How the agent clones the task's repository, as (clone_url, credential). clone_url is the address the server
-    gives for the repository (None when the server gives none, or when the agent is not asked); credential is
-    (username, secret) or None. The server is asked only for the task, so an agent can only obtain the
-    credential of the repository it runs. An answer without a url is used as before: the task's address, with
-    its credential only over HTTP(S), since a token cannot authenticate an ssh clone.
+    How the agent clones the task's repository, as (clone_url, credential). The only credential a repository is read
+    with is the token the server issues for it, or none (a public repository): the host's SSH keys and git setup and
+    the agent's own configuration are never used.
+    - clone_url is the address to clone from: the one the server gives, else the task's address with an ssh-form
+      GitHub address made https; None when the task's address is used as it is.
+    - credential is (username, secret) or None.
+    An answer with a token means "use it", an answer without one means the repository is public or has no credential
+    (the clone is then anonymous), and no answer or a refusal fails the job: nothing on this machine stands in for it.
+    :raises: RepositoryAccessError for an ssh address of another host than GitHub, and when the server gives no answer
     """
-    if not task_id or not wants_stored_credential(repository_url):
-        return None, None
+    url = (repository_url or "").strip()
+    clone_url = None
+    if is_ssh_address(url):
+        if not is_github_repository(url):
+            raise RepositoryAccessError(
+                "The repository {} is given as an ssh address, and the agent never uses ssh. Use its https address "
+                "instead (https://<host>/<owner>/<name>.git) and make sure the server has a credential for it if "
+                "it is private.".format(url)
+            )
+        clone_url = github_https_address(url)
+    if not task_id or not wants_stored_credential(clone_url or url):
+        return clone_url, None
     res = request_git_token(session, task_id)
     if res is None:
-        print(
-            "The server has no Git credential for {}, using the configured credentials".format(
-                furl(repository_url).host
-            )
+        raise RepositoryAccessError(
+            repository_access_message(url, "the server refused or did not answer the request for its credential")
         )
-        return None, None
     credential = git_credential_from_answer(res)
-    clone_url = (res.response_data or {}).get("url")
-    if clone_url:
-        return clone_url, credential
-    if not _is_http_address(repository_url):
-        return None, None
-    return None, credential
+    answer_url = (res.response_data or {}).get("url")
+    return (answer_url or clone_url), credential
 
 
 def select_git_credential(session, repository_url, task_id):
     """
-    The credential the agent uses to clone the task's repository, as (username, secret), or None when the
-    configured credentials (if any) are used instead (see resolve_git_clone).
+    The credential the agent uses to clone the task's repository, as (username, secret), or None when the repository
+    is cloned without one (see resolve_git_clone).
     """
     return resolve_git_clone(session, repository_url, task_id)[1]
 
@@ -1018,37 +953,47 @@ def clone_repository_cached(session, execution, destination, task_id=None):
         if not find_executable(vcs.executable_name):
             raise CommandFailedError(vcs.executable_not_found_error_help())
         clone_url = None
+        credential = None
         if isinstance(vcs, Git):
             clone_url, credential = resolve_git_clone(session, repo_url, task_id)
             if clone_url:
                 vcs.url = clone_url
             if credential:
-                vcs.use_header_token(credential[1], username=credential[0])
+                vcs.use_header_token(credential[1], username=credential[0], url=vcs.url)
 
         if not standalone_mode:
-            if session.config["agent.vcs_cache.enabled"] and cached_repo_path.exists():
-                print('Using cached repository in "{}"'.format(cached_repo_path))
-
-            else:
-                print("cloning: {}".format(clone_url or no_password_url))
-                rm_tree(cached_repo_path)
-                # We clone the entire repository, not a specific branch
-                vcs.clone()  # branch=execution.branch)
-
-            print("pulling git")
             try:
-                vcs.pull()
-            except Exception as ex:
-                print("git pull failed: {}".format(ex))
-                if session.config.get("agent.vcs_cache.enabled", False) and session.config.get(
-                    "agent.vcs_cache.clone_on_pull_fail", False
-                ):
-                    print("pulling git failed, re-cloning: {}".format(no_password_url))
-                    rm_tree(cached_repo_path)
-                    vcs.clone()
+                if session.config["agent.vcs_cache.enabled"] and cached_repo_path.exists():
+                    print('Using cached repository in "{}"'.format(cached_repo_path))
+
                 else:
-                    raise ex
-            print("pulling git completed")
+                    print("cloning: {}".format(clone_url or no_password_url))
+                    rm_tree(cached_repo_path)
+                    # We clone the entire repository, not a specific branch
+                    vcs.clone()  # branch=execution.branch)
+
+                print("pulling git")
+                try:
+                    vcs.pull()
+                except Exception as ex:
+                    print("git pull failed: {}".format(ex))
+                    if session.config.get("agent.vcs_cache.enabled", False) and session.config.get(
+                        "agent.vcs_cache.clone_on_pull_fail", False
+                    ):
+                        print("pulling git failed, re-cloning: {}".format(no_password_url))
+                        rm_tree(cached_repo_path)
+                        vcs.clone()
+                    else:
+                        raise ex
+                print("pulling git completed")
+            except subprocess.CalledProcessError as ex:
+                if isinstance(vcs, Git) and credential is None and _is_http_address(vcs.url):
+                    raise RepositoryAccessError(
+                        repository_access_message(
+                            repo_url, "the server issued no token for it and it cannot be read without one"
+                        )
+                    ) from ex
+                raise
 
             rm_tree(destination)
             shutil.copytree(

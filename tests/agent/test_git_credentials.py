@@ -11,6 +11,7 @@ from cairnml.backend_api.services import API_LEVEL
 from cairnml_agent.backend_api.session.session import Session
 from cairnml_agent.helper.repo import (
     Git,
+    RepositoryAccessError,
     basic_auth_header,
     fetch_git_credential,
     github_header,
@@ -65,8 +66,9 @@ def test_a_header_token_with_a_username_is_only_in_the_environment_of_git():
     vcs = Git.__new__(Git)
     vcs.COMMAND_ENV = dict(Git.COMMAND_ENV)
     vcs._header_token = None
-    vcs.use_header_token(TOKEN, username="oauth2")
+    vcs.use_header_token(TOKEN, username="oauth2", url="https://gitlab.example.com/team/repo.git")
     assert vcs.COMMAND_ENV["GIT_CONFIG_VALUE_0"] == basic_auth_header("oauth2", TOKEN)
+    assert vcs.COMMAND_ENV["GIT_CONFIG_KEY_0"] == "http.https://gitlab.example.com/.extraheader"
     assert TOKEN not in Git.COMMAND_ENV.values()
 
 
@@ -98,10 +100,9 @@ def test_a_non_github_https_repository_gets_the_stored_credential_of_the_task():
     assert call.version == API_LEVEL
 
 
-def test_the_credential_is_never_asked_for_a_plain_http_or_ssh_repository():
+def test_the_credential_is_never_asked_for_a_plain_http_repository():
     session, calls = session_answering(reply(data={"token": TOKEN, "username": "oauth2"}))
     assert select_git_credential(session, "http://gitlab.example.com/team/repo.git", "task-1") is None
-    assert select_git_credential(session, "ssh://git@gitlab.example.com/team/repo.git", "task-1") is None
     assert calls == []
 
 
@@ -111,11 +112,10 @@ def test_without_a_task_no_credential_is_asked_for():
     assert calls == []
 
 
-def test_a_host_without_a_stored_credential_falls_back_to_the_configured_ones(capsys):
+def test_a_refused_request_fails_the_job_instead_of_falling_back_to_configured_credentials():
     session, _ = session_answering(reply(ok=False))
-    assert select_git_credential(session, "https://gitlab.example.com/team/repo.git", "task-1") is None
-    out = capsys.readouterr().out
-    assert out == "The server has no Git credential for gitlab.example.com, using the configured credentials\n"
+    with pytest.raises(RepositoryAccessError):
+        select_git_credential(session, "https://gitlab.example.com/team/repo.git", "task-1")
 
 
 def test_a_public_repository_has_no_credential_and_no_message(capsys):
@@ -158,7 +158,7 @@ def test_real_git_sends_the_stored_credential_to_a_non_github_host_and_not_in_th
     vcs = Git.__new__(Git)
     vcs.COMMAND_ENV = dict(Git.COMMAND_ENV)
     vcs._header_token = None
-    vcs.use_header_token(TOKEN, username="oauth2")
+    vcs.use_header_token(TOKEN, username="oauth2", url=url)
     env = {**os.environ, **vcs.COMMAND_ENV, "GIT_CONFIG_GLOBAL": os.devnull}
     subprocess.run(["git", "ls-remote", url], env=env, capture_output=True)
     server.server_close()
@@ -178,8 +178,6 @@ GITHUB_ADDRESSES = [
 ]
 
 OTHER_HOST_ADDRESSES = [
-    "git@gitlab.example.com:team/repo.git",
-    "ssh://git@gitlab.example.com/team/repo.git",
     "http://gitlab.example.com/team/repo.git",
     "gitlab.example.com/team/repo.git",
 ]
@@ -236,9 +234,12 @@ def test_an_answer_without_a_url_keeps_the_task_address_and_its_credential():
     )
 
 
-def test_an_answer_without_a_url_gives_an_ssh_github_address_no_credential():
+def test_an_answer_without_a_url_clones_an_ssh_github_address_over_https_with_the_token():
     session, calls = session_answering(reply(data={"token": TOKEN, "username": None}))
-    assert resolve_git_clone(session, "git@github.com:owner/name.git", "task-1") == (None, None)
+    assert resolve_git_clone(session, "git@github.com:owner/name.git", "task-1") == (
+        "https://github.com/owner/name.git",
+        ("x-access-token", TOKEN),
+    )
     assert len(calls) == 1
 
 

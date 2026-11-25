@@ -164,6 +164,7 @@ from cairnml_agent.helper.job_token import (
     write_job_token,
 )
 from cairnml_agent.helper.repo import (
+    RepositoryAccessError,
     clone_repository_cached,
     fix_package_import_diff_patch,
     patch_add_task_init_call,
@@ -3420,6 +3421,13 @@ class Worker(ServiceCommandSection):
             )
         except CommandFailedError:
             raise
+        except RepositoryAccessError as ex:
+            # the message names the repository and what to do: it is the task's status message
+            print("Repository cloning failed: {}".format(ex))
+            task.failed(status_reason="failed cloning repository", status_message=str(ex))
+            if self._session.debug_mode:
+                raise
+            raise CommandFailedError(str(ex)) from ex
         except Exception as ex:
             print("Repository cloning failed: {}".format(ex))
             task.failed(

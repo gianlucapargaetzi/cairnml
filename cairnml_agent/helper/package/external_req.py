@@ -99,7 +99,6 @@ class ExternalRequirements(SimpleSubstitution):
                 from ..repo import Git
 
                 vcs = Git(session=session, url=vcs_url, location=None, revision=None)
-                vcs._set_ssh_url()
                 new_req_line = "git+{}{}".format(vcs.url_with_auth, fragment)
                 if new_req_line != req_line:
                     furl_line = furl(new_req_line)
