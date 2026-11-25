@@ -166,6 +166,7 @@ from cairnml_agent.helper.job_token import (
 from cairnml_agent.helper.repo import (
     RepositoryAccessError,
     clone_repository_cached,
+    removed_credential_settings,
     fix_package_import_diff_patch,
     patch_add_task_init_call,
     RepoInfo,  # noqa: F401  # used in type comments
@@ -1748,6 +1749,20 @@ class Worker(ServiceCommandSection):
         host = urlparse(self._session.config.get("api.api_server", "") or "").hostname
         return host in ("localhost", "127.0.0.1", "::1")
 
+    def _warn_about_removed_git_credential_settings(self, environment=None):
+        """Say once that settings which gave the agent Git credentials of its own (or the host's SSH setup) have no
+        effect any more: a job's repository is read with the token the server issues for it, or anonymously."""
+        names = removed_credential_settings(self._session.config, environment)
+        if not names:
+            return
+        message = (
+            "cairnml-agent: ignoring {}. The agent has no Git credentials of its own: a job's repository is read with "
+            "the token the server issues for it, or without a credential when it is public. Remove these settings, "
+            "and store the credential on the server (assign it under Repositories & Datasets in the web app)."
+        ).format(", ".join(names))
+        print(message)
+        self.log.warning(message)
+
     def daemon(self, queues, log_level, foreground=False, docker=False, detached=False, order_fairness=False, **kwargs):
         use_docker = docker not in (False, None)
         allow_venv = bool(kwargs.get("allow_venv", False))
@@ -1770,6 +1785,7 @@ class Worker(ServiceCommandSection):
         venv_warning = check_execution_mode(use_docker, allow_venv)
         if venv_warning:
             print(venv_warning)
+        self._warn_about_removed_git_credential_settings()
         self._run_mode = run_mode_for(use_docker, allow_venv)
         # only the agent's owner may read its folder, which holds the device key
         secure_folder(DEVICE_KEY_PATH.parent)

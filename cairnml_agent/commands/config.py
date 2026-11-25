@@ -103,12 +103,9 @@ def write_config(conf_file, api_host, web_host, device_id, queue=""):
             if queue:
                 # the agent's own queue: the one it serves when no --queue is given (set by the server at enrolment)
                 f.write('agent.queue="%s"\n\n' % queue)
-            # Git credentials and extra package indexes are not set; uncomment and edit these lines to set them.
+            # The agent has no Git credentials of its own (the server issues a token for each job's repository); an extra
+            # package index is not set: uncomment and edit the line to set it.
             f.write(
-                "# Set GIT user/pass credentials (leave both unset for GIT SSH credentials)\n"
-                '# agent.git_user: "<user>"\n'
-                '# agent.git_pass: "<token>"\n'
-                "\n"
                 "# Extra package indexes\n"
                 '# agent.package_manager.extra_index_url: ["https://cairnml.jfrog.io/cairnml/api/pypi/public/simple"]\n'
             )

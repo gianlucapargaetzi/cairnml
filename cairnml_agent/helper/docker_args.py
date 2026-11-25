@@ -4,7 +4,6 @@ from typing import Tuple, List, TYPE_CHECKING, Optional
 from urllib.parse import urlunparse, urlparse
 
 from cairnml_agent.definitions import (
-    ENV_AGENT_GIT_PASS,
     ENV_AWS_SECRET_KEY,
     ENV_AZURE_ACCOUNT_KEY,
     ENV_AGENT_AUTH_TOKEN,
@@ -58,7 +57,8 @@ class DockerArgsSanitizer:
         if ENV_DOCKER_ARGS_HIDE_ENV.get():
             keys.update(shlex.split(ENV_DOCKER_ARGS_HIDE_ENV.get().strip()))
         keys.update(
-            ENV_AGENT_GIT_PASS.vars,
+            # no longer read by the agent; an old value in a container environment is still masked
+            ["CAIRNML_AGENT_GIT_PASS"],
             ENV_AWS_SECRET_KEY.vars,
             ENV_AZURE_ACCOUNT_KEY.vars,
             ENV_AGENT_AUTH_TOKEN.vars,

@@ -751,6 +751,39 @@ def request_git_token(session, task_id):
     return result
 
 
+# The settings and environment variables that gave the agent Git credentials of its own, or made it use the host's SSH
+# setup. They are gone (cairnml#194): a job's repository is read with the token the server issues for it, or anonymously.
+# A configuration that still has them is told so once (see removed_credential_settings); none of them has an effect.
+REMOVED_SETTINGS = (
+    "agent.git_user",
+    "agent.git_pass",
+    "agent.git_host",
+    "agent.git_host_match_prefix",
+    "agent.git",
+    "agent.force_git_ssh_protocol",
+    "agent.force_git_ssh_port",
+    "agent.force_git_ssh_user",
+    "agent.disable_ssh_mount",
+    "agent.translate_ssh",
+    "agent.translate_ssl_replacement_scheme",
+)
+REMOVED_ENVIRONMENT_VARIABLES = (
+    "CAIRNML_AGENT_GIT_USER",
+    "CAIRNML_AGENT_GIT_PASS",
+    "CAIRNML_AGENT_GIT_HOST",
+    "CAIRNML_AGENT_DISABLE_SSH_MOUNT",
+    "CAIRNML_AGENT_SSH_URL_REPLACEMENT_SCHEME",
+)
+
+
+def removed_credential_settings(config, environment=None):
+    """The names of the removed settings and environment variables that are set to something (empty and false values
+    are not a credential and are not named). Values are never returned."""
+    environment = environ if environment is None else environment
+    named = [name for name in REMOVED_SETTINGS if config.get(name, None)]
+    return named + [name for name in REMOVED_ENVIRONMENT_VARIABLES if environment.get(name)]
+
+
 class RepositoryAccessError(Exception):
     """The job's repository cannot be read with what the agent may use; the message says what to do about it."""
 

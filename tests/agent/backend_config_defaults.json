@@ -137,7 +137,6 @@
       "cidfile",
       "group-add"
     ],
-    "force_git_ssh_protocol": false,
     "git_fetch_args": [
       "--all",
       "--tags",
@@ -202,8 +201,6 @@
         "^extra_index_url$"
       ]
     },
-    "translate_ssh": true,
-    "translate_ssl_replacement_scheme": "https",
     "vcs_cache": {
       "enabled": true,
       "path": "~/.cairnml/vcs-cache"
