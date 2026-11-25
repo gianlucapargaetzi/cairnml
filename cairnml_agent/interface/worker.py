@@ -83,7 +83,8 @@ DAEMON_ARGS = dict(
             "group": "Docker support",
         },
         "--queue": {
-            "help": "Queue ID(s)/Name(s) to pull tasks from ('default' queue)."
+            "help": "Queue ID(s)/Name(s) to pull tasks from (default: the queue made for this machine when the agent"
+            " was enrolled)."
             " Note that the queue list order determines priority, with the first listed queue having the"
             " highest priority. To change this behavior, use --order-fairness to pull from each queue in a"
             " round-robin order",
