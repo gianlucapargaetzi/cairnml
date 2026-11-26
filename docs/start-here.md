@@ -44,11 +44,7 @@ flowchart LR
 
 1. **Start the server.** On a Linux host with Docker, clone the server repository and run `deploy/scripts/bootstrap.sh`. Note the server's address.
 2. **Sign in.** Open `http://<server-ip>/cairnml/` and sign in as the admin named in `deploy/.env`. Other accounts are created by an administrator in Keycloak.
-3. **Connect the SDK.** Run `pip install cairnml`, then `cairnml init http://<server-ip>`. Your browser opens the sign-in page; when the command prints `enrolled as ...`, this machine is connected.
-4. **First run.** Track a script with `Task.init(...)`. The run appears in the web app under its project. No agent is needed yet.
-5. **Optional: add an agent.** On the machine that should run jobs, install the agent with `pip install "cairnml[agent]"`, run `cairnml-agent init http://<server-ip>` (an admin signs in), then `cairnml-agent daemon --docker`. `init` prints the queue made for this machine, and the agent serves only that queue: send a task with `Task.enqueue(task, queue_name="<that queue>")`. The agent's machine appears under **Workers & Queues**.
-
-If a machine has no browser, `cairnml init` and `cairnml-agent init` show a short code and an address instead. Open the address on another device, sign in, and enter the code.
+3. **Connect the SDK, run, and optionally add an agent.** Follow the [README](../README.md): Installation, Enrollment and Getting started. An agent is only needed to run jobs on another machine.
 
 ## Glossary
 
