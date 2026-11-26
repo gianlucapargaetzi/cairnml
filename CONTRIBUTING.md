@@ -68,6 +68,18 @@ In your PR include:
 * A brief description of the approach you've taken for implementing
 
 
+## Unit tests
+
+To run the SDK's tests from a checkout, install it into a virtual environment together with pytest, then run the tests (the same commands CI runs):
+
+```bash
+python3 -m venv .venv && . .venv/bin/activate
+python -m pip install -e ".[dataset]" pytest
+python -m pytest -q tests
+```
+
+The agent's tests have their own commands: see [docs/agent/CONTRIBUTING.md](docs/agent/CONTRIBUTING.md).
+
 ## Integration tests (a real server)
 
 `tests/integration/` runs the SDK against a real CairnML server: the checks that the unit tests, which mock the server,

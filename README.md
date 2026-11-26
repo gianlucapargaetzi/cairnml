@@ -15,84 +15,91 @@
   <a href="https://github.com/gianlucapargaetzi/cairnml/blob/main/LICENSE"><img src="https://img.shields.io/github/license/gianlucapargaetzi/cairnml?style=flat-square&color=green" alt="License"></a>
 </p>
 
-# CairnML SDK
+# CairnML
 
-The CairnML SDK is the Python library you add to your training scripts. It records what a run does (parameters, metrics, logs and artifacts), sends runs to remote agents through job queues, and versions datasets so that every run knows the exact data it used.
+CairnML records what your training scripts do, runs them on other machines, and versions the data they use. This Python package is the SDK for your scripts; the extra `cairnml[agent]` adds the agent that runs queued jobs.
 
-New to CairnML? Read [Start here](docs/start-here.md) first: it explains the four parts (server, SDK, agent, web app), which are required, and the order of setup.
+The setup order: a **server** runs (usually already set up for you), then you install the **SDK** and enroll it, optionally install and enroll an **agent** on the machine that runs jobs, and use the **web app** in your browser. [Start here](docs/start-here.md) explains the four parts in more detail.
 
 ## Features
 
-- Track a training script with a few lines: parameters, metrics, logs and artifacts are recorded on your server.
-- Send a recorded run to an agent on another machine through a job queue.
-- Version datasets with git, with the files in DVC storage or in GitHub LFS, and record the dataset commit on every run.
-- Read public datasets through adapters from the [dataset registry](https://github.com/gianlucapargaetzi/cairnml-dataset-registry), with the source revision recorded.
+- **Track** a script with a few lines: parameters, metrics, logs and artifacts are recorded on your server.
+- **Run remotely:** send a run to an agent on another machine through a job queue. The agent runs each job in Docker.
+- **Version datasets** with git, with the files in DVC storage or GitHub LFS. Every run records the exact data commit it used.
+- **Read public datasets** from the [dataset registry](https://github.com/gianlucapargaetzi/cairnml-dataset-registry).
+- **Browse everything** in the web app: projects, runs, datasets, workers and queues.
 
 ## Prerequisites
 
 - Python 3.9 or newer
-- git, for datasets
 - A running [CairnML server](https://github.com/gianlucapargaetzi/cairnml-server)
+- git, for datasets
+- Docker, on the machine that runs an agent. For GPU jobs the machine also needs the NVIDIA driver and the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html).
+
+> [!IMPORTANT]
+> You need a login on the server before you can enroll anything. Accounts are created by an administrator of the server: ask them for one before you start. Without it, `cairnml init` and `cairnml-agent init` cannot sign you in.
+
+> [!TIP]
+> To check that Docker can use the GPU, run `docker run --rm --gpus all ubuntu nvidia-smi`. If it prints your GPU, jobs can use it.
 
 ## Installation
 
 ```bash
+python3 -m venv .venv && . .venv/bin/activate
 pip install cairnml
 ```
 
-For the dataset tools as well:
+Add an extra for what you need, for example `pip install "cairnml[agent]"`:
 
-```bash
-pip install "cairnml[dataset]"
-```
+| Extra | Adds |
+|---|---|
+| `cairnml[agent]` | the agent: `cairnml-agent`, which runs queued jobs on this machine |
+| `cairnml[dataset]` | the dataset tools (`cairnml dataset ...`) |
+| `cairnml[plot]` | matplotlib figures as interactive plotly plots (without it, figures are sent as images) |
 
-GPU monitoring needs no extra: the resource monitor reads NVIDIA GPU utilisation, memory and power with the packages that
-`pip install cairnml` installs (NVIDIA's bindings and `gpustat`). AMD GPUs need the ROCm installation; see
-`docs/amd-gpu-monitoring.md`. The extra `gpu` of earlier instructions still installs and adds nothing.
+## Enrollment
 
-Two more extras add optional features:
+Every machine enrolls once, with its own key. No access key is copied between machines.
 
-- `cairnml[plot]` sends matplotlib figures as interactive plotly plots. Without it, figures are sent as images.
-- `cairnml[agent]` installs the agent, the `cairnml-agent` command that runs queued jobs on another machine. See [docs/agent/README.md](docs/agent/README.md).
-
-To run the SDK's tests from a checkout, install it into a virtual environment together with pytest, then run the tests (the same commands CI runs):
-
-```bash
-python3 -m venv .venv && . .venv/bin/activate
-python -m pip install -e ".[dataset]" pytest
-python -m pytest -q tests
-```
-
-## Connect to your server
+**SDK**, on every machine whose scripts you want to track:
 
 ```bash
 cairnml init http://<server-ip>
 ```
 
-`<server-ip>` is the address of the server, for example `http://localhost` or `http://192.168.1.20`. Add a port only if the server does not use port 80. The command works out where the API and the web app are (`<address>/cairnml/api` and `<address>/cairnml/`).
+`<server-ip>` is the address of your server, as your team gave it to you (on the machine that runs the server, `http://localhost`). Add a port only if the server does not use port 80. Your browser opens the sign-in page; when the command prints `enrolled as ...`, the machine is connected.
 
-Your browser opens the sign-in page. When the command prints `enrolled as ...`, this machine is connected. Each machine has its own key, so no access key is copied to it.
+**Agent**, on the machine that should run jobs:
 
-The browser sign-in receives its reply on `127.0.0.1:8765`. The identity provider accepts only this redirect address for the CairnML client. Set `CAIRNML_LOGIN_PORT` to another port only if the identity provider also accepts that redirect address; `0` lets the system pick a free port, which the identity provider rejects today. If another program on the machine holds the port, `cairnml init` says so and signs in with a code instead (see `--device`). On a machine without a browser, `cairnml init --device` always uses the code.
+```bash
+cairnml-agent init http://<server-ip>
+cairnml-agent daemon --docker
+```
 
-Environment variables are named `CAIRNML_*`; the ClearML-era `TRAINS_*` names are no longer read, so a `TRAINS_*` variable has no effect (see [docs/environment.md](docs/environment.md) for every variable). The configuration file `~/trains.conf` (from the ClearML-based original) still works and prints a deprecation warning once; rename it to `~/.cairnml/cairnml.conf`. `cairnml init` writes `~/.cairnml/cairnml.conf`, next to the device key; the earlier `~/cairnml.conf` is still read. The file holds only the enrolment and what you set by hand; the defaults come from the installed version, so an upgrade changes them, and `cairnml doctor` reports a file an older version wrote with a copy of them.
+`init` makes a queue for this machine and prints its name. `daemon` starts the agent, which serves that queue and keeps this terminal busy until you stop it (see the tip on `--detached` below).
 
-## Commands
+> [!IMPORTANT]
+> An agent serves only the queue made when it was enrolled. Send its jobs to that queue. **Workers & Queues** in the web app lists the name.
 
-Everything is one command, `cairnml`, with a subcommand for each tool. `cairnml <command> --help` shows the arguments of a command.
+Check that it worked:
 
-| Command | What it does |
-|---|---|
-| `cairnml init <server>` | Enrol this machine with the server. `--name` names the machine, `--force` enrols again. |
-| `cairnml whoami` | Show who this machine signs in as |
-| `cairnml logout` | Revoke this machine's enrolment and remove its key |
-| `cairnml devices list` | List the devices enrolled under your sign-in: id, name, owner, last seen and state. An admin sees every device |
-| `cairnml devices revoke <id>` | Revoke an enrolled device, so its key stops working. Asks first; `--yes` skips the question |
-| `cairnml doctor` | Check the configuration, the server, the SDK version against the server minimum, the sign-in, the device key, the queues (a queue without a listening worker is a warning) and the object storage (port 9000), one line per check. Exits with 1 when a check fails |
-| `cairnml dataset ...` | Versioned datasets on git, with the files in DVC or in GitHub LFS (needs `cairnml[dataset]`). `create` makes a dataset in one call |
-| `cairnml task ...` | Launch any codebase on a machine running `cairnml-agent` |
-| `cairnml param-search ...` | Search for the best parameters for your models |
-| `cairnml debug ...` | Debugging tools for the SDK |
+| Check | Command or place | You should see |
+|---|---|---|
+| SDK is enrolled | `cairnml whoami` | the user this machine signs in as |
+| SDK is healthy | `cairnml doctor` | one line per check, exit status 0 |
+| Agent is healthy | `cairnml-agent doctor` | one line per check, including Docker |
+| Agent is running | web app, **Workers & Queues** | this machine in the list of workers |
+
+> [!TIP]
+> On a machine without a browser, add `--device` to `init`: it shows a code and an address. Open the address on another device, sign in and enter the code.
+
+> [!TIP]
+> `cairnml-agent daemon --docker --detached` runs the agent in the background (not on Windows); `cairnml-agent daemon --docker --stop` stops it. Without `--gpus` the agent's jobs may use every GPU; `--gpus 0` limits it to GPU 0, `--cpu-only` to none.
+
+> [!WARNING]
+> Jobs run in Docker, which keeps them away from the agent's key. `--allow-venv` runs jobs on the host instead, where they can read that key. Use it only for code you fully trust (see the [agent README](docs/agent/README.md)).
+
+`cairnml logout` removes this machine's enrollment. `cairnml devices list` and `cairnml devices revoke <id>` manage the devices of your account.
 
 ## Getting started
 
@@ -106,39 +113,34 @@ task.connect({"lr": 0.001})
 task.get_logger().report_scalar("loss", "train", value=0.5, iteration=1)
 ```
 
-Run the recorded task on an agent:
+Run it on an agent, in the queue the agent printed at enrollment:
 
 ```python
-task.execute_remotely(queue_name="default")
+task.execute_remotely(queue_name="<your-queue>")
 ```
 
-The run appears in the web app under its project, with its parameters, metrics and artifacts.
+The agent takes the task's git repository, commit and uncommitted changes from the record and runs it in a Docker container: in the image you set with `task.set_base_docker(...)`, or in the agent's default image. The run (called a *task* in the web app) appears under its project, with its parameters, metrics and artifacts. A queued job waits until an agent takes it; `execute_remotely` warns when no agent listens to the queue, for example after a typing error in its name.
 
-A task waits in its queue until a worker listens to it. `execute_remotely` logs a warning when no worker listens to the queue, for example after a typing error in its name. To check it yourself:
+## Web app
 
-```python
-from cairnml import queues
+Open `http://<server-ip>/cairnml/` and sign in.
 
-for queue in queues.list_queues():
-    print(queue.name)
+| Section | What it shows |
+|---|---|
+| **Dashboard**, **Projects** | projects, and the tasks and models of each |
+| **Datasets** | dataset versions |
+| **Pipelines**, **Reports** | pipelines, and written reports |
+| **Workers & Queues** | the machines running agents, and the jobs waiting for them |
+| **Settings** | access and credentials |
 
-print(queues.workers_for_queue("default"))  # [] when no agent listens to it
-```
+> [!TIP]
+> Select two or more tasks in a project and click **Compare** to see which parameters, code and metrics differ.
 
-## The web app
+## Datasets
 
-Open `http://<server-ip>/cairnml/` and sign in. The menu has these sections:
+A dataset is a git repository: git holds the metadata, and its commit is the version of the data. The files are in DVC storage on your server (`storage: s3`, the default) or in GitHub LFS (`storage: lfs`).
 
-- **Dashboard:** projects and recent tasks
-- **Projects:** the tasks and models of each project
-- **Datasets:** dataset versions
-- **Pipelines** and **Reports**
-- **Workers & Queues:** the machines running agents, and the jobs waiting for them
-- **Settings**
-
-## Access data
-
-Read a dataset from a repository of your own, at a commit:
+### Access
 
 ```python
 from cairnml.datasets import Dataset
@@ -147,11 +149,9 @@ data = Dataset.get("https://github.com/acme/cars-data.git", "3f2a9c1")  # a comm
 print(data.path)  # a local folder with the files
 ```
 
-Read a public dataset from the dataset registry. The adapter turns its files into samples with images and labelled boxes:
+A public dataset from the registry is read through an adapter that turns its files into samples:
 
 ```python
-from cairnml.datasets import Dataset
-
 data = Dataset.get_external(
     "coco-fashion",
     repo="https://github.com/gianlucapargaetzi/cairnml-dataset-registry",
@@ -161,34 +161,36 @@ for sample in data.samples("train"):
     boxes = sample.label("bbox2d")     # [{"box": [x1, y1, x2, y2], "label": "shoe"}, ...]
 ```
 
-Both calls record the dataset and its revision on the run. To create a dataset of your own, see [docs/datasets.md](docs/datasets.md).
+Both calls record the dataset and its revision on the run.
 
-## Datasets: git, with the files in DVC or in LFS
+> [!IMPORTANT]
+> A private dataset needs two kinds of access.
+> - **Its repository:** a dataset is read with the credential it was created with (`--credential <id>`). Credentials are GitHub App credentials, created in the web app under **Settings > Access**; `cairnml credential list` shows the ones you can use. A dataset without a credential must be in a public repository.
+> - **Its files:** for `storage: s3` you must have access to the storage that holds them. For a dataset created with the same server you use, this is handled automatically: the server hands out short-lived keys.
 
-A dataset is a git repository with a `data/` folder. Git holds the metadata and the commit is the version: a run records the repository, the commit and the content hash, so it always shows the data it used. The files are held in one of two places, chosen once when the dataset is created and recorded in its `dataset.yaml`:
-
-- `storage: s3` (the default): DVC holds the files in the dataset storage of the CairnML server. A dataset is read with `Dataset.get`, which needs the short-lived keys the server gives.
-- `storage: lfs`: the files are in the GitHub LFS of the dataset repository. Nothing but git and git-lfs is needed. A dataset is fetched with `git clone <repository>`, `git checkout <commit>` and `git lfs pull`; `Dataset.fetch_commands()` returns these commands.
-
-Every commit carries a footprint (`dataset.lock.json`): the record that the data was checked in the format `dataset.yaml` declares. A dataset repository's default branch takes changes only through pull requests that pass the `verify` check.
-
-Create a dataset in one call, with the GitHub command line logged in:
+### Management
 
 ```bash
 cairnml dataset create cars-data --from ./measurements --storage lfs
-cairnml dataset doctor   # checks the GitHub settings, including the branch protection
+cairnml dataset doctor   # checks the GitHub settings the dataset needs
 ```
 
-`create` also protects the default branch of the new repository (pull requests required, no force pushes or deletions). This needs administration rights on the repository; without them it warns and carries on. Pass `--no-protect` to skip it. See [docs/datasets.md](docs/datasets.md).
+`create` needs `cairnml[dataset]` and the GitHub command line (`gh auth login`). It makes a private repository, checks and commits the files, pushes them, protects the default branch and prints `Created <url>`: that URL is what `Dataset.get` takes. The full workflow (changes, publishing, credentials) is in [docs/datasets.md](docs/datasets.md).
+
+> [!WARNING]
+> The default branch of a dataset repository takes changes only through pull requests that pass the `verify` check. Do not push to it directly.
 
 ## Next steps
 
-The [CairnML examples](https://github.com/gianlucapargaetzi/cairnml-examples) walk through a first run, a full training run, and the same training on a dataset from the registry.
+- The [CairnML examples](https://github.com/gianlucapargaetzi/cairnml-examples) walk through a first run, a full training run, and a dataset from the registry.
+- [docs/agent/README.md](docs/agent/README.md): the agent in detail, including its trust model.
+- [docs/environment.md](docs/environment.md): every `CAIRNML_*` environment variable.
 
 ## Having problems
 
-1. Check the [open issues](https://github.com/gianlucapargaetzi/cairnml/issues).
-2. If your problem is not listed, [open a new issue](https://github.com/gianlucapargaetzi/cairnml/issues/new) with the command you ran, your Python version and the full error message.
+1. Run `cairnml doctor` (and `cairnml-agent doctor` on an agent machine): it names the failing check and the next step.
+2. A server problem (sign-in, storage, queues) belongs in the [server repository](https://github.com/gianlucapargaetzi/cairnml-server/issues). For everything else, check the [open issues](https://github.com/gianlucapargaetzi/cairnml/issues).
+3. If your problem is not listed, [open a new issue](https://github.com/gianlucapargaetzi/cairnml/issues/new) with the command you ran, your Python version and the full error message.
 
 ## License
 

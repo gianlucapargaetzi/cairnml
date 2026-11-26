@@ -2,7 +2,7 @@
 
 Every environment variable the CairnML SDK reads. Each setting has one name, the `CAIRNML_` name. The ClearML-era `TRAINS_` names are no longer read: a `TRAINS_` variable has no effect.
 
-The config file (`cairnml.conf`) can set most of these as well; the variable overrides the file.
+The config file (`cairnml.conf`) can set most of these as well; the variable overrides the file. `cairnml init` writes `~/.cairnml/cairnml.conf`, next to the device key; the earlier `~/cairnml.conf` is still read, and `~/trains.conf` (from the ClearML-based original) is read with a deprecation warning once, so rename it to `~/.cairnml/cairnml.conf`. The file holds only the enrolment and what you set by hand: the defaults come from the installed version, so an upgrade changes them, and `cairnml doctor` reports a file an older version wrote with a copy of them.
 
 Columns: **Name** is the variable; **Read in** is the module that reads it; **Default** is the value when unset (blank: unset means off or not set); **Meaning** is taken from the code's own comments where there are any, and says so where the code does not explain the variable.
 
