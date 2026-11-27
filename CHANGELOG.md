@@ -3,9 +3,9 @@
 Each release has a section headed "## <version>". The server's "What's new" bundle and the release check read these
 sections: a release needs its section here.
 
-## 0.0.9
+## 0.1.0
 
-Works with server release 0.0.6 (API 2.41) and later.
+Works with server release 0.1.0 (API 2.41) and later.
 
 - cairnml init writes only the enrolment's settings to the configuration file, not a copy of the packaged defaults, so an upgrade changes the defaults; cairnml doctor warns about a file an older version wrote with the copy and names the step to remove it.
 - A process forked by Task.init, such as the resource monitor, no longer sends its requests on the parent's keep-alive connections, so a response could reach the wrong request (models.create received the body of tasks.get_by_id).
